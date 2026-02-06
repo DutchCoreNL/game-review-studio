@@ -331,48 +331,277 @@ export function addPhoneMessage(
 }
 
 export function generateDailyMessages(state: GameState): void {
-  // Weather message
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const chance = (pct: number) => Math.random() < pct;
+  const nem = state.nemesis;
+  const districtName = DISTRICTS[state.loc]?.name || 'de stad';
+
+  // ======= WEATHER — contextual reports =======
   if (state.weather !== 'clear') {
-    const weatherNames: Record<WeatherType, string> = {
-      clear: 'Helder', rain: 'Regen', fog: 'Mist', heatwave: 'Hittegolf', storm: 'Storm',
+    const weatherMsgs: Record<WeatherType, string[]> = {
+      clear: [],
+      rain: [
+        `Stortbuien verwacht in Noxhaven. Minder politie op straat — goed moment voor handel.`,
+        `Regenfront trekt over ${districtName}. Agenten blijven in hun auto's. Heat daalt sneller.`,
+        `Code geel: zware neerslag. Handelsvolume ligt lager, maar de straten zijn van jou.`,
+      ],
+      fog: [
+        `Dichte mist in heel Noxhaven. Perfect weer voor smokkelen — zicht onder 50 meter.`,
+        `Mistbank hangt over ${districtName}. Camera's zijn nutteloos. Missie-slagingskans hoger.`,
+        `Noxhaven ontwaakt in dikke mist. De stad is blind — gebruik het.`,
+      ],
+      heatwave: [
+        `Extreme hitte vandaag. Crew verliest stamina, maar marktprijzen schieten omhoog.`,
+        `40+ graden in ${districtName}. Spanningen lopen op — heat stijgt sneller. Hou je crew gehydrateerd.`,
+        `Hittegolf dag ${state.day}: de stad kookt. Prijzen stijgen, maar je crew lijdt.`,
+      ],
+      storm: [
+        `Stormwaarschuwing: alle reizen zijn geblokkeerd. Lab-productie draait op volle kracht.`,
+        `Noodweer in Noxhaven! Casino's gesloten, wegen afgezet. Perfecte nacht voor productie.`,
+        `Tropische storm bereikt ${districtName}. Blijf waar je bent — fabrieken draaien dubbel.`,
+      ],
     };
-    addPhoneMessage(state, 'weather', `Weerbericht: ${weatherNames[state.weather]} verwacht vandaag.`, 'info');
+    addPhoneMessage(state, 'weather', pick(weatherMsgs[state.weather]), 'info');
   }
 
-  // Heat warning
-  if (state.heat > 60) {
-    addPhoneMessage(state, 'anonymous', 'De politie is op je pad. Lig laag.', 'warning');
+  // ======= HEAT — escalating warnings =======
+  if (state.heat >= 80) {
+    addPhoneMessage(state, 'police', pick([
+      `NHPD heeft een speciaal team op je gezet. Verlaat ${districtName} of lig laag. Nu.`,
+      `Bronnen bij het bureau: er is een arrestatiebevel onderweg. Alles boven 80% heat is zelfmoord.`,
+      `Je staat op de radar van de commissaris persoonlijk. Ze plannen een inval.`,
+    ]), 'threat');
+  } else if (state.heat >= 60) {
+    addPhoneMessage(state, 'police', pick([
+      `Politie patrouilleert extra in ${districtName}. Wees voorzichtig met deals.`,
+      `Mijn bron zegt dat ze je in de gaten houden. Houd het rustig vandaag.`,
+      `Er hangen undercoveragenten rond ${districtName}. Je heat is te hoog.`,
+      `NHPD heeft een dossier over je geopend. Nog niet kritiek, maar wees slim.`,
+    ]), 'warning');
   }
 
-  // Demand tip (random)
-  if (Math.random() < 0.4) {
-    const districtKeys = Object.keys(state.districtDemands) as DistrictId[];
-    const withDemand = districtKeys.find(d => state.districtDemands[d]);
-    if (withDemand && state.districtDemands[withDemand]) {
-      const goodName = GOODS.find(g => g.id === state.districtDemands[withDemand])?.name;
-      if (goodName) {
-        addPhoneMessage(state, 'informant', `Hoge vraag op ${goodName} in ${DISTRICTS[withDemand].name} vandaag.`, 'opportunity');
+  // ======= DEBT — pressure messages =======
+  if (state.debt > 50000 && chance(0.5)) {
+    addPhoneMessage(state, 'anonymous', pick([
+      `Je schuld is €${state.debt.toLocaleString()}. De rente vreet je op. Los af of verdwijn.`,
+      `Iemand op straat vraagt naar je. Ze willen hun geld terug. €${state.debt.toLocaleString()} is geen grap.`,
+      `De woekeraars worden ongeduldig. €${(state.debt / 1000).toFixed(0)}k schuld — dat overleef je niet lang.`,
+    ]), 'threat');
+  } else if (state.debt > 20000 && chance(0.3)) {
+    addPhoneMessage(state, 'anonymous', pick([
+      `Vergeet je schuld niet. €${state.debt.toLocaleString()} hangt als een molensteen om je nek.`,
+      `Elke dag groeit de rente. Los je schuld af voordat het uit de hand loopt.`,
+    ]), 'warning');
+  }
+
+  // ======= MARKET DEMAND — trading tips =======
+  if (chance(0.5)) {
+    const demandDistricts = (Object.keys(state.districtDemands) as DistrictId[]).filter(d => state.districtDemands[d]);
+    if (demandDistricts.length > 0) {
+      const d = pick(demandDistricts);
+      const goodId = state.districtDemands[d];
+      const good = GOODS.find(g => g.id === goodId);
+      if (good) {
+        addPhoneMessage(state, 'informant', pick([
+          `Tip: ${good.name} is schaars in ${DISTRICTS[d].name}. Prijzen liggen 60% hoger dan normaal.`,
+          `Ik hoor dat ${DISTRICTS[d].name} schreeuwt om ${good.name}. Koop laag, verkoop hoog.`,
+          `Interessant... ${good.name} wordt als een gek opgekocht in ${DISTRICTS[d].name}. Grijp je kans.`,
+          `${DISTRICTS[d].name} heeft een tekort aan ${good.name}. Elke dealer wil er zijn.`,
+        ]), 'opportunity');
       }
     }
   }
 
-  // Faction messages
+  // ======= INVENTORY — contextual advice =======
+  const totalGoods = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+  if (totalGoods > state.maxInv * 0.8 && chance(0.3)) {
+    addPhoneMessage(state, 'informant', pick([
+      `Je voorraad is bijna vol (${totalGoods}/${state.maxInv}). Dump wat in ${districtName} of upgrade je voertuig.`,
+      `Je rijdt rond met een volle bak. Verkoop iets voordat je betrapt wordt.`,
+    ]), 'info');
+  } else if (totalGoods === 0 && state.money > 5000 && chance(0.2)) {
+    addPhoneMessage(state, 'informant', pick([
+      `Je hebt niks op voorraad en €${state.money.toLocaleString()} cash. Tijd om in te kopen.`,
+      `Lege handen verdienen niks. Ga naar de markt en investeer.`,
+    ]), 'info');
+  }
+
+  // ======= CREW STATUS — injuries, level ups =======
+  const injuredCrew = state.crew.filter(c => c.hp < 40);
+  if (injuredCrew.length > 0 && chance(0.4)) {
+    const c = pick(injuredCrew);
+    addPhoneMessage(state, 'anonymous', pick([
+      `${c.name} is er slecht aan toe (${c.hp}/100 HP). Laat ze herstellen of je verliest ze.`,
+      `Je ${c.role} ${c.name} heeft medische hulp nodig. ${c.hp} HP over.`,
+    ]), 'warning');
+  }
+
+  // ======= FACTION — relationship-based messages =======
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
+    const fam = FAMILIES[fid];
     const rel = state.familyRel[fid] || 0;
-    if (rel >= 50 && Math.random() < 0.2) {
-      addPhoneMessage(state, 'informant', `${FAMILIES[fid].contact} heeft een speciaal contract voor je. Check je missies.`, 'opportunity');
+    if (rel >= 50 && chance(0.15)) {
+      addPhoneMessage(state, 'informant', pick([
+        `${fam.contact} is tevreden met je. De ${fam.name} biedt speciale contracten aan.`,
+        `"Je hebt jezelf bewezen." — ${fam.contact}. Check je missies voor exclusieve ops.`,
+        `De ${fam.name} beschouwt je als bondgenoot. Dat opent deuren in ${DISTRICTS[fam.home].name}.`,
+      ]), 'opportunity');
+    } else if (rel <= -30 && chance(0.2)) {
+      addPhoneMessage(state, 'anonymous', pick([
+        `De ${fam.name} is niet blij met je. ${fam.contact} heeft een prijs op je hoofd gezet.`,
+        `Pas op in ${DISTRICTS[fam.home].name}. De ${fam.name} wacht op een kans om toe te slaan.`,
+        `Relatie met ${fam.name}: ${rel}. Ze zijn vijanden nu. Verwacht sabotage.`,
+      ]), 'threat');
     }
   });
 
-  // Nemesis taunt
-  if (state.nemesis && state.nemesis.cooldown === 0 && Math.random() < 0.25) {
-    const taunts = [
-      `Geniet ervan zolang het duurt. - ${state.nemesis.name}`,
-      `Ik kom voor je. - ${state.nemesis.name}`,
-      `Die straten zijn niet groot genoeg voor ons beiden. - ${state.nemesis.name}`,
-      `Hoorde dat je zaken goed gaan. Dat verandert snel. - ${state.nemesis.name}`,
-    ];
-    addPhoneMessage(state, 'nemesis', taunts[Math.floor(Math.random() * taunts.length)], 'threat');
+  // ======= SMUGGLE ROUTES — status updates =======
+  if (state.smuggleRoutes.length > 0 && chance(0.4)) {
+    const route = pick(state.smuggleRoutes.filter(r => r.active));
+    if (route) {
+      const good = GOODS.find(g => g.id === route.good);
+      addPhoneMessage(state, 'courier', pick([
+        `Route ${DISTRICTS[route.from].name} → ${DISTRICTS[route.to].name}: ${good?.name || 'goederen'} succesvol afgeleverd. Dag ${route.daysActive} actief.`,
+        `Alles rustig op de ${DISTRICTS[route.from].name}-${DISTRICTS[route.to].name} lijn. Lading ${good?.name || ''} onderweg.`,
+        `Koerier meldt: ${good?.name || 'Goederen'} aangekomen in ${DISTRICTS[route.to].name}. Geen politie gezien.`,
+      ]), 'info');
+    }
+  }
+
+  // ======= TERRITORY — owned district flavor =======
+  if (state.ownedDistricts.length > 0 && chance(0.25)) {
+    const d = pick(state.ownedDistricts);
+    const rep = state.districtRep[d] || 0;
+    if (rep >= 75) {
+      addPhoneMessage(state, 'informant', pick([
+        `${DISTRICTS[d].name} is volledig onder controle. Jouw naam wordt gefluisterd met respect.`,
+        `In ${DISTRICTS[d].name} ben je een legende. Reputatie: ${rep}/100.`,
+      ]), 'info');
+    } else if (rep >= 50) {
+      addPhoneMessage(state, 'informant', pick([
+        `Je invloed groeit in ${DISTRICTS[d].name}. Nog even en je bent onaantastbaar.`,
+        `De mensen in ${DISTRICTS[d].name} kennen je naam. Reputatie: ${rep}/100.`,
+      ]), 'info');
+    } else {
+      addPhoneMessage(state, 'informant', pick([
+        `${DISTRICTS[d].name} is van jou, maar je grip is zwak. Investeer in reputatie.`,
+        `Geruchten in ${DISTRICTS[d].name}: sommigen twijfelen aan je leiderschap. Doe er iets aan.`,
+      ]), 'warning');
+    }
+  }
+
+  // ======= DEFENSE — vulnerability warnings =======
+  state.ownedDistricts.forEach(d => {
+    const def = state.districtDefenses[d];
+    if (!def) return;
+    const defLevel = def.level + def.stationedCrew.length * 20 + (def.wallUpgrade ? 30 : 0) + (def.turretUpgrade ? 20 : 0);
+    if (defLevel < 30 && chance(0.3)) {
+      addPhoneMessage(state, 'anonymous', pick([
+        `${DISTRICTS[d].name} is nauwelijks verdedigd (${defLevel}). Een aanval is een kwestie van tijd.`,
+        `Waarschuwing: ${DISTRICTS[d].name} staat wijd open. Stationeer crew of upgrade je muren.`,
+        `Bronnen melden dat ${DISTRICTS[d].name} een doelwit is vannacht. Verdediging: ${defLevel}.`,
+      ]), 'warning');
+    }
+  });
+
+  // ======= NEMESIS — contextual taunts =======
+  if (nem && nem.cooldown === 0 && chance(0.3)) {
+    const nemLoc = DISTRICTS[nem.location]?.name || 'ergens';
+    const playerRicher = state.money > 50000;
+    const playerStronger = state.player.level > 5;
+
+    const contextTaunts: string[] = [];
+
+    // Location-based
+    if (nem.location === state.loc) {
+      contextTaunts.push(
+        `Ik zie je. ${districtName} is niet groot genoeg voor ons beiden.`,
+        `Je bent dichtbij. Dat is óf dapper, óf dom.`,
+      );
+    } else {
+      contextTaunts.push(
+        `Ik ben in ${nemLoc}. Kom me zoeken als je durft.`,
+        `Vanuit ${nemLoc} bouw ik mijn imperium. Wat doe jij?`,
+      );
+    }
+
+    // Wealth-based
+    if (playerRicher) {
+      contextTaunts.push(
+        `Ik hoor dat je goed verdient. Geniet ervan — ik kom het halen.`,
+        `€${state.money.toLocaleString()}? Mooi potje. Wordt binnenkort het mijne.`,
+      );
+    } else {
+      contextTaunts.push(
+        `Nog steeds arm? Pathisch. Je bent deze stad niet waard.`,
+        `Je kunt niet eens je schulden betalen. Geef het op.`,
+      );
+    }
+
+    // Power-based
+    if (nem.defeated > 0) {
+      contextTaunts.push(
+        `Je hebt me ${nem.defeated}x verslagen. Dat was de laatste keer.`,
+        `Elke keer dat je me vloert, kom ik sterker terug. Power: ${nem.power}.`,
+      );
+    }
+
+    // Territory-based
+    if (state.ownedDistricts.length >= 3) {
+      contextTaunts.push(
+        `${state.ownedDistricts.length} districten? Indrukwekkend. Maar kwetsbaar.`,
+        `Hoe meer je bezit, hoe meer je kunt verliezen. Onthoud dat.`,
+      );
+    }
+
+    addPhoneMessage(state, 'nemesis', `${pick(contextTaunts)} — ${nem.name}`, 'threat');
+  }
+
+  // ======= MILESTONES & ACHIEVEMENTS =======
+  if (state.day === 7 && chance(0.8)) {
+    addPhoneMessage(state, 'anonymous', `Een week in Noxhaven overleefd. De meesten halen dat niet. Respect.`, 'info');
+  }
+  if (state.day === 30 && chance(0.8)) {
+    addPhoneMessage(state, 'informant', `30 dagen. Je bent geen nieuwkomer meer. De stad kent je naam.`, 'info');
+  }
+  if (state.money > 100000 && state.day > 1 && chance(0.1)) {
+    addPhoneMessage(state, 'informant', pick([
+      `€${(state.money / 1000).toFixed(0)}k op zak. Je begint op te vallen bij de grote jongens.`,
+      `Met €${state.money.toLocaleString()} ben je een speler aan het worden. Pas op voor jaloezie.`,
+    ]), 'info');
+  }
+
+  // ======= VEHICLE — condition warning =======
+  const activeV = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  if (activeV && activeV.condition < 30 && chance(0.4)) {
+    addPhoneMessage(state, 'anonymous', pick([
+      `Je auto valt uit elkaar (${activeV.condition}%). Repareer hem of je strandt midden in een deal.`,
+      `Die ${state.activeVehicle} houdt het niet lang meer vol. ${activeV.condition}% conditie.`,
+    ]), 'warning');
+  }
+
+  // ======= LAB — production hints =======
+  if (state.hqUpgrades.includes('lab') && chance(0.2)) {
+    if (state.lab.chemicals < 5) {
+      addPhoneMessage(state, 'informant', pick([
+        `Je lab draait op fumes. Nog maar ${state.lab.chemicals} chemicaliën over. Koop bij.`,
+        `Zonder chemicaliën geen Synthetica. Je hebt er nog ${state.lab.chemicals}.`,
+      ]), 'warning');
+    } else {
+      addPhoneMessage(state, 'informant', pick([
+        `Lab draait goed. ${state.lab.chemicals} chemicaliën op voorraad. Productie vannacht.`,
+        `Alles klaar in het lab. Verwachte output vannacht: max 20 Synthetica.`,
+      ]), 'info');
+    }
+  }
+
+  // ======= DIRTY MONEY — laundering tips =======
+  if (state.dirtyMoney > 10000 && chance(0.3)) {
+    addPhoneMessage(state, 'informant', pick([
+      `€${state.dirtyMoney.toLocaleString()} zwart geld. Was het via je bedrijven of het casino.`,
+      `Dat zwarte geld stapelt op. €${(state.dirtyMoney / 1000).toFixed(0)}k — de belastingdienst ruikt bloed.`,
+      `Tip: met een dekmantel-bedrijf kun je tot €${state.ownedBusinesses.length > 0 ? '5k' : '0'}/dag witwassen.`,
+    ]), 'info');
   }
 }
 
