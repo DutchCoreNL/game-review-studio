@@ -6,6 +6,7 @@ import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
+import { FactionCard } from './faction/FactionCard';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Crown, Users, Skull } from 'lucide-react';
 import { useState } from 'react';
@@ -234,42 +235,13 @@ function FamiliesPanel() {
     <div>
       <SectionHeader title="Onderwereld" icon={<Skull size={12} />} />
       <p className="text-[0.6rem] text-muted-foreground mb-3">
-        Relatie {'>'} 50: Korting op markt. Relatie {'<'} -20: Vijanden vallen aan.
+        Klik op een factie om acties uit te voeren. Max 1 actie per factie per dag.
       </p>
 
-      <div className="space-y-2 mb-4">
-        {Object.entries(FAMILIES).map(([id, fam]) => {
-          const rel = state.familyRel[id] || 0;
-          const dead = state.leadersDefeated.includes(id as FamilyId);
-
-          return (
-            <motion.div
-              key={id}
-              className="game-card"
-              style={{ borderLeft: `3px solid ${dead ? '#444' : fam.color}`, opacity: dead ? 0.6 : 1 }}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: dead ? 0.6 : 1, x: 0 }}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-xs">{fam.name}</h4>
-                    <GameBadge variant={dead ? 'muted' : 'blood'} size="xs">
-                      {id.toUpperCase()}
-                    </GameBadge>
-                  </div>
-                  <p className="text-[0.55rem] text-muted-foreground mt-0.5">{fam.contact} | {fam.desc}</p>
-                </div>
-                <span className="text-[0.65rem] font-bold">{dead ? 'DOOD' : `${rel}/100`}</span>
-              </div>
-              {!dead && (
-                <div className="mt-2">
-                  <StatBar value={Math.max(0, rel + 50)} max={100} color={rel > 0 ? 'emerald' : 'blood'} height="sm" />
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+      <div className="space-y-3 mb-4">
+        {(Object.keys(FAMILIES) as FamilyId[]).map(fid => (
+          <FactionCard key={fid} familyId={fid} />
+        ))}
       </div>
 
       {/* Corruptie */}

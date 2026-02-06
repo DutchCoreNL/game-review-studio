@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, RandomEvent } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -167,6 +167,41 @@ export const CREW_NAMES = [
 ];
 export const CREW_ROLES: string[] = ['Chauffeur', 'Enforcer', 'Hacker', 'Smokkelaar'];
 
+// ========== FACTION INTERACTIONS ==========
+
+export interface FactionActionDef {
+  id: FactionActionType;
+  name: string;
+  icon: string;
+  desc: string;
+  baseCost: number;
+  requiresDistrict: boolean;
+  minRelation: number | null;
+  maxRelation: number | null;
+}
+
+export const FACTION_ACTIONS: FactionActionDef[] = [
+  { id: 'negotiate', name: 'Onderhandelen', icon: 'Handshake', desc: 'Diplomatiek relatie verbeteren', baseCost: 2000, requiresDistrict: true, minRelation: -50, maxRelation: null },
+  { id: 'bribe', name: 'Omkopen', icon: 'Banknote', desc: 'Relatie kopen met geld', baseCost: 5000, requiresDistrict: false, minRelation: null, maxRelation: null },
+  { id: 'intimidate', name: 'Intimideren', icon: 'Flame', desc: 'Angst zaaien, rep winnen', baseCost: 0, requiresDistrict: true, minRelation: null, maxRelation: null },
+  { id: 'sabotage', name: 'Saboteren', icon: 'Bomb', desc: 'Hun operaties beschadigen', baseCost: 1000, requiresDistrict: true, minRelation: null, maxRelation: null },
+  { id: 'gift', name: 'Gift Sturen', icon: 'Gift', desc: 'Handelswaar als cadeau', baseCost: 0, requiresDistrict: false, minRelation: null, maxRelation: null },
+  { id: 'intel', name: 'Info Kopen', icon: 'Eye', desc: 'Handelsroutes onthullen', baseCost: 3000, requiresDistrict: false, minRelation: 20, maxRelation: null },
+];
+
+export const FACTION_GIFTS: Record<FamilyId, GoodId> = {
+  cartel: 'drugs',
+  syndicate: 'tech',
+  bikers: 'weapons',
+};
+
+export const FACTION_REWARDS: { minRel: number; label: string; desc: string; icon: string }[] = [
+  { minRel: 30, label: 'Bescherming', desc: 'Minder negatieve events', icon: 'Shield' },
+  { minRel: 50, label: 'Marktkorting', desc: '-30% op hun goederen', icon: 'Percent' },
+  { minRel: 60, label: 'Exclusieve Gear', desc: 'Factie-items ontgrendeld', icon: 'Swords' },
+  { minRel: 80, label: 'Beschermingsgeld', desc: '+€500/dag passief inkomen', icon: 'Crown' },
+];
+
 export function createInitialState(): import('./types').GameState {
   return {
     day: 1,
@@ -221,5 +256,6 @@ export function createInitialState(): import('./types').GameState {
     nightReport: null,
     priceHistory: {},
     washUsedToday: 0,
+    factionCooldowns: { cartel: [], syndicate: [], bikers: [] },
   };
 }
