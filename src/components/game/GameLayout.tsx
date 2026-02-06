@@ -7,6 +7,7 @@ import { ProfileView } from './ProfileView';
 import { ImperiumView } from './ImperiumView';
 import { OperationsView } from './OperationsView';
 import { CombatView } from './CombatView';
+import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
 import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
@@ -49,6 +50,7 @@ export function GameLayout() {
 
       {!state.tutorialDone && <TutorialOverlay />}
       {state.nightReport && <NightReport />}
+      {state.activeMission && <MissionEncounterView />}
     </div>
   );
 }

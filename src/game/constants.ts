@@ -258,5 +258,6 @@ export function createInitialState(): import('./types').GameState {
     washUsedToday: 0,
     factionCooldowns: { cartel: [], syndicate: [], bikers: [] },
     conqueredFactions: [],
+    activeMission: null,
   };
 }

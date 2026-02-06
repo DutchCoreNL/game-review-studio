@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { SOLO_OPERATIONS, FAMILIES } from '@/game/constants';
-import { performSoloOp, executeContract } from '@/game/engine';
-import { GameState, ActiveContract } from '@/game/types';
+import { GameState, ActiveContract, ActiveMission } from '@/game/types';
+import { generateMissionEncounters } from '@/game/missions';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -24,11 +24,31 @@ export function OperationsView() {
   const [selectedContract, setSelectedContract] = useState<number | null>(null);
   const [fireConfirm, setFireConfirm] = useState<number | null>(null);
 
-  const handleExecuteContract = (contractId: number, crewIndex: number) => {
-    const stateCopy = JSON.parse(JSON.stringify(state)) as GameState;
-    const result = executeContract(stateCopy, contractId, crewIndex);
-    dispatch({ type: 'EXECUTE_CONTRACT', contractId, crewIndex });
-    showToast(result.message, !result.success);
+  const startContractMission = (contractId: number, crewIndex: number) => {
+    const contract = state.activeContracts.find(c => c.id === contractId);
+    const member = state.crew[crewIndex];
+    if (!contract || !member) return;
+
+    const encounters = generateMissionEncounters('contract', contract.name, contract.type);
+    const mission: ActiveMission = {
+      type: 'contract',
+      missionId: contract.name,
+      contractId: contract.id,
+      crewIndex,
+      crewName: member.name,
+      currentEncounter: 0,
+      encounters,
+      totalReward: 0,
+      totalHeat: 0,
+      totalCrewDamage: 0,
+      totalRelChange: {},
+      log: [],
+      baseReward: contract.reward,
+      baseHeat: contract.heat,
+      finished: false,
+      success: false,
+    };
+    dispatch({ type: 'START_MISSION', mission });
     setSelectedContract(null);
   };
 
@@ -89,9 +109,23 @@ export function OperationsView() {
                     <GameButton variant="gold" size="sm" disabled={locked}
                       icon={<Crosshair size={12} />}
                       onClick={() => {
-                        const result = performSoloOp(JSON.parse(JSON.stringify(state)) as GameState, op.id);
-                        dispatch({ type: 'SOLO_OP', opId: op.id });
-                        showToast(result.message, !result.success);
+                        const encounters = generateMissionEncounters('solo', op.id);
+                        const mission: ActiveMission = {
+                          type: 'solo',
+                          missionId: op.id,
+                          currentEncounter: 0,
+                          encounters,
+                          totalReward: 0,
+                          totalHeat: 0,
+                          totalCrewDamage: 0,
+                          totalRelChange: {},
+                          log: [],
+                          baseReward: op.reward,
+                          baseHeat: op.heat,
+                          finished: false,
+                          success: false,
+                        };
+                        dispatch({ type: 'START_MISSION', mission });
                       }}>GO</GameButton>
                   </div>
                 </motion.div>
@@ -115,7 +149,7 @@ export function OperationsView() {
                 <ContractCard key={contract.id} contract={contract} crew={state.crew}
                   isExpanded={selectedContract === contract.id}
                   onToggle={() => setSelectedContract(selectedContract === contract.id ? null : contract.id)}
-                  onAssign={(crewIdx) => handleExecuteContract(contract.id, crewIdx)} />
+                  onAssign={(crewIdx) => startContractMission(contract.id, crewIdx)} />
               ))}
             </div>
           )}

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType } from '../game/types';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS } from '../game/constants';
 import * as Engine from '../game/engine';
+import * as MissionEngine from '../game/missions';
 
 interface GameContextType {
   state: GameState;
@@ -54,6 +55,9 @@ type GameAction =
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
   | { type: 'ANNEX_FACTION'; familyId: FamilyId }
+  | { type: 'START_MISSION'; mission: ActiveMission }
+  | { type: 'MISSION_CHOICE'; choiceId: string }
+  | { type: 'END_MISSION' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -353,6 +357,64 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'START_MISSION': {
+      s.activeMission = action.mission;
+      return s;
+    }
+
+    case 'MISSION_CHOICE': {
+      if (!s.activeMission) return s;
+      const mission = s.activeMission;
+      const result = MissionEngine.resolveMissionChoice(s, mission, action.choiceId);
+
+      // Log the result
+      const encounter = mission.encounters[mission.currentEncounter];
+      const choice = encounter?.choices.find(c => c.id === action.choiceId);
+      const prefix = result.result === 'success' ? '✓' : result.result === 'partial' ? '△' : '✗';
+      mission.log.push(`${prefix} ${choice?.label || ''}: ${result.outcomeText}`);
+
+      // Accumulate effects
+      if (result.result === 'success') {
+        mission.totalReward += result.effects.bonusReward;
+        mission.totalHeat += Math.max(0, result.effects.heat);
+        mission.totalCrewDamage += result.effects.crewDamage;
+      } else if (result.result === 'partial') {
+        mission.totalReward += Math.floor(result.effects.bonusReward * 0.5);
+        mission.totalHeat += Math.max(0, result.effects.heat + 2);
+        mission.totalCrewDamage += Math.floor(result.effects.crewDamage * 0.5);
+      } else {
+        mission.totalHeat += Math.max(0, result.effects.heat + 5);
+        mission.totalCrewDamage += result.effects.crewDamage + 5;
+      }
+
+      // Rel changes
+      if (result.effects.relChange !== 0 && mission.type === 'contract' && mission.contractId !== undefined) {
+        const contract = s.activeContracts.find(c => c.id === mission.contractId);
+        if (contract) {
+          const key = contract.employer;
+          mission.totalRelChange[key] = (mission.totalRelChange[key] || 0) + result.effects.relChange;
+        }
+      }
+
+      // Move to next encounter or finish
+      if (mission.currentEncounter < mission.encounters.length - 1) {
+        mission.currentEncounter++;
+      } else {
+        // Complete mission
+        const completion = MissionEngine.completeMission(s, mission);
+        mission.finished = true;
+        mission.success = completion.success;
+      }
+
+      return s;
+    }
+
+    case 'END_MISSION': {
+      s.activeMission = null;
+      Engine.checkAchievements(s);
+      return s;
+    }
+
     case 'RESET':
       return createInitialState();
 
@@ -376,6 +438,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
       if (!saved.factionCooldowns) saved.factionCooldowns = { cartel: [], syndicate: [], bikers: [] };
       if (!saved.conqueredFactions) saved.conqueredFactions = [];
+      if (saved.activeMission === undefined) saved.activeMission = null;
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;
