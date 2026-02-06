@@ -439,6 +439,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.factionCooldowns) saved.factionCooldowns = { cartel: [], syndicate: [], bikers: [] };
       if (!saved.conqueredFactions) saved.conqueredFactions = [];
       if (saved.activeMission === undefined) saved.activeMission = null;
+      if (!saved.mapEvents) saved.mapEvents = [];
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;
