@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
+import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
 
 interface GameContextType {
   state: GameState;
@@ -50,6 +51,7 @@ type GameAction =
   | { type: 'CASINO_BET'; amount: number }
   | { type: 'CASINO_WIN'; amount: number }
   | { type: 'START_COMBAT'; familyId: FamilyId }
+  | { type: 'START_NEMESIS_COMBAT' }
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
@@ -58,6 +60,16 @@ type GameAction =
   | { type: 'START_MISSION'; mission: ActiveMission }
   | { type: 'MISSION_CHOICE'; choiceId: string }
   | { type: 'END_MISSION' }
+  // New feature actions
+  | { type: 'CREATE_ROUTE'; route: SmuggleRoute }
+  | { type: 'DELETE_ROUTE'; routeId: string }
+  | { type: 'STATION_CREW'; districtId: DistrictId; crewIndex: number }
+  | { type: 'UNSTATION_CREW'; districtId: DistrictId; crewIndex: number }
+  | { type: 'UPGRADE_DEFENSE'; districtId: DistrictId; upgradeType: 'wall' | 'turret' }
+  | { type: 'SET_SPECIALIZATION'; crewIndex: number; specId: string }
+  | { type: 'DISMISS_SPEC_CHOICE' }
+  | { type: 'TOGGLE_PHONE' }
+  | { type: 'READ_MESSAGE'; messageId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -71,19 +83,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRADE': {
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
+      // District rep gain for trading
+      s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 1);
       return s;
     }
 
     case 'TRAVEL': {
       const hasChauffeur = s.crew.some(c => c.role === 'Chauffeur');
+      const hasRacer = s.crew.some(c => c.specialization === 'racer');
       const isOwned = s.ownedDistricts.includes(action.to);
-      const cost = (hasChauffeur || isOwned) ? 0 : 50;
+      const isStorm = s.weather === 'storm';
+      const cost = (hasChauffeur || hasRacer || isOwned || isStorm) ? 0 : 50;
       if (s.money < cost) return s;
       s.money -= cost;
       if (cost > 0) s.stats.totalSpent += cost;
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
       if (activeV && activeV.speed >= 4) travelHeat = Math.floor(travelHeat * 0.5);
+      // Phantom spec reduces heat
+      if (s.crew.some(c => c.specialization === 'phantom')) travelHeat = Math.max(0, travelHeat - 1);
       s.heat += travelHeat;
       s.loc = action.to;
       return s;
@@ -103,7 +121,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_TURN': {
       if (s.debt > 250000) return s;
       Engine.endTurn(s);
-      // Check achievements after end turn
       Engine.checkAchievements(s);
       return s;
     }
@@ -124,6 +141,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'FIRE_CREW': {
+      // Remove from any stationed positions
+      Object.values(s.districtDefenses).forEach(def => {
+        def.stationedCrew = def.stationedCrew.filter(ci => ci !== action.crewIndex);
+        // Adjust indices for crew after the fired one
+        def.stationedCrew = def.stationedCrew.map(ci => ci > action.crewIndex ? ci - 1 : ci);
+      });
       Engine.fireCrew(s, action.crewIndex);
       return s;
     }
@@ -262,6 +285,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SOLO_OP': {
       Engine.performSoloOp(s, action.opId);
+      s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
       return s;
     }
@@ -326,6 +350,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'START_NEMESIS_COMBAT': {
+      const combat = startNemesisCombat(s);
+      if (combat) s.activeCombat = combat;
+      return s;
+    }
+
     case 'COMBAT_ACTION': {
       if (!s.activeCombat) return s;
       Engine.combatAction(s, action.action);
@@ -367,13 +397,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const mission = s.activeMission;
       const result = MissionEngine.resolveMissionChoice(s, mission, action.choiceId);
 
-      // Log the result
       const encounter = mission.encounters[mission.currentEncounter];
       const choice = encounter?.choices.find(c => c.id === action.choiceId);
       const prefix = result.result === 'success' ? '✓' : result.result === 'partial' ? '△' : '✗';
       mission.log.push(`${prefix} ${choice?.label || ''}: ${result.outcomeText}`);
 
-      // Accumulate effects
       if (result.result === 'success') {
         mission.totalReward += result.effects.bonusReward;
         mission.totalHeat += Math.max(0, result.effects.heat);
@@ -387,7 +415,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         mission.totalCrewDamage += result.effects.crewDamage + 5;
       }
 
-      // Rel changes
       if (result.effects.relChange !== 0 && mission.type === 'contract' && mission.contractId !== undefined) {
         const contract = s.activeContracts.find(c => c.id === mission.contractId);
         if (contract) {
@@ -396,11 +423,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Move to next encounter or finish
       if (mission.currentEncounter < mission.encounters.length - 1) {
         mission.currentEncounter++;
       } else {
-        // Complete mission
         const completion = MissionEngine.completeMission(s, mission);
         mission.finished = true;
         mission.success = completion.success;
@@ -412,6 +437,81 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_MISSION': {
       s.activeMission = null;
       Engine.checkAchievements(s);
+      return s;
+    }
+
+    // ========== NEW FEATURE ACTIONS ==========
+
+    case 'CREATE_ROUTE': {
+      if (s.smuggleRoutes.length >= 3) return s;
+      if (s.money < 5000) return s;
+      s.money -= 5000;
+      s.stats.totalSpent += 5000;
+      s.smuggleRoutes.push(action.route);
+      return s;
+    }
+
+    case 'DELETE_ROUTE': {
+      s.smuggleRoutes = s.smuggleRoutes.filter(r => r.id !== action.routeId);
+      return s;
+    }
+
+    case 'STATION_CREW': {
+      const def = s.districtDefenses[action.districtId];
+      if (!def || def.stationedCrew.includes(action.crewIndex)) return s;
+      if (!s.ownedDistricts.includes(action.districtId)) return s;
+      def.stationedCrew.push(action.crewIndex);
+      def.level = Math.min(100, def.level + 20);
+      return s;
+    }
+
+    case 'UNSTATION_CREW': {
+      const defU = s.districtDefenses[action.districtId];
+      if (!defU) return s;
+      defU.stationedCrew = defU.stationedCrew.filter(ci => ci !== action.crewIndex);
+      defU.level = Math.max(0, defU.level - 20);
+      return s;
+    }
+
+    case 'UPGRADE_DEFENSE': {
+      const defD = s.districtDefenses[action.districtId];
+      if (!defD || !s.ownedDistricts.includes(action.districtId)) return s;
+      const cost = action.upgradeType === 'wall' ? 8000 : 12000;
+      if (s.money < cost) return s;
+      if (action.upgradeType === 'wall' && defD.wallUpgrade) return s;
+      if (action.upgradeType === 'turret' && defD.turretUpgrade) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      if (action.upgradeType === 'wall') { defD.wallUpgrade = true; defD.level += 30; }
+      else { defD.turretUpgrade = true; defD.level += 20; }
+      return s;
+    }
+
+    case 'SET_SPECIALIZATION': {
+      if (action.crewIndex < 0 || action.crewIndex >= s.crew.length) return s;
+      s.crew[action.crewIndex].specialization = action.specId;
+      s.pendingSpecChoice = null;
+      // Recalc inv if smuggler wagon
+      if (action.specId === 'smuggler_wagon') s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
+    case 'DISMISS_SPEC_CHOICE': {
+      s.pendingSpecChoice = null;
+      return s;
+    }
+
+    case 'TOGGLE_PHONE': {
+      s.showPhone = !s.showPhone;
+      return s;
+    }
+
+    case 'READ_MESSAGE': {
+      const msg = s.phone.messages.find(m => m.id === action.messageId);
+      if (msg && !msg.read) {
+        msg.read = true;
+        s.phone.unread = Math.max(0, s.phone.unread - 1);
+      }
       return s;
     }
 
@@ -440,6 +540,30 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.conqueredFactions) saved.conqueredFactions = [];
       if (saved.activeMission === undefined) saved.activeMission = null;
       if (!saved.mapEvents) saved.mapEvents = [];
+      // New feature migrations
+      if (!saved.weather) saved.weather = 'clear';
+      if (!saved.districtRep) saved.districtRep = { port: 0, crown: 0, iron: 0, low: 0, neon: 0 };
+      if (!saved.nemesis) {
+        saved.nemesis = {
+          name: NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)],
+          power: 10, location: 'crown', hp: 80, maxHp: 80, cooldown: 0, defeated: 0, lastAction: '',
+        };
+      }
+      if (!saved.districtDefenses) {
+        saved.districtDefenses = {
+          port: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+          crown: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+          iron: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+          low: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+          neon: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+        };
+      }
+      if (!saved.smuggleRoutes) saved.smuggleRoutes = [];
+      if (!saved.phone) saved.phone = { messages: [], unread: 0 };
+      if (saved.showPhone === undefined) saved.showPhone = false;
+      if (saved.pendingSpecChoice === undefined) saved.pendingSpecChoice = null;
+      // Ensure crew have specialization field
+      saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;
@@ -475,7 +599,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // Auto-save on state change + check for new achievements
   useEffect(() => {
     Engine.saveGame(state);
-    // Check for newly added achievements (compare with previous)
     const prev = prevAchievementsRef.current;
     const newOnes = state.achievements.filter(a => !prev.includes(a));
     if (newOnes.length > 0) {

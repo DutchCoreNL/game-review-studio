@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -202,6 +202,114 @@ export const FACTION_REWARDS: { minRel: number; label: string; desc: string; ico
   { minRel: 80, label: 'Beschermingsgeld', desc: '+€500/dag passief inkomen', icon: 'Crown' },
 ];
 
+// ========== WEATHER DEFINITIONS ==========
+
+export const WEATHER_EFFECTS: Record<WeatherType, { name: string; icon: string; desc: string }> = {
+  clear: { name: 'Helder', icon: 'Sun', desc: 'Standaard condities.' },
+  rain: { name: 'Regen', icon: 'CloudRain', desc: '-5 Heat/dag, -10% handelsvolume.' },
+  fog: { name: 'Mist', icon: 'CloudFog', desc: '+15% smokkel succes, +10% missie kans.' },
+  heatwave: { name: 'Hittegolf', icon: 'Thermometer', desc: '+3 Heat/dag, +20% prijzen.' },
+  storm: { name: 'Storm', icon: 'CloudLightning', desc: 'Gratis reizen, dubbele lab output.' },
+};
+
+// ========== CREW SPECIALIZATIONS ==========
+
+export interface SpecializationDef {
+  id: string;
+  name: string;
+  desc: string;
+  role: CrewRole;
+  path: 'A' | 'B';
+}
+
+export const CREW_SPECIALIZATIONS: SpecializationDef[] = [
+  { id: 'brute', name: 'Brute', desc: '+50% gevechtsschade', role: 'Enforcer', path: 'A' },
+  { id: 'bodyguard', name: 'Bodyguard', desc: '-30% schade aan crew', role: 'Enforcer', path: 'B' },
+  { id: 'dataminer', name: 'Dataminer', desc: '+25% tech missie beloning', role: 'Hacker', path: 'A' },
+  { id: 'phantom', name: 'Phantom', desc: '-20% heat op acties', role: 'Hacker', path: 'B' },
+  { id: 'racer', name: 'Racer', desc: 'Gratis reizen + ontsnapping', role: 'Chauffeur', path: 'A' },
+  { id: 'smuggler_wagon', name: 'Smokkelwagen', desc: '+50% opslagruimte', role: 'Chauffeur', path: 'B' },
+  { id: 'ghost', name: 'Spook', desc: '+40% stealth missie succes', role: 'Smokkelaar', path: 'A' },
+  { id: 'network', name: 'Netwerk', desc: '+10% handelswinst', role: 'Smokkelaar', path: 'B' },
+];
+
+export function getSpecsForRole(role: CrewRole): SpecializationDef[] {
+  return CREW_SPECIALIZATIONS.filter(s => s.role === role);
+}
+
+// ========== NEMESIS NAMES ==========
+
+export const NEMESIS_NAMES = [
+  'Viktor "The Ghost" Petrov', 'Maria "La Sombra" Reyes', 'Dimitri "Ice" Volkov',
+  'Chen "Snake Eyes" Wei', 'Marco "The Butcher" Rossi', 'Yuki "Razor" Tanaka',
+  'Aleksei "Hammer" Kozlov', 'Isabella "Venom" Cruz', 'Jamal "Kingmaker" Stone',
+];
+
+// ========== DISTRICT REP PERKS ==========
+
+export const DISTRICT_REP_PERKS: Record<DistrictId, { threshold: number; label: string; desc: string }[]> = {
+  port: [
+    { threshold: 25, label: 'Haven Connectie', desc: '-10% smokkelrisico' },
+    { threshold: 50, label: 'Extra Opslag', desc: '+5 bagage' },
+    { threshold: 75, label: 'Havencontracten', desc: '+€500/dag passief' },
+  ],
+  crown: [
+    { threshold: 25, label: 'Markt Intel', desc: 'Prijstrends zichtbaar' },
+    { threshold: 50, label: 'VIP Casino', desc: '+15% casino winst' },
+    { threshold: 75, label: 'Penthouse', desc: '-10 Heat/dag extra' },
+  ],
+  iron: [
+    { threshold: 25, label: 'Garage Deal', desc: '-25% crew healing' },
+    { threshold: 50, label: 'Gratis Repair', desc: 'Gratis voertuig reparatie' },
+    { threshold: 75, label: 'Productie Bonus', desc: '+50% lab output' },
+  ],
+  low: [
+    { threshold: 25, label: 'Straatkennis', desc: '-15% solo op risico' },
+    { threshold: 50, label: 'Informanten', desc: 'Extra map events info' },
+    { threshold: 75, label: 'Ongrijpbaar', desc: 'Heat cap -20' },
+  ],
+  neon: [
+    { threshold: 25, label: 'Casino Bonus', desc: '+10% casino winst' },
+    { threshold: 50, label: 'Witwas Pro', desc: '+20% witwas rate' },
+    { threshold: 75, label: 'VIP Netwerk', desc: '+3 Charm permanent' },
+  ],
+};
+
+// ========== PHONE MESSAGE TEMPLATES ==========
+
+export const PHONE_CONTACTS: Record<string, { name: string; avatar: string }> = {
+  informant: { name: 'Informant X', avatar: '🕵️' },
+  nemesis: { name: 'Rivaal', avatar: '💀' },
+  weather: { name: 'NoxWeer', avatar: '🌤️' },
+  courier: { name: 'Koerier', avatar: '📦' },
+  anonymous: { name: 'Anoniem', avatar: '❓' },
+  police: { name: 'Bron NHPD', avatar: '👮' },
+};
+
+// ========== INITIAL STATE ==========
+
+function createInitialNemesis(): NemesisState {
+  return {
+    name: NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)],
+    power: 10,
+    location: 'crown',
+    hp: 80,
+    maxHp: 80,
+    cooldown: 0,
+    defeated: 0,
+    lastAction: '',
+  };
+}
+
+function createInitialDefenses(): Record<DistrictId, DistrictDefense> {
+  const ids: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
+  const defenses: Record<string, DistrictDefense> = {};
+  ids.forEach(id => {
+    defenses[id] = { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false };
+  });
+  return defenses as Record<DistrictId, DistrictDefense>;
+}
+
 export function createInitialState(): import('./types').GameState {
   return {
     day: 1,
@@ -260,5 +368,14 @@ export function createInitialState(): import('./types').GameState {
     conqueredFactions: [],
     activeMission: null,
     mapEvents: [],
+    // New feature state
+    weather: 'clear',
+    districtRep: { port: 0, crown: 0, iron: 0, low: 0, neon: 0 },
+    nemesis: createInitialNemesis(),
+    districtDefenses: createInitialDefenses(),
+    smuggleRoutes: [],
+    phone: { messages: [], unread: 0 },
+    showPhone: false,
+    pendingSpecChoice: null,
   };
 }

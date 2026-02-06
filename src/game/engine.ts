@@ -1,7 +1,8 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
+import { applyNewFeatures, resolveNemesisDefeat } from './newFeatures';
 
-const SAVE_KEY = 'noxhaven_save_v9';
+const SAVE_KEY = 'noxhaven_save_v10';
 
 export function saveGame(state: GameState): void {
   try {
@@ -16,16 +17,17 @@ export function loadGame(): GameState | null {
     // Try current version first
     let data = localStorage.getItem(SAVE_KEY);
     if (data) return JSON.parse(data);
-    // Migrate from v8
-    data = localStorage.getItem('noxhaven_save_v8');
-    if (data) {
-      const old = JSON.parse(data);
-      // Add new fields
-      if (!old.stats) old.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: old.day || 0 };
-      if (!old.nightReport) old.nightReport = null;
-      localStorage.setItem(SAVE_KEY, JSON.stringify(old));
-      localStorage.removeItem('noxhaven_save_v8');
-      return old;
+    // Migrate from older versions
+    for (const oldKey of ['noxhaven_save_v9', 'noxhaven_save_v8']) {
+      data = localStorage.getItem(oldKey);
+      if (data) {
+        const old = JSON.parse(data);
+        if (!old.stats) old.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: old.day || 0 };
+        if (!old.nightReport) old.nightReport = null;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(old));
+        localStorage.removeItem(oldKey);
+        return old;
+      }
     }
     return null;
   } catch {
@@ -254,12 +256,14 @@ export function endTurn(state: GameState): NightReportData {
 
   const heatBefore = state.heat;
 
-  // Lab production
+  // Lab production (storm doubles output)
+  const labMultiplier = state.weather === 'storm' ? 2 : 1;
   if (state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
     if (space > 0) {
-      const batchSize = Math.min(state.lab.chemicals, 20, space);
+      const maxBatch = state.weather === 'storm' ? 40 : 20;
+      const batchSize = Math.min(state.lab.chemicals, maxBatch, space) * labMultiplier;
       state.lab.chemicals -= batchSize;
       const existingCount = state.inventory.drugs || 0;
       const existingCost = state.inventoryCosts.drugs || 0;
@@ -385,6 +389,10 @@ export function endTurn(state: GameState): NightReportData {
   generatePrices(state);
   generateContracts(state);
   generateMapEvents(state);
+
+  // Apply all new feature logic (weather, district rep, nemesis, defense, smuggling, phone)
+  applyNewFeatures(state, report);
+
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;
 
@@ -576,7 +584,7 @@ export function recruit(state: GameState): { success: boolean; message: string }
     : `Agent-${Math.floor(Math.random() * 999)}`;
 
   const role = CREW_ROLES[Math.floor(Math.random() * CREW_ROLES.length)] as CrewRole;
-  state.crew.push({ name, role, hp: 100, xp: 0, level: 1 });
+  state.crew.push({ name, role, hp: 100, xp: 0, level: 1, specialization: null });
   state.maxInv = recalcMaxInv(state);
   return { success: true, message: `${name} (${role}) gerekruteerd!` };
 }
@@ -689,7 +697,10 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     combat.finished = true;
     combat.won = true;
     combat.logs.push(`${combat.targetName} is verslagen!`);
-    if (combat.familyId) {
+    if (combat.isNemesis) {
+      resolveNemesisDefeat(state);
+      combat.logs.push(`+€${(15000 + state.nemesis.defeated * 10000).toLocaleString()} | +150 REP`);
+    } else if (combat.familyId) {
       state.leadersDefeated.push(combat.familyId);
       state.rep += 200;
       state.money += 25000;

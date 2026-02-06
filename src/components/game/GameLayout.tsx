@@ -11,6 +11,8 @@ import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
 import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
+import { PhoneOverlay } from './PhoneOverlay';
+import { CrewSpecPopup } from './CrewSpecPopup';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -24,7 +26,6 @@ const views: Record<string, React.ComponentType> = {
 export function GameLayout() {
   const { view, state } = useGame();
 
-  // Show combat view if active combat
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
   return (
@@ -51,6 +52,8 @@ export function GameLayout() {
       {!state.tutorialDone && <TutorialOverlay />}
       {state.nightReport && <NightReport />}
       {state.activeMission && <MissionEncounterView />}
+      {state.showPhone && <PhoneOverlay />}
+      {state.pendingSpecChoice && <CrewSpecPopup />}
     </div>
   );
 }
