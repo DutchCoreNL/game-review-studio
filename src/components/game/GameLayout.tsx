@@ -49,7 +49,7 @@ export function GameLayout() {
       <GameToast />
 
       {!state.tutorialDone && <TutorialOverlay />}
-      {state.tutorialDone && !state.dailyRewardClaimed && <DailyReward />}
+      
     </div>
   );
 }
