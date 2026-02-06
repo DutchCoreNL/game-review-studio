@@ -36,6 +36,7 @@ type GameAction =
   | { type: 'BRIBE_POLICE' }
   | { type: 'WASH_MONEY' }
   | { type: 'SOLO_OP'; opId: string }
+  | { type: 'EXECUTE_CONTRACT'; contractId: number; crewIndex: number }
   | { type: 'BUY_CHEMICALS'; amount: number }
   | { type: 'PAY_DEBT'; amount: number }
   | { type: 'SET_TUTORIAL_DONE' }
@@ -191,6 +192,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SOLO_OP': {
       Engine.performSoloOp(s, action.opId);
+      return s;
+    }
+
+    case 'EXECUTE_CONTRACT': {
+      Engine.executeContract(s, action.contractId, action.crewIndex);
       return s;
     }
 

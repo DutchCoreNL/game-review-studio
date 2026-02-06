@@ -40,10 +40,16 @@ export const SOLO_OPERATIONS: SoloOperation[] = [
 ];
 
 export const CONTRACT_TEMPLATES: ContractTemplate[] = [
-  { name: "Koeriersdienst", risk: 20, heat: 10, rewardBase: 1500, type: 'delivery' },
+  { name: "Koeriersdienst", risk: 15, heat: 8, rewardBase: 1200, type: 'delivery' },
   { name: "Rivalen Intimideren", risk: 45, heat: 25, rewardBase: 3500, type: 'combat' },
-  { name: "Inbraak", risk: 60, heat: 40, rewardBase: 6000, type: 'stealth' },
-  { name: "Datadiefstal", risk: 50, heat: 15, rewardBase: 4500, type: 'tech' }
+  { name: "Inbraak", risk: 55, heat: 35, rewardBase: 5500, type: 'stealth' },
+  { name: "Datadiefstal", risk: 40, heat: 12, rewardBase: 4000, type: 'tech' },
+  { name: "Wapenlevering", risk: 35, heat: 20, rewardBase: 2800, type: 'delivery' },
+  { name: "Bescherming Bieden", risk: 25, heat: 10, rewardBase: 2000, type: 'combat' },
+  { name: "Surveillance Missie", risk: 30, heat: 8, rewardBase: 2500, type: 'tech' },
+  { name: "Safe Kraken", risk: 65, heat: 40, rewardBase: 8000, type: 'stealth' },
+  { name: "Smokkelroute Openen", risk: 50, heat: 30, rewardBase: 6000, type: 'delivery' },
+  { name: "Server Hack", risk: 60, heat: 15, rewardBase: 7000, type: 'tech' },
 ];
 
 export const HQ_UPGRADES: HQUpgrade[] = [
