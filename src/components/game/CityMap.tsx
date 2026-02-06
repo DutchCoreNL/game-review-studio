@@ -388,7 +388,7 @@ function HeatOverlay({ heat }: { heat: number }) {
   const opacity = 0.05 + intensity * 0.2;
 
   return (
-    <g>
+    <g pointerEvents="none">
       {/* Red vignette edges */}
       <rect x="0" y="0" width="400" height="290" rx="0"
         fill="none" stroke={`hsla(0, 80%, 40%, ${opacity})`}
@@ -589,7 +589,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         <HeatOverlay heat={heat} />
 
         {/* === SCANLINE === */}
-        <motion.rect x="0" width="400" height="2" fill="hsla(45, 93%, 40%, 0.04)"
+        <motion.rect x="0" width="400" height="2" fill="hsla(45, 93%, 40%, 0.04)" pointerEvents="none"
           animate={{ y: [-10, 300] }}
           transition={{ duration: 6, repeat: Infinity, ease: 'linear' }} />
       </svg>
