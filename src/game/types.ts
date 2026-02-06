@@ -185,6 +185,43 @@ export interface GameStats {
   daysPlayed: number;
 }
 
+// ========== MISSION ENCOUNTER SYSTEM ==========
+
+export interface MissionChoice {
+  id: string;
+  label: string;
+  stat: StatId;
+  difficulty: number;
+  outcomes: { success: string; partial: string; fail: string };
+  effects: { heat: number; relChange: number; crewDamage: number; bonusReward: number };
+}
+
+export interface MissionEncounter {
+  id: string;
+  text: string;
+  districtVariants: Partial<Record<DistrictId, string>>;
+  choices: MissionChoice[];
+}
+
+export interface ActiveMission {
+  type: 'solo' | 'contract';
+  missionId: string;
+  contractId?: number;
+  crewIndex?: number;
+  crewName?: string;
+  currentEncounter: number;
+  encounters: MissionEncounter[];
+  totalReward: number;
+  totalHeat: number;
+  totalCrewDamage: number;
+  totalRelChange: Record<string, number>;
+  log: string[];
+  baseReward: number;
+  baseHeat: number;
+  finished: boolean;
+  success: boolean;
+}
+
 export interface GameState {
   day: number;
   money: number;
@@ -213,6 +250,7 @@ export interface GameState {
   activeContracts: ActiveContract[];
   lab: { chemicals: number };
   activeCombat: CombatState | null;
+  activeMission: ActiveMission | null;
   achievements: string[];
   tutorialDone: boolean;
   lastLoginDay: string;
