@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle } from '@/game/engine';
 import { motion } from 'framer-motion';
-import { DollarSign, Flame, TrendingUp, Skull } from 'lucide-react';
+import { Star, Flame, TrendingUp, Skull } from 'lucide-react';
 
 export function GameHeader() {
   const { state } = useGame();
@@ -53,7 +53,7 @@ export function GameHeader() {
         <ResourceItem
           label="LEVEL"
           value={state.player.level}
-          icon={<DollarSign size={12} />}
+          icon={<Star size={12} />}
           color="text-gold"
         />
       </div>
