@@ -1,69 +1,56 @@
 
 
-# Handel Vernieuwen & Uitbreiden
+# Facties Uitbreiden met Interactiemogelijkheden
 
-Het huidige handelssysteem is functioneel maar vlak: alle goederen zien er hetzelfde uit, er is geen visueel onderscheid per categorie, en het systeem mist diepte. Dit plan vernieuwt de volledige Trade View met betere visuele hierarchie, nieuwe mechanica en meer strategische opties.
+## Huidige Situatie
+
+Op dit moment zijn facties passief: je ziet alleen een relatiebalk en kunt politie omkopen. Interactie met facties gebeurt indirect via contracten (die relatie aanpassen) en het gevechtsysteem (leider uitdagen). Er zijn geen directe actieknoppen op de factie-kaarten zelf.
+
+## Wat wordt toegevoegd
+
+Elke factie krijgt een **interactiemenu** met 6 mogelijke acties. Je moet in het thuisdistrict van de factie zijn om sommige acties uit te voeren. Elke actie heeft kosten, risico's en gevolgen voor relatie, heat en reputatie.
+
+### Factie-Acties
+
+| Actie | Effect | Vereiste |
+|-------|--------|----------|
+| **Onderhandelen** | +8 tot +15 relatie, kost geld (gebaseerd op charm) | In thuisdistrict, relatie > -50 |
+| **Omkopen** | +20 relatie, kost veel geld | Altijd beschikbaar |
+| **Intimideren** | -15 relatie, +rep, +heat, kans op geld | In thuisdistrict, muscle check |
+| **Saboteren** | -25 relatie, beschadigt hun operaties, +heat | In thuisdistrict, brains check |
+| **Gift Sturen** | +10 relatie, kost handelswaar uit inventory | Specifiek goed nodig per factie |
+| **Informatie Kopen** | Onthult handelsroutes en marktinfo, kost geld | Relatie > 20 |
+
+### Factie-Specifieke Beloningen bij Hoge Relatie
+
+Naast de bestaande korting op goederen (>50 relatie), worden er nieuwe voordelen toegevoegd per relatieniveau:
+
+- **Relatie 30+**: Factie biedt bescherming (minder random negatieve events)
+- **Relatie 60+**: Exclusieve gear wordt ontgrendeld (al bestaand) + speciale contracten
+- **Relatie 80+**: Passief inkomen van de factie (een soort "beschermingsgeld" dat zij aan jou betalen)
+
+### Cooldown Systeem
+
+Om spam te voorkomen krijgt elke actie een cooldown per factie. Je kunt maximaal 1 actie per factie per dag uitvoeren (reset bij dag afsluiten).
+
+### Factie-Oorlog Mechanisme
+
+Als relatie onder -50 zakt, kan de factie actief jouw operaties aanvallen. Dit uit zich als:
+- Hogere kans op negatieve random events
+- Crew kan worden aangevallen (HP verlies)
+- Kans dat ze goederen stelen
 
 ---
 
-## Wat verandert
+## Visueel Ontwerp
 
-### 1. Visueel Vernieuwde Markt
+De huidige FamiliesPanel wordt volledig vernieuwd:
 
-**Goods met iconen en kleurcoding per factie**
-Elk handelsitem krijgt een uniek icoon en kleuraccent gebaseerd op de bijbehorende factie:
-- Synthetica (Cartel) -- rode accent, pipet-icoon
-- Zware Wapens (Bikers) -- goud/oranje accent, schild-icoon
-- Zwarte Data (Syndicate) -- blauwe accent, cpu-icoon
-- Geroofde Kunst (onafhankelijk) -- paarse accent, diamant-icoon
-- Medische Voorraad (onafhankelijk) -- groene accent, pil-icoon
-
-**Prijsgrafiek per item**
-Een mini sparkline per goed die laat zien of de prijs de laatste paar dagen gestegen of gedaald is. Dit geeft traders een visueel signaal voor timing.
-
-**Verbeterde trade cards**
-Grotere kaarten met duidelijke scheiding tussen prijs-info, voorraad en actie-knoppen. Winstmarge wordt visueel weergegeven met een kleur-indicator.
-
-### 2. Drie sub-tabs in Handel
-
-In plaats van 2 sub-tabs (Markt / Zwarte Markt) worden het er 3:
-
-| Tab | Inhoud |
-|-----|--------|
-| **MARKT** | Koop/verkoop goederen (verbeterd) |
-| **WITWASSEN** | Geld witwassen + dirty money overzicht + bedrijven die wassen |
-| **ZWARTE MARKT** | Gear kopen (verbeterd met categorie-filters) |
-
-### 3. Nieuwe Handelsmechanica
-
-**Prijsgeschiedenis tracking**
-De state slaat nu de laatste 5 dagen aan prijzen op per district per goed. Dit wordt getoond als een mini-trend in de UI en stelt spelers in staat om slimmer te handelen.
-
-**District-specialisaties zichtbaar**
-Per district wordt nu getoond welke goederen daar goedkoop of duur zijn (gebaseerd op de bestaande `mods` in DISTRICTS). Een visuele indicator (pijl omhoog/omlaag + kleur) laat zien of dit district goed is om te kopen of verkopen.
-
-**Handelsroute suggesties**
-Een kleine "tip" sectie onderaan de markt die de meest winstgevende route voorstelt: "Koop Synthetica in Lowrise (EUR 70) -> Verkoop in Crown Heights (EUR 252)" -- berekend op basis van huidige prijzen.
-
-**Bulk trade feedback**
-Bij het handelen van meerdere items wordt nu de totaalprijs en totale winst/verlies duidelijker getoond, met een samenvatting popup bij grote transacties.
-
-### 4. Witwassen Uitbreiden
-
-Het witwassen wordt een eigen sub-tab met meer diepte:
-- Overzicht van zwart geld vs schoon geld (visueel)
-- Lijst van actieve dekmantels met hun was-capaciteit
-- Handmatige witwas-optie met instelbaar bedrag
-- Progressiebalk die toont hoeveel capaciteit er nog over is vandaag
-- Heat-waarschuwing bij te veel witwassen
-
-### 5. Zwarte Markt Verbetering
-
-- Categorie-filters: Wapens / Uitrusting / Gadgets
-- Gear-items met visuele stat-balken in plaats van alleen tekst
-- Vergelijking met huidig uitgeruste item ("+3 beter dan huidig")
-- Locked items tonen met duidelijke unlock-voorwaarden
-- Speciale "dagelijkse deal" -- een willekeurig item met korting
+- Elke factie wordt een **uitklapbare kaart** met de contactpersoon, relatie-info en actiemenu
+- Relatiebalk krijgt kleurschakeringen: rood (vijand), oranje (neutraal), groen (bondgenoot), goud (alliantie)
+- Acties worden getoond als een grid van knoppen met iconen
+- Cooldown wordt visueel aangegeven (gedimde knop met "Morgen" tekst)
+- Factie-voordelen worden getoond als ontgrendelde badges
 
 ---
 
@@ -73,34 +60,44 @@ Het witwassen wordt een eigen sub-tab met meer diepte:
 
 | Bestand | Wijziging |
 |---------|-----------|
-| `src/game/types.ts` | Nieuw type `PriceHistory` toevoegen; `GameState` uitbreiden met `priceHistory` |
-| `src/game/constants.ts` | Icoon en categorie-info toevoegen aan `GOODS`; nieuwe `GOOD_CATEGORIES` constant |
-| `src/game/engine.ts` | Prijsgeschiedenis bijhouden in `generatePrices`; witwas-capaciteit logica; handelsroute calculator |
-| `src/contexts/GameContext.tsx` | Nieuwe action `WASH_MONEY_AMOUNT` voor instelbaar bedrag witwassen |
-| `src/components/game/TradeView.tsx` | Volledige herstructurering met 3 sub-tabs, visueel vernieuwde markt, witwas-panel, verbeterde gear-shop |
-
-### Nieuwe helpers
-
-| Functie | Doel |
-|---------|------|
-| `getBestTradeRoute()` | Berekent de meest winstgevende koop/verkoop route |
-| `getWashCapacity()` | Berekent dagelijkse witwas-capaciteit |
-| `getDailyDeal()` | Selecteert een willekeurig gear-item met korting |
+| `src/game/types.ts` | Nieuw type `FactionAction`, uitbreiding `GameState` met `factionCooldowns` |
+| `src/game/constants.ts` | `FACTION_ACTIONS` definitie, `FACTION_GIFTS` (welk goed per factie), `FACTION_REWARDS` per niveau |
+| `src/game/engine.ts` | Nieuwe functies: `performFactionAction()`, `getFactionStatus()`, `getFactionPerks()`, factie-oorlog logica in `endTurn` |
+| `src/contexts/GameContext.tsx` | Nieuwe action `FACTION_ACTION` met parameters (familyId, actionType) |
+| `src/components/game/ImperiumView.tsx` | Volledige herstructurering van FamiliesPanel met uitklapbare factiekaarten en actiemenu |
 
 ### State uitbreiding
 
 ```text
 GameState uitbreiding:
-  priceHistory: Record<DistrictId, Record<GoodId, number[]>>  // laatste 5 dagen
-  washUsedToday: number  // hoeveel er vandaag al gewassen is
+  factionCooldowns: Record<FamilyId, string[]>  // lijst van acties die vandaag al uitgevoerd zijn
 ```
+
+### Nieuwe constanten
+
+```text
+FACTION_ACTIONS: definitie van alle 6 acties met kosten, effecten, vereisten
+FACTION_GIFTS: welk handelsitem elke factie als gift accepteert
+  - Cartel: drugs (Synthetica)
+  - Syndicate: tech (Zwarte Data)
+  - Bikers: weapons (Zware Wapens)
+FACTION_REWARDS: voordelen per relatieniveau (30, 60, 80)
+```
+
+### Nieuwe engine functies
+
+| Functie | Doel |
+|---------|------|
+| `performFactionAction()` | Voert een factie-actie uit, past relatie/geld/heat aan |
+| `getFactionStatus()` | Geeft een label terug: "Vijand", "Neutraal", "Bondgenoot", "Alliantie" |
+| `getFactionPerks()` | Lijst van actieve voordelen op basis van relatie |
+| `applyFactionWar()` | Factie-oorlog effecten (aangeroepen in endTurn als relatie < -50) |
 
 ### Volgorde van implementatie
 
-1. Types en state uitbreiden (priceHistory, washUsedToday)
-2. Engine updaten (prijsgeschiedenis bijhouden, witwas-capaciteit, handelsroutes)
-3. TradeView volledig vernieuwen met 3 sub-tabs
-4. Markt-panel: iconen, kleurcoding, sparklines, route-tips
-5. Witwas-panel: overzicht, instelbaar bedrag, capaciteit
-6. Zwarte Markt-panel: filters, stat-balken, vergelijking, dagelijkse deal
+1. Types en state uitbreiden (factionCooldowns, FactionAction)
+2. Constants toevoegen (FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS)
+3. Engine functies schrijven (performFactionAction, getFactionStatus, factie-oorlog in endTurn)
+4. GameContext updaten met FACTION_ACTION reducer case
+5. FamiliesPanel volledig vernieuwen met interactieve factiekaarten
 
