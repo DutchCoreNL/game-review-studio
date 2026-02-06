@@ -287,6 +287,22 @@ export function endTurn(state: GameState): NightReportData {
 
   report.heatChange = state.heat - heatBefore;
 
+  // Track price history before regenerating
+  if (!state.priceHistory) state.priceHistory = {};
+  Object.keys(state.prices).forEach(distId => {
+    if (!state.priceHistory[distId]) state.priceHistory[distId] = {};
+    Object.keys(state.prices[distId]).forEach(gid => {
+      if (!state.priceHistory[distId][gid]) state.priceHistory[distId][gid] = [];
+      state.priceHistory[distId][gid].push(state.prices[distId][gid]);
+      if (state.priceHistory[distId][gid].length > 5) {
+        state.priceHistory[distId][gid] = state.priceHistory[distId][gid].slice(-5);
+      }
+    });
+  });
+
+  // Reset daily wash counter
+  state.washUsedToday = 0;
+
   generatePrices(state);
   generateContracts(state);
   state.maxInv = recalcMaxInv(state);
@@ -649,4 +665,49 @@ export function getRankTitle(rep: number): string {
   if (rep >= 200) return 'SOLDAAT';
   if (rep >= 50) return 'ASSOCIATE';
   return 'STRAATRAT';
+}
+
+// ========== TRADE HELPERS ==========
+
+export function getBestTradeRoute(state: GameState): { good: GoodId; buyDistrict: string; sellDistrict: string; buyPrice: number; sellPrice: number; profit: number } | null {
+  let best: { good: GoodId; buyDistrict: string; sellDistrict: string; buyPrice: number; sellPrice: number; profit: number } | null = null;
+  let bestProfit = 0;
+
+  GOODS.forEach(g => {
+    Object.keys(DISTRICTS).forEach(buyDist => {
+      const buyPrice = state.prices[buyDist]?.[g.id] || g.base;
+      Object.keys(DISTRICTS).forEach(sellDist => {
+        if (buyDist === sellDist) return;
+        const sellPrice = Math.floor((state.prices[sellDist]?.[g.id] || g.base) * 0.85);
+        const profit = sellPrice - buyPrice;
+        if (profit > bestProfit) {
+          bestProfit = profit;
+          best = { good: g.id as GoodId, buyDistrict: buyDist, sellDistrict: sellDist, buyPrice, sellPrice, profit };
+        }
+      });
+    });
+  });
+
+  return best;
+}
+
+export function getWashCapacity(state: GameState): { total: number; used: number; remaining: number } {
+  let total = 3000 + (state.ownedDistricts.length * 1000);
+  state.ownedBusinesses.forEach(bid => {
+    const biz = BUSINESSES.find(b => b.id === bid);
+    if (biz) total += biz.clean;
+  });
+  if (state.ownedDistricts.includes('neon')) total = Math.floor(total * 1.2);
+  const used = state.washUsedToday || 0;
+  return { total, used, remaining: Math.max(0, total - used) };
+}
+
+export function getDailyDeal(state: GameState): { item: typeof GEAR[0]; discountedPrice: number; discount: number } | null {
+  const availableGear = GEAR.filter(g => !state.ownedGear.includes(g.id));
+  if (availableGear.length === 0) return null;
+  const index = state.day % availableGear.length;
+  const item = availableGear[index];
+  const discount = 0.3;
+  const discountedPrice = Math.floor(item.cost * (1 - discount));
+  return { item, discountedPrice, discount };
 }

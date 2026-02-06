@@ -38,6 +38,8 @@ type GameAction =
   | { type: 'BUY_BUSINESS'; id: string }
   | { type: 'BRIBE_POLICE' }
   | { type: 'WASH_MONEY' }
+  | { type: 'WASH_MONEY_AMOUNT'; amount: number }
+  | { type: 'BUY_GEAR_DEAL'; id: string; price: number }
   | { type: 'SOLO_OP'; opId: string }
   | { type: 'EXECUTE_CONTRACT'; contractId: number; crewIndex: number }
   | { type: 'BUY_CHEMICALS'; amount: number }
@@ -223,6 +225,34 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'WASH_MONEY_AMOUNT': {
+      if (s.dirtyMoney <= 0 || action.amount <= 0) return s;
+      const washCap = Engine.getWashCapacity(s);
+      const maxWash = Math.min(s.dirtyMoney, washCap.remaining);
+      const washAmt = Math.min(action.amount, maxWash);
+      if (washAmt <= 0) return s;
+      s.dirtyMoney -= washAmt;
+      let washedAmt = washAmt;
+      if (s.ownedDistricts.includes('neon')) washedAmt = Math.floor(washAmt * 1.15);
+      const cleanAmt = Math.floor(washedAmt * 0.85);
+      s.money += cleanAmt;
+      s.stats.totalEarned += cleanAmt;
+      s.washUsedToday = (s.washUsedToday || 0) + washAmt;
+      s.heat += Math.max(1, Math.floor(washAmt / 500));
+      Engine.gainXp(s, Math.max(1, Math.floor(washAmt / 200)));
+      return s;
+    }
+
+    case 'BUY_GEAR_DEAL': {
+      const dealItem = GEAR.find(g => g.id === action.id);
+      if (!dealItem || s.ownedGear.includes(action.id)) return s;
+      if (s.money < action.price) return s;
+      s.money -= action.price;
+      s.stats.totalSpent += action.price;
+      s.ownedGear.push(action.id);
+      return s;
+    }
+
     case 'SOLO_OP': {
       Engine.performSoloOp(s, action.opId);
       Engine.checkAchievements(s);
@@ -320,6 +350,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.loginStreak === undefined) saved.loginStreak = 0;
       if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0 };
       if (saved.nightReport === undefined) saved.nightReport = null;
+      if (!saved.priceHistory) saved.priceHistory = {};
+      if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;

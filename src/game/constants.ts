@@ -25,6 +25,14 @@ export const GOODS: Good[] = [
   { id: 'meds', name: 'Medische Voorraad', base: 550, icon: 'Pill', faction: null }
 ];
 
+export const GOOD_CATEGORIES: Record<string, { color: string; bgColor: string; borderColor: string; label: string }> = {
+  drugs: { color: 'text-blood', bgColor: 'bg-blood/10', borderColor: 'border-l-blood', label: 'Drugs' },
+  weapons: { color: 'text-gold', bgColor: 'bg-gold/10', borderColor: 'border-l-gold', label: 'Wapens' },
+  tech: { color: 'text-ice', bgColor: 'bg-ice/10', borderColor: 'border-l-ice', label: 'Tech' },
+  luxury: { color: 'text-game-purple', bgColor: 'bg-game-purple/10', borderColor: 'border-l-game-purple', label: 'Luxe' },
+  meds: { color: 'text-emerald', bgColor: 'bg-emerald/10', borderColor: 'border-l-emerald', label: 'Medisch' },
+};
+
 export const FAMILIES: Record<string, Family> = {
   cartel: { id: 'cartel', name: 'Rojo Cartel', contact: 'El Serpiente', desc: 'Controleert de haven en drugshandel.', color: '#b91c1c', home: 'port' },
   syndicate: { id: 'syndicate', name: 'Blue Lotus', contact: 'Mr. Wu', desc: 'Hightech spionage vanuit Crown Heights.', color: '#2563eb', home: 'crown' },
@@ -211,5 +219,7 @@ export function createInitialState(): import('./types').GameState {
       daysPlayed: 0,
     },
     nightReport: null,
+    priceHistory: {},
+    washUsedToday: 0,
   };
 }
