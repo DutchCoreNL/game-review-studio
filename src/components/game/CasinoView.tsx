@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { CasinoGame } from '@/game/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spade, CircleDot, Gem } from 'lucide-react';
@@ -33,11 +33,11 @@ export function CasinoView() {
             <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Jackpot: 50x" onClick={() => setActiveGame('slots')} />
           </motion.div>
         ) : activeGame === 'blackjack' ? (
-          <BlackjackGame key="bj" state={state} dispatch={dispatch} showToast={showToast} />
+          <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
         ) : activeGame === 'roulette' ? (
-          <RouletteGame key="rl" state={state} dispatch={dispatch} showToast={showToast} />
+          <RouletteGame key="rl" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
         ) : (
-          <SlotsGame key="sl" state={state} dispatch={dispatch} showToast={showToast} />
+          <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
         )}
       </AnimatePresence>
 
@@ -68,8 +68,15 @@ function GameCard({ icon, name, sub, onClick }: { icon: React.ReactNode; name: s
   );
 }
 
+interface CasinoGameProps {
+  dispatch: (action: any) => void;
+  showToast: (msg: string, isError?: boolean) => void;
+  money: number;
+  hasNeon: boolean;
+}
+
 // ========== BLACKJACK ==========
-function BlackjackGame({ state, dispatch, showToast }: any) {
+function BlackjackGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
   const [bet, setBet] = useState(100);
   const [playerHand, setPlayerHand] = useState<string[]>([]);
   const [dealerHand, setDealerHand] = useState<string[]>([]);
@@ -77,6 +84,7 @@ function BlackjackGame({ state, dispatch, showToast }: any) {
   const [playing, setPlaying] = useState(false);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
+  const [currentBet, setCurrentBet] = useState(0);
 
   const createDeck = () => {
     const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -96,8 +104,9 @@ function BlackjackGame({ state, dispatch, showToast }: any) {
   };
 
   const deal = () => {
-    if (bet > state.money || bet < 10) return showToast('Ongeldige inzet', true);
-    dispatch({ type: 'SET_STATE', state: { ...state, money: state.money - bet } });
+    if (bet > money || bet < 10) return showToast('Ongeldige inzet', true);
+    dispatch({ type: 'CASINO_BET', amount: bet });
+    setCurrentBet(bet);
     const d = createDeck();
     const ph = [d.pop()!, d.pop()!];
     const dh = [d.pop()!, d.pop()!];
@@ -106,7 +115,7 @@ function BlackjackGame({ state, dispatch, showToast }: any) {
     setDealerHand(dh);
     setPlaying(true);
     setResult('');
-    if (getScore(ph) === 21) stand(ph, dh, d);
+    if (getScore(ph) === 21) stand(ph, dh, d, bet);
   };
 
   const hit = () => {
@@ -117,34 +126,37 @@ function BlackjackGame({ state, dispatch, showToast }: any) {
     if (getScore(newHand) > 21) endGame(false, 'BUST! Meer dan 21.', newHand);
   };
 
-  const stand = (ph?: string[], dh?: string[], d?: string[]) => {
+  const stand = (ph?: string[], dh?: string[], d?: string[], activeBet?: number) => {
     const pHand = ph || playerHand;
     let dHand = [...(dh || dealerHand)];
     const dk = [...(d || deck)];
+    const theBet = activeBet || currentBet;
     while (getScore(dHand) < 17) dHand.push(dk.pop()!);
     setDealerHand(dHand);
     setDeck(dk);
 
     const ps = getScore(pHand);
     const ds = getScore(dHand);
-    if (ds > 21) endGame(true, 'Dealer Busted! Jij wint!', pHand);
-    else if (ps > ds) endGame(true, 'Jij wint!', pHand);
+    if (ds > 21) endGame(true, 'Dealer Busted! Jij wint!', pHand, theBet);
+    else if (ps > ds) endGame(true, 'Jij wint!', pHand, theBet);
     else if (ps === ds) {
-      dispatch({ type: 'SET_STATE', state: { ...state, money: state.money + bet } }); // push - note: money was already deducted
-      endGame(null, 'Gelijkspel (Push).', pHand);
+      // Push - return the bet
+      dispatch({ type: 'CASINO_WIN', amount: theBet });
+      endGame(null, 'Gelijkspel (Push).', pHand, theBet);
     }
-    else endGame(false, 'Dealer wint.', pHand);
+    else endGame(false, 'Dealer wint.', pHand, theBet);
   };
 
-  const endGame = (win: boolean | null, msg: string, hand: string[]) => {
+  const endGame = (win: boolean | null, msg: string, hand: string[], theBet?: number) => {
+    const activeBet = theBet || currentBet;
     setPlaying(false);
     setResult(msg);
     if (win === true) {
       const isBj = getScore(hand) === 21 && hand.length === 2;
       let mult = isBj ? 2.5 : 2;
-      if (state.ownedDistricts.includes('neon')) mult += 0.2;
-      const winAmt = Math.floor(bet * mult);
-      dispatch({ type: 'SET_STATE', state: { ...state, money: state.money + winAmt } });
+      if (hasNeon) mult += 0.2;
+      const winAmt = Math.floor(activeBet * mult);
+      dispatch({ type: 'CASINO_WIN', amount: winAmt });
       setResultColor('text-emerald');
     } else if (win === false) {
       setResultColor('text-blood');
@@ -205,7 +217,7 @@ function BlackjackGame({ state, dispatch, showToast }: any) {
 }
 
 // ========== ROULETTE ==========
-function RouletteGame({ state, dispatch, showToast }: any) {
+function RouletteGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
   const [bet, setBet] = useState(100);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
@@ -216,11 +228,12 @@ function RouletteGame({ state, dispatch, showToast }: any) {
   const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
 
   const spin = (choice: 'red' | 'black' | 'green') => {
-    if (bet > state.money) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'SET_STATE', state: { ...state, money: state.money - bet } });
+    if (bet > money) return showToast('Niet genoeg geld!', true);
+    dispatch({ type: 'CASINO_BET', amount: bet });
     setSpinning(true);
     setResult('');
 
+    const currentBet = bet;
     let counter = 0;
     const interval = setInterval(() => {
       const num = Math.floor(Math.random() * 37);
@@ -231,21 +244,21 @@ function RouletteGame({ state, dispatch, showToast }: any) {
       if (counter > 20) {
         clearInterval(interval);
         setSpinning(false);
-        resolve(num, color, choice);
+        resolve(num, color, choice, currentBet);
       }
     }, 80);
   };
 
-  const resolve = (num: number, color: string, choice: string) => {
+  const resolve = (num: number, color: string, choice: string, activeBet: number) => {
     let won = false, mult = 0;
     if (choice === 'red' && color === 'red') { won = true; mult = 2; }
     else if (choice === 'black' && color === 'black') { won = true; mult = 2; }
     else if (choice === 'green' && num === 0) { won = true; mult = 14; }
-    if (state.ownedDistricts.includes('neon')) mult += 0.5;
+    if (hasNeon) mult += 0.5;
 
     if (won) {
-      const winAmt = Math.floor(bet * mult);
-      dispatch({ type: 'SET_STATE', state: { ...state, money: state.money + winAmt } });
+      const winAmt = Math.floor(activeBet * mult);
+      dispatch({ type: 'CASINO_WIN', amount: winAmt });
       setResult(`GEWONNEN! +€${winAmt}`);
       setResultColor('text-emerald');
     } else {
@@ -289,7 +302,7 @@ function RouletteGame({ state, dispatch, showToast }: any) {
 }
 
 // ========== SLOTS ==========
-function SlotsGame({ state, dispatch, showToast }: any) {
+function SlotsGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
   const [bet, setBet] = useState(50);
   const [reels, setReels] = useState(['🍒', '🍒', '🍒']);
   const [spinning, setSpinning] = useState(false);
@@ -299,15 +312,16 @@ function SlotsGame({ state, dispatch, showToast }: any) {
   const symbols = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍇', '💎', '7️⃣'];
 
   const spin = () => {
-    if (bet > state.money) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'SET_STATE', state: { ...state, money: state.money - bet } });
+    if (bet > money) return showToast('Niet genoeg geld!', true);
+    dispatch({ type: 'CASINO_BET', amount: bet });
     setSpinning(true);
     setResult('');
 
+    const currentBet = bet;
     let counter = 0;
     let finalReels: string[] = [];
     const interval = setInterval(() => {
-      const syms = state.ownedDistricts.includes('neon') ? [...symbols, '7️⃣', '💎'] : symbols;
+      const syms = hasNeon ? [...symbols, '7️⃣', '💎'] : symbols;
       finalReels = [
         syms[Math.floor(Math.random() * syms.length)],
         syms[Math.floor(Math.random() * syms.length)],
@@ -318,24 +332,24 @@ function SlotsGame({ state, dispatch, showToast }: any) {
       if (counter > 15) {
         clearInterval(interval);
         setSpinning(false);
-        resolve(finalReels);
+        resolve(finalReels, currentBet);
       }
     }, 100);
   };
 
-  const resolve = (res: string[]) => {
+  const resolve = (res: string[], activeBet: number) => {
     const [a, b, c] = res;
     let win = 0;
     if (a === b && b === c) {
-      if (a === '7️⃣') win = bet * 50;
-      else if (a === '💎') win = bet * 30;
-      else win = bet * 10;
+      if (a === '7️⃣') win = activeBet * 50;
+      else if (a === '💎') win = activeBet * 30;
+      else win = activeBet * 10;
     } else if (a === b || b === c || a === c) {
-      win = Math.floor(bet * 1.5);
+      win = Math.floor(activeBet * 1.5);
     }
 
     if (win > 0) {
-      dispatch({ type: 'SET_STATE', state: { ...state, money: state.money + win } });
+      dispatch({ type: 'CASINO_WIN', amount: win });
       setResult(`WINNAAR! +€${win}`);
       setResultColor('text-emerald');
     } else {

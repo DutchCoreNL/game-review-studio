@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { SOLO_OPERATIONS, FAMILIES } from '@/game/constants';
 import { performSoloOp } from '@/game/engine';
+import { GameState } from '@/game/types';
 import { motion } from 'framer-motion';
 import { Crosshair, Users, UserPlus, Lock } from 'lucide-react';
 
@@ -39,8 +40,9 @@ export function MissionsView() {
                 </div>
                 <button
                   onClick={() => {
+                    const result = performSoloOp(JSON.parse(JSON.stringify(state)) as GameState, op.id);
                     dispatch({ type: 'SOLO_OP', opId: op.id });
-                    showToast(state.player.level >= op.level ? 'Operatie uitgevoerd!' : 'Level te laag');
+                    showToast(result.message, !result.success);
                   }}
                   disabled={locked}
                   className="px-3 py-1.5 rounded text-[0.6rem] font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30"

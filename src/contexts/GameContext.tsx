@@ -40,6 +40,8 @@ type GameAction =
   | { type: 'PAY_DEBT'; amount: number }
   | { type: 'SET_TUTORIAL_DONE' }
   | { type: 'CLAIM_DAILY_REWARD' }
+  | { type: 'CASINO_BET'; amount: number }
+  | { type: 'CASINO_WIN'; amount: number }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -52,7 +54,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return action.state;
 
     case 'TRADE': {
-      const result = Engine.performTrade(s, action.gid, action.mode);
+      Engine.performTrade(s, action.gid, action.mode);
       return s;
     }
 
@@ -224,6 +226,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'CASINO_BET': {
+      if (s.money < action.amount) return s;
+      s.money -= action.amount;
+      return s;
+    }
+
+    case 'CASINO_WIN': {
+      s.money += action.amount;
+      return s;
+    }
+
     case 'RESET':
       return createInitialState();
 
@@ -240,8 +253,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.achievements) saved.achievements = [];
       if (saved.tutorialDone === undefined) saved.tutorialDone = false;
       if (!saved.lastLoginDay) saved.lastLoginDay = '';
-      if (saved.dailyRewardClaimed === undefined) saved.dailyRewardClaimed = false;
       if (saved.loginStreak === undefined) saved.loginStreak = 0;
+      // Reset daily reward if it's a new day
+      const today = new Date().toDateString();
+      if (saved.lastLoginDay !== today) {
+        saved.dailyRewardClaimed = false;
+      }
+      if (saved.dailyRewardClaimed === undefined) saved.dailyRewardClaimed = false;
       return saved;
     }
     const fresh = createInitialState();
