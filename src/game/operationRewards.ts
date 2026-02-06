@@ -5,7 +5,7 @@ const DISTRICT_MODS: Record<DistrictId, number> = {
   neon: 0.05,
   iron: 0.03,
   port: 0.02,
-  low: 0.10,
+  low: 0.05,
 };
 
 export interface OperationRewardRange {

@@ -149,8 +149,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'combat_master', name: 'Vechtmachine', desc: 'Win een gevecht tegen een factieleider', icon: 'Swords', condition: (s) => s.leadersDefeated.length >= 1 },
   { id: 'trader', name: 'Handelaar', desc: 'Voltooi 50 transacties', icon: 'ArrowRightLeft', condition: (s) => (s.stats?.tradesCompleted || 0) >= 50 },
   { id: 'jackpot', name: 'Jackpot!', desc: 'Win 50x bij slots', icon: 'Dices', condition: (s) => s.stats.casinoWon >= 50000 },
-  { id: 'card_counter', name: 'Kaartenteller', desc: 'Win 5 blackjack op rij', icon: 'Spade', condition: (s) => s.stats.casinoWon > 0 },
-  { id: 'poker_face', name: 'Poker Face', desc: 'Bereik 5x multiplier bij High-Low', icon: 'CircleDot', condition: (s) => s.stats.casinoWon > 0 },
+  { id: 'card_counter', name: 'Kaartenteller', desc: 'Win 5 blackjack op rij', icon: 'Spade', condition: (s) => (s.stats.blackjackStreak || 0) >= 5 },
+  { id: 'poker_face', name: 'Poker Face', desc: 'Bereik 5x multiplier bij High-Low', icon: 'CircleDot', condition: (s) => (s.stats.highLowMaxRound || 0) >= 5 },
 ];
 
 export const BET_PRESETS = [100, 500, 1000, 5000];
@@ -214,7 +214,7 @@ export const WEATHER_EFFECTS: Record<WeatherType, { name: string; icon: string; 
   rain: { name: 'Regen', icon: 'CloudRain', desc: '-5 Heat/dag, -10% handelsvolume.' },
   fog: { name: 'Mist', icon: 'CloudFog', desc: '+15% smokkel succes, +10% missie kans.' },
   heatwave: { name: 'Hittegolf', icon: 'Thermometer', desc: '+3 Heat/dag, +20% prijzen.' },
-  storm: { name: 'Storm', icon: 'CloudLightning', desc: 'Gratis reizen, dubbele lab output.' },
+  storm: { name: 'Storm', icon: 'CloudLightning', desc: 'Gratis reizen, +50% lab output.' },
 };
 
 // ========== CREW SPECIALIZATIONS ==========
@@ -365,6 +365,8 @@ export function createInitialState(): import('./types').GameState {
       missionsFailed: 0,
       tradesCompleted: 0,
       daysPlayed: 0,
+      blackjackStreak: 0,
+      highLowMaxRound: 0,
     },
     nightReport: null,
     priceHistory: {},
@@ -382,5 +384,6 @@ export function createInitialState(): import('./types').GameState {
     phone: { messages: [], unread: 0 },
     showPhone: false,
     pendingSpecChoice: null,
+    casinoJackpot: 10000,
   };
 }

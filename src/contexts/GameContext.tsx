@@ -70,6 +70,11 @@ type GameAction =
   | { type: 'DISMISS_SPEC_CHOICE' }
   | { type: 'TOGGLE_PHONE' }
   | { type: 'READ_MESSAGE'; messageId: string }
+  | { type: 'TRACK_BLACKJACK_WIN' }
+  | { type: 'RESET_BLACKJACK_STREAK' }
+  | { type: 'TRACK_HIGHLOW_ROUND'; round: number }
+  | { type: 'JACKPOT_ADD'; amount: number }
+  | { type: 'JACKPOT_RESET' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -344,6 +349,31 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'TRACK_BLACKJACK_WIN': {
+      s.stats.blackjackStreak = (s.stats.blackjackStreak || 0) + 1;
+      return s;
+    }
+
+    case 'RESET_BLACKJACK_STREAK': {
+      s.stats.blackjackStreak = 0;
+      return s;
+    }
+
+    case 'TRACK_HIGHLOW_ROUND': {
+      s.stats.highLowMaxRound = Math.max(s.stats.highLowMaxRound || 0, action.round);
+      return s;
+    }
+
+    case 'JACKPOT_ADD': {
+      s.casinoJackpot = (s.casinoJackpot || 10000) + action.amount;
+      return s;
+    }
+
+    case 'JACKPOT_RESET': {
+      s.casinoJackpot = 10000;
+      return s;
+    }
+
     case 'START_COMBAT': {
       const combat = Engine.startCombat(s, action.familyId);
       if (combat) s.activeCombat = combat;
@@ -536,7 +566,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.tutorialDone === undefined) saved.tutorialDone = false;
       if (!saved.lastLoginDay) saved.lastLoginDay = '';
       if (saved.loginStreak === undefined) saved.loginStreak = 0;
-      if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0 };
+      if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0, blackjackStreak: 0, highLowMaxRound: 0 };
+      if (saved.stats.blackjackStreak === undefined) saved.stats.blackjackStreak = 0;
+      if (saved.stats.highLowMaxRound === undefined) saved.stats.highLowMaxRound = 0;
+      if (saved.casinoJackpot === undefined) saved.casinoJackpot = 10000;
       if (saved.nightReport === undefined) saved.nightReport = null;
       if (!saved.priceHistory) saved.priceHistory = {};
       if (saved.washUsedToday === undefined) saved.washUsedToday = 0;

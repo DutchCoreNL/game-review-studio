@@ -1,18 +1,19 @@
 import { useState, useRef } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
-import { getTotalVipBonus, CasinoSessionStats } from './casinoUtils';
+import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 
 interface SlotsGameProps {
   dispatch: (action: any) => void;
   showToast: (msg: string, isError?: boolean) => void;
   money: number;
-  state: { ownedDistricts: string[]; districtRep: Record<string, number> };
+  state: { ownedDistricts: string[]; districtRep: Record<string, number>; casinoJackpot?: number };
   onResult: (won: boolean | null, amount: number) => void;
 }
 
-const BASE_SYMBOLS = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍇', '💎', '7️⃣'];
+// Rebalanced: 12 symbols, fewer duplicates → lower pair/triple rates
+const BASE_SYMBOLS = ['🍒', '🍒', '🍋', '🍋', '🍇', '🍊', '🔔', '⭐', '🍀', '🎲', '💎', '7️⃣'];
 
 export function SlotsGame({ dispatch, showToast, money, state, onResult }: SlotsGameProps) {
   const [bet, setBet] = useState(50);
@@ -20,12 +21,15 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
   const [spinning, setSpinning] = useState([false, false, false]);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
-  const [jackpot, setJackpot] = useState(10000);
   const [nearMiss, setNearMiss] = useState(false);
 
   const vipBonus = getTotalVipBonus(state);
   const hasNeon = state.ownedDistricts.includes('neon');
+  // Neon bonus: add one extra 7 and diamond (slightly better odds)
   const symbols = hasNeon ? [...BASE_SYMBOLS, '7️⃣', '💎'] : BASE_SYMBOLS;
+
+  // Use persistent jackpot from state
+  const jackpot = state.casinoJackpot || 10000;
 
   const spin = () => {
     if (bet > money || bet < 10) return showToast('Niet genoeg geld!', true);
@@ -33,8 +37,8 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     setResult(''); setNearMiss(false);
     setSpinning([true, true, true]);
 
-    // Add to jackpot
-    setJackpot(prev => prev + Math.floor(bet * 0.05));
+    // Add to jackpot (persistent via state)
+    dispatch({ type: 'JACKPOT_ADD', amount: Math.floor(bet * 0.05) });
 
     const currentBet = bet;
     const finalReels: string[] = [];
@@ -75,7 +79,6 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       stopReel(2);
       clearInterval(animInterval);
       setSpinning([false, false, false]);
-      // Need to wait for state to settle
       setTimeout(() => resolve(finalReels, currentBet), 100);
     }, 2000);
   };
@@ -89,17 +92,18 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       if (a === '7️⃣') {
         // JACKPOT!
         win = jackpot;
-        setJackpot(10000);
+        dispatch({ type: 'JACKPOT_RESET' });
         setResult(`🎰 JACKPOT! +€${win.toLocaleString()}`);
       } else if (a === '💎') {
-        win = activeBet * 30;
+        win = activeBet * 25;
         setResult(`💎 DIAMANT! +€${win.toLocaleString()}`);
       } else {
-        win = activeBet * 10;
+        win = activeBet * 8;
         setResult(`WINNAAR! +€${win.toLocaleString()}`);
       }
     } else if (a === b || b === c || a === c) {
-      win = Math.floor(activeBet * 1.5);
+      // Pair payout reduced from 1.5x to 1.2x
+      win = Math.floor(activeBet * 1.2);
       setResult(`Klein! +€${win}`);
 
       // Near miss: 2 of 3 are high value
@@ -112,7 +116,8 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     }
 
     if (win > 0) {
-      const bonusWin = Math.floor(win * (1 + vipBonus / 100));
+      // Apply VIP bonus to net profit only
+      const bonusWin = applyVipToWinnings(win, activeBet, vipBonus);
       dispatch({ type: 'CASINO_WIN', amount: bonusWin });
       setResultColor('text-emerald');
       onResult(true, bonusWin - activeBet);

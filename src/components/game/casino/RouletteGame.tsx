@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
-import { getTotalVipBonus, CasinoSessionStats } from './casinoUtils';
+import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 
 type RouletteBet = 'red' | 'black' | 'green' | 'even' | 'odd' | 'low' | 'high';
@@ -59,10 +59,10 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
     else if (choice === 'low' && num >= 1 && num <= 18) { won = true; mult = 2; }
     else if (choice === 'high' && num >= 19 && num <= 36) { won = true; mult = 2; }
 
-    mult += vipBonus / 100;
-
     if (won) {
-      const winAmount = Math.floor(activeBet * mult);
+      const basePayout = Math.floor(activeBet * mult);
+      // Apply VIP bonus to net profit only
+      const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
       dispatch({ type: 'CASINO_WIN', amount: winAmount });
       setResult(`GEWONNEN! +€${winAmount}`);
       setResultColor('text-emerald');

@@ -99,7 +99,7 @@ export function generateContracts(state: GameState): void {
       target,
       risk: Math.min(90, Math.floor(template.risk + (state.day / 2))),
       heat: template.heat,
-      reward: Math.floor(template.rewardBase * (1 + (state.day * 0.05))),
+      reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0))),
       xp: 35 + (state.day * 2)
     });
   }
@@ -256,13 +256,13 @@ export function endTurn(state: GameState): NightReportData {
 
   const heatBefore = state.heat;
 
-  // Lab production (storm doubles output)
-  const labMultiplier = state.weather === 'storm' ? 2 : 1;
+  // Lab production (storm gives +50% output, not double)
+  const labMultiplier = state.weather === 'storm' ? 1.5 : 1;
   if (state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
     if (space > 0) {
-      const maxBatch = state.weather === 'storm' ? 40 : 20;
+      const maxBatch = state.weather === 'storm' ? 30 : 20;
       const batchSize = Math.min(state.lab.chemicals, maxBatch, space) * labMultiplier;
       state.lab.chemicals -= batchSize;
       const existingCount = state.inventory.drugs || 0;
