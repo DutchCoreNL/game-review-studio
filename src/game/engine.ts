@@ -309,11 +309,12 @@ export function endTurn(state: GameState): NightReportData {
   // Apply faction war effects for hostile factions
   applyFactionWar(state);
 
-  // Faction alliance passive income
+  // Faction alliance passive income (both high-rel and conquered)
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
     const rel = state.familyRel[fid] || 0;
-    if (rel >= 80) {
-      const income = 500;
+    const isConquered = state.conqueredFactions?.includes(fid);
+    if (rel >= 80 || isConquered) {
+      const income = isConquered ? 1000 : 500;
       state.money += income;
       state.stats.totalEarned += income;
       report.businessIncome += income;
@@ -888,10 +889,9 @@ export function performFactionAction(
 function applyFactionWar(state: GameState): void {
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
     const rel = state.familyRel[fid] || 0;
-    if (rel < -50) {
-      // Faction attacks
+    const isConquered = state.conqueredFactions?.includes(fid);
+    if (rel < -50 && !isConquered) {
       if (Math.random() < 0.4) {
-        // Steal goods
         const goods = Object.keys(state.inventory) as GoodId[];
         const target = goods.find(g => (state.inventory[g] || 0) > 0);
         if (target) {
@@ -900,7 +900,6 @@ function applyFactionWar(state: GameState): void {
         }
       }
       if (Math.random() < 0.3) {
-        // Attack crew
         state.crew.forEach(c => {
           if (c.hp > 0 && Math.random() < 0.4) {
             c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 15 + 5));
@@ -909,4 +908,60 @@ function applyFactionWar(state: GameState): void {
       }
     }
   });
+}
+
+// ========== FACTION CONQUEST ==========
+
+export function conquerFaction(state: GameState, familyId: FamilyId): { success: boolean; message: string } {
+  if (!state.conqueredFactions) state.conqueredFactions = [];
+  if (state.conqueredFactions.includes(familyId)) {
+    return { success: false, message: 'Factie is al veroverd.' };
+  }
+  if (!state.leadersDefeated.includes(familyId)) {
+    return { success: false, message: 'Versla eerst de leider.' };
+  }
+
+  const fam = FAMILIES[familyId];
+  state.conqueredFactions.push(familyId);
+  state.familyRel[familyId] = 100;
+  state.rep += 300;
+  gainXp(state, 150);
+
+  // Grant the faction's home district if not owned
+  if (!state.ownedDistricts.includes(fam.home)) {
+    state.ownedDistricts.push(fam.home);
+  }
+
+  return { success: true, message: `${fam.name} is nu jouw vazal! Je krijgt hun thuisdistrict, +€1000/dag passief inkomen, en permanente marktkorting.` };
+}
+
+export function annexFaction(state: GameState, familyId: FamilyId): { success: boolean; message: string } {
+  if (!state.conqueredFactions) state.conqueredFactions = [];
+  if (state.conqueredFactions.includes(familyId)) {
+    return { success: false, message: 'Factie is al veroverd.' };
+  }
+
+  const rel = state.familyRel[familyId] || 0;
+  if (rel < 100) {
+    return { success: false, message: 'Relatie moet 100 zijn voor diplomatieke annexatie.' };
+  }
+
+  const fam = FAMILIES[familyId];
+  const cost = 50000;
+  if (state.money < cost) {
+    return { success: false, message: `Niet genoeg geld (€${cost.toLocaleString()} nodig).` };
+  }
+
+  state.money -= cost;
+  state.stats.totalSpent += cost;
+  state.conqueredFactions.push(familyId);
+  state.rep += 200;
+  gainXp(state, 100);
+
+  // Grant the faction's home district if not owned
+  if (!state.ownedDistricts.includes(fam.home)) {
+    state.ownedDistricts.push(fam.home);
+  }
+
+  return { success: true, message: `${fam.name} is diplomatiek geannexeerd! Je krijgt hun thuisdistrict, +€1000/dag passief inkomen, en permanente marktkorting.` };
 }

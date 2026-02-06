@@ -52,6 +52,8 @@ type GameAction =
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
+  | { type: 'CONQUER_FACTION'; familyId: FamilyId }
+  | { type: 'ANNEX_FACTION'; familyId: FamilyId }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -339,6 +341,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'CONQUER_FACTION': {
+      Engine.conquerFaction(s, action.familyId);
+      Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'ANNEX_FACTION': {
+      Engine.annexFaction(s, action.familyId);
+      Engine.checkAchievements(s);
+      return s;
+    }
+
     case 'RESET':
       return createInitialState();
 
@@ -361,7 +375,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.priceHistory) saved.priceHistory = {};
       if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
       if (!saved.factionCooldowns) saved.factionCooldowns = { cartel: [], syndicate: [], bikers: [] };
-      if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
+      if (!saved.conqueredFactions) saved.conqueredFactions = [];
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;

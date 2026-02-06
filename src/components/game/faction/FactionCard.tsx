@@ -6,7 +6,7 @@ import { FamilyId, FactionActionType } from '@/game/types';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle } from 'lucide-react';
+import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart } from 'lucide-react';
 import { useState } from 'react';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -30,32 +30,39 @@ interface FactionCardProps {
 }
 
 export function FactionCard({ familyId }: FactionCardProps) {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch, showToast, setView } = useGame();
   const [expanded, setExpanded] = useState(false);
 
   const fam = FAMILIES[familyId];
   const rel = state.familyRel[familyId] || 0;
   const dead = state.leadersDefeated.includes(familyId);
-  const status = getFactionStatus(rel);
+  const conquered = state.conqueredFactions?.includes(familyId);
+  const status = conquered
+    ? { label: 'VAZAL', color: 'text-gold' }
+    : getFactionStatus(rel);
   const perks = getFactionPerks(rel);
   const cooldowns = state.factionCooldowns[familyId] || [];
   const hasCooldown = cooldowns.length > 0;
 
   const relBarPct = Math.max(0, Math.min(100, (rel + 100) / 2));
-  const relBarColor = rel >= 50 ? 'emerald' : rel >= 0 ? 'gold' : 'blood';
+  const relBarColor = conquered ? 'gold' : rel >= 50 ? 'emerald' : rel >= 0 ? 'gold' : 'blood';
+
+  // Conquest conditions
+  const canConquer = dead && !conquered;
+  const canAnnex = !dead && !conquered && rel >= 100 && state.money >= 50000;
+  const canChallenge = !dead && !conquered && rel <= -20 && state.loc === fam.home;
+  const isInDistrict = state.loc === fam.home;
 
   const handleAction = (actionType: FactionActionType) => {
-    // Pre-check before dispatching to show toast
     const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
     if (!actionDef) return;
 
-    // Quick local validations for toast feedback
-    if (dead) { showToast('Leider is verslagen', true); return; }
+    if (dead && !conquered) { showToast('Neem deze factie eerst over!', true); return; }
+    if (conquered) { showToast('Deze factie is al jouw vazal.', true); return; }
     if (hasCooldown) { showToast('Je hebt vandaag al een actie uitgevoerd bij deze factie.', true); return; }
     if (actionDef.requiresDistrict && state.loc !== fam.home) { showToast(`Reis eerst naar ${DISTRICTS[fam.home].name}`, true); return; }
     if (actionDef.minRelation !== null && rel < actionDef.minRelation) { showToast(`Relatie te laag (min: ${actionDef.minRelation})`, true); return; }
 
-    // Gift check
     if (actionType === 'gift') {
       const giftGood = FACTION_GIFTS[familyId];
       if ((state.inventory[giftGood] || 0) < 3) {
@@ -67,8 +74,6 @@ export function FactionCard({ familyId }: FactionCardProps) {
 
     dispatch({ type: 'FACTION_ACTION', familyId, actionType });
 
-    // Read the result from the updated state (stored by reducer)
-    // Since dispatch is sync in React 18 with useReducer, we show a generic success
     const actionNames: Record<string, string> = {
       negotiate: 'Onderhandeling uitgevoerd!',
       bribe: 'Omkoping geslaagd!',
@@ -78,6 +83,21 @@ export function FactionCard({ familyId }: FactionCardProps) {
       intel: 'Informatie gekocht!',
     };
     showToast(actionNames[actionType] || 'Actie uitgevoerd!');
+  };
+
+  const handleConquer = () => {
+    dispatch({ type: 'CONQUER_FACTION', familyId });
+    showToast(`${fam.name} is nu jouw vazal! 👑`);
+  };
+
+  const handleAnnex = () => {
+    dispatch({ type: 'ANNEX_FACTION', familyId });
+    showToast(`${fam.name} diplomatiek geannexeerd! 🤝`);
+  };
+
+  const handleChallenge = () => {
+    dispatch({ type: 'START_COMBAT', familyId });
+    setView('city'); // Combat view takes over automatically
   };
 
   const getActionCost = (actionType: FactionActionType): string => {
@@ -98,7 +118,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
   };
 
   const canDoAction = (actionType: FactionActionType): boolean => {
-    if (dead) return false;
+    if (dead || conquered) return false;
     if (hasCooldown) return false;
     const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
     if (!actionDef) return false;
@@ -106,7 +126,6 @@ export function FactionCard({ familyId }: FactionCardProps) {
     if (actionDef.minRelation !== null && rel < actionDef.minRelation) return false;
     if (actionDef.maxRelation !== null && rel > actionDef.maxRelation) return false;
 
-    // Check cost
     const charm = getPlayerStat(state, 'charm');
     switch (actionType) {
       case 'negotiate': return state.money >= Math.max(500, 2000 - (charm * 100));
@@ -120,7 +139,8 @@ export function FactionCard({ familyId }: FactionCardProps) {
   };
 
   const getActionBlockReason = (actionType: FactionActionType): string | null => {
-    if (dead) return 'Leider verslagen';
+    if (dead) return 'Leider dood';
+    if (conquered) return 'Vazal';
     if (hasCooldown) return 'Morgen';
     const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
     if (!actionDef) return null;
@@ -131,19 +151,23 @@ export function FactionCard({ familyId }: FactionCardProps) {
 
   return (
     <motion.div
-      className={`game-card overflow-hidden transition-all ${dead ? 'opacity-50' : ''}`}
-      style={{ borderLeft: `3px solid ${dead ? '#444' : fam.color}` }}
+      className={`game-card overflow-hidden transition-all`}
+      style={{ borderLeft: `3px solid ${conquered ? 'hsl(var(--gold))' : dead ? '#444' : fam.color}` }}
       initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: dead ? 0.6 : 1, x: 0 }}
+      animate={{ opacity: 1, x: 0 }}
     >
-      {/* Header — always visible */}
+      {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-start justify-between text-left"
       >
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            {dead ? (
+            {conquered ? (
+              <div className="w-5 h-5 rounded bg-gold/20 flex items-center justify-center">
+                <Flag size={10} className="text-gold" />
+              </div>
+            ) : dead ? (
               <Skull size={14} className="text-muted-foreground" />
             ) : (
               <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: fam.color + '30' }}>
@@ -151,7 +175,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
               </div>
             )}
             <h4 className="font-bold text-xs">{fam.name}</h4>
-            <GameBadge variant={dead ? 'muted' : 'blood'} size="xs">
+            <GameBadge variant={conquered ? 'gold' : dead ? 'muted' : 'blood'} size="xs">
               {familyId.toUpperCase()}
             </GameBadge>
             <span className={`text-[0.5rem] font-bold ${status.color}`}>{status.label}</span>
@@ -159,7 +183,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
           <p className="text-[0.55rem] text-muted-foreground">{fam.contact} — {fam.desc}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[0.65rem] font-bold">{dead ? 'DOOD' : rel}</span>
+          <span className="text-[0.65rem] font-bold">{conquered ? '👑' : dead ? '💀' : rel}</span>
           <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
             <ChevronDown size={14} className="text-muted-foreground" />
           </motion.div>
@@ -167,17 +191,27 @@ export function FactionCard({ familyId }: FactionCardProps) {
       </button>
 
       {/* Relation bar */}
-      <div className="mt-2">
-        <StatBar value={relBarPct} max={100} color={relBarColor} height="sm" />
-        <div className="flex justify-between text-[0.45rem] text-muted-foreground mt-0.5">
-          <span>-100</span>
-          <span>0</span>
-          <span>+100</span>
+      {!conquered && (
+        <div className="mt-2">
+          <StatBar value={relBarPct} max={100} color={relBarColor} height="sm" />
+          <div className="flex justify-between text-[0.45rem] text-muted-foreground mt-0.5">
+            <span>-100</span>
+            <span>0</span>
+            <span>+100</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Conquered banner */}
+      {conquered && (
+        <div className="mt-2 py-2 px-3 rounded bg-gold/10 border border-gold/20 text-center">
+          <p className="text-[0.55rem] font-bold text-gold uppercase tracking-wider">🏴 Vazalstaat — Onder jouw controle</p>
+          <p className="text-[0.45rem] text-muted-foreground mt-0.5">+€1.000/dag passief inkomen | Permanente marktkorting | Thuisdistrict bezit</p>
+        </div>
+      )}
 
       {/* Active perks */}
-      {perks.length > 0 && (
+      {(perks.length > 0 || conquered) && !conquered && (
         <div className="flex flex-wrap gap-1 mt-2">
           {perks.map(perk => (
             <span key={perk.label} className="inline-flex items-center gap-0.5 text-[0.45rem] font-semibold px-1.5 py-0.5 rounded bg-gold/10 text-gold border border-gold/20">
@@ -188,9 +222,9 @@ export function FactionCard({ familyId }: FactionCardProps) {
         </div>
       )}
 
-      {/* Expandable action menu */}
+      {/* Expandable section */}
       <AnimatePresence>
-        {expanded && !dead && (
+        {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -199,47 +233,166 @@ export function FactionCard({ familyId }: FactionCardProps) {
             className="overflow-hidden"
           >
             <div className="border-t border-border mt-3 pt-3">
-              <p className="text-[0.5rem] text-muted-foreground uppercase tracking-wider font-bold mb-2">
-                Acties {hasCooldown && <span className="text-gold ml-1">(cooldown actief — morgen weer beschikbaar)</span>}
-              </p>
 
-              <div className="grid grid-cols-3 gap-1.5">
-                {FACTION_ACTIONS.map(action => {
-                  const canDo = canDoAction(action.id);
-                  const blockReason = getActionBlockReason(action.id);
-                  const cost = getActionCost(action.id);
+              {/* === CONQUERED STATE === */}
+              {conquered && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[0.55rem]">
+                    <CheckCircle size={12} className="text-gold" />
+                    <span className="text-gold font-bold">Alle voordelen actief</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[0.5rem]">
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <Banknote size={12} className="mx-auto text-gold mb-0.5" />
+                      <span className="font-bold">+€1.000</span>
+                      <p className="text-muted-foreground text-[0.4rem]">per dag</p>
+                    </div>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <Percent size={12} className="mx-auto text-emerald mb-0.5" />
+                      <span className="font-bold">-30%</span>
+                      <p className="text-muted-foreground text-[0.4rem]">marktprijzen</p>
+                    </div>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <Shield size={12} className="mx-auto text-ice mb-0.5" />
+                      <span className="font-bold">Bescherming</span>
+                      <p className="text-muted-foreground text-[0.4rem]">geen aanvallen</p>
+                    </div>
+                    <div className="bg-muted/50 rounded p-2 text-center">
+                      <Flag size={12} className="mx-auto text-blood mb-0.5" />
+                      <span className="font-bold">{DISTRICTS[fam.home].name}</span>
+                      <p className="text-muted-foreground text-[0.4rem]">thuisdistrict</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                  return (
+              {/* === CONQUER AFTER DEFEAT === */}
+              {canConquer && (
+                <div className="mb-3">
+                  <div className="bg-gold/5 border border-gold/30 rounded p-3 text-center">
+                    <Skull size={20} className="mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xs font-bold mb-1">Leider Verslagen</p>
+                    <p className="text-[0.55rem] text-muted-foreground mb-3">
+                      {fam.contact} is dood. Neem de factie over als vazal en krijg hun voordelen.
+                    </p>
                     <motion.button
-                      key={action.id}
-                      onClick={() => canDo && handleAction(action.id)}
-                      disabled={!canDo}
-                      className={`relative py-2.5 px-1.5 rounded text-center transition-all ${
-                        canDo
-                          ? 'bg-muted/80 border border-border hover:border-gold/50 cursor-pointer'
-                          : 'bg-muted/30 border border-transparent opacity-40 cursor-not-allowed'
-                      }`}
-                      whileTap={canDo ? { scale: 0.95 } : {}}
+                      onClick={handleConquer}
+                      className="w-full py-2.5 rounded text-xs font-bold bg-gold text-secondary-foreground"
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <div className="flex justify-center mb-1" style={{ color: canDo ? fam.color : undefined }}>
-                        {ACTION_ICONS[action.icon] || <Handshake size={14} />}
-                      </div>
-                      <div className="text-[0.5rem] font-bold leading-tight">{action.name}</div>
-                      <div className="text-[0.4rem] text-muted-foreground mt-0.5">{cost}</div>
-                      {blockReason && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded">
-                          <span className="text-[0.4rem] font-bold text-muted-foreground flex items-center gap-0.5">
-                            <Lock size={8} /> {blockReason}
-                          </span>
-                        </div>
-                      )}
+                      <Flag size={12} className="inline mr-1.5" />
+                      NEEM OVER ALS VAZAL
                     </motion.button>
-                  );
-                })}
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {/* === DIPLOMATIC ANNEX === */}
+              {!dead && !conquered && rel >= 80 && (
+                <div className="mb-3">
+                  <div className={`border rounded p-3 text-center ${
+                    canAnnex ? 'bg-emerald/5 border-emerald/30' : 'bg-muted/30 border-border'
+                  }`}>
+                    <Heart size={16} className={`mx-auto mb-1 ${canAnnex ? 'text-emerald' : 'text-muted-foreground'}`} />
+                    <p className="text-xs font-bold mb-1">Diplomatieke Annexatie</p>
+                    <p className="text-[0.55rem] text-muted-foreground mb-2">
+                      {rel >= 100
+                        ? 'Relatie maximaal! Annex deze factie vreedzaam.'
+                        : `Nog ${100 - rel} relatie nodig (huidig: ${rel}/100)`}
+                    </p>
+                    <motion.button
+                      onClick={handleAnnex}
+                      disabled={!canAnnex}
+                      className={`w-full py-2.5 rounded text-xs font-bold ${
+                        canAnnex
+                          ? 'bg-emerald text-primary-foreground'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      }`}
+                      whileTap={canAnnex ? { scale: 0.95 } : {}}
+                    >
+                      <Handshake size={12} className="inline mr-1.5" />
+                      {canAnnex ? 'ANNEXEER (€50.000)' : rel >= 100 ? 'NIET GENOEG GELD' : `RELATIE ${rel}/100`}
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+
+              {/* === CHALLENGE TO COMBAT === */}
+              {!dead && !conquered && rel <= -20 && (
+                <div className="mb-3">
+                  <div className={`border rounded p-3 text-center ${
+                    canChallenge ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'
+                  }`}>
+                    <Swords size={16} className={`mx-auto mb-1 ${canChallenge ? 'text-blood' : 'text-muted-foreground'}`} />
+                    <p className="text-xs font-bold mb-1">Leider Uitdagen</p>
+                    <p className="text-[0.55rem] text-muted-foreground mb-2">
+                      {isInDistrict
+                        ? `Daag ${fam.contact} uit voor een gevecht op leven en dood.`
+                        : `Reis eerst naar ${DISTRICTS[fam.home].name}.`}
+                    </p>
+                    <motion.button
+                      onClick={handleChallenge}
+                      disabled={!canChallenge}
+                      className={`w-full py-2.5 rounded text-xs font-bold ${
+                        canChallenge
+                          ? 'bg-blood text-primary-foreground'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      }`}
+                      whileTap={canChallenge ? { scale: 0.95 } : {}}
+                    >
+                      <Swords size={12} className="inline mr-1.5" />
+                      {canChallenge ? 'UITDAGEN' : `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`}
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+
+              {/* === ACTION GRID (only if not conquered) === */}
+              {!conquered && !canConquer && (
+                <>
+                  <p className="text-[0.5rem] text-muted-foreground uppercase tracking-wider font-bold mb-2">
+                    Acties {hasCooldown && <span className="text-gold ml-1">(cooldown — morgen weer)</span>}
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {FACTION_ACTIONS.map(action => {
+                      const canDo = canDoAction(action.id);
+                      const blockReason = getActionBlockReason(action.id);
+                      const cost = getActionCost(action.id);
+
+                      return (
+                        <motion.button
+                          key={action.id}
+                          onClick={() => canDo && handleAction(action.id)}
+                          disabled={!canDo}
+                          className={`relative py-2.5 px-1.5 rounded text-center transition-all ${
+                            canDo
+                              ? 'bg-muted/80 border border-border hover:border-gold/50 cursor-pointer'
+                              : 'bg-muted/30 border border-transparent opacity-40 cursor-not-allowed'
+                          }`}
+                          whileTap={canDo ? { scale: 0.95 } : {}}
+                        >
+                          <div className="flex justify-center mb-1" style={{ color: canDo ? fam.color : undefined }}>
+                            {ACTION_ICONS[action.icon] || <Handshake size={14} />}
+                          </div>
+                          <div className="text-[0.5rem] font-bold leading-tight">{action.name}</div>
+                          <div className="text-[0.4rem] text-muted-foreground mt-0.5">{cost}</div>
+                          {blockReason && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded">
+                              <span className="text-[0.4rem] font-bold text-muted-foreground flex items-center gap-0.5">
+                                <Lock size={8} /> {blockReason}
+                              </span>
+                            </div>
+                          )}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
               {/* Upcoming rewards */}
-              {FACTION_REWARDS.filter(r => rel < r.minRel).length > 0 && (
+              {!conquered && FACTION_REWARDS.filter(r => rel < r.minRel).length > 0 && (
                 <div className="mt-3 pt-2 border-t border-border/50">
                   <p className="text-[0.45rem] text-muted-foreground uppercase tracking-wider font-bold mb-1.5">
                     Volgende Beloningen

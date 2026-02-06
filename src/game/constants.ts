@@ -257,5 +257,6 @@ export function createInitialState(): import('./types').GameState {
     priceHistory: {},
     washUsedToday: 0,
     factionCooldowns: { cartel: [], syndicate: [], bikers: [] },
+    conqueredFactions: [],
   };
 }
