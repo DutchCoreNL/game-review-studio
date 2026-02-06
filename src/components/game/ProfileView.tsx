@@ -8,7 +8,7 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Spade, CircleDot, Skull, Star, MapPin, Crown } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
 
@@ -128,14 +128,18 @@ export function ProfileView() {
             </>
           )}
 
-          {/* Casino Link */}
+          {/* Casino Quick Link */}
           <SectionHeader title="Casino" icon={<Dices size={12} />} />
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <CasinoLink icon={<Spade size={20} />} label="BLACKJACK" onClick={() => setView('profile')} />
-            <CasinoLink icon={<CircleDot size={20} />} label="ROULETTE" onClick={() => setView('profile')} />
-            <CasinoLink icon={<Gem size={20} />} label="SLOTS" onClick={() => setView('profile')} />
+          <div className="game-card mb-4 flex items-center justify-between">
+            <div>
+              <h4 className="font-bold text-xs">The Velvet Room</h4>
+              <p className="text-[0.5rem] text-muted-foreground">Blackjack, Roulette, Slots & High-Low</p>
+              <p className="text-[0.45rem] text-gold">Casino €{state.stats.casinoWon.toLocaleString()} gewonnen</p>
+            </div>
+            <GameButton variant="purple" size="sm" onClick={() => setView('city')}>
+              OPEN KAART
+            </GameButton>
           </div>
-          <p className="text-[0.5rem] text-muted-foreground text-center italic mb-4">Casino beschikbaar via de kaarttab (The Velvet Room)</p>
         </>
       )}
 
@@ -281,11 +285,3 @@ export function ProfileView() {
   );
 }
 
-function CasinoLink({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
-  return (
-    <div className="game-card flex flex-col items-center py-3 gap-1 opacity-50">
-      <div className="text-gold">{icon}</div>
-      <span className="text-[0.5rem] font-bold text-muted-foreground">{label}</span>
-    </div>
-  );
-}

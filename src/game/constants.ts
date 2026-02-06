@@ -148,7 +148,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'survivor', name: 'Overlever', desc: 'Overleef 30 dagen', icon: 'Clock', condition: (s) => s.day >= 30 },
   { id: 'combat_master', name: 'Vechtmachine', desc: 'Win een gevecht tegen een factieleider', icon: 'Swords', condition: (s) => s.leadersDefeated.length >= 1 },
   { id: 'trader', name: 'Handelaar', desc: 'Voltooi 50 transacties', icon: 'ArrowRightLeft', condition: (s) => (s.stats?.tradesCompleted || 0) >= 50 },
+  { id: 'jackpot', name: 'Jackpot!', desc: 'Win 50x bij slots', icon: 'Dices', condition: (s) => s.stats.casinoWon >= 50000 },
+  { id: 'card_counter', name: 'Kaartenteller', desc: 'Win 5 blackjack op rij', icon: 'Spade', condition: (s) => s.stats.casinoWon > 0 },
+  { id: 'poker_face', name: 'Poker Face', desc: 'Bereik 5x multiplier bij High-Low', icon: 'CircleDot', condition: (s) => s.stats.casinoWon > 0 },
 ];
+
+export const BET_PRESETS = [100, 500, 1000, 5000];
 
 export const DAILY_REWARDS = [
   { day: 1, reward: 500, label: '€500' },

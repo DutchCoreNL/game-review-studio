@@ -83,7 +83,19 @@ export function MapView() {
         <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
           DAG AFSLUITEN
         </GameButton>
-        <GameButton variant="purple" size="lg" icon={<Dices size={14} />} onClick={() => setShowCasino(true)} className="px-4">
+        <GameButton
+          variant="purple"
+          size="lg"
+          icon={<Dices size={14} />}
+          onClick={() => {
+            if (state.weather === 'storm') {
+              showToast('Casino gesloten wegens storm!', true);
+              return;
+            }
+            setShowCasino(true);
+          }}
+          className={`px-4 ${state.weather === 'storm' ? 'opacity-50' : ''}`}
+        >
           CASINO
         </GameButton>
       </div>

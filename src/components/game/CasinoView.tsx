@@ -1,22 +1,103 @@
 import { useGame } from '@/contexts/GameContext';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { CasinoGame } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
-import { GameButton } from './ui/GameButton';
+import { BlackjackGame } from './casino/BlackjackGame';
+import { RouletteGame } from './casino/RouletteGame';
+import { SlotsGame } from './casino/SlotsGame';
+import { HighLowGame } from './casino/HighLowGame';
+import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino/casinoUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Spade, CircleDot, Gem } from 'lucide-react';
+import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown } from 'lucide-react';
 
 export function CasinoView() {
   const { state, dispatch, showToast } = useGame();
   const [activeGame, setActiveGame] = useState<CasinoGame>(null);
+  const [sessionStats, setSessionStats] = useState<CasinoSessionStats>(INITIAL_SESSION_STATS);
+
+  const isStorm = state.weather === 'storm';
+  const vipBonuses = getVipBonus(state);
+
+  const handleResult = useCallback((won: boolean | null, amount: number) => {
+    setSessionStats(prev => {
+      const next = { ...prev };
+      next.sessionProfit += amount;
+      if (won === true) {
+        next.sessionWins++;
+        next.currentStreak++;
+        next.bestStreak = Math.max(next.bestStreak, next.currentStreak);
+      } else if (won === false) {
+        next.sessionLosses++;
+        next.currentStreak = 0;
+      }
+      return next;
+    });
+
+    // Neon Strip rep gain on big wins
+    if (won && amount > 1000) {
+      dispatch({ type: 'TRADE', gid: 'drugs', mode: 'buy', quantity: 0 }); // trigger is implicit
+    }
+  }, [dispatch]);
+
+  // Storm blocker
+  if (isStorm) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <CloudLightning size={48} className="text-game-purple mx-auto mb-4" />
+          <h2 className="font-display text-xl text-foreground mb-2 uppercase tracking-wider">CASINO GESLOTEN</h2>
+          <p className="text-muted-foreground text-sm mb-1">Wegens stormweer is The Velvet Room</p>
+          <p className="text-muted-foreground text-sm">tijdelijk gesloten.</p>
+          <p className="text-[0.55rem] text-muted-foreground mt-4 italic">"Zelfs het geluk schuilt voor de bliksem."</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <SectionHeader title="THE VELVET ROOM" icon={<Gem size={12} />} />
+
+      {/* VIP Status */}
+      {vipBonuses.length > 0 && !activeGame && (
+        <div className="game-card border-l-[3px] border-l-game-purple mb-3 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Star size={10} className="text-game-purple" />
+            <span className="text-[0.55rem] font-bold text-game-purple uppercase tracking-wider">VIP Status</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {vipBonuses.map((b, i) => (
+              <span key={i} className="text-[0.45rem] font-semibold px-1.5 py-0.5 rounded bg-game-purple/10 text-game-purple border border-game-purple/20">
+                +{b.bonus}% {b.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Session Stats */}
+      {!activeGame && (sessionStats.sessionWins > 0 || sessionStats.sessionLosses > 0) && (
+        <div className="flex gap-3 justify-center mb-3 text-[0.55rem]">
+          <span className="text-emerald font-bold flex items-center gap-0.5">
+            <TrendingUp size={10} /> {sessionStats.sessionWins}W
+          </span>
+          <span className="text-blood font-bold flex items-center gap-0.5">
+            <TrendingDown size={10} /> {sessionStats.sessionLosses}L
+          </span>
+          <span className={`font-bold ${sessionStats.sessionProfit >= 0 ? 'text-emerald' : 'text-blood'}`}>
+            {sessionStats.sessionProfit >= 0 ? '+' : ''}€{sessionStats.sessionProfit.toLocaleString()}
+          </span>
+          {sessionStats.bestStreak > 1 && (
+            <span className="text-gold font-bold">🔥 Best: {sessionStats.bestStreak}</span>
+          )}
+        </div>
+      )}
+
       <div className="text-center mb-4">
-        {state.ownedDistricts.includes('neon') && (
-          <p className="text-game-purple text-xs font-bold mb-1 neon-text">NEON STRIP BONUS ACTIEF</p>
-        )}
         <p className="text-muted-foreground text-[0.6rem] italic">"Het huis wint altijd... tenzij jij vals speelt."</p>
         <p className="text-gold text-sm font-bold mt-1">€{state.money.toLocaleString()}</p>
       </div>
@@ -24,16 +105,23 @@ export function CasinoView() {
       <AnimatePresence mode="wait">
         {!activeGame ? (
           <motion.div key="menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
-            <GameCard icon={<Spade size={28} />} name="BLACKJACK" sub="2x Uitbetaling" onClick={() => setActiveGame('blackjack')} />
-            <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x" onClick={() => setActiveGame('roulette')} />
-            <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Jackpot: 50x" onClick={() => setActiveGame('slots')} />
+            <GameCard icon={<Spade size={28} />} name="BLACKJACK" sub="2x Uitbetaling + Double Down" onClick={() => setActiveGame('blackjack')} />
+            <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} />
+            <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} />
+            <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" />
           </motion.div>
         ) : activeGame === 'blackjack' ? (
-          <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
+          <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} sessionStats={sessionStats} onResult={handleResult} />
         ) : activeGame === 'roulette' ? (
-          <RouletteGame key="rl" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
+          <RouletteGame key="rl" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} onResult={handleResult} />
+        ) : activeGame === 'slots' ? (
+          <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} onResult={handleResult} />
         ) : (
-          <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money} hasNeon={state.ownedDistricts.includes('neon')} />
+          <HighLowGame key="hl" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} onResult={handleResult} />
         )}
       </AnimatePresence>
 
@@ -47,237 +135,14 @@ export function CasinoView() {
   );
 }
 
-function GameCard({ icon, name, sub, onClick }: { icon: React.ReactNode; name: string; sub: string; onClick: () => void }) {
+function GameCard({ icon, name, sub, onClick, color }: { icon: React.ReactNode; name: string; sub: string; onClick: () => void; color?: string }) {
   return (
     <motion.button onClick={onClick}
       className="game-card-interactive flex flex-col items-center py-6 gap-2 bg-gradient-to-b from-card to-background"
       whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
-      <div className="text-gold gold-text-glow">{icon}</div>
+      <div className={`${color ? `text-${color}` : 'text-gold'} gold-text-glow`}>{icon}</div>
       <span className="font-bold text-sm font-display tracking-wider">{name}</span>
-      <span className="text-[0.55rem] text-muted-foreground">{sub}</span>
+      <span className="text-[0.55rem] text-muted-foreground text-center px-2">{sub}</span>
     </motion.button>
-  );
-}
-
-interface CasinoGameProps {
-  dispatch: (action: any) => void;
-  showToast: (msg: string, isError?: boolean) => void;
-  money: number;
-  hasNeon: boolean;
-}
-
-// ========== BLACKJACK ==========
-function BlackjackGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
-  const [bet, setBet] = useState(100);
-  const [playerHand, setPlayerHand] = useState<string[]>([]);
-  const [dealerHand, setDealerHand] = useState<string[]>([]);
-  const [deck, setDeck] = useState<string[]>([]);
-  const [playing, setPlaying] = useState(false);
-  const [result, setResult] = useState('');
-  const [resultColor, setResultColor] = useState('');
-  const [currentBet, setCurrentBet] = useState(0);
-
-  const createDeck = () => {
-    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    return [...ranks, ...ranks, ...ranks, ...ranks].sort(() => Math.random() - 0.5);
-  };
-
-  const getScore = (hand: string[]) => {
-    let score = 0, aces = 0;
-    for (const card of hand) {
-      if (card === 'A') { aces++; score += 11; }
-      else if (['K','Q','J'].includes(card)) score += 10;
-      else score += parseInt(card);
-    }
-    while (score > 21 && aces > 0) { score -= 10; aces--; }
-    return score;
-  };
-
-  const deal = () => {
-    if (bet > money || bet < 10) return showToast('Ongeldige inzet', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
-    setCurrentBet(bet);
-    const d = createDeck();
-    const ph = [d.pop()!, d.pop()!];
-    const dh = [d.pop()!, d.pop()!];
-    setDeck(d); setPlayerHand(ph); setDealerHand(dh);
-    setPlaying(true); setResult('');
-    if (getScore(ph) === 21) stand(ph, dh, d, bet);
-  };
-
-  const hit = () => {
-    const newDeck = [...deck];
-    const newHand = [...playerHand, newDeck.pop()!];
-    setDeck(newDeck); setPlayerHand(newHand);
-    if (getScore(newHand) > 21) endGame(false, 'BUST! Meer dan 21.', newHand);
-  };
-
-  const stand = (ph?: string[], dh?: string[], d?: string[], activeBet?: number) => {
-    const pHand = ph || playerHand;
-    let dHand = [...(dh || dealerHand)];
-    const dk = [...(d || deck)];
-    const theBet = activeBet || currentBet;
-    while (getScore(dHand) < 17) dHand.push(dk.pop()!);
-    setDealerHand(dHand); setDeck(dk);
-
-    const ps = getScore(pHand), ds = getScore(dHand);
-    if (ds > 21) endGame(true, 'Dealer Busted!', pHand, theBet);
-    else if (ps > ds) endGame(true, 'Jij wint!', pHand, theBet);
-    else if (ps === ds) { dispatch({ type: 'CASINO_WIN', amount: theBet }); endGame(null, 'Gelijkspel.', pHand, theBet); }
-    else endGame(false, 'Dealer wint.', pHand, theBet);
-  };
-
-  const endGame = (win: boolean | null, msg: string, hand: string[], theBet?: number) => {
-    const activeBet = theBet || currentBet;
-    setPlaying(false); setResult(msg);
-    if (win === true) {
-      const isBj = getScore(hand) === 21 && hand.length === 2;
-      let mult = isBj ? 2.5 : 2;
-      if (hasNeon) mult += 0.2;
-      dispatch({ type: 'CASINO_WIN', amount: Math.floor(activeBet * mult) });
-      setResultColor('text-emerald');
-    } else if (win === false) { setResultColor('text-blood'); }
-    else { setResultColor('text-foreground'); }
-  };
-
-  const renderCard = (card: string, hidden = false) => (
-    <span className={`inline-block w-9 h-12 rounded border-2 text-center leading-[48px] font-bold font-mono text-sm shadow mx-0.5 ${
-      hidden ? 'bg-gradient-to-br from-blood to-blood/60 border-blood text-transparent' : 'bg-foreground/90 text-background border-foreground'
-    }`}>{hidden ? '?' : card}</span>
-  );
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-4 gold-text-glow">BLACKJACK</h3>
-      <div className="text-center mb-4">
-        <p className="text-xs text-muted-foreground mb-1">Dealer {playing ? '(?)' : `(${getScore(dealerHand)})`}</p>
-        <div>{playing ? <>{renderCard(dealerHand[0])}{renderCard('', true)}</> : dealerHand.map((c, i) => <span key={i}>{renderCard(c)}</span>)}</div>
-      </div>
-      <div className="text-center mb-4">
-        <p className="text-xs text-muted-foreground mb-1">Jij ({getScore(playerHand)})</p>
-        <div>{playerHand.map((c, i) => <span key={i}>{renderCard(c)}</span>)}</div>
-      </div>
-      {!playing ? (
-        <div className="space-y-2">
-          <input type="number" value={bet} onChange={e => setBet(Math.abs(parseInt(e.target.value) || 0))}
-            className="w-full py-2 px-3 bg-muted border border-border rounded text-center text-foreground text-sm" min={10} />
-          <GameButton variant="blood" fullWidth onClick={deal}>DEAL (€{bet})</GameButton>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <GameButton variant="blood" onClick={hit}>HIT</GameButton>
-          <GameButton variant="muted" onClick={() => stand()}>STAND</GameButton>
-        </div>
-      )}
-      {result && <p className={`text-center font-bold mt-3 text-sm ${resultColor}`}>{result}</p>}
-    </motion.div>
-  );
-}
-
-// ========== ROULETTE ==========
-function RouletteGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
-  const [bet, setBet] = useState(100);
-  const [result, setResult] = useState('');
-  const [resultColor, setResultColor] = useState('');
-  const [spinning, setSpinning] = useState(false);
-  const [wheelNum, setWheelNum] = useState<number | null>(null);
-  const [wheelColor, setWheelColor] = useState('');
-  const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-
-  const spin = (choice: 'red' | 'black' | 'green') => {
-    if (bet > money) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
-    setSpinning(true); setResult('');
-    const currentBet = bet;
-    let counter = 0;
-    const interval = setInterval(() => {
-      const num = Math.floor(Math.random() * 37);
-      const color = num === 0 ? 'green' : redNums.includes(num) ? 'red' : 'black';
-      setWheelNum(num); setWheelColor(color); counter++;
-      if (counter > 20) { clearInterval(interval); setSpinning(false); resolve(num, color, choice, currentBet); }
-    }, 80);
-  };
-
-  const resolve = (num: number, color: string, choice: string, activeBet: number) => {
-    let won = false, mult = 0;
-    if (choice === 'red' && color === 'red') { won = true; mult = 2; }
-    else if (choice === 'black' && color === 'black') { won = true; mult = 2; }
-    else if (choice === 'green' && num === 0) { won = true; mult = 14; }
-    if (hasNeon) mult += 0.5;
-    if (won) { dispatch({ type: 'CASINO_WIN', amount: Math.floor(activeBet * mult) }); setResult(`GEWONNEN! +€${Math.floor(activeBet * mult)}`); setResultColor('text-emerald'); }
-    else { setResult('VERLOREN'); setResultColor('text-blood'); }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-4 gold-text-glow">ROULETTE</h3>
-      <div className="flex justify-center mb-5">
-        <motion.div className={`w-20 h-20 rounded-full border-4 border-border flex items-center justify-center text-2xl font-bold ${
-          wheelColor === 'red' ? 'bg-blood' : wheelColor === 'green' ? 'bg-emerald' : 'bg-muted'
-        }`} animate={spinning ? { rotate: 360 } : {}} transition={spinning ? { repeat: Infinity, duration: 0.3 } : {}}>
-          {wheelNum !== null ? wheelNum : '?'}
-        </motion.div>
-      </div>
-      <input type="number" value={bet} onChange={e => setBet(Math.abs(parseInt(e.target.value) || 0))}
-        className="w-full py-2 px-3 bg-muted border border-border rounded text-center text-foreground text-sm mb-3" />
-      <div className="flex gap-2">
-        <button disabled={spinning} onClick={() => spin('red')} className="flex-1 py-3 rounded bg-blood text-primary-foreground font-bold text-xs disabled:opacity-50">ROOD</button>
-        <button disabled={spinning} onClick={() => spin('green')} className="flex-1 py-3 rounded bg-emerald text-primary-foreground font-bold text-xs border border-gold disabled:opacity-50">0 (x14)</button>
-        <button disabled={spinning} onClick={() => spin('black')} className="flex-1 py-3 rounded bg-muted text-foreground font-bold text-xs border border-border disabled:opacity-50">ZWART</button>
-      </div>
-      {result && <p className={`text-center font-bold mt-3 text-sm ${resultColor}`}>{result}</p>}
-    </motion.div>
-  );
-}
-
-// ========== SLOTS ==========
-function SlotsGame({ dispatch, showToast, money, hasNeon }: CasinoGameProps) {
-  const [bet, setBet] = useState(50);
-  const [reels, setReels] = useState(['🍒', '🍒', '🍒']);
-  const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState('');
-  const [resultColor, setResultColor] = useState('');
-  const symbols = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍇', '💎', '7️⃣'];
-
-  const spin = () => {
-    if (bet > money) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'CASINO_BET', amount: bet }); setSpinning(true); setResult('');
-    const currentBet = bet;
-    let counter = 0, finalReels: string[] = [];
-    const interval = setInterval(() => {
-      const syms = hasNeon ? [...symbols, '7️⃣', '💎'] : symbols;
-      finalReels = [syms[Math.floor(Math.random() * syms.length)], syms[Math.floor(Math.random() * syms.length)], syms[Math.floor(Math.random() * syms.length)]];
-      setReels(finalReels); counter++;
-      if (counter > 15) { clearInterval(interval); setSpinning(false); resolve(finalReels, currentBet); }
-    }, 100);
-  };
-
-  const resolve = (res: string[], activeBet: number) => {
-    const [a, b, c] = res;
-    let win = 0;
-    if (a === b && b === c) { win = a === '7️⃣' ? activeBet * 50 : a === '💎' ? activeBet * 30 : activeBet * 10; }
-    else if (a === b || b === c || a === c) { win = Math.floor(activeBet * 1.5); }
-    if (win > 0) { dispatch({ type: 'CASINO_WIN', amount: win }); setResult(`WINNAAR! +€${win}`); setResultColor('text-emerald'); }
-    else { setResult('Helaas...'); setResultColor('text-muted-foreground'); }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-4 neon-text">NEON SLOTS</h3>
-      <div className="flex justify-center gap-2 mb-5">
-        {reels.map((sym, i) => (
-          <motion.div key={i}
-            className="w-16 h-20 bg-background border-2 border-gold rounded flex items-center justify-center text-3xl shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]"
-            animate={spinning ? { y: [0, -5, 0, 5, 0] } : {}}
-            transition={spinning ? { repeat: Infinity, duration: 0.15 } : {}}>{sym}</motion.div>
-        ))}
-      </div>
-      <input type="number" value={bet} onChange={e => setBet(Math.abs(parseInt(e.target.value) || 0))}
-        className="w-full py-2 px-3 bg-muted border border-border rounded text-center text-foreground text-sm mb-3" />
-      <GameButton variant="gold" fullWidth disabled={spinning} onClick={spin}>
-        {spinning ? 'DRAAIT...' : 'DRAAIEN'}
-      </GameButton>
-      {result && <p className={`text-center font-bold mt-3 text-sm ${resultColor}`}>{result}</p>}
-    </motion.div>
   );
 }

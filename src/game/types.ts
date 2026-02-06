@@ -6,7 +6,9 @@ export type StatId = 'muscle' | 'brains' | 'charm';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
-export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | null;
+export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | null;
+export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
+export interface PlayingCard { rank: string; suit: CardSuit; }
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
 
 // ========== NEW FEATURE TYPES ==========
