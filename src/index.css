@@ -1,96 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 2%;
+    --foreground: 214 32% 91%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 5%;
+    --card-foreground: 214 32% 91%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 214 32% 91%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 45 93% 40%;
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 215 16% 57%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 270 76% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 0 72% 51%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom game tokens */
+    --blood: 0 72% 51%;
+    --blood-glow: 0 72% 41%;
+    --gold: 45 93% 40%;
+    --gold-glow: 45 93% 50%;
+    --emerald: 160 84% 39%;
+    --ice: 217 91% 60%;
+    --purple: 270 76% 55%;
+    --dirty: 240 4% 46%;
+    --police: 224 76% 48%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 214 32% 91%;
+    --sidebar-primary: 0 72% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 8%;
+    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 0 72% 51%;
   }
 }
 
@@ -101,5 +68,165 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-ui);
+  }
+}
+
+@layer utilities {
+  /* Game-specific utility classes */
+  .game-panel {
+    @apply bg-card border border-border rounded-lg;
+  }
+
+  .game-card {
+    @apply bg-card border border-border rounded-lg p-3 transition-all duration-200;
+  }
+
+  .game-card-interactive {
+    @apply game-card cursor-pointer hover:border-[hsl(var(--gold))] active:scale-[0.98];
+  }
+
+  .text-blood {
+    color: hsl(var(--blood));
+  }
+
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  .text-emerald {
+    color: hsl(var(--emerald));
+  }
+
+  .text-ice {
+    color: hsl(var(--ice));
+  }
+
+  .text-game-purple {
+    color: hsl(var(--purple));
+  }
+
+  .text-dirty {
+    color: hsl(var(--dirty));
+  }
+
+  .bg-blood {
+    background-color: hsl(var(--blood));
+  }
+
+  .bg-gold {
+    background-color: hsl(var(--gold));
+  }
+
+  .bg-emerald {
+    background-color: hsl(var(--emerald));
+  }
+
+  .border-blood {
+    border-color: hsl(var(--blood));
+  }
+
+  .border-gold {
+    border-color: hsl(var(--gold));
+  }
+
+  .border-emerald {
+    border-color: hsl(var(--emerald));
+  }
+
+  .glow-blood {
+    box-shadow: 0 0 15px hsl(var(--blood) / 0.3), 0 0 30px hsl(var(--blood) / 0.1);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 15px hsl(var(--gold) / 0.3), 0 0 30px hsl(var(--gold) / 0.1);
+  }
+
+  .glow-emerald {
+    box-shadow: 0 0 10px hsl(var(--emerald) / 0.3);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-ui {
+    font-family: var(--font-ui);
+  }
+
+  /* Scrollbar styling */
+  .game-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .game-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .game-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+
+  /* Resource bar animation */
+  .resource-shine {
+    background: linear-gradient(90deg, transparent, hsl(var(--gold) / 0.1), transparent);
+    animation: shine 3s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* News ticker */
+  .ticker-scroll {
+    animation: ticker 25s linear infinite;
+  }
+
+  @keyframes ticker {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-150%); }
+  }
+
+  /* Scanline effect */
+  .scanline {
+    animation: scan 5s linear infinite;
+  }
+
+  @keyframes scan {
+    0% { top: -10%; }
+    100% { top: 110%; }
+  }
+
+  /* Combat shake */
+  .shake {
+    animation: shake 0.5s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translate(0); }
+    10% { transform: translate(-2px, -1px) rotate(-1deg); }
+    30% { transform: translate(2px, 1px); }
+    50% { transform: translate(-1px, 2px) rotate(1deg); }
+    70% { transform: translate(2px, -1px) rotate(-1deg); }
+    90% { transform: translate(1px, 1px); }
+  }
+
+  /* Pulse glow */
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 5px hsl(var(--blood) / 0.3); }
+    50% { box-shadow: 0 0 20px hsl(var(--blood) / 0.6), 0 0 40px hsl(var(--blood) / 0.2); }
+  }
+
+  .pulse-gold {
+    animation: pulseGold 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGold {
+    0%, 100% { box-shadow: 0 0 5px hsl(var(--gold) / 0.3); }
+    50% { box-shadow: 0 0 20px hsl(var(--gold) / 0.6), 0 0 40px hsl(var(--gold) / 0.2); }
   }
 }
