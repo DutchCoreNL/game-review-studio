@@ -4,9 +4,14 @@ import { GoodId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react';
+import { useState } from 'react';
+
+const QUANTITIES = [1, 5, 10, 0]; // 0 = max
+const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
 
 export function MarketView() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
+  const [quantity, setQuantity] = useState(1);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -14,20 +19,17 @@ export function MarketView() {
   const prices = state.prices[state.loc] || {};
 
   const handleTrade = (gid: GoodId) => {
-    const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
-    if (tradeMode === 'buy' && invCount >= state.maxInv) {
-      return showToast("Kofferbak vol.", true);
+    const actualQty = quantity === 0
+      ? (tradeMode === 'buy' ? state.maxInv - invCount : (state.inventory[gid] || 0))
+      : quantity;
+
+    if (actualQty <= 0) {
+      return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
-    const prevMoney = state.money;
-    dispatch({ type: 'TRADE', gid, mode: tradeMode });
-    if (tradeMode === 'buy') {
-      showToast(`${GOODS.find(g => g.id === gid)?.name} gekocht!`);
-    } else {
-      if ((state.inventory[gid] || 0) <= 0) {
-        return showToast("Niet op voorraad.", true);
-      }
-      showToast(`${GOODS.find(g => g.id === gid)?.name} verkocht!`);
-    }
+
+    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
+    const good = GOODS.find(g => g.id === gid);
+    showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
   };
 
   return (
@@ -48,7 +50,7 @@ export function MarketView() {
       </div>
 
       {/* Trade Mode Toggle */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         <button
           onClick={() => setTradeMode('buy')}
           className={`flex-1 py-2.5 rounded font-bold text-xs uppercase tracking-wider transition-all ${
@@ -65,6 +67,23 @@ export function MarketView() {
         >
           VERKOOP
         </button>
+      </div>
+
+      {/* Quantity Selector */}
+      <div className="flex gap-1.5 mb-4">
+        {QUANTITIES.map((q, i) => (
+          <button
+            key={q}
+            onClick={() => setQuantity(q)}
+            className={`flex-1 py-1.5 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
+              quantity === q
+                ? 'bg-[hsl(var(--gold)/0.15)] border border-gold text-gold'
+                : 'bg-muted text-muted-foreground border border-border'
+            }`}
+          >
+            {QUANTITY_LABELS[i]}
+          </button>
+        ))}
       </div>
 
       {/* Goods List */}
@@ -96,6 +115,11 @@ export function MarketView() {
             if (invCount >= state.maxInv) disabled = true;
           }
 
+          const effectiveQty = quantity === 0
+            ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
+            : quantity;
+          const totalPrice = displayPrice * effectiveQty;
+
           return (
             <motion.div
               key={g.id}
@@ -118,7 +142,7 @@ export function MarketView() {
                   )}
                 </div>
                 <div className="text-[0.65rem] text-muted-foreground">
-                  {tradeMode === 'buy' ? 'Inkoop' : 'Verkoop'}: €{displayPrice} | Bezit: {owned}
+                  €{displayPrice}/stuk | Bezit: {owned}
                   {profitInfo && (
                     <span className={`ml-1 font-bold ${profitInfo.startsWith('+') ? 'text-emerald' : 'text-blood'}`}>
                       ({profitInfo})
@@ -136,6 +160,9 @@ export function MarketView() {
                 }`}
               >
                 {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
+                {effectiveQty > 1 && !disabled && (
+                  <span className="block text-[0.45rem] opacity-70">€{totalPrice.toLocaleString()}</span>
+                )}
               </button>
             </motion.div>
           );
