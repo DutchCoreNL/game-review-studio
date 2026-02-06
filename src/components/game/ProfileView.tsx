@@ -1,9 +1,14 @@
 import { useGame } from '@/contexts/GameContext';
-import { getPlayerStat } from '@/game/engine';
+import { getPlayerStat, getRankTitle } from '@/game/engine';
 import { GEAR, ACHIEVEMENTS } from '@/game/constants';
 import { StatId } from '@/game/types';
+import { SectionHeader } from './ui/SectionHeader';
+import { GameButton } from './ui/GameButton';
+import { GameBadge } from './ui/GameBadge';
+import { StatBar } from './ui/StatBar';
+import { InfoRow } from './ui/InfoRow';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Spade, CircleDot, Skull } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
 
@@ -19,147 +24,216 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
+type ProfileTab = 'stats' | 'loadout' | 'trophies';
+
 export function ProfileView() {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch, showToast, setView } = useGame();
+  const [profileTab, setProfileTab] = useState<ProfileTab>('stats');
   const [confirmReset, setConfirmReset] = useState(false);
   const xpPct = Math.min(100, (state.player.xp / state.player.nextXp) * 100);
+  const rank = getRankTitle(state.rep);
   const stats = state.stats;
 
   return (
     <div>
-      <SectionHeader title="Boss Profiel" />
-
-      {/* Player Card */}
-      <div className="game-card border-l-[3px] border-l-gold mb-4">
+      {/* Boss Card */}
+      <div className="game-card border-l-[3px] border-l-gold mb-4 mt-1">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-muted rounded-full flex items-center justify-center border border-gold">
-            <span className="text-lg">👤</span>
+          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center border border-gold">
+            <span className="text-xl">👤</span>
           </div>
-          <div>
-            <h3 className="font-bold text-sm">The Boss</h3>
-            <p className="text-[0.65rem] text-muted-foreground">
-              Level {state.player.level} | Skill Points: <span className="text-gold font-bold">{state.player.skillPoints}</span>
-            </p>
+          <div className="flex-1">
+            <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
+            <p className="text-[0.6rem] text-gold font-semibold">{rank} — Level {state.player.level}</p>
+            <div className="mt-1.5">
+              <StatBar value={state.player.xp} max={state.player.nextXp} color="blood" height="sm" />
+              <p className="text-[0.5rem] text-muted-foreground mt-0.5 text-right">
+                {state.player.xp}/{state.player.nextXp} XP
+                {state.player.skillPoints > 0 && <span className="text-gold font-bold ml-1">({state.player.skillPoints} SP)</span>}
+              </p>
+            </div>
           </div>
         </div>
-        <div className="mt-3 relative h-2 bg-muted rounded-full overflow-hidden">
-          <motion.div className="h-full bg-blood rounded-full" initial={{ width: 0 }} animate={{ width: `${xpPct}%` }} transition={{ duration: 0.5 }} />
-        </div>
-        <div className="text-right text-[0.55rem] text-muted-foreground mt-1">XP: {state.player.xp} / {state.player.nextXp}</div>
       </div>
 
-      {/* Stats */}
-      <SectionHeader title="Eigenschappen" />
-      <div className="game-card mb-4 space-y-3">
-        {STAT_INFO.map(s => {
-          const base = state.player.stats[s.id];
-          const total = getPlayerStat(state, s.id);
-          const bonus = total - base;
-          return (
-            <div key={s.id} className="flex items-center gap-2 text-xs">
-              <div className="w-16 flex items-center gap-1.5 text-muted-foreground">{s.icon}<span>{s.label}</span></div>
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <motion.div className="h-full bg-gold rounded-full" animate={{ width: `${Math.min(100, (total / 15) * 100)}%` }} />
-              </div>
-              <span className="font-bold w-10 text-right">{base}{bonus > 0 && <span className="text-gold">+{bonus}</span>}</span>
-              {state.player.skillPoints > 0 && (
-                <button onClick={() => { dispatch({ type: 'UPGRADE_STAT', stat: s.id }); showToast(`${s.label} verhoogd!`); }}
-                  className="w-5 h-5 rounded bg-muted border border-gold text-gold text-xs flex items-center justify-center hover:bg-[hsl(var(--gold)/0.1)]">+</button>
-              )}
-            </div>
-          );
-        })}
+      {/* Sub-tabs */}
+      <div className="flex gap-1.5 mb-4">
+        {([
+          { id: 'stats' as ProfileTab, label: 'STATS' },
+          { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
+          { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
+        ]).map(tab => (
+          <button key={tab.id} onClick={() => setProfileTab(tab.id)}
+            className={`flex-1 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
+              profileTab === tab.id ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted border border-border text-muted-foreground'
+            }`}>{tab.label}</button>
+        ))}
       </div>
 
-      {/* Loadout */}
-      <SectionHeader title="Loadout" />
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {(['weapon', 'armor', 'gadget'] as const).map(slot => {
-          const gearId = state.player.loadout[slot];
-          const item = gearId ? GEAR.find(g => g.id === gearId) : null;
-          return (
-            <motion.button key={slot} onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast('Item uitgedaan'); } }}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-center p-2 transition-all ${item ? 'border border-gold bg-[hsl(var(--gold)/0.05)] text-foreground' : 'border border-dashed border-border bg-muted/30 text-muted-foreground'}`}
-              whileTap={{ scale: 0.95 }}>
-              {SLOT_ICONS[slot]}
-              <span className="text-[0.5rem] mt-1 uppercase tracking-wider font-semibold">{item ? item.name : slot}</span>
-            </motion.button>
-          );
-        })}
-      </div>
-
-      {/* Inventory */}
-      <SectionHeader title="Kluis" />
-      <div className="space-y-2 mb-4">
-        {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).map(id => {
-          const item = GEAR.find(g => g.id === id);
-          if (!item) return null;
-          return (
-            <div key={id} className="game-card flex justify-between items-center">
-              <div><h4 className="font-bold text-xs">{item.name}</h4><p className="text-[0.6rem] text-muted-foreground">{item.desc}</p></div>
-              <button onClick={() => { dispatch({ type: 'EQUIP', id }); showToast(`${item.name} uitgerust`); }}
-                className="px-3 py-1.5 rounded text-[0.65rem] font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold">DRAAG</button>
-            </div>
-          );
-        })}
-        {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).length === 0 && (
-          <p className="text-muted-foreground text-xs italic py-3">Kluis is leeg. Koop gear op de Zwarte Markt.</p>
-        )}
-      </div>
-
-      {/* Statistics */}
-      <SectionHeader title="Statistieken" />
-      <div className="game-card mb-4">
-        <div className="grid grid-cols-2 gap-2">
-          <StatRow icon={<Coins size={12} />} label="Totaal Verdiend" value={`€${stats.totalEarned.toLocaleString()}`} color="text-emerald" />
-          <StatRow icon={<Coins size={12} />} label="Totaal Uitgegeven" value={`€${stats.totalSpent.toLocaleString()}`} color="text-blood" />
-          <StatRow icon={<Dices size={12} />} label="Casino Winst" value={`€${stats.casinoWon.toLocaleString()}`} color="text-gold" />
-          <StatRow icon={<Dices size={12} />} label="Casino Verlies" value={`€${stats.casinoLost.toLocaleString()}`} color="text-blood" />
-          <StatRow icon={<Target size={12} />} label="Missies Voltooid" value={`${stats.missionsCompleted}`} color="text-emerald" />
-          <StatRow icon={<Target size={12} />} label="Missies Gefaald" value={`${stats.missionsFailed}`} color="text-blood" />
-          <StatRow icon={<BarChart3 size={12} />} label="Trades" value={`${stats.tradesCompleted}`} color="text-gold" />
-          <StatRow icon={<Calendar size={12} />} label="Dagen Gespeeld" value={`${stats.daysPlayed}`} color="text-foreground" />
-        </div>
-      </div>
-
-      {/* Achievements */}
-      <SectionHeader title="Achievements" />
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {ACHIEVEMENTS.map(a => {
-          const unlocked = state.achievements.includes(a.id);
-          return (
-            <div key={a.id} className={`game-card flex items-center gap-2 ${unlocked ? 'border-gold' : 'opacity-40'}`}>
-              <Trophy size={14} className={unlocked ? 'text-gold' : 'text-muted-foreground'} />
-              <div><div className="text-[0.6rem] font-bold">{a.name}</div><div className="text-[0.5rem] text-muted-foreground">{a.desc}</div></div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Debt */}
-      {state.debt > 0 && (
+      {profileTab === 'stats' && (
         <>
-          <SectionHeader title="Schuld" />
-          <div className="game-card border-l-[3px] border-l-blood mb-4">
-            <div className="flex justify-between items-center">
-              <div><h4 className="font-bold text-sm text-blood">€{state.debt.toLocaleString()}</h4><p className="text-[0.6rem] text-muted-foreground">3% rente per dag</p></div>
-              <button onClick={() => { const amt = Math.min(5000, state.money, state.debt); dispatch({ type: 'PAY_DEBT', amount: amt }); showToast(`€${amt.toLocaleString()} afgelost`); }}
-                className="px-3 py-1.5 rounded text-[0.65rem] font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood">AFLOSSEN</button>
+          {/* Skills */}
+          <SectionHeader title="Eigenschappen" icon={<Swords size={12} />} />
+          <div className="game-card mb-4 space-y-3">
+            {STAT_INFO.map(s => {
+              const base = state.player.stats[s.id];
+              const total = getPlayerStat(state, s.id);
+              const bonus = total - base;
+              return (
+                <div key={s.id} className="flex items-center gap-2 text-xs">
+                  <div className="w-16 flex items-center gap-1.5 text-muted-foreground">{s.icon}<span>{s.label}</span></div>
+                  <div className="flex-1"><StatBar value={total} max={15} color="gold" height="sm" animate={false} /></div>
+                  <span className="font-bold w-10 text-right">{base}{bonus > 0 && <span className="text-gold">+{bonus}</span>}</span>
+                  {state.player.skillPoints > 0 && (
+                    <button onClick={() => { dispatch({ type: 'UPGRADE_STAT', stat: s.id }); showToast(`${s.label} verhoogd!`); }}
+                      className="w-5 h-5 rounded bg-muted border border-gold text-gold text-xs flex items-center justify-center hover:bg-gold/10">+</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Statistics */}
+          <SectionHeader title="Statistieken" icon={<BarChart3 size={12} />} />
+          <div className="game-card mb-4">
+            <div className="grid grid-cols-2 gap-2">
+              <InfoRow icon={<Coins size={10} />} label="Verdiend" value={`€${stats.totalEarned.toLocaleString()}`} valueClass="text-emerald" />
+              <InfoRow icon={<Coins size={10} />} label="Uitgegeven" value={`€${stats.totalSpent.toLocaleString()}`} valueClass="text-blood" />
+              <InfoRow icon={<Dices size={10} />} label="Casino +" value={`€${stats.casinoWon.toLocaleString()}`} valueClass="text-gold" />
+              <InfoRow icon={<Dices size={10} />} label="Casino -" value={`€${stats.casinoLost.toLocaleString()}`} valueClass="text-blood" />
+              <InfoRow icon={<Target size={10} />} label="Missies ✓" value={`${stats.missionsCompleted}`} valueClass="text-emerald" />
+              <InfoRow icon={<Target size={10} />} label="Missies ✗" value={`${stats.missionsFailed}`} valueClass="text-blood" />
+              <InfoRow icon={<BarChart3 size={10} />} label="Trades" value={`${stats.tradesCompleted}`} valueClass="text-gold" />
+              <InfoRow icon={<Calendar size={10} />} label="Dagen" value={`${stats.daysPlayed}`} />
             </div>
+          </div>
+
+          {/* Debt */}
+          {state.debt > 0 && (
+            <>
+              <SectionHeader title="Schuld" icon={<Skull size={12} />} />
+              <div className="game-card border-l-[3px] border-l-blood mb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-sm text-blood">€{state.debt.toLocaleString()}</h4>
+                    <p className="text-[0.55rem] text-muted-foreground">3% rente per dag</p>
+                  </div>
+                  <GameButton variant="blood" size="sm"
+                    onClick={() => { const amt = Math.min(5000, state.money, state.debt); dispatch({ type: 'PAY_DEBT', amount: amt }); showToast(`€${amt.toLocaleString()} afgelost`); }}>
+                    AFLOSSEN
+                  </GameButton>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Casino Link */}
+          <SectionHeader title="Casino" icon={<Dices size={12} />} />
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <CasinoLink icon={<Spade size={20} />} label="BLACKJACK" onClick={() => setView('profile')} />
+            <CasinoLink icon={<CircleDot size={20} />} label="ROULETTE" onClick={() => setView('profile')} />
+            <CasinoLink icon={<Gem size={20} />} label="SLOTS" onClick={() => setView('profile')} />
+          </div>
+          <p className="text-[0.5rem] text-muted-foreground text-center italic mb-4">Casino beschikbaar via de kaarttab (The Velvet Room)</p>
+        </>
+      )}
+
+      {profileTab === 'loadout' && (
+        <>
+          <SectionHeader title="Loadout" icon={<Shield size={12} />} />
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {(['weapon', 'armor', 'gadget'] as const).map(slot => {
+              const gearId = state.player.loadout[slot];
+              const item = gearId ? GEAR.find(g => g.id === gearId) : null;
+              return (
+                <motion.button key={slot}
+                  onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast('Item uitgedaan'); } }}
+                  className={`aspect-square rounded flex flex-col items-center justify-center text-center p-2 transition-all ${
+                    item ? 'border border-gold bg-gold/5 text-foreground' : 'border border-dashed border-border bg-muted/30 text-muted-foreground'
+                  }`}
+                  whileTap={{ scale: 0.95 }}>
+                  {SLOT_ICONS[slot]}
+                  <span className="text-[0.5rem] mt-1 uppercase tracking-wider font-semibold">{item ? item.name : slot}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <SectionHeader title="Kluis" />
+          <div className="space-y-2 mb-4">
+            {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).map(id => {
+              const item = GEAR.find(g => g.id === id);
+              if (!item) return null;
+              return (
+                <div key={id} className="game-card flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-xs">{item.name}</h4>
+                    <p className="text-[0.5rem] text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'EQUIP', id }); showToast(`${item.name} uitgerust`); }}>
+                    DRAAG
+                  </GameButton>
+                </div>
+              );
+            })}
+            {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).length === 0 && (
+              <p className="text-muted-foreground text-xs italic py-3">Kluis is leeg. Koop gear op de Zwarte Markt (Handel tab).</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {profileTab === 'trophies' && (
+        <>
+          <SectionHeader title="Achievements" icon={<Trophy size={12} />} />
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {ACHIEVEMENTS.map(a => {
+              const unlocked = state.achievements.includes(a.id);
+              return (
+                <div key={a.id} className={`game-card flex items-center gap-2 ${unlocked ? 'border-gold glow-gold' : 'opacity-40'}`}>
+                  <Trophy size={14} className={unlocked ? 'text-gold' : 'text-muted-foreground'} />
+                  <div>
+                    <div className="text-[0.55rem] font-bold">{a.name}</div>
+                    <div className="text-[0.45rem] text-muted-foreground">{a.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <SectionHeader title="Reputatie Rang" />
+          <div className="space-y-1.5 mb-4">
+            {[
+              { title: 'STRAATRAT', min: 0 },
+              { title: 'ASSOCIATE', min: 50 },
+              { title: 'SOLDAAT', min: 200 },
+              { title: 'CAPO', min: 500 },
+              { title: 'UNDERBOSS', min: 1000 },
+              { title: 'CRIME LORD', min: 2000 },
+              { title: 'KINGPIN', min: 5000 },
+            ].map(r => (
+              <div key={r.title} className={`flex justify-between items-center text-xs px-2 py-1 rounded ${
+                r.title === rank ? 'bg-gold/10 border border-gold text-gold font-bold' :
+                state.rep >= r.min ? 'text-foreground' : 'text-muted-foreground opacity-50'
+              }`}>
+                <span>{r.title}</span>
+                <span>{r.min}+ REP</span>
+              </div>
+            ))}
           </div>
         </>
       )}
 
       {/* Reset */}
       <button onClick={() => setConfirmReset(true)}
-        className="w-full py-2.5 rounded text-xs font-semibold text-muted-foreground bg-muted border border-border mt-6 hover:text-foreground transition-colors">
+        className="w-full py-2 rounded text-xs font-semibold text-muted-foreground bg-muted border border-border mt-4 hover:text-foreground transition-colors">
         OPNIEUW BEGINNEN
       </button>
 
       <ConfirmDialog
         open={confirmReset}
         title="Game Resetten"
-        message="Weet je zeker dat je opnieuw wilt beginnen? AL je voortgang gaat verloren — geld, districten, crew, achievements, alles."
+        message="Weet je zeker dat je opnieuw wilt beginnen? AL je voortgang gaat verloren."
         confirmText="RESET ALLES"
         variant="danger"
         onConfirm={() => { setConfirmReset(false); dispatch({ type: 'RESET' }); showToast('Spel gereset'); }}
@@ -169,22 +243,11 @@ export function ProfileView() {
   );
 }
 
-function StatRow({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+function CasinoLink({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <div className="flex items-center gap-1.5 bg-muted/40 rounded px-2 py-1.5">
-      <span className="text-muted-foreground">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-[0.5rem] text-muted-foreground truncate">{label}</div>
-        <div className={`text-[0.65rem] font-bold ${color}`}>{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-2 mt-5 mb-3 pb-1 border-b border-border">
-      <span className="text-gold text-[0.65rem] uppercase tracking-widest font-bold">{title}</span>
+    <div className="game-card flex flex-col items-center py-3 gap-1 opacity-50">
+      <div className="text-gold">{icon}</div>
+      <span className="text-[0.5rem] font-bold text-muted-foreground">{label}</span>
     </div>
   );
 }

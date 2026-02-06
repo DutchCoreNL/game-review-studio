@@ -1,6 +1,10 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS } from '@/game/constants';
 import { FamilyId } from '@/game/types';
+import { SectionHeader } from './ui/SectionHeader';
+import { GameButton } from './ui/GameButton';
+import { StatBar } from './ui/StatBar';
+import { GameBadge } from './ui/GameBadge';
 import { motion } from 'framer-motion';
 import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown } from 'lucide-react';
 
@@ -12,18 +16,28 @@ export function CombatView() {
     return <CombatMenu />;
   }
 
-  const playerHpPct = Math.max(0, (combat.playerHP / combat.playerMaxHP) * 100);
-  const enemyHpPct = Math.max(0, (combat.targetHP / combat.enemyMaxHP) * 100);
   const env = COMBAT_ENVIRONMENTS[state.loc];
 
   return (
     <div>
-      <SectionHeader title="GEVECHT" />
+      <SectionHeader title="GEVECHT" icon={<Swords size={12} />} />
 
       {/* HP Bars */}
       <div className="space-y-3 mb-5">
-        <HpBar label="Jij" hp={combat.playerHP} maxHp={combat.playerMaxHP} pct={playerHpPct} color="bg-emerald" />
-        <HpBar label={combat.targetName} hp={combat.targetHP} maxHp={combat.enemyMaxHP} pct={enemyHpPct} color="bg-blood" />
+        <div>
+          <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
+            <span className="font-bold text-foreground">Jij</span>
+            <span>{combat.playerHP}/{combat.playerMaxHP}</span>
+          </div>
+          <StatBar value={combat.playerHP} max={combat.playerMaxHP} color="emerald" height="lg" />
+        </div>
+        <div>
+          <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
+            <span className="font-bold text-foreground">{combat.targetName}</span>
+            <span>{combat.targetHP}/{combat.enemyMaxHP}</span>
+          </div>
+          <StatBar value={combat.targetHP} max={combat.enemyMaxHP} color="blood" height="lg" />
+        </div>
       </div>
 
       {/* Combat Log */}
@@ -33,7 +47,7 @@ export function CombatView() {
             key={`${combat.turn}-${i}`}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`text-[0.65rem] py-0.5 ${
+            className={`text-[0.6rem] py-0.5 ${
               log.includes('verslagen') || log.includes('STUNNED') || log.includes('ZWARE')
                 ? 'text-gold font-bold'
                 : log.includes('mislukt') || log.includes('terug')
@@ -49,49 +63,24 @@ export function CombatView() {
       {/* Actions */}
       {!combat.finished ? (
         <div className="grid grid-cols-2 gap-2">
-          <ActionButton
-            icon={<Swords size={14} />}
-            label="AANVAL"
-            sub="Betrouwbaar"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'attack' })}
-            color="bg-blood text-primary-foreground"
-          />
-          <ActionButton
-            icon={<Zap size={14} />}
-            label="ZWARE KLAP"
-            sub="Krachtig, kan missen"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'heavy' })}
-            color="bg-[hsl(var(--gold)/0.15)] border border-gold text-gold"
-          />
-          <ActionButton
-            icon={<Shield size={14} />}
-            label="VERDEDIG"
-            sub="Block + Heal"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'defend' })}
-            color="bg-muted border border-border text-foreground"
-          />
-          <ActionButton
-            icon={<MapPin size={14} />}
-            label={env?.actionName || 'OMGEVING'}
-            sub={env?.desc || 'Stun kans'}
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })}
-            color="bg-[hsl(var(--purple)/0.15)] border border-[hsl(var(--purple))] text-game-purple"
-          />
+          <CombatAction icon={<Swords size={14} />} label="AANVAL" sub="Betrouwbaar"
+            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'attack' })} variant="blood" />
+          <CombatAction icon={<Zap size={14} />} label="ZWARE KLAP" sub="Krachtig, kan missen"
+            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'heavy' })} variant="gold" />
+          <CombatAction icon={<Shield size={14} />} label="VERDEDIG" sub="Block + Heal"
+            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'defend' })} variant="muted" />
+          <CombatAction icon={<MapPin size={14} />} label={env?.actionName || 'OMGEVING'} sub={env?.desc || 'Stun kans'}
+            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })} variant="purple" />
         </div>
       ) : (
         <div className="text-center">
-          <div className={`text-2xl font-bold mb-3 ${combat.won ? 'text-gold' : 'text-blood'}`}>
+          <div className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}>
             {combat.won ? '🏆 OVERWINNING!' : '💀 VERSLAGEN'}
           </div>
-          {combat.won && (
-            <p className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</p>
-          )}
-          <button
-            onClick={() => dispatch({ type: 'END_COMBAT' })}
-            className="w-full py-3 rounded bg-gold text-secondary-foreground font-bold text-sm uppercase tracking-wider"
-          >
+          {combat.won && <p className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</p>}
+          <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
             DOORGAAN
-          </button>
+          </GameButton>
         </div>
       )}
     </div>
@@ -103,10 +92,9 @@ function CombatMenu() {
 
   return (
     <div>
-      <SectionHeader title="Factieleiders Uitdagen" />
-      <p className="text-[0.6rem] text-muted-foreground mb-4">
-        Daag factieleiders uit in hun eigen district. Versla ze alle drie om Kingpin te worden.
-        Je moet in hun thuisdistrict zijn en een relatie {'<'} -20 hebben.
+      <SectionHeader title="Factieleiders Uitdagen" icon={<Crown size={12} />} />
+      <p className="text-[0.55rem] text-muted-foreground mb-4">
+        Versla alle 3 leiders om Kingpin te worden. Je moet in hun district zijn met relatie {'<'} -20.
       </p>
 
       <div className="space-y-3">
@@ -129,52 +117,29 @@ function CombatMenu() {
                   <div className="flex items-center gap-2">
                     {defeated ? <Skull size={14} className="text-muted-foreground" /> : <Crown size={14} style={{ color: fam.color }} />}
                     <h4 className="font-bold text-xs">{boss.name}</h4>
-                    <span className="text-[0.5rem] px-1.5 py-0.5 rounded uppercase font-bold"
-                      style={{ backgroundColor: fam.color + '30', color: fam.color }}>
-                      {fam.name}
-                    </span>
+                    <GameBadge variant={defeated ? 'muted' : 'blood'}>{fam.name}</GameBadge>
                   </div>
-                  <p className="text-[0.55rem] text-muted-foreground mt-1">{boss.desc}</p>
+                  <p className="text-[0.5rem] text-muted-foreground mt-1">{boss.desc}</p>
                   <div className="flex gap-3 mt-1.5">
-                    <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
-                      <Heart size={8} /> HP: {boss.hp}
-                    </span>
-                    <span className="text-[0.5rem] text-gold font-semibold flex items-center gap-0.5">
-                      <Swords size={8} /> ATK: {boss.attack}
-                    </span>
-                    <span className="text-[0.5rem] text-muted-foreground">
-                      Relatie: {rel}
-                    </span>
+                    <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5"><Heart size={8} /> {boss.hp}</span>
+                    <span className="text-[0.5rem] text-gold font-semibold flex items-center gap-0.5"><Swords size={8} /> {boss.attack}</span>
+                    <span className="text-[0.5rem] text-muted-foreground">Rel: {rel}</span>
                   </div>
                 </div>
               </div>
 
               {defeated ? (
-                <div className="mt-2 text-center py-1.5 rounded bg-muted text-[0.6rem] text-muted-foreground font-bold">
-                  ✓ VERSLAGEN
-                </div>
+                <div className="mt-2 text-center py-1.5 rounded bg-muted text-[0.55rem] text-muted-foreground font-bold">✓ VERSLAGEN</div>
               ) : (
-                <button
+                <GameButton variant={canFight ? 'blood' : 'muted'} size="sm" fullWidth disabled={!canFight}
+                  glow={canFight} className="mt-2"
                   onClick={() => {
-                    if (!isInDistrict) {
-                      showToast(`Reis eerst naar ${fam.home === 'port' ? 'Port Nero' : fam.home === 'crown' ? 'Crown Heights' : 'Iron Borough'}`, true);
-                      return;
-                    }
-                    if (rel > -20) {
-                      showToast('Relatie moet onder -20 zijn om uit te dagen', true);
-                      return;
-                    }
+                    if (!isInDistrict) { showToast(`Reis eerst naar ${fam.home}`, true); return; }
+                    if (rel > -20) { showToast('Relatie moet onder -20 zijn', true); return; }
                     dispatch({ type: 'START_COMBAT', familyId: fid });
-                  }}
-                  disabled={!canFight}
-                  className={`w-full mt-2 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
-                    canFight
-                      ? 'bg-blood text-primary-foreground glow-blood'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
-                  }`}
-                >
-                  {!isInDistrict ? `REIS NAAR ${fam.home.toUpperCase()}` : rel > -20 ? `RELATIE TE HOOG (${rel})` : 'UITDAGEN'}
-                </button>
+                  }}>
+                  {!isInDistrict ? `REIS NAAR ${fam.home.toUpperCase()}` : rel > -20 ? `REL TE HOOG (${rel})` : 'UITDAGEN'}
+                </GameButton>
               )}
             </motion.div>
           );
@@ -186,14 +151,9 @@ function CombatMenu() {
           <p className="text-xs text-gold font-bold">{state.leadersDefeated.length}/3 Leiders Verslagen</p>
           <div className="flex justify-center gap-1.5 mt-2">
             {(Object.keys(FAMILIES) as FamilyId[]).map(fid => (
-              <div
-                key={fid}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
-                  state.leadersDefeated.includes(fid)
-                    ? 'bg-gold text-secondary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
+              <div key={fid} className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
+                state.leadersDefeated.includes(fid) ? 'bg-gold text-secondary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
                 {state.leadersDefeated.includes(fid) ? '👑' : '?'}
               </div>
             ))}
@@ -204,44 +164,23 @@ function CombatMenu() {
   );
 }
 
-function HpBar({ label, hp, maxHp, pct, color }: { label: string; hp: number; maxHp: number; pct: number; color: string }) {
-  return (
-    <div>
-      <div className="flex justify-between text-[0.65rem] text-muted-foreground mb-1">
-        <span className="font-bold text-foreground">{label}</span>
-        <span>{hp}/{maxHp}</span>
-      </div>
-      <div className="h-3 bg-muted rounded-full overflow-hidden">
-        <motion.div
-          className={`h-full rounded-full ${color}`}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ActionButton({ icon, label, sub, onClick, color }: {
-  icon: React.ReactNode; label: string; sub: string; onClick: () => void; color: string;
+function CombatAction({ icon, label, sub, onClick, variant }: {
+  icon: React.ReactNode; label: string; sub: string; onClick: () => void; variant: string;
 }) {
+  const styles: Record<string, string> = {
+    blood: 'bg-blood text-primary-foreground',
+    gold: 'bg-gold/15 border border-gold text-gold',
+    muted: 'bg-muted border border-border text-foreground',
+    purple: 'bg-game-purple/15 border border-game-purple text-game-purple',
+  };
+
   return (
-    <motion.button
-      onClick={onClick}
-      className={`py-3 rounded ${color} font-bold text-xs flex flex-col items-center gap-0.5`}
-      whileTap={{ scale: 0.95 }}
-    >
+    <motion.button onClick={onClick}
+      className={`py-3 rounded ${styles[variant] || styles.muted} font-bold text-xs flex flex-col items-center gap-0.5`}
+      whileTap={{ scale: 0.95 }}>
       {icon}
       <span>{label}</span>
-      <span className="text-[0.5rem] font-normal opacity-70">{sub}</span>
+      <span className="text-[0.45rem] font-normal opacity-70">{sub}</span>
     </motion.button>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-2 mt-5 mb-3 pb-1 border-b border-border">
-      <span className="text-gold text-[0.65rem] uppercase tracking-widest font-bold">{title}</span>
-    </div>
   );
 }

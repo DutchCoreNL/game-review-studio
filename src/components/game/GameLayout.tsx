@@ -2,12 +2,10 @@ import { useGame } from '@/contexts/GameContext';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
 import { MapView } from './MapView';
-import { MarketView } from './MarketView';
+import { TradeView } from './TradeView';
 import { ProfileView } from './ProfileView';
-import { AssetsView } from './AssetsView';
-import { FamiliesView } from './FamiliesView';
-import { MissionsView } from './MissionsView';
-import { CasinoView } from './CasinoView';
+import { ImperiumView } from './ImperiumView';
+import { OperationsView } from './OperationsView';
 import { CombatView } from './CombatView';
 import { GameToast } from './GameToast';
 import { TutorialOverlay } from './TutorialOverlay';
@@ -16,11 +14,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
   city: MapView,
-  assets: AssetsView,
-  business: MarketView,
-  families: FamiliesView,
-  ops: MissionsView,
-  casino: CasinoView,
+  trade: TradeView,
+  ops: OperationsView,
+  empire: ImperiumView,
   profile: ProfileView,
 };
 
@@ -31,17 +27,17 @@ export function GameLayout() {
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
   return (
-    <div className="flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
+    <div className="noise-overlay vignette flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
       <GameHeader />
 
-      <main className="flex-1 overflow-y-auto pb-20 px-4 pt-3 game-scroll">
+      <main className="flex-1 overflow-y-auto pb-16 px-4 pt-2 game-scroll">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.activeCombat ? 'combat' : view}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15 }}
           >
             <ViewComponent />
           </motion.div>
