@@ -1,325 +1,151 @@
 
 
-# 7 Nieuwe Features voor Noxhaven
+# Casino Update: The Velvet Room 2.0
 
-Dit plan beschrijft de implementatie van zeven nieuwe systemen die het spel aanzienlijk uitbreiden. De features zijn geordend van onafhankelijk naar afhankelijk, zodat ze stapsgewijs gebouwd kunnen worden.
+## Huidige situatie
 
----
+Het casino heeft drie werkende spellen (Blackjack, Roulette, Slots), maar ze zijn visueel basic en missen diepgang:
 
-## 1. Weersysteem (Feature #14)
-
-Het spel krijgt een dag/nacht + weercyclus die de hele gameplay beinvloedt.
-
-### Hoe het werkt
-
-Elk BEGIN van een nieuwe dag wordt een weerstype bepaald (3-daagse cyclus):
-
-| Weer | Effect | Visueel |
-|------|--------|---------|
-| **Helder** | Standaard gameplay | Geen overlay |
-| **Regen** | -5 Heat/dag, -10% handelsvolume, politie minder actief | Regen-animatie op kaart |
-| **Mist** | +15% smokkel succes, +10% missie slagingskans, minder map events | Mist-overlay op kaart |
-| **Hittegolf** | +3 Heat/dag, +20% marktprijzen, crew verliest 5 HP/dag | Rode gloed |
-| **Storm** | Geen reizen mogelijk (gratis), dubbele fabriek-output, casino gesloten | Bliksem-animatie |
-
-Het weerpictogram verschijnt in de GameHeader naast de dag-indicator.
-
-### Technische aanpassingen
-
-- Nieuw type `WeatherType` en veld `weather: WeatherType` in GameState
-- Functie `generateWeather()` in engine.ts, aangeroepen bij `endTurn`
-- Weather-effecten integreren in `endTurn`, `performTrade`, reiskosten
-- Weer-indicator in GameHeader met icoon (Sun, CloudRain, CloudFog, Thermometer, CloudLightning)
-- Subtiele visuele overlay op de CityMap component
+- **Blackjack**: Kaarten zijn simpele tekst in een vakje, geen suits/kleuren, geen Double Down optie, geen Split
+- **Roulette**: Het "wiel" is een ronde div met een nummer, geen visuele opbouw van spanning
+- **Slots**: Emoji-symbolen met een simpel heen-en-weer effect, geen echte reel-spinning illusie
+- **Geen nieuw spel** sinds de oorspronkelijke versie
+- **Storm-blokkade** is niet geimplementeerd (alleen een tekstbericht)
+- **VIP/Reputatie-bonussen** worden niet getoond in het casino zelf
+- **Geen winstreak/statistieken** zichtbaar tijdens het spelen
+- **Casino links in Profiel** doen niets
 
 ---
 
-## 2. District-Specifieke Reputatie (Feature #15)
+## Wat verandert
 
-In plaats van een enkele globale reputatie krijgt elk district zijn eigen reputatie-score.
+### 1. Vierde Spel: Poker (High-Low)
 
-### Hoe het werkt
+Een nieuw spel waarbij je raadt of de volgende kaart hoger of lager is dan de huidige. Per juiste gok stijgt de multiplier. Je kunt op elk moment cashen of doorgaan (risico/beloning).
 
-- Elke actie in een district (handelen, missies, gevechten) beinvloedt de lokale reputatie
-- District-reputatie ontgrendelt unieke voordelen per district:
+| Ronde | Multiplier |
+|-------|-----------|
+| 1 correct | 1.5x |
+| 2 correct | 2x |
+| 3 correct | 3x |
+| 4 correct | 5x |
+| 5 correct | 10x |
+| 6+ correct | 20x (MAX) |
 
-| District | Reputatie Bonus |
-|----------|----------------|
-| **Port Nero** | 25+: -10% smokkelrisico. 50+: Extra opslagruimte. 75+: Exclusieve havencontracten |
-| **Crown Heights** | 25+: Betere marktinformatie. 50+: VIP casino toegang. 75+: Penthouse safehouse |
-| **Iron Borough** | 25+: Goedkopere crew healing. 50+: Gratis voertuig reparaties. 75+: Fabriek productie bonus |
-| **Lowrise** | 25+: Goedkopere solo ops. 50+: Straatinformanten. 75+: Ongrijpbaar (heat cap -20) |
-| **Neon Strip** | 25+: Casino bonus. 50+: Betere witwas rates. 75+: VIP netwerk (charm +3) |
+Simple maar verslavend, past bij het crime-thema.
 
-### Technische aanpassingen
+### 2. Blackjack Upgrades
 
-- Nieuw veld `districtRep: Record<DistrictId, number>` in GameState
-- Reputatie stijgt bij: handelen (+1), missies (+5), district bezitten (+2/dag)
-- Reputatie daalt bij: heat > 70 in dat district (-3/dag), politie-inval (-10)
-- District-rep perks worden gecontroleerd in relevante engine functies
-- Reputatie weergeven in DistrictPopup en een nieuw tabje in het Profiel
+- **Double Down**: Na de eerste twee kaarten kun je je inzet verdubbelen en precies 1 kaart ontvangen
+- **Kaarten met suits**: Visuele kaarten met schoppen/harten/klaver/ruiten symbolen en rood/zwart kleuring
+- **Winst/verlies animatie**: Gouden confetti-achtig effect bij winst, rode shake bij verlies
+- **Streak teller**: Toont huidige winstreak
 
----
+### 3. Roulette Upgrade
 
-## 3. Nemesis Systeem (Feature #2)
+- **Uitgebreidere inzetopties**: Naast rood/zwart/groen ook "Oneven/Even" en "1-18/19-36"
+- **Visueel verbeterd wiel**: Genummerde segmenten rondom het wiel in afwisselende kleuren
+- **Laatste resultaten strip**: De laatste 5 spins worden getoond als gekleurde bolletjes (rood/zwart/groen)
 
-Een rivaliserende AI-speler die meegroeit en de speler uitdaagt.
+### 4. Slots Upgrade
 
-### Hoe het werkt
+- **Individuele reel-stop**: Elke reel stopt apart (links, midden, rechts) voor meer spanning
+- **Near-miss detectie**: Als 2 van de 3 gelijk zijn, een "BIJNA!" animatie
+- **Progressive Jackpot**: Een oplopend jackpot-bedrag dat stijgt met 5% van elke inzet en uitkeert bij 3x 7 symbolen
 
-De Nemesis is een NPC die:
-- Automatisch handelt in de stad (koopt/verkoopt, beinvloedt prijzen)
-- Territorium probeert te veroveren (kan districten "claimen")
-- Sterker wordt naarmate de speler stijgt in rang
-- Af en toe sabotage-acties uitvoert (voorraadroof, crew-aanvallen)
-- Verslagen kan worden in een speciale confrontatie
+### 5. Casino Lobby Verbeteringen
 
-**Nemesis Profiel:**
-- Naam: willekeurig gegenereerd bij game start
-- Power Level: schaalt met speler's dag/level
-- Thuisbasis: een district (verschuift)
-- Actie per dag: 1-2 automatische acties bij END_TURN
+- **VIP Status indicator**: Toont actieve bonussen (Neon Strip bezit, district reputatie, Crown Heights VIP)
+- **Storm blokkade**: Casino wordt daadwerkelijk gesloten bij storm-weer met visueel "GESLOTEN" scherm
+- **Statistieken balk**: Win/verlies ratio, totaal gewonnen, huidige sessie resultaat
+- **Bet presets**: Snelknoppen voor veelgebruikte bedragen (100, 500, 1000, 5000, ALL-IN)
 
-**Nemesis Acties (per dag):**
-- Marktmanipulatie: prijzen in een district beinvloeden
-- Territorium claimen: probeert een niet-bezeten district te claimen
-- Sabotage: steelt goederen of beschadigt crew (lage kans)
-- Factie beinvloeden: verlaagt jouw relatie met een factie
+### 6. Achievements & Integratie
 
-**Confrontatie:**
-- Wanneer je in hetzelfde district bent als de Nemesis, kun je hem uitdagen
-- Werkt via het bestaande combat systeem met aangepaste stats
-- Bij overwinning: grote beloning, Nemesis verdwijnt tijdelijk (5 dagen) en komt sterker terug
-
-### Technische aanpassingen
-
-- Nieuw type `NemesisState` met naam, power, locatie, HP, cooldown
-- Veld `nemesis: NemesisState` in GameState
-- `updateNemesis(state)` functie in engine.ts, aangeroepen bij `endTurn`
-- Nemesis-marker op de CityMap (rode schedel-icoon)
-- Nemesis-info sectie in MapView of een toast bij acties
-- Confrontatie via bestaand combat systeem (START_COMBAT uitbreiden)
-
----
-
-## 4. Territorium Verdediging (Feature #4)
-
-Bezette districten kunnen aangevallen worden en moeten verdedigd worden.
-
-### Hoe het werkt
-
-- Elk bezeten district heeft een **verdedigingsniveau** (0-100)
-- Verdediging stijgt met: crew toewijzen, upgrades kopen, factie-allianties
-- Elke nacht is er een kans op een aanval (hoger bij lage verdediging of hoge heat)
-- Bij een aanval verschijnt een keuze-event in het nachtrapport
-
-**Verdedigingsmechaniek:**
-- Elke bezeten district toont een verdedigingsbar in de DistrictPopup
-- Je kunt crew "stationeren" in een district (+20 verdediging per crewlid)
-- Muren upgraden: +30 verdediging (eenmalige kost per district)
-- Factie-allianties: +15 verdediging als de lokale factie jouw bondgenoot is
-
-**Aanvalsresolutie (bij END_TURN):**
-- Roll: aanvalskracht (20-60 + dag * 0.5) vs. verdediging
-- Gewonnen: +REP, +district rep, crew XP
-- Verloren: district verlies, geld verlies, rep verlies
-- Het nachtrapport toont het resultaat met verhaaltext
-
-### Technische aanpassingen
-
-- Nieuw type `DistrictDefense` met level, stationedCrew, upgrades
-- Veld `districtDefenses: Record<DistrictId, DistrictDefense>` in GameState
-- `resolveDistrictAttacks(state)` in engine.ts bij `endTurn`
-- Verdedigings-UI in DistrictPopup (crew toewijzen, upgrade kopen)
-- Aanvalsresultaat in NightReport component
-- Nieuwe GameAction types: `STATION_CREW`, `UPGRADE_DEFENSE`
-
----
-
-## 5. Crew Specialisaties (Feature #10)
-
-Crewleden krijgen een specialisatie-boom waarmee ze unieke vaardigheden ontgrendelen.
-
-### Hoe het werkt
-
-Bij level 3, 5, 7 en 9 kiest elk crewlid een specialisatie:
-
-| Rol | Pad A | Pad B |
-|-----|-------|-------|
-| **Enforcer** | **Brute** (+50% gevechtsschade) | **Bodyguard** (beschermt crew, -30% schade aan allen) |
-| **Hacker** | **Dataminer** (+25% tech missie beloning) | **Phantom** (-20% heat op alle acties) |
-| **Chauffeur** | **Racer** (gratis reizen + ontsnapping bonus) | **Smokkelwagen** (+50% opslagruimte) |
-| **Smokkelaar** | **Spook** (+40% stealth missie succes) | **Netwerk** (+10% op alle handelswinst) |
-
-Specialisatie wordt gekozen via een popup wanneer een crewlid het juiste level bereikt.
-
-### Technische aanpassingen
-
-- Nieuw veld `specialization: string | null` op CrewMember type
-- Specialisatie-definities in constants.ts
-- Level-up check uitbreiden: bij level 3/5/7/9 een keuze-popup tonen
-- Specialisatie-effecten integreren in relevante engine functies
-- Crew kaart in OperationsView uitbreiden met specialisatie-badge en keuze-UI
-- Nieuwe component `CrewSpecializationPopup.tsx`
-
----
-
-## 6. Smokkelroutes (Feature #5)
-
-Automatische handelsroutes die passief inkomen genereren.
-
-### Hoe het werkt
-
-- Na het ontgrendelen van 2+ districten kun je smokkelroutes instellen
-- Een route verbindt twee districten en transporteert een gekozen goed
-- Routes genereren per dag automatisch inkomen (minus risico van onderschepping)
-- Maximaal 3 actieve routes
-
-**Route Setup:**
-- Kies startdistrict, einddistrict en goed
-- Kost: €5.000 setup + risico per dag
-- Inkomen: gebaseerd op prijsverschil tussen districten
-- Risico: Heat-afhankelijk. Bij onderschepping verlies je de route + boete
-- Crew met Smokkelaar-rol verlaagt onderscheppingsrisico
-
-**Route Onderschepping:**
-- Basis 10% kans per dag (+ heat/200)
-- Verminderd door: Smokkelaar crew (-5%), Port Nero bezit (-3%), politie-relatie (-2%)
-- Bij onderschepping: route vernietigd, heat +15, geld verlies
-
-### Technische aanpassingen
-
-- Nieuw type `SmuggleRoute` met van, naar, good, dagelijksInkomen, risico
-- Veld `smuggleRoutes: SmuggleRoute[]` in GameState (max 3)
-- `processSmuggleRoutes(state)` in engine.ts bij `endTurn`
-- Route-resultaten in NightReport
-- Nieuwe UI-sectie in ImperiumView (Assets sub-tab) voor route management
-- Nieuwe GameAction types: `CREATE_ROUTE`, `DELETE_ROUTE`
-
----
-
-## 7. Telefoon / Berichten Systeem (Feature #13)
-
-Een in-game telefoon voor NPC-communicatie, tips en sfeer.
-
-### Hoe het werkt
-
-De telefoon is een overlay (full-screen) met:
-- **Inbox**: berichten van NPC's (factie-contacten, informanten, Nemesis)
-- **Contacten**: lijst van bekende NPC's met relatieniveau
-- Berichten komen binnen bij specifieke game-events
-
-**Berichttypes:**
-| Trigger | Afzender | Voorbeeld |
-|---------|----------|-----------|
-| Dag start | Informant | "Hoge vraag op Synthetica in Crown Heights vandaag." |
-| Factie rel > 50 | Factie contact | "We hebben een speciaal contract voor je. Check je missies." |
-| Heat > 60 | Anoniem | "De politie is op je pad. Lig laag." |
-| District veroverd | Nemesis | "Geniet ervan. Het duurt niet lang." |
-| Na missie | Contactpersoon | "Goed werk. Hier is een bonus." |
-| Smokkelroute succes | Koerier | "Lading afgeleverd. Geen problemen." |
-| Weer verandert | Weerdienst | "Stormwaarschuwing voor Noxhaven." |
-
-- Berichten zijn puur visueel/informatief, sommige bevatten een actie-knop (bijv. "ACCEPTEER CONTRACT")
-- Maximaal 20 berichten bewaard, oudste worden verwijderd
-- Ongelezen indicator op het telefoon-icoon in de header
-
-### Technische aanpassingen
-
-- Nieuw type `PhoneMessage` met id, from, text, day, read, actionType
-- Veld `phone: { messages: PhoneMessage[], unread: number }` in GameState
-- `generateMessages(state)` in engine.ts bij `endTurn` en specifieke acties
-- Telefoon-icoon in GameHeader (met ongelezen badge)
-- Nieuw component `PhoneOverlay.tsx` met inbox en contacten
-- Nieuwe GameAction types: `OPEN_PHONE`, `READ_MESSAGE`, `DISMISS_MESSAGE`
+- Nieuwe achievements: "Jackpot!" (win 50x bij slots), "Kaartenteller" (win 5 blackjack op rij), "Poker Face" (bereik 5x multiplier bij High-Low)
+- Casino winsten genereren nu ook +1 Neon Strip reputatie per 1000 euro gewonnen
+- Telefoonberichten bij grote winsten of een losing streak
 
 ---
 
 ## Technisch Overzicht
 
-### Alle nieuwe types (types.ts)
-
-```text
-WeatherType: 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm'
-
-NemesisState:
-  name: string
-  power: number
-  location: DistrictId
-  hp: number
-  maxHp: number
-  cooldown: number        -- dagen tot terugkeer na verlies
-  defeated: number        -- keer verslagen
-  lastAction: string      -- beschrijving laatste actie
-
-DistrictDefense:
-  level: number           -- 0-100
-  stationedCrew: number[] -- indices van gestationeerde crew
-  wallUpgrade: boolean
-  turretUpgrade: boolean
-
-SmuggleRoute:
-  id: string
-  from: DistrictId
-  to: DistrictId
-  good: GoodId
-  active: boolean
-  daysActive: number
-
-CrewSpecialization: string  -- pad ID
-
-PhoneMessage:
-  id: string
-  from: string
-  avatar: string
-  text: string
-  day: number
-  read: boolean
-  type: 'info' | 'warning' | 'opportunity' | 'threat'
-```
-
-### GameState uitbreidingen
-
-```text
-weather: WeatherType
-districtRep: Record<DistrictId, number>
-nemesis: NemesisState
-districtDefenses: Record<DistrictId, DistrictDefense>
-smuggleRoutes: SmuggleRoute[]
-phone: { messages: PhoneMessage[], unread: number }
-
-+ CrewMember uitbreiden met: specialization: string | null
-```
-
 ### Aangepaste bestanden
 
-| Bestand | Wijzigingen |
-|---------|-------------|
-| `src/game/types.ts` | Alle nieuwe types en GameState uitbreidingen |
-| `src/game/constants.ts` | Weer-definities, specialisatie-bomen, Nemesis namen, berichten templates, verdedigings-upgrades, route-kosten |
-| `src/game/engine.ts` | `generateWeather()`, `updateNemesis()`, `resolveDistrictAttacks()`, `processSmuggleRoutes()`, `generateMessages()`, specialisatie-effecten, district-rep logica, weer-effecten in bestaande functies |
-| `src/contexts/GameContext.tsx` | Nieuwe actions voor alle 7 features, state migratie |
-| `src/components/game/GameHeader.tsx` | Weer-icoon, telefoon-icoon met badge |
-| `src/components/game/CityMap.tsx` | Nemesis marker, weer-overlay |
-| `src/components/game/MapView.tsx` | Nemesis info, weer-indicator |
-| `src/components/game/DistrictPopup.tsx` | District-reputatie, verdedigingsniveau, crew stationeren |
-| `src/components/game/ImperiumView.tsx` | Smokkelroutes sectie |
-| `src/components/game/OperationsView.tsx` | Crew specialisatie badge/keuze |
-| `src/components/game/NightReport.tsx` | Smokkelroute resultaten, verdedigings-events, Nemesis acties, weer-bericht |
-| `src/components/game/ProfileView.tsx` | District-reputatie overzicht |
-| `src/components/game/PhoneOverlay.tsx` | **NIEUW** - Telefoon overlay component |
-| `src/components/game/CrewSpecPopup.tsx` | **NIEUW** - Specialisatie keuze popup |
-| `src/components/game/GameLayout.tsx` | PhoneOverlay en CrewSpecPopup integratie |
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/components/game/CasinoView.tsx` | Volledige herbouw: lobby met VIP status, storm-check, statistieken, bet presets. Alle 4 spellen met verbeterde visuals en mechanica |
+| `src/game/types.ts` | `CasinoGame` type uitbreiden met `'highlow'`, nieuwe `CasinoStats` type voor sessie-tracking |
+| `src/game/constants.ts` | Nieuwe achievements toevoegen, bet presets |
+| `src/contexts/GameContext.tsx` | Casino acties uitbreiden met district-rep bonus bij winst |
+| `src/components/game/MapView.tsx` | Storm-check op casino knop |
+| `src/components/game/ProfileView.tsx` | Casino links verwijderen (ze doen niets) of werkend maken |
+
+### Nieuwe types
+
+```text
+CasinoGame: 'blackjack' | 'roulette' | 'slots' | 'highlow' | null
+
+CasinoSessionStats (lokale state in CasinoView):
+  sessionWins: number
+  sessionLosses: number
+  sessionProfit: number
+  currentStreak: number
+  bestStreak: number
+```
+
+### Casino Lobby structuur
+
+```text
+CasinoView
+  +-- VIP Status Banner (bonussen)
+  +-- Sessie Statistieken (wins/losses/profit)
+  +-- Game Grid (4 kaarten: BJ, Roulette, Slots, High-Low)
+  +-- Storm Overlay (als weather === 'storm')
+
+BlackjackGame (verbeterd)
+  +-- Bet Presets (100, 500, 1k, 5k, ALL-IN)
+  +-- Suited Cards (kleur + suit symbool)
+  +-- Double Down knop
+  +-- Streak teller
+  +-- Win/loss animatie
+
+RouletteGame (verbeterd)
+  +-- Visueel wiel met gekleurde segmenten
+  +-- Uitgebreide inzetopties (rood/zwart/groen/even/oneven/hoog/laag)
+  +-- Laatste 5 resultaten strip
+
+SlotsGame (verbeterd)
+  +-- Sequentiele reel stops
+  +-- Progressive jackpot display
+  +-- Near-miss animatie
+
+HighLowGame (nieuw)
+  +-- Huidige kaart (groot, geanimeerd)
+  +-- HOGER / LAGER knoppen
+  +-- Multiplier ladder (visueel)
+  +-- CASH OUT knop
+```
+
+### Kaart-rendering upgrade
+
+Kaarten krijgen een suit en kleur:
+
+```text
+Suits: spade, heart, diamond, club
+Kleuren: Rood (heart, diamond) / Zwart (spade, club)
+Weergave: "A spade", "K heart", "7 diamond"
+Visueel: Grotere kaarten met suit-icoon en gekleurde rand
+```
 
 ### Volgorde van implementatie
 
-De features worden in deze volgorde gebouwd omdat elke stap onafhankelijk werkt maar latere stappen profiteren van eerdere:
-
-1. **Weersysteem** -- Staat volledig los, beinvloedt andere systemen
-2. **District-Reputatie** -- Onafhankelijk, verrijkt bestaande districten
-3. **Crew Specialisaties** -- Onafhankelijk, verrijkt bestaand crew-systeem
-4. **Smokkelroutes** -- Gebruikt district-systeem, profiteert van crew specs
-5. **Territorium Verdediging** -- Gebruikt district-rep, crew stationering
-6. **Nemesis Systeem** -- Interacteert met territorium, districten, combat
-7. **Telefoon Systeem** -- Verbindt alles: berichten over weer, nemesis, routes, verdediging
+1. Types uitbreiden (CasinoGame + 'highlow')
+2. CasinoView lobby herbouwen (VIP banner, storm check, stats, presets)
+3. Blackjack upgraden (suits, double down, streak, animaties)
+4. Roulette upgraden (meer opties, visueel wiel, history strip)
+5. Slots upgraden (sequential stops, jackpot, near-miss)
+6. High-Low poker toevoegen
+7. MapView storm-check, achievements, rep-integratie
+8. ProfileView casino links opruimen
 
