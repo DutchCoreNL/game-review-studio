@@ -219,4 +219,6 @@ export interface GameState {
   loginStreak: number;
   stats: GameStats;
   nightReport: NightReportData | null;
+  priceHistory: Record<string, Record<string, number[]>>;
+  washUsedToday: number;
 }

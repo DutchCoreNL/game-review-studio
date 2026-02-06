@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 interface StatBarProps {
   value: number;
   max: number;
-  color?: 'blood' | 'gold' | 'emerald' | 'purple' | 'auto';
-  height?: 'sm' | 'md' | 'lg';
+  color?: 'blood' | 'gold' | 'emerald' | 'purple' | 'ice' | 'auto';
+  height?: 'xs' | 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   label?: string;
   animate?: boolean;
@@ -15,9 +15,11 @@ const COLOR_MAP = {
   gold: 'bg-gold',
   emerald: 'bg-emerald',
   purple: 'bg-game-purple',
+  ice: 'bg-ice',
 };
 
 const HEIGHT_MAP = {
+  xs: 'h-0.5',
   sm: 'h-1',
   md: 'h-2',
   lg: 'h-3',
