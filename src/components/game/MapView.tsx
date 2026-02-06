@@ -2,7 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, DISTRICT_FLAVOR, NEWS_ITEMS } from '@/game/constants';
 import { DistrictId } from '@/game/types';
 import { motion } from 'framer-motion';
-import { MapPin, Crown, Navigation } from 'lucide-react';
+import { CityMap } from './CityMap';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -58,58 +58,15 @@ export function MapView() {
         </div>
       </div>
 
-      {/* Map */}
-      <div className="relative w-full aspect-[10/7] bg-background border border-border rounded-lg mb-4 overflow-hidden shadow-[inset_0_0_40px_rgba(0,0,0,0.8)]">
-        {/* Grid overlay */}
-        <div className="absolute inset-0 pointer-events-none z-[1]" style={{
-          backgroundSize: '30px 30px',
-          backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)'
-        }} />
-        {/* Scanline */}
-        <div className="absolute w-full h-[3px] bg-[hsl(var(--gold)/0.15)] pointer-events-none z-[2] scanline shadow-[0_0_10px_hsl(var(--gold)/0.3)]" />
-
-        {/* Districts as interactive elements */}
-        <div className="absolute inset-0 z-[5] p-3">
-          {(Object.entries(DISTRICTS) as [DistrictId, typeof DISTRICTS[string]][]).map(([id, district]) => {
-            const isSelected = selectedDistrict === id;
-            const isPlayerHere = state.loc === id;
-            const owned = state.ownedDistricts.includes(id);
-            const demand = state.districtDemands[id];
-
-            return (
-              <motion.button
-                key={id}
-                onClick={() => selectDistrict(id)}
-                className={`absolute w-[80px] h-[55px] rounded-lg border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 text-center ${
-                  isSelected
-                    ? 'border-gold bg-[hsl(var(--gold)/0.1)] glow-gold z-10'
-                    : owned
-                    ? 'border-blood border-dashed bg-[hsl(var(--blood)/0.05)] hover:bg-[hsl(var(--blood)/0.1)]'
-                    : 'border-border bg-muted/30 hover:border-muted-foreground hover:bg-muted/50'
-                }`}
-                style={{
-                  left: `${(district.cx / 400) * 100}%`,
-                  top: `${(district.cy / 300) * 100}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {isPlayerHere && (
-                  <motion.div
-                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-gold rounded-full"
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                  />
-                )}
-                {owned && <Crown size={10} className="text-blood" />}
-                <span className={`text-[0.5rem] font-bold uppercase tracking-wider ${isSelected ? 'text-gold' : 'text-muted-foreground'}`}>
-                  {district.name.split(' ')[0]}
-                </span>
-                {demand && <span className="text-[0.45rem] text-gold">$</span>}
-              </motion.button>
-            );
-          })}
-        </div>
+      {/* City Map */}
+      <div className="mb-4">
+        <CityMap
+          playerLocation={state.loc}
+          selectedDistrict={selectedDistrict}
+          ownedDistricts={state.ownedDistricts}
+          districtDemands={state.districtDemands}
+          onSelectDistrict={selectDistrict}
+        />
       </div>
 
       {/* District Info */}
