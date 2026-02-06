@@ -1,14 +1,14 @@
 import { useGame } from '@/contexts/GameContext';
 import { getPlayerStat, getRankTitle } from '@/game/engine';
-import { GEAR, ACHIEVEMENTS } from '@/game/constants';
-import { StatId } from '@/game/types';
+import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/constants';
+import { StatId, DistrictId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Spade, CircleDot, Skull } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Spade, CircleDot, Skull, Star, MapPin, Crown } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
 
@@ -24,7 +24,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'trophies';
+type ProfileTab = 'stats' | 'loadout' | 'trophies' | 'districts';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -61,6 +61,7 @@ export function ProfileView() {
         {([
           { id: 'stats' as ProfileTab, label: 'STATS' },
           { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
+          { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
@@ -179,6 +180,43 @@ export function ProfileView() {
             {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).length === 0 && (
               <p className="text-muted-foreground text-xs italic py-3">Kluis is leeg. Koop gear op de Zwarte Markt (Handel tab).</p>
             )}
+          </div>
+        </>
+      )}
+
+      {profileTab === 'districts' && (
+        <>
+          <SectionHeader title="District Reputatie" icon={<MapPin size={12} />} />
+          <div className="space-y-2 mb-4">
+            {(Object.keys(DISTRICTS) as DistrictId[]).map(id => {
+              const rep = state.districtRep?.[id] || 0;
+              const isOwned = state.ownedDistricts.includes(id);
+              const perks = DISTRICT_REP_PERKS[id] || [];
+
+              return (
+                <div key={id} className={`game-card border-l-[3px] ${isOwned ? 'border-l-blood' : 'border-l-border'}`}>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {isOwned && <Crown size={10} className="text-blood" />}
+                      <h4 className="font-bold text-xs">{DISTRICTS[id].name}</h4>
+                    </div>
+                    <span className="text-[0.55rem] font-bold text-gold">{rep}/100</span>
+                  </div>
+                  <StatBar value={rep} max={100} color="gold" height="sm" />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {perks.map(p => (
+                      <span key={p.threshold} className={`text-[0.4rem] font-semibold px-1 py-0.5 rounded ${
+                        rep >= p.threshold
+                          ? 'bg-gold/10 text-gold'
+                          : 'bg-muted/50 text-muted-foreground opacity-40'
+                      }`}>
+                        {rep >= p.threshold ? '✓' : `${p.threshold}+`} {p.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

@@ -1,9 +1,11 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, DISTRICT_FLAVOR } from '@/game/constants';
+import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_REP_PERKS } from '@/game/constants';
 import { GameButton } from './ui/GameButton';
+import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
+import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Crown, Navigation, TrendingUp } from 'lucide-react';
+import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star } from 'lucide-react';
 
 export function DistrictPopup() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -119,6 +121,103 @@ export function DistrictPopup() {
               <TrendingUp size={12} /> Hoge vraag: {demand} (+60% prijs)
             </div>
           )}
+
+          {/* District Reputation */}
+          {(() => {
+            const rep = state.districtRep?.[selectedDistrict] || 0;
+            const perks = DISTRICT_REP_PERKS[selectedDistrict] || [];
+            return (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Star size={10} className="text-gold" />
+                  <span className="text-[0.55rem] font-bold text-muted-foreground uppercase tracking-wider">District Reputatie</span>
+                  <span className="text-[0.55rem] font-bold text-gold">{rep}/100</span>
+                </div>
+                <StatBar value={rep} max={100} color="gold" height="sm" />
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {perks.map(p => (
+                    <span key={p.threshold} className={`text-[0.45rem] font-semibold px-1.5 py-0.5 rounded border ${
+                      rep >= p.threshold
+                        ? 'bg-gold/10 text-gold border-gold/20'
+                        : 'bg-muted/50 text-muted-foreground border-border opacity-50'
+                    }`}>
+                      {rep >= p.threshold ? '✓' : `${p.threshold}+`} {p.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Defense Info (owned only) */}
+          {isOwned && (() => {
+            const def = state.districtDefenses?.[selectedDistrict];
+            if (!def) return null;
+            const defLevel = def.level + def.stationedCrew.length * 20 + (def.wallUpgrade ? 30 : 0) + (def.turretUpgrade ? 20 : 0);
+            return (
+              <div className="mb-3 game-card bg-muted/30 p-2.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Shield size={10} className="text-ice" />
+                  <span className="text-[0.55rem] font-bold text-muted-foreground uppercase tracking-wider">Verdediging</span>
+                  <span className="text-[0.55rem] font-bold text-ice">{defLevel}</span>
+                </div>
+                <StatBar value={Math.min(defLevel, 100)} max={100} color="ice" height="sm" />
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {def.wallUpgrade && <GameBadge variant="muted" size="xs">🧱 Muur</GameBadge>}
+                  {def.turretUpgrade && <GameBadge variant="muted" size="xs">🔫 Geschut</GameBadge>}
+                  {def.stationedCrew.length > 0 && (
+                    <GameBadge variant="muted" size="xs">
+                      <Users size={8} className="inline mr-0.5" />{def.stationedCrew.length} Crew
+                    </GameBadge>
+                  )}
+                </div>
+                <div className="flex gap-1.5 mt-2">
+                  {!def.wallUpgrade && (
+                    <GameButton variant="muted" size="sm" disabled={state.money < 8000}
+                      onClick={() => { dispatch({ type: 'UPGRADE_DEFENSE', districtId: selectedDistrict, upgradeType: 'wall' }); showToast('Muur geplaatst!'); }}>
+                      🧱 €8k
+                    </GameButton>
+                  )}
+                  {!def.turretUpgrade && (
+                    <GameButton variant="muted" size="sm" disabled={state.money < 12000}
+                      onClick={() => { dispatch({ type: 'UPGRADE_DEFENSE', districtId: selectedDistrict, upgradeType: 'turret' }); showToast('Geschut geplaatst!'); }}>
+                      🔫 €12k
+                    </GameButton>
+                  )}
+                </div>
+                {state.crew.length > 0 && (
+                  <div className="mt-2 border-t border-border pt-2">
+                    <p className="text-[0.45rem] text-muted-foreground font-bold mb-1 uppercase tracking-wider">Stationeer Crew:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {state.crew.map((c, i) => {
+                        const isStationed = def.stationedCrew.includes(i);
+                        return (
+                          <button key={i}
+                            onClick={() => {
+                              if (isStationed) {
+                                dispatch({ type: 'UNSTATION_CREW', districtId: selectedDistrict, crewIndex: i });
+                                showToast(`${c.name} teruggetrokken`);
+                              } else {
+                                dispatch({ type: 'STATION_CREW', districtId: selectedDistrict, crewIndex: i });
+                                showToast(`${c.name} gestationeerd`);
+                              }
+                            }}
+                            className={`text-[0.45rem] font-bold px-2 py-1 rounded border transition-all ${
+                              isStationed
+                                ? 'bg-ice/15 border-ice text-ice'
+                                : 'bg-muted border-border text-muted-foreground hover:border-ice/50'
+                            }`}
+                          >
+                            {c.name} {isStationed ? '✓' : '+'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <GameButton
             variant={btnVariant}

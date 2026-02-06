@@ -1,8 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES } from '@/game/constants';
+import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { NightReportData } from '@/game/types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Zap, AlertTriangle, Sparkles, Heart } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Zap, AlertTriangle, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning } from 'lucide-react';
 
 export function NightReport() {
   const { state, dispatch } = useGame();
@@ -91,6 +91,50 @@ export function NightReport() {
                   <p className="text-[0.6rem] text-muted-foreground">Boete: €{report.policeFine.toLocaleString()}</p>
                 </div>
               </div>
+            )}
+
+            {/* Smuggle route results */}
+            {report.smuggleResults && report.smuggleResults.length > 0 && report.smuggleResults.map((sr, i) => {
+              const goodName = GOODS.find(g => g.id === sr.good)?.name || sr.good;
+              return (
+                <ReportRow
+                  key={`sr-${i}`}
+                  icon={<Route size={14} />}
+                  label={sr.intercepted ? `Route onderschept! (${goodName})` : `Smokkel: ${goodName}`}
+                  value={sr.intercepted ? `-€${Math.abs(sr.income).toLocaleString()}` : `+€${sr.income.toLocaleString()}`}
+                  color={sr.intercepted ? 'text-blood' : 'text-emerald'}
+                />
+              );
+            })}
+
+            {/* Defense results */}
+            {report.defenseResults && report.defenseResults.filter(d => d.attacked).map((dr, i) => (
+              <div key={`dr-${i}`} className={`border rounded-lg p-3 flex items-center gap-2 ${
+                dr.won ? 'bg-[hsl(var(--gold)/0.08)] border-gold' : 'bg-[hsl(var(--blood)/0.08)] border-blood'
+              }`}>
+                <Shield size={16} className={dr.won ? 'text-gold' : 'text-blood'} />
+                <div>
+                  <p className={`text-xs font-bold ${dr.won ? 'text-gold' : 'text-blood'}`}>
+                    {dr.won ? 'AANVAL AFGESLAGEN!' : 'DISTRICT VERLOREN!'}
+                  </p>
+                  <p className="text-[0.6rem] text-muted-foreground">{dr.details}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* Nemesis action */}
+            {report.nemesisAction && (
+              <ReportRow icon={<Skull size={14} />} label="Nemesis" value={report.nemesisAction} color="text-blood" />
+            )}
+
+            {/* Weather change */}
+            {report.weatherChange && (
+              <ReportRow
+                icon={report.weatherChange === 'rain' ? <CloudRain size={14} /> : report.weatherChange === 'fog' ? <CloudFog size={14} /> : report.weatherChange === 'heatwave' ? <Thermometer size={14} /> : report.weatherChange === 'storm' ? <CloudLightning size={14} /> : <Sun size={14} />}
+                label="Weer morgen"
+                value={WEATHER_EFFECTS[report.weatherChange]?.name || 'Helder'}
+                color="text-muted-foreground"
+              />
             )}
 
             {/* Random event */}

@@ -5,6 +5,7 @@ import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
+import { NemesisInfo } from './map/NemesisInfo';
 import { useState } from 'react';
 import { Moon, Dices } from 'lucide-react';
 
@@ -65,9 +66,14 @@ export function MapView() {
           districtDemands={state.districtDemands}
           mapEvents={state.mapEvents || []}
           heat={state.heat}
+          weather={state.weather}
+          nemesis={state.nemesis}
           onSelectDistrict={selectDistrict}
         />
       </div>
+
+      {/* Nemesis Info */}
+      {state.nemesis && <NemesisInfo />}
 
       {/* District Popup */}
       {selectedDistrict && <DistrictPopup />}

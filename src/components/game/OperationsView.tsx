@@ -8,7 +8,8 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity } from 'lucide-react';
+import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles } from 'lucide-react';
+import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
@@ -170,7 +171,17 @@ export function OperationsView() {
                       <span className="absolute -bottom-0.5 -right-0.5 text-[0.4rem] bg-gold text-secondary-foreground rounded px-0.5 font-bold">{c.level}</span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-xs">{c.name} <span className="text-muted-foreground font-normal text-[0.55rem]">({c.role})</span></h4>
+                      <h4 className="font-bold text-xs">
+                        {c.name} <span className="text-muted-foreground font-normal text-[0.55rem]">({c.role})</span>
+                        {c.specialization && (() => {
+                          const spec = CREW_SPECIALIZATIONS.find(s => s.id === c.specialization);
+                          return spec ? (
+                            <span className="ml-1 text-[0.45rem] font-bold text-game-purple bg-game-purple/10 px-1 py-0.5 rounded border border-game-purple/20">
+                              <Sparkles size={7} className="inline mr-0.5" />{spec.name}
+                            </span>
+                          ) : null;
+                        })()}
+                      </h4>
                       <div className="flex items-center gap-2 mt-0.5">
                         <div className="flex items-center gap-1">
                           <Heart size={8} className={c.hp < 30 ? 'text-blood' : 'text-emerald'} />
