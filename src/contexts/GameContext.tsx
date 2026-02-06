@@ -12,7 +12,7 @@ interface GameContextType {
   toastError: boolean;
   setView: (view: GameView) => void;
   setTradeMode: (mode: TradeMode) => void;
-  selectDistrict: (id: DistrictId) => void;
+  selectDistrict: (id: DistrictId | null) => void;
   showToast: (msg: string, isError?: boolean) => void;
   dispatch: (action: GameAction) => void;
 }
