@@ -515,8 +515,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'RESET':
-      return createInitialState();
+    case 'RESET': {
+      const fresh = createInitialState();
+      Engine.generatePrices(fresh);
+      Engine.generateContracts(fresh);
+      return fresh;
+    }
 
     default:
       return s;
