@@ -7,6 +7,7 @@ import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { FactionCard } from './faction/FactionCard';
+import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Crown, Users, Skull } from 'lucide-react';
 import { useState } from 'react';
@@ -152,6 +153,11 @@ function AssetsPanel() {
           </div>
         </>
       )}
+
+      {/* Smuggle Routes */}
+      <div className="mb-4">
+        <SmuggleRoutesPanel />
+      </div>
 
       {/* HQ Upgrades */}
       <SectionHeader title="HQ Upgrades" icon={<Crown size={12} />} />

@@ -1,6 +1,8 @@
-import { DistrictId, MapEvent } from '@/game/types';
+import { DistrictId, MapEvent, WeatherType, NemesisState } from '@/game/types';
 import { DISTRICTS } from '@/game/constants';
 import { motion } from 'framer-motion';
+import { WeatherOverlay } from './map/WeatherOverlay';
+import { NemesisMarker } from './map/NemesisMarker';
 
 interface CityMapProps {
   playerLocation: DistrictId;
@@ -9,6 +11,8 @@ interface CityMapProps {
   districtDemands: Record<string, any>;
   mapEvents: MapEvent[];
   heat: number;
+  weather: WeatherType;
+  nemesis: NemesisState | null;
   onSelectDistrict: (id: DistrictId) => void;
 }
 
@@ -429,7 +433,7 @@ function HeatOverlay({ heat }: { heat: number }) {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, onSelectDistrict }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, weather, nemesis, onSelectDistrict }: CityMapProps) {
   return (
     <div className="relative w-full aspect-[10/7] rounded-lg overflow-hidden border border-border shadow-[inset_0_0_60px_rgba(0,0,0,0.9)]">
       <svg viewBox="0 0 400 290" className="w-full h-full" style={{ background: 'hsl(0 0% 3%)' }}>
@@ -574,6 +578,12 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
         {/* === MAP EVENTS === */}
         <MapEventMarkers events={mapEvents} />
+
+        {/* === NEMESIS MARKER === */}
+        {nemesis && <NemesisMarker nemesis={nemesis} districtMeta={DISTRICT_META} />}
+
+        {/* === WEATHER OVERLAY === */}
+        <WeatherOverlay weather={weather} />
 
         {/* === HEAT OVERLAY === */}
         <HeatOverlay heat={heat} />
