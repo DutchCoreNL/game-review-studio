@@ -118,7 +118,7 @@ export function CasinoView() {
             state={state} onResult={handleResult} />
         ) : activeGame === 'slots' ? (
           <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money}
-            state={state} onResult={handleResult} />
+            state={{ ...state, casinoJackpot: state.casinoJackpot }} onResult={handleResult} />
         ) : (
           <HighLowGame key="hl" dispatch={dispatch} showToast={showToast} money={state.money}
             state={state} onResult={handleResult} />

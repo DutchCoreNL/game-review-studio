@@ -3,17 +3,18 @@ import { PlayingCard } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
 import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
-import { createDeck, getCardRankValue, getTotalVipBonus, CasinoSessionStats } from './casinoUtils';
+import { createDeck, getCardRankValue, getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react';
 
+// Rebalanced multiplier ladder (lowered from 1.5/2/3/5/10/20)
 const MULTIPLIER_LADDER = [
-  { round: 1, mult: 1.5 },
-  { round: 2, mult: 2 },
-  { round: 3, mult: 3 },
-  { round: 4, mult: 5 },
-  { round: 5, mult: 10 },
-  { round: 6, mult: 20 },
+  { round: 1, mult: 1.3 },
+  { round: 2, mult: 1.8 },
+  { round: 3, mult: 2.5 },
+  { round: 4, mult: 4 },
+  { round: 5, mult: 7 },
+  { round: 6, mult: 12 },
 ];
 
 interface HighLowGameProps {
@@ -69,7 +70,10 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
     const currentVal = getCardRankValue(currentCard!.rank);
     const nextVal = getCardRankValue(next.rank);
 
-    const correct = higher ? nextVal >= currentVal : nextVal <= currentVal;
+    // Ties now count as a LOSS (push) to prevent exploitation
+    const correct = higher
+      ? nextVal > currentVal
+      : nextVal < currentVal;
 
     setTimeout(() => {
       if (correct) {
@@ -79,6 +83,9 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
         setNextCard(null);
         setShowNext(false);
 
+        // Track max round for achievement
+        dispatch({ type: 'TRACK_HIGHLOW_ROUND', round: newRound });
+
         if (newRound >= 6) {
           // Max reached, auto cash out
           cashOut(newRound);
@@ -86,7 +93,8 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
       } else {
         // Lost!
         setPlaying(false);
-        setResult('FOUT! Alles verloren.');
+        const isTie = nextVal === currentVal;
+        setResult(isTie ? 'GELIJK! Verloren.' : 'FOUT! Alles verloren.');
         setResultColor('text-blood');
         onResult(false, -currentBet);
       }
@@ -97,8 +105,9 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
     const r = useRound || round;
     if (r <= 0) return;
     const mult = MULTIPLIER_LADDER[Math.min(r - 1, MULTIPLIER_LADDER.length - 1)].mult;
-    const totalMult = mult * (1 + vipBonus / 100);
-    const winAmount = Math.floor(currentBet * totalMult);
+    const basePayout = Math.floor(currentBet * mult);
+    // Apply VIP bonus to net profit only
+    const winAmount = applyVipToWinnings(basePayout, currentBet, vipBonus);
     dispatch({ type: 'CASINO_WIN', amount: winAmount });
     setPlaying(false);
     setResult(`GECASHED! +€${winAmount.toLocaleString()} (${mult}x)`);
@@ -154,6 +163,13 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
             </div>
           )}
         </div>
+      )}
+
+      {/* Tie warning */}
+      {playing && !showNext && (
+        <p className="text-center text-[0.45rem] text-muted-foreground mb-2 italic">
+          Gelijke waarde = verlies
+        </p>
       )}
 
       {!playing ? (

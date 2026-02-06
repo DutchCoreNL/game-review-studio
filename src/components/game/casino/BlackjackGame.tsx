@@ -3,7 +3,7 @@ import { PlayingCard } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
 import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
-import { createDeck, getBlackjackScore, CasinoSessionStats, getTotalVipBonus } from './casinoUtils';
+import { createDeck, getBlackjackScore, CasinoSessionStats, getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
 import { motion } from 'framer-motion';
 
 interface BlackjackGameProps {
@@ -85,16 +85,19 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
     setPlaying(false); setResult(msg); setCanDoubleDown(false);
     if (win === true) {
       const isBj = getBlackjackScore(hand) === 21 && hand.length === 2;
-      let mult = isBj ? 2.5 : 2;
-      mult += vipBonus / 100;
-      const winAmount = Math.floor(activeBet * mult);
+      const baseMult = isBj ? 2.5 : 2;
+      const basePayout = Math.floor(activeBet * baseMult);
+      // Apply VIP bonus to net profit only (preserves house edge)
+      const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
       dispatch({ type: 'CASINO_WIN', amount: winAmount });
+      dispatch({ type: 'TRACK_BLACKJACK_WIN' });
       setResultColor('text-emerald');
       onResult(true, winAmount - activeBet);
     } else if (win === false) {
       setResultColor('text-blood');
       setResultShake(true);
       setTimeout(() => setResultShake(false), 500);
+      dispatch({ type: 'RESET_BLACKJACK_STREAK' });
       onResult(false, -activeBet);
     } else {
       setResultColor('text-foreground');

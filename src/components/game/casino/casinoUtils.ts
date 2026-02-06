@@ -72,16 +72,25 @@ export const INITIAL_SESSION_STATS: CasinoSessionStats = {
 export function getVipBonus(state: { ownedDistricts: string[]; districtRep: Record<string, number> }): { label: string; bonus: number }[] {
   const bonuses: { label: string; bonus: number }[] = [];
   if (state.ownedDistricts.includes('neon')) {
-    bonuses.push({ label: 'Neon Strip Eigenaar', bonus: 10 });
+    bonuses.push({ label: 'Neon Strip Eigenaar', bonus: 5 });
   }
   const neonRep = state.districtRep?.neon || 0;
-  if (neonRep >= 25) bonuses.push({ label: 'Casino Bonus (Rep 25)', bonus: 10 });
-  if (neonRep >= 50) bonuses.push({ label: 'Witwas Pro (Rep 50)', bonus: 5 });
+  if (neonRep >= 25) bonuses.push({ label: 'Casino Bonus (Rep 25)', bonus: 3 });
+  if (neonRep >= 50) bonuses.push({ label: 'Witwas Pro (Rep 50)', bonus: 2 });
   const crownRep = state.districtRep?.crown || 0;
-  if (crownRep >= 50) bonuses.push({ label: 'Crown VIP (Rep 50)', bonus: 15 });
+  if (crownRep >= 50) bonuses.push({ label: 'Crown VIP (Rep 50)', bonus: 5 });
   return bonuses;
 }
 
+// VIP bonus capped at 15% max, applied to NET PROFIT only (not the multiplier)
 export function getTotalVipBonus(state: { ownedDistricts: string[]; districtRep: Record<string, number> }): number {
-  return getVipBonus(state).reduce((sum, b) => sum + b.bonus, 0);
+  const raw = getVipBonus(state).reduce((sum, b) => sum + b.bonus, 0);
+  return Math.min(raw, 15);
+}
+
+// Apply VIP bonus correctly: only on net profit, preserving house edge
+export function applyVipToWinnings(basePayout: number, bet: number, vipBonus: number): number {
+  const netProfit = basePayout - bet;
+  const bonusProfit = Math.floor(netProfit * (vipBonus / 100));
+  return basePayout + bonusProfit;
 }

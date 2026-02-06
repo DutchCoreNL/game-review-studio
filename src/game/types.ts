@@ -235,6 +235,8 @@ export interface GameStats {
   missionsFailed: number;
   tradesCompleted: number;
   daysPlayed: number;
+  blackjackStreak: number;
+  highLowMaxRound: number;
 }
 
 // ========== MISSION ENCOUNTER SYSTEM ==========
@@ -335,4 +337,5 @@ export interface GameState {
   phone: { messages: PhoneMessage[]; unread: number };
   showPhone: boolean;
   pendingSpecChoice: { crewIndex: number; level: number } | null;
+  casinoJackpot: number;
 }
