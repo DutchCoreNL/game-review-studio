@@ -222,6 +222,16 @@ export interface ActiveMission {
   success: boolean;
 }
 
+export type MapEventType = 'police_checkpoint' | 'accident' | 'street_fight' | 'black_market' | 'drone' | 'ambulance';
+
+export interface MapEvent {
+  id: string;
+  type: MapEventType;
+  roadIndex: number;
+  position: number;
+  label: string;
+}
+
 export interface GameState {
   day: number;
   money: number;
@@ -262,4 +272,5 @@ export interface GameState {
   washUsedToday: number;
   factionCooldowns: Record<string, string[]>;
   conqueredFactions: FamilyId[];
+  mapEvents: MapEvent[];
 }

@@ -63,6 +63,8 @@ export function MapView() {
           selectedDistrict={selectedDistrict}
           ownedDistricts={state.ownedDistricts}
           districtDemands={state.districtDemands}
+          mapEvents={state.mapEvents || []}
+          heat={state.heat}
           onSelectDistrict={selectDistrict}
         />
       </div>

@@ -259,5 +259,6 @@ export function createInitialState(): import('./types').GameState {
     factionCooldowns: { cartel: [], syndicate: [], bikers: [] },
     conqueredFactions: [],
     activeMission: null,
+    mapEvents: [],
   };
 }

@@ -1,4 +1,4 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType } from './types';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
 
 const SAVE_KEY = 'noxhaven_save_v9';
@@ -101,6 +101,67 @@ export function generateContracts(state: GameState): void {
       xp: 35 + (state.day * 2)
     });
   }
+}
+
+export function generateMapEvents(state: GameState): void {
+  const events: MapEvent[] = [];
+  const totalRoads = 8;
+  const eventCount = 2 + Math.floor(Math.random() * 3);
+  const usedRoads = new Set<number>();
+
+  for (let i = 0; i < eventCount; i++) {
+    let roadIndex: number;
+    do { roadIndex = Math.floor(Math.random() * totalRoads); } while (usedRoads.has(roadIndex));
+    usedRoads.add(roadIndex);
+
+    let type: MapEvent['type'];
+    const roll = Math.random();
+
+    if (state.heat > 60 && roll < 0.3) {
+      type = 'drone';
+    } else if (state.heat > 40 && roll < 0.5) {
+      type = 'police_checkpoint';
+    } else if (Object.values(state.familyRel).some(r => (r || 0) < -30) && roll < 0.6) {
+      type = 'street_fight';
+    } else if (roll < 0.7) {
+      type = 'black_market';
+    } else if (roll < 0.85) {
+      type = 'accident';
+    } else {
+      type = 'ambulance';
+    }
+
+    const labels: Record<MapEvent['type'], string> = {
+      police_checkpoint: 'Politie Controle',
+      accident: 'Wegblokkade',
+      street_fight: 'Straatgevecht',
+      black_market: 'Zwarte Markt',
+      drone: 'Surveillance Drone',
+      ambulance: 'Spoedgeval',
+    };
+
+    events.push({
+      id: `evt-${state.day}-${i}`,
+      type,
+      roadIndex,
+      position: 20 + Math.floor(Math.random() * 60),
+      label: labels[type],
+    });
+  }
+
+  if (state.heat > 70 && events.filter(e => e.type === 'police_checkpoint').length === 0) {
+    let roadIndex: number;
+    do { roadIndex = Math.floor(Math.random() * totalRoads); } while (usedRoads.has(roadIndex));
+    events.push({
+      id: `evt-${state.day}-police`,
+      type: 'police_checkpoint',
+      roadIndex,
+      position: 40 + Math.floor(Math.random() * 20),
+      label: 'Politie Controle',
+    });
+  }
+
+  state.mapEvents = events;
 }
 
 function rollRandomEvent(state: GameState): RandomEvent | null {
@@ -323,6 +384,7 @@ export function endTurn(state: GameState): NightReportData {
 
   generatePrices(state);
   generateContracts(state);
+  generateMapEvents(state);
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;
 
