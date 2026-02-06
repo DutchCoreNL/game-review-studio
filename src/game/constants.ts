@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, RandomEvent } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -85,6 +85,12 @@ export const COMBAT_ENVIRONMENTS: Record<string, { name: string; actionName: str
   neon: { name: "VIP Lounge", actionName: "VERDWIJN", desc: "Ontvlucht Kans", log: "Je duikt de menigte in...", type: "cover" }
 };
 
+export const BOSS_DATA: Record<string, { name: string; hp: number; attack: number; desc: string }> = {
+  cartel: { name: 'El Serpiente', hp: 120, attack: 18, desc: 'Leider van het Rojo Cartel. Meedogenloos.' },
+  syndicate: { name: 'Mr. Wu', hp: 100, attack: 22, desc: 'Blue Lotus mastermind. Dodelijk precies.' },
+  bikers: { name: 'Hammer', hp: 150, attack: 15, desc: 'Iron Skulls president. Een muur van staal.' },
+};
+
 export const DISTRICT_FLAVOR: Record<string, { neutral: string; owned: string; high_heat: string }> = {
   port: { neutral: "Het ruikt naar zout, diesel en verraad.", owned: "De containers zijn nu van jou. Niemand beweegt zonder jouw toestemming.", high_heat: "De kustwacht patrouilleert. Elk schip wordt gecontroleerd." },
   crown: { neutral: "Glazen torens vol duistere geheimen.", owned: "Je kijkt neer op de stad. Letterlijk en figuurlijk.", high_heat: "Drones vliegen rond. Ze zoeken iemand... ze zoeken jou." },
@@ -105,6 +111,22 @@ export const NEWS_ITEMS = [
   "El Serpiente gezien in exclusief restaurant...",
 ];
 
+export const RANDOM_EVENTS = [
+  // Negative events
+  { id: 'police_raid', title: 'Politie Inval!', description: 'De politie doet een inval in je operatie. Je verliest een deel van je voorraad.', type: 'negative' as const, minHeat: 40, effect: 'lose_inventory' },
+  { id: 'faction_attack', title: 'Factie Aanval!', description: 'Een vijandige factie valt je operatie aan.', type: 'negative' as const, minHeat: 0, effect: 'crew_damage' },
+  { id: 'tax_audit', title: 'Belastingcontrole', description: 'De belastingdienst neemt je schoon geld onder de loep.', type: 'negative' as const, minHeat: 20, effect: 'lose_money' },
+  { id: 'vehicle_sabotage', title: 'Voertuig Gesaboteerd!', description: 'Iemand heeft aan je auto gezeten. Extra schade opgelopen.', type: 'negative' as const, minHeat: 30, effect: 'vehicle_damage' },
+  // Positive events
+  { id: 'tip_off', title: 'Insider Tip', description: 'Een informant geeft je waardevolle informatie over de markt.', type: 'positive' as const, minHeat: 0, effect: 'bonus_money' },
+  { id: 'black_market_deal', title: 'Zwarte Markt Deal', description: 'Een anonieme koper biedt een premium voor je goederen.', type: 'positive' as const, minHeat: 0, effect: 'bonus_money' },
+  { id: 'police_corruption', title: 'Corrupte Agent', description: 'Een agent biedt aan om bewijsmateriaal te laten verdwijnen.', type: 'positive' as const, minHeat: 30, effect: 'reduce_heat' },
+  { id: 'crew_loyalty', title: 'Crew Loyaliteit', description: 'Je crew is extra gemotiveerd vandaag. Iedereen geneest.', type: 'positive' as const, minHeat: 0, effect: 'heal_crew' },
+  // Neutral events
+  { id: 'market_crash', title: 'Markt Crash', description: 'De prijzen op de zwarte markt zijn extreem volatiel vandaag.', type: 'neutral' as const, minHeat: 0, effect: 'price_shift' },
+  { id: 'rival_turf_war', title: 'Rivalen Oorlog', description: 'Twee facties zijn in oorlog. De straten zijn gevaarlijk maar vol kansen.', type: 'neutral' as const, minHeat: 0, effect: 'faction_war' },
+];
+
 export const ACHIEVEMENTS: Achievement[] = [
   { id: 'first_blood', name: 'First Blood', desc: 'Voltooi een solo operatie', icon: 'Swords', condition: (s) => s.rep >= 10 && s.player.level >= 1 },
   { id: 'drug_lord', name: 'Drug Lord', desc: 'Bezit het Synthetica Lab', icon: 'Pipette', condition: (s) => s.hqUpgrades.includes('lab') },
@@ -116,6 +138,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'clean_money', name: 'Witwasser', desc: 'Bezit een dekmantel', icon: 'Store', condition: (s) => s.ownedBusinesses.length > 0 },
   { id: 'car_collector', name: 'Auto Verzamelaar', desc: 'Bezit 3 voertuigen', icon: 'Car', condition: (s) => s.ownedVehicles.length >= 3 },
   { id: 'survivor', name: 'Overlever', desc: 'Overleef 30 dagen', icon: 'Clock', condition: (s) => s.day >= 30 },
+  { id: 'combat_master', name: 'Vechtmachine', desc: 'Win een gevecht tegen een factieleider', icon: 'Swords', condition: (s) => s.leadersDefeated.length >= 1 },
+  { id: 'trader', name: 'Handelaar', desc: 'Voltooi 50 transacties', icon: 'ArrowRightLeft', condition: (s) => (s.stats?.tradesCompleted || 0) >= 50 },
 ];
 
 export const DAILY_REWARDS = [
@@ -128,7 +152,11 @@ export const DAILY_REWARDS = [
   { day: 7, reward: 15000, label: '€15.000' },
 ];
 
-export const CREW_NAMES = ['Vinny', 'Pauly', 'Luca', 'Vito', 'Rico', 'Bones', 'Tank', 'Mouse', 'Snake', 'Ghost'];
+export const CREW_NAMES = [
+  'Vinny', 'Pauly', 'Luca', 'Vito', 'Rico', 'Bones', 'Tank', 'Mouse', 'Snake', 'Ghost',
+  'Razor', 'Ace', 'Slim', 'Duke', 'Blaze', 'Frost', 'Spike', 'Jinx', 'Raven', 'Wolf',
+  'Shadow', 'Flash', 'Cobra', 'Diesel', 'Nova', 'Viper', 'Storm', 'Bullet', 'Hawk', 'Scar'
+];
 export const CREW_ROLES: string[] = ['Chauffeur', 'Enforcer', 'Hacker', 'Smokkelaar'];
 
 export function createInitialState(): import('./types').GameState {
@@ -172,5 +200,16 @@ export function createInitialState(): import('./types').GameState {
     lastLoginDay: '',
     dailyRewardClaimed: false,
     loginStreak: 0,
+    stats: {
+      totalEarned: 0,
+      totalSpent: 0,
+      casinoWon: 0,
+      casinoLost: 0,
+      missionsCompleted: 0,
+      missionsFailed: 0,
+      tradesCompleted: 0,
+      daysPlayed: 0,
+    },
+    nightReport: null,
   };
 }

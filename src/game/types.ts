@@ -121,10 +121,16 @@ export interface CombatState {
   targetName: string;
   targetHP: number;
   enemyMaxHP: number;
+  enemyAttack: number;
+  playerHP: number;
+  playerMaxHP: number;
   logs: string[];
   isBoss: boolean;
   familyId: FamilyId | null;
   stunned: boolean;
+  turn: number;
+  finished: boolean;
+  won: boolean;
 }
 
 export interface Achievement {
@@ -142,6 +148,40 @@ export interface PlayerState {
   skillPoints: number;
   stats: Record<StatId, number>;
   loadout: Record<GearSlot, string | null>;
+}
+
+export interface NightReportData {
+  day: number;
+  districtIncome: number;
+  businessIncome: number;
+  totalWashed: number;
+  debtInterest: number;
+  labYield: number;
+  heatChange: number;
+  policeRaid: boolean;
+  policeFine: number;
+  crewHealing: number;
+  vehicleDecay: { id: string; amount: number }[];
+  randomEvent: RandomEvent | null;
+}
+
+export interface RandomEvent {
+  id: string;
+  title: string;
+  description: string;
+  type: 'positive' | 'negative' | 'neutral';
+  effect: string;
+}
+
+export interface GameStats {
+  totalEarned: number;
+  totalSpent: number;
+  casinoWon: number;
+  casinoLost: number;
+  missionsCompleted: number;
+  missionsFailed: number;
+  tradesCompleted: number;
+  daysPlayed: number;
 }
 
 export interface GameState {
@@ -177,4 +217,6 @@ export interface GameState {
   lastLoginDay: string;
   dailyRewardClaimed: boolean;
   loginStreak: number;
+  stats: GameStats;
+  nightReport: NightReportData | null;
 }

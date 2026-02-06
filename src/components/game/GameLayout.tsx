@@ -8,9 +8,10 @@ import { AssetsView } from './AssetsView';
 import { FamiliesView } from './FamiliesView';
 import { MissionsView } from './MissionsView';
 import { CasinoView } from './CasinoView';
+import { CombatView } from './CombatView';
 import { GameToast } from './GameToast';
 import { TutorialOverlay } from './TutorialOverlay';
-import { DailyReward } from './DailyReward';
+import { NightReport } from './NightReport';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -25,7 +26,9 @@ const views: Record<string, React.ComponentType> = {
 
 export function GameLayout() {
   const { view, state } = useGame();
-  const ViewComponent = views[view] || MapView;
+
+  // Show combat view if active combat
+  const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
   return (
     <div className="flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
@@ -34,7 +37,7 @@ export function GameLayout() {
       <main className="flex-1 overflow-y-auto pb-20 px-4 pt-3 game-scroll">
         <AnimatePresence mode="wait">
           <motion.div
-            key={view}
+            key={state.activeCombat ? 'combat' : view}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -49,7 +52,7 @@ export function GameLayout() {
       <GameToast />
 
       {!state.tutorialDone && <TutorialOverlay />}
-      
+      {state.nightReport && <NightReport />}
     </div>
   );
 }

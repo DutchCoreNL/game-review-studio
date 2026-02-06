@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, CombatState } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, GOODS, FAMILIES, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS } from '../game/constants';
 import * as Engine from '../game/engine';
 
 interface GameContextType {
@@ -19,11 +19,14 @@ interface GameContextType {
 
 type GameAction =
   | { type: 'SET_STATE'; state: GameState }
-  | { type: 'TRADE'; gid: GoodId; mode: TradeMode }
+  | { type: 'TRADE'; gid: GoodId; mode: TradeMode; quantity?: number }
   | { type: 'TRAVEL'; to: DistrictId }
   | { type: 'BUY_DISTRICT'; id: DistrictId }
   | { type: 'END_TURN' }
+  | { type: 'DISMISS_NIGHT_REPORT' }
   | { type: 'RECRUIT' }
+  | { type: 'HEAL_CREW'; crewIndex: number }
+  | { type: 'FIRE_CREW'; crewIndex: number }
   | { type: 'UPGRADE_STAT'; stat: StatId }
   | { type: 'BUY_GEAR'; id: string }
   | { type: 'EQUIP'; id: string }
@@ -43,6 +46,9 @@ type GameAction =
   | { type: 'CLAIM_DAILY_REWARD' }
   | { type: 'CASINO_BET'; amount: number }
   | { type: 'CASINO_WIN'; amount: number }
+  | { type: 'START_COMBAT'; familyId: FamilyId }
+  | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' }
+  | { type: 'END_COMBAT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -55,7 +61,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return action.state;
 
     case 'TRADE': {
-      Engine.performTrade(s, action.gid, action.mode);
+      Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
       return s;
     }
 
@@ -65,6 +71,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const cost = (hasChauffeur || isOwned) ? 0 : 50;
       if (s.money < cost) return s;
       s.money -= cost;
+      if (cost > 0) s.stats.totalSpent += cost;
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
       if (activeV && activeV.speed >= 4) travelHeat = Math.floor(travelHeat * 0.5);
@@ -77,6 +84,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const d = DISTRICTS[action.id];
       if (!d || s.money < d.cost || s.loc !== action.id) return s;
       s.money -= d.cost;
+      s.stats.totalSpent += d.cost;
       s.ownedDistricts.push(action.id);
       Engine.gainXp(s, 50);
       s.maxInv = Engine.recalcMaxInv(s);
@@ -86,11 +94,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_TURN': {
       if (s.debt > 250000) return s;
       Engine.endTurn(s);
+      // Check achievements after end turn
+      Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'DISMISS_NIGHT_REPORT': {
+      s.nightReport = null;
       return s;
     }
 
     case 'RECRUIT': {
       Engine.recruit(s);
+      return s;
+    }
+
+    case 'HEAL_CREW': {
+      Engine.healCrew(s, action.crewIndex);
+      return s;
+    }
+
+    case 'FIRE_CREW': {
+      Engine.fireCrew(s, action.crewIndex);
       return s;
     }
 
@@ -108,6 +133,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.heat > 50) price = Math.floor(price * 1.2);
       if (s.money < price) return s;
       s.money -= price;
+      s.stats.totalSpent += price;
       s.ownedGear.push(action.id);
       return s;
     }
@@ -129,6 +155,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const v = VEHICLES.find(v => v.id === action.id);
       if (!v || s.money < v.cost) return s;
       s.money -= v.cost;
+      s.stats.totalSpent += v.cost;
       s.ownedVehicles.push({ id: action.id, condition: 100 });
       return s;
     }
@@ -147,6 +174,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const cost = (100 - activeObj.condition) * 25;
       if (s.money < cost) return s;
       s.money -= cost;
+      s.stats.totalSpent += cost;
       activeObj.condition = 100;
       return s;
     }
@@ -155,6 +183,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const upg = HQ_UPGRADES.find(u => u.id === action.id);
       if (!upg || s.hqUpgrades.includes(action.id) || s.money < upg.cost) return s;
       s.money -= upg.cost;
+      s.stats.totalSpent += upg.cost;
       s.hqUpgrades.push(action.id);
       s.maxInv = Engine.recalcMaxInv(s);
       return s;
@@ -164,6 +193,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const biz = BUSINESSES.find(b => b.id === action.id);
       if (!biz || s.ownedBusinesses.includes(action.id) || s.money < biz.cost) return s;
       s.money -= biz.cost;
+      s.stats.totalSpent += biz.cost;
       s.ownedBusinesses.push(action.id);
       return s;
     }
@@ -173,6 +203,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const cost = Math.max(1000, 3500 - (charm * 150));
       if (s.money < cost) return s;
       s.money -= cost;
+      s.stats.totalSpent += cost;
       s.policeRel = Math.min(100, s.policeRel + 20);
       s.heat = Math.max(0, s.heat - 15);
       return s;
@@ -184,7 +215,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.dirtyMoney -= amount;
       let washed = amount;
       if (s.ownedDistricts.includes('neon')) washed = Math.floor(amount * 1.15);
-      s.money += Math.floor(washed * 0.85);
+      const clean = Math.floor(washed * 0.85);
+      s.money += clean;
+      s.stats.totalEarned += clean;
       s.heat += 8;
       Engine.gainXp(s, 5);
       return s;
@@ -192,11 +225,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SOLO_OP': {
       Engine.performSoloOp(s, action.opId);
+      Engine.checkAchievements(s);
       return s;
     }
 
     case 'EXECUTE_CONTRACT': {
       Engine.executeContract(s, action.contractId, action.crewIndex);
+      Engine.checkAchievements(s);
       return s;
     }
 
@@ -204,6 +239,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const cost = action.amount * 50;
       if (s.money < cost) return s;
       s.money -= cost;
+      s.stats.totalSpent += cost;
       s.lab.chemicals += action.amount;
       return s;
     }
@@ -228,18 +264,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const streak = Math.min(s.loginStreak + 1, 7);
       s.loginStreak = streak;
       const rewards = [500, 1000, 2000, 3000, 5000, 8000, 15000];
-      s.money += rewards[streak - 1] || 500;
+      const reward = rewards[streak - 1] || 500;
+      s.money += reward;
+      s.stats.totalEarned += reward;
       return s;
     }
 
     case 'CASINO_BET': {
       if (s.money < action.amount) return s;
       s.money -= action.amount;
+      s.stats.casinoLost += action.amount;
       return s;
     }
 
     case 'CASINO_WIN': {
       s.money += action.amount;
+      s.stats.casinoWon += action.amount;
+      return s;
+    }
+
+    case 'START_COMBAT': {
+      const combat = Engine.startCombat(s, action.familyId);
+      if (combat) s.activeCombat = combat;
+      return s;
+    }
+
+    case 'COMBAT_ACTION': {
+      if (!s.activeCombat) return s;
+      Engine.combatAction(s, action.action);
+      Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'END_COMBAT': {
+      s.activeCombat = null;
       return s;
     }
 
@@ -260,7 +318,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.tutorialDone === undefined) saved.tutorialDone = false;
       if (!saved.lastLoginDay) saved.lastLoginDay = '';
       if (saved.loginStreak === undefined) saved.loginStreak = 0;
-      // Reset daily reward if it's a new day
+      if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0 };
+      if (saved.nightReport === undefined) saved.nightReport = null;
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;
@@ -280,6 +339,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = React.useState<string | null>(null);
   const [toastError, setToastError] = React.useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevAchievementsRef = useRef<string[]>(state.achievements);
 
   const showToast = useCallback((msg: string, isError = false) => {
     setToast(msg);
@@ -292,17 +352,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     rawDispatch(action);
   }, []);
 
-  // Auto-save on state change
+  // Auto-save on state change + check for new achievements
   useEffect(() => {
     Engine.saveGame(state);
-    // Check achievements
-    const newAchievements = Engine.checkAchievements(state);
-    if (newAchievements.length > 0) {
-      const achievement = ACHIEVEMENTS.find(a => a.id === newAchievements[0]);
+    // Check for newly added achievements (compare with previous)
+    const prev = prevAchievementsRef.current;
+    const newOnes = state.achievements.filter(a => !prev.includes(a));
+    if (newOnes.length > 0) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === newOnes[0]);
       if (achievement) {
         showToast(`🏆 ${achievement.name}: ${achievement.desc}`);
       }
     }
+    prevAchievementsRef.current = [...state.achievements];
   }, [state, showToast]);
 
   // Generate prices if empty

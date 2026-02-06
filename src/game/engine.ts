@@ -1,7 +1,7 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent } from './types';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA } from './constants';
 
-const SAVE_KEY = 'noxhaven_save_v8';
+const SAVE_KEY = 'noxhaven_save_v9';
 
 export function saveGame(state: GameState): void {
   try {
@@ -13,8 +13,21 @@ export function saveGame(state: GameState): void {
 
 export function loadGame(): GameState | null {
   try {
-    const data = localStorage.getItem(SAVE_KEY);
-    return data ? JSON.parse(data) : null;
+    // Try current version first
+    let data = localStorage.getItem(SAVE_KEY);
+    if (data) return JSON.parse(data);
+    // Migrate from v8
+    data = localStorage.getItem('noxhaven_save_v8');
+    if (data) {
+      const old = JSON.parse(data);
+      // Add new fields
+      if (!old.stats) old.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: old.day || 0 };
+      if (!old.nightReport) old.nightReport = null;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(old));
+      localStorage.removeItem('noxhaven_save_v8');
+      return old;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -90,8 +103,97 @@ export function generateContracts(state: GameState): void {
   }
 }
 
-export function endTurn(state: GameState): { labYield: number; report: string } {
-  let labYield = 0;
+function rollRandomEvent(state: GameState): RandomEvent | null {
+  if (Math.random() > 0.35) return null; // 35% chance of event
+
+  const eligible = RANDOM_EVENTS.filter(e => state.heat >= e.minHeat);
+  if (eligible.length === 0) return null;
+
+  const event = eligible[Math.floor(Math.random() * eligible.length)];
+  return {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    type: event.type,
+    effect: event.effect,
+  };
+}
+
+function applyRandomEvent(state: GameState, event: RandomEvent): void {
+  switch (event.effect) {
+    case 'lose_inventory': {
+      const goods = Object.keys(state.inventory) as GoodId[];
+      const target = goods.find(g => (state.inventory[g] || 0) > 0);
+      if (target) {
+        const lost = Math.ceil((state.inventory[target] || 0) * 0.3);
+        state.inventory[target] = Math.max(0, (state.inventory[target] || 0) - lost);
+      }
+      break;
+    }
+    case 'crew_damage': {
+      state.crew.forEach(c => {
+        if (c.hp > 0) c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 20 + 10));
+      });
+      break;
+    }
+    case 'lose_money': {
+      const fine = Math.floor(state.money * 0.08);
+      state.money = Math.max(0, state.money - fine);
+      break;
+    }
+    case 'vehicle_damage': {
+      const activeV = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+      if (activeV) activeV.condition = Math.max(10, activeV.condition - 25);
+      break;
+    }
+    case 'bonus_money': {
+      const bonus = Math.floor(500 + state.day * 100);
+      state.money += bonus;
+      state.stats.totalEarned += bonus;
+      break;
+    }
+    case 'reduce_heat': {
+      state.heat = Math.max(0, state.heat - 25);
+      break;
+    }
+    case 'heal_crew': {
+      state.crew.forEach(c => { c.hp = 100; });
+      break;
+    }
+    case 'price_shift':
+      // Prices already regenerated — no extra action needed
+      break;
+    case 'faction_war': {
+      const factions = Object.keys(FAMILIES) as FamilyId[];
+      const f1 = factions[Math.floor(Math.random() * factions.length)];
+      let f2 = factions[Math.floor(Math.random() * factions.length)];
+      while (f2 === f1) f2 = factions[Math.floor(Math.random() * factions.length)];
+      state.familyRel[f1] = Math.max(-100, (state.familyRel[f1] || 0) - 10);
+      state.familyRel[f2] = Math.max(-100, (state.familyRel[f2] || 0) - 10);
+      break;
+    }
+  }
+}
+
+export function endTurn(state: GameState): NightReportData {
+  const report: NightReportData = {
+    day: state.day + 1,
+    districtIncome: 0,
+    businessIncome: 0,
+    totalWashed: 0,
+    debtInterest: 0,
+    labYield: 0,
+    heatChange: 0,
+    policeRaid: false,
+    policeFine: 0,
+    crewHealing: 0,
+    vehicleDecay: [],
+    randomEvent: null,
+  };
+
+  const heatBefore = state.heat;
+
+  // Lab production
   if (state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
@@ -104,28 +206,33 @@ export function endTurn(state: GameState): { labYield: number; report: string } 
       const totalQty = existingCount + batchSize;
       state.inventoryCosts.drugs = totalQty > 0 ? Math.floor(((existingCount * existingCost) + (batchSize * baseCost)) / totalQty) : baseCost;
       state.inventory.drugs = totalQty;
-      labYield = batchSize;
+      report.labYield = batchSize;
       state.heat += 4;
     }
   }
 
   state.day++;
-  const districtInc = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
-  let businessInc = 0;
-  let totalWashed = 0;
+  state.stats.daysPlayed++;
+
+  // District income
+  report.districtIncome = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
+  
+  // Business income & washing
   state.ownedBusinesses.forEach(bid => {
     const biz = BUSINESSES.find(b => b.id === bid);
     if (biz) {
-      businessInc += biz.income;
+      report.businessIncome += biz.income;
       let washAmount = Math.min(state.dirtyMoney, biz.clean);
       if (state.ownedDistricts.includes('neon')) washAmount = Math.floor(washAmount * 1.2);
       state.dirtyMoney -= washAmount;
-      state.money += Math.floor(washAmount * 0.85);
-      totalWashed += washAmount;
+      const washed = Math.floor(washAmount * 0.85);
+      state.money += washed;
+      report.totalWashed += washAmount;
     }
   });
 
-  state.money += districtInc + businessInc;
+  state.money += report.districtIncome + report.businessIncome;
+  state.stats.totalEarned += report.districtIncome + report.businessIncome;
 
   // Heat decay
   let heatDecay = 5;
@@ -139,29 +246,64 @@ export function endTurn(state: GameState): { labYield: number; report: string } 
     const fine = Math.floor(state.money * 0.1);
     state.money -= fine;
     state.heat = Math.max(0, state.heat - 20);
+    report.policeRaid = true;
+    report.policeFine = fine;
   }
 
   // Debt interest
   if (state.debt > 0) {
+    report.debtInterest = Math.floor(state.debt * 0.03);
     state.debt = Math.floor(state.debt * 1.03);
   }
+
+  // Vehicle condition decay
+  state.ownedVehicles.forEach(v => {
+    const decay = Math.floor(Math.random() * 5) + 2; // 2-6% per day
+    const oldCondition = v.condition;
+    v.condition = Math.max(10, v.condition - decay);
+    if (oldCondition !== v.condition) {
+      report.vehicleDecay.push({ id: v.id, amount: oldCondition - v.condition });
+    }
+  });
+
+  // Crew natural healing (small amount)
+  let totalHealing = 0;
+  state.crew.forEach(c => {
+    if (c.hp < 100 && c.hp > 0) {
+      const heal = Math.floor(Math.random() * 5) + 3; // 3-7 HP per night
+      const oldHp = c.hp;
+      c.hp = Math.min(100, c.hp + heal);
+      totalHealing += c.hp - oldHp;
+    }
+  });
+  report.crewHealing = totalHealing;
+
+  // Random event
+  const event = rollRandomEvent(state);
+  if (event) {
+    applyRandomEvent(state, event);
+    report.randomEvent = event;
+  }
+
+  report.heatChange = state.heat - heatBefore;
 
   generatePrices(state);
   generateContracts(state);
   state.maxInv = recalcMaxInv(state);
+  state.nightReport = report;
 
-  const report = `Dag ${state.day}: +€${districtInc + businessInc} inkomen`;
-  return { labYield, report };
+  return report;
 }
 
-export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'): { success: boolean; message: string } {
+export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell', quantity = 1): { success: boolean; message: string } {
   const basePrice = state.prices[state.loc]?.[gid] || 0;
   const totalCharm = getPlayerStat(state, 'charm');
   const charmBonus = (totalCharm * 0.02) + (state.rep / 5000);
 
   if (mode === 'buy') {
     const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
-    if (invCount >= state.maxInv) return { success: false, message: "Kofferbak vol." };
+    const maxBuy = Math.min(quantity, state.maxInv - invCount);
+    if (maxBuy <= 0) return { success: false, message: "Kofferbak vol." };
 
     let buyPrice = basePrice;
     const good = GOODS.find(g => g.id === gid);
@@ -169,25 +311,39 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
       buyPrice = Math.floor(buyPrice * 0.7);
     }
     if (state.heat > 50) buyPrice = Math.floor(buyPrice * 1.2);
-    if (state.money < buyPrice) return { success: false, message: "Te weinig kapitaal." };
 
-    state.money -= buyPrice;
+    const actualQty = Math.min(maxBuy, Math.floor(state.money / buyPrice));
+    if (actualQty <= 0) return { success: false, message: "Te weinig kapitaal." };
+
+    const totalCost = buyPrice * actualQty;
+    state.money -= totalCost;
+    state.stats.totalSpent += totalCost;
+
     const currentCount = state.inventory[gid] || 0;
     const currentCost = state.inventoryCosts[gid] || 0;
-    const totalQty = currentCount + 1;
-    state.inventoryCosts[gid] = totalQty > 0 ? Math.floor(((currentCount * currentCost) + buyPrice) / totalQty) : buyPrice;
-    state.inventory[gid] = (state.inventory[gid] || 0) + 1;
+    const totalQty = currentCount + actualQty;
+    state.inventoryCosts[gid] = totalQty > 0 ? Math.floor(((currentCount * currentCost) + totalCost) / totalQty) : buyPrice;
+    state.inventory[gid] = totalQty;
+    state.stats.tradesCompleted += actualQty;
 
-    return { success: true, message: `${GOODS.find(g => g.id === gid)?.name} gekocht voor €${buyPrice}` };
+    return { success: true, message: `${actualQty}x ${GOODS.find(g => g.id === gid)?.name} gekocht voor €${totalCost}` };
   } else {
-    if (!state.inventory[gid] || state.inventory[gid]! <= 0) return { success: false, message: "Niet op voorraad." };
+    const owned = state.inventory[gid] || 0;
+    if (owned <= 0) return { success: false, message: "Niet op voorraad." };
+
+    const actualQty = Math.min(quantity, owned);
     const sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus));
-    state.money += sellPrice;
-    state.inventory[gid] = state.inventory[gid]! - 1;
+    const totalRevenue = sellPrice * actualQty;
+
+    state.money += totalRevenue;
+    state.stats.totalEarned += totalRevenue;
+    state.inventory[gid] = owned - actualQty;
     if (state.inventory[gid]! <= 0) state.inventoryCosts[gid] = 0;
-    state.rep += 2;
-    gainXp(state, 2);
-    return { success: true, message: `Verkocht voor €${sellPrice}` };
+    state.rep += 2 * actualQty;
+    gainXp(state, 2 * actualQty);
+    state.stats.tradesCompleted += actualQty;
+
+    return { success: true, message: `${actualQty}x verkocht voor €${totalRevenue}` };
   }
 }
 
@@ -198,7 +354,7 @@ export function gainXp(state: GameState, amount: number): boolean {
     state.player.level++;
     state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
     state.player.skillPoints += 2;
-    return true; // leveled up
+    return true;
   }
   return false;
 }
@@ -217,10 +373,13 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
     state.dirtyMoney += op.reward;
     state.heat += op.heat;
     state.rep += 10;
+    state.stats.totalEarned += op.reward;
+    state.stats.missionsCompleted++;
     gainXp(state, 15);
     return { success: true, message: `${op.name} geslaagd! +€${op.reward} zwart geld.` };
   } else {
     state.heat += Math.floor(op.heat * 1.5);
+    state.stats.missionsFailed++;
     return { success: false, message: `${op.name} mislukt! Extra heat opgelopen.` };
   }
 }
@@ -233,7 +392,6 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
   const member = state.crew[crewIndex];
   if (member.hp <= 0) return { success: false, message: `${member.name} is te zwaar gewond.`, crewDamage: 0, repChange: 0 };
 
-  // Calculate success chance based on contract type and crew role
   let bonus = 0;
   const typeRoleMap: Record<string, string> = {
     delivery: 'Chauffeur',
@@ -245,7 +403,6 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
   bonus += member.level * 3;
   bonus += Math.floor(member.hp / 20);
 
-  // Player stats also help
   const statMap: Record<string, StatId> = {
     delivery: 'charm',
     combat: 'muscle',
@@ -255,7 +412,6 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
   const relevantStat = getPlayerStat(state, statMap[contract.type] || 'brains');
   bonus += relevantStat * 3;
 
-  // Faction relationship bonus
   const employerRel = state.familyRel[contract.employer] || 0;
   if (employerRel > 30) bonus += 10;
 
@@ -267,42 +423,38 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
   let repChange = 0;
 
   if (success) {
-    // Rewards
     state.dirtyMoney += contract.reward;
     state.heat += contract.heat;
     state.rep += 15;
     repChange = 15;
+    state.stats.totalEarned += contract.reward;
+    state.stats.missionsCompleted++;
     gainXp(state, contract.xp);
 
-    // Faction relations
     state.familyRel[contract.employer] = Math.min(100, (state.familyRel[contract.employer] || 0) + 8);
     state.familyRel[contract.target] = Math.max(-100, (state.familyRel[contract.target] || 0) - 5);
 
-    // Crew XP
     member.xp += 10;
     if (member.xp >= 30 * member.level) {
       member.xp = 0;
       member.level = Math.min(10, member.level + 1);
     }
 
-    // Small crew damage on risky missions
     if (contract.risk > 40) {
       crewDamage = Math.floor(Math.random() * 15) + 5;
       member.hp = Math.max(1, member.hp - crewDamage);
     }
   } else {
-    // Failure consequences
     state.heat += Math.floor(contract.heat * 1.5);
     crewDamage = Math.floor(Math.random() * 30) + 15;
     member.hp = Math.max(0, member.hp - crewDamage);
+    state.stats.missionsFailed++;
 
-    // Faction rep hit
     state.familyRel[contract.employer] = Math.max(-100, (state.familyRel[contract.employer] || 0) - 3);
     state.rep = Math.max(0, state.rep - 5);
     repChange = -5;
   }
 
-  // Remove the contract
   state.activeContracts = state.activeContracts.filter(c => c.id !== contractId);
 
   const memberName = member.name;
@@ -318,11 +470,164 @@ export function recruit(state: GameState): { success: boolean; message: string }
   if (state.money < 2500) return { success: false, message: "Onvoldoende geld." };
 
   state.money -= 2500;
-  const name = CREW_NAMES[Math.floor(Math.random() * CREW_NAMES.length)];
+  state.stats.totalSpent += 2500;
+
+  // Pick unique name
+  const usedNames = state.crew.map(c => c.name);
+  const availableNames = CREW_NAMES.filter(n => !usedNames.includes(n));
+  const name = availableNames.length > 0
+    ? availableNames[Math.floor(Math.random() * availableNames.length)]
+    : `Agent-${Math.floor(Math.random() * 999)}`;
+
   const role = CREW_ROLES[Math.floor(Math.random() * CREW_ROLES.length)] as CrewRole;
   state.crew.push({ name, role, hp: 100, xp: 0, level: 1 });
   state.maxInv = recalcMaxInv(state);
   return { success: true, message: `${name} (${role}) gerekruteerd!` };
+}
+
+export function healCrew(state: GameState, crewIndex: number): { success: boolean; message: string; cost: number } {
+  if (crewIndex < 0 || crewIndex >= state.crew.length) return { success: false, message: 'Crewlid niet gevonden.', cost: 0 };
+  const member = state.crew[crewIndex];
+  if (member.hp >= 100) return { success: false, message: `${member.name} heeft al volle HP.`, cost: 0 };
+
+  const hpNeeded = 100 - member.hp;
+  let costPerHp = 50;
+  if (state.ownedDistricts.includes('iron')) costPerHp = Math.floor(costPerHp * 0.8); // Iron Borough perk
+  const totalCost = hpNeeded * costPerHp;
+
+  if (state.money < totalCost) return { success: false, message: 'Niet genoeg geld.', cost: totalCost };
+
+  state.money -= totalCost;
+  state.stats.totalSpent += totalCost;
+  member.hp = 100;
+  return { success: true, message: `${member.name} volledig genezen! (-€${totalCost})`, cost: totalCost };
+}
+
+export function fireCrew(state: GameState, crewIndex: number): { success: boolean; message: string } {
+  if (crewIndex < 0 || crewIndex >= state.crew.length) return { success: false, message: 'Crewlid niet gevonden.' };
+  const name = state.crew[crewIndex].name;
+  state.crew.splice(crewIndex, 1);
+  state.maxInv = recalcMaxInv(state);
+  return { success: true, message: `${name} ontslagen.` };
+}
+
+// ========== COMBAT SYSTEM ==========
+export function startCombat(state: GameState, familyId: FamilyId): CombatState | null {
+  const boss = BOSS_DATA[familyId];
+  if (!boss) return null;
+  if (state.leadersDefeated.includes(familyId)) return null;
+
+  const muscle = getPlayerStat(state, 'muscle');
+  const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
+
+  return {
+    idx: 0,
+    targetName: boss.name,
+    targetHP: boss.hp,
+    enemyMaxHP: boss.hp,
+    enemyAttack: boss.attack,
+    playerHP: playerMaxHP,
+    playerMaxHP,
+    logs: [`Je staat tegenover ${boss.name}...`, boss.desc],
+    isBoss: true,
+    familyId,
+    stunned: false,
+    turn: 0,
+    finished: false,
+    won: false,
+  };
+}
+
+export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'defend' | 'environment'): void {
+  const combat = state.activeCombat;
+  if (!combat || combat.finished) return;
+
+  combat.turn++;
+  const muscle = getPlayerStat(state, 'muscle');
+  const brains = getPlayerStat(state, 'brains');
+
+  // Player action
+  let playerDamage = 0;
+  let playerDefenseBonus = 0;
+  let stunChance = 0;
+
+  switch (action) {
+    case 'attack':
+      playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+      combat.logs.push(`Je slaat toe voor ${playerDamage} schade!`);
+      break;
+    case 'heavy':
+      if (Math.random() < 0.6 + (muscle * 0.03)) {
+        playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
+        combat.logs.push(`ZWARE KLAP! ${playerDamage} schade!`);
+      } else {
+        combat.logs.push('Je zware aanval mist!');
+      }
+      break;
+    case 'defend':
+      playerDefenseBonus = 0.6;
+      const heal = Math.floor(5 + brains * 1.5);
+      combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + heal);
+      combat.logs.push(`Je verdedigt en herstelt ${heal} HP.`);
+      break;
+    case 'environment': {
+      const env = COMBAT_ENVIRONMENTS[state.loc];
+      if (env) {
+        stunChance = 0.4 + (brains * 0.05);
+        if (Math.random() < stunChance) {
+          combat.stunned = true;
+          playerDamage = Math.floor(5 + brains * 2);
+          combat.logs.push(`${env.log} STUNNED! +${playerDamage} schade.`);
+        } else {
+          combat.logs.push(`${env.log} ...maar het mislukt.`);
+        }
+      }
+      break;
+    }
+  }
+
+  combat.targetHP = Math.max(0, combat.targetHP - playerDamage);
+
+  // Check if enemy defeated
+  if (combat.targetHP <= 0) {
+    combat.finished = true;
+    combat.won = true;
+    combat.logs.push(`${combat.targetName} is verslagen!`);
+    if (combat.familyId) {
+      state.leadersDefeated.push(combat.familyId);
+      state.rep += 200;
+      state.money += 25000;
+      state.stats.totalEarned += 25000;
+      state.stats.missionsCompleted++;
+      gainXp(state, 100);
+      combat.logs.push(`+€25.000 | +200 REP | +100 XP`);
+    }
+    return;
+  }
+
+  // Enemy attack
+  if (!combat.stunned) {
+    let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6));
+    if (playerDefenseBonus > 0) {
+      enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
+    }
+    combat.playerHP = Math.max(0, combat.playerHP - enemyDamage);
+    combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDamage} schade!`);
+  } else {
+    combat.logs.push(`${combat.targetName} is verdoofd en kan niet aanvallen!`);
+    combat.stunned = false;
+  }
+
+  // Check if player defeated
+  if (combat.playerHP <= 0) {
+    combat.finished = true;
+    combat.won = false;
+    combat.logs.push('Je bent verslagen...');
+    state.heat += 20;
+    state.money = Math.max(0, state.money - Math.floor(state.money * 0.1));
+    state.stats.missionsFailed++;
+    return;
+  }
 }
 
 export function checkAchievements(state: GameState): string[] {

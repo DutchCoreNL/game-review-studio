@@ -3,11 +3,27 @@ import { NEWS_ITEMS } from '@/game/constants';
 import { motion } from 'framer-motion';
 import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
+import { ConfirmDialog } from './ConfirmDialog';
+import { useState } from 'react';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
+  const [confirmEndTurn, setConfirmEndTurn] = useState(false);
 
   const newsText = NEWS_ITEMS[state.day % NEWS_ITEMS.length];
+
+  const handleEndTurn = () => {
+    if (state.debt > 250000) {
+      showToast('Schuld te hoog! (>€250k) Los eerst af.', true);
+      return;
+    }
+    setConfirmEndTurn(true);
+  };
+
+  const confirmEnd = () => {
+    setConfirmEndTurn(false);
+    dispatch({ type: 'END_TURN' });
+  };
 
   return (
     <div>
@@ -39,19 +55,23 @@ export function MapView() {
 
       {/* End Turn */}
       <motion.button
-        onClick={() => {
-          if (state.debt > 250000) {
-            showToast('Schuld te hoog! (>€250k) Los eerst af.', true);
-            return;
-          }
-          dispatch({ type: 'END_TURN' });
-          showToast(`Dag ${state.day + 1} begint...`);
-        }}
+        onClick={handleEndTurn}
         className="w-full py-3.5 rounded font-bold text-sm uppercase tracking-wider bg-blood text-primary-foreground glow-blood"
         whileTap={{ scale: 0.97 }}
       >
         DAG AFSLUITEN
       </motion.button>
+
+      <ConfirmDialog
+        open={confirmEndTurn}
+        title="Dag Afsluiten"
+        message={`Wil je dag ${state.day} afsluiten? Je ontvangt inkomen, betaalt rente op schuld (€${Math.floor(state.debt * 0.03).toLocaleString()}), en er kunnen willekeurige events plaatsvinden.`}
+        confirmText="SLUIT AF"
+        cancelText="ANNULEER"
+        variant="warning"
+        onConfirm={confirmEnd}
+        onCancel={() => setConfirmEndTurn(false)}
+      />
     </div>
   );
 }
