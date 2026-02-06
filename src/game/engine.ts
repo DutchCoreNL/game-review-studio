@@ -225,6 +225,94 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   }
 }
 
+export function executeContract(state: GameState, contractId: number, crewIndex: number): { success: boolean; message: string; crewDamage: number; repChange: number } {
+  const contract = state.activeContracts.find(c => c.id === contractId);
+  if (!contract) return { success: false, message: 'Contract niet gevonden.', crewDamage: 0, repChange: 0 };
+  if (crewIndex < 0 || crewIndex >= state.crew.length) return { success: false, message: 'Crewlid niet gevonden.', crewDamage: 0, repChange: 0 };
+
+  const member = state.crew[crewIndex];
+  if (member.hp <= 0) return { success: false, message: `${member.name} is te zwaar gewond.`, crewDamage: 0, repChange: 0 };
+
+  // Calculate success chance based on contract type and crew role
+  let bonus = 0;
+  const typeRoleMap: Record<string, string> = {
+    delivery: 'Chauffeur',
+    combat: 'Enforcer',
+    stealth: 'Smokkelaar',
+    tech: 'Hacker',
+  };
+  if (member.role === typeRoleMap[contract.type]) bonus += 25;
+  bonus += member.level * 3;
+  bonus += Math.floor(member.hp / 20);
+
+  // Player stats also help
+  const statMap: Record<string, StatId> = {
+    delivery: 'charm',
+    combat: 'muscle',
+    stealth: 'brains',
+    tech: 'brains',
+  };
+  const relevantStat = getPlayerStat(state, statMap[contract.type] || 'brains');
+  bonus += relevantStat * 3;
+
+  // Faction relationship bonus
+  const employerRel = state.familyRel[contract.employer] || 0;
+  if (employerRel > 30) bonus += 10;
+
+  const successChance = Math.min(95, Math.max(10, 100 - contract.risk + bonus));
+  const roll = Math.random() * 100;
+  const success = roll < successChance;
+
+  let crewDamage = 0;
+  let repChange = 0;
+
+  if (success) {
+    // Rewards
+    state.dirtyMoney += contract.reward;
+    state.heat += contract.heat;
+    state.rep += 15;
+    repChange = 15;
+    gainXp(state, contract.xp);
+
+    // Faction relations
+    state.familyRel[contract.employer] = Math.min(100, (state.familyRel[contract.employer] || 0) + 8);
+    state.familyRel[contract.target] = Math.max(-100, (state.familyRel[contract.target] || 0) - 5);
+
+    // Crew XP
+    member.xp += 10;
+    if (member.xp >= 30 * member.level) {
+      member.xp = 0;
+      member.level = Math.min(10, member.level + 1);
+    }
+
+    // Small crew damage on risky missions
+    if (contract.risk > 40) {
+      crewDamage = Math.floor(Math.random() * 15) + 5;
+      member.hp = Math.max(1, member.hp - crewDamage);
+    }
+  } else {
+    // Failure consequences
+    state.heat += Math.floor(contract.heat * 1.5);
+    crewDamage = Math.floor(Math.random() * 30) + 15;
+    member.hp = Math.max(0, member.hp - crewDamage);
+
+    // Faction rep hit
+    state.familyRel[contract.employer] = Math.max(-100, (state.familyRel[contract.employer] || 0) - 3);
+    state.rep = Math.max(0, state.rep - 5);
+    repChange = -5;
+  }
+
+  // Remove the contract
+  state.activeContracts = state.activeContracts.filter(c => c.id !== contractId);
+
+  const memberName = member.name;
+  const message = success
+    ? `${memberName} voltooit "${contract.name}"! +€${contract.reward} zwart geld, +${contract.xp} XP.${crewDamage > 0 ? ` (${crewDamage} schade opgelopen)` : ''}`
+    : `${memberName} faalt bij "${contract.name}"! ${crewDamage} schade opgelopen.${member.hp <= 0 ? ' BEWUSTELOOS!' : ''}`;
+
+  return { success, message, crewDamage, repChange };
+}
+
 export function recruit(state: GameState): { success: boolean; message: string } {
   if (state.crew.length >= 6) return { success: false, message: "Crew limiet bereikt (Max 6)." };
   if (state.money < 2500) return { success: false, message: "Onvoldoende geld." };
