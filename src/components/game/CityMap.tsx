@@ -1,7 +1,6 @@
 import { DistrictId } from '@/game/types';
 import { DISTRICTS } from '@/game/constants';
 import { motion } from 'framer-motion';
-import { Crown, MapPin, Anchor, Building2, Warehouse, Sparkles } from 'lucide-react';
 
 interface CityMapProps {
   playerLocation: DistrictId;
@@ -108,13 +107,13 @@ const DISTRICT_BUILDINGS: Record<DistrictId, { x: number; y: number; buildings: 
   }
 };
 
-// District label positions & icons
-const DISTRICT_META: Record<DistrictId, { cx: number; cy: number; icon: React.ReactNode }> = {
-  port: { cx: 85, cy: 88, icon: <Anchor size={12} /> },
-  crown: { cx: 270, cy: 100, icon: <Building2 size={12} /> },
-  iron: { cx: 195, cy: 195, icon: <Warehouse size={12} /> },
-  low: { cx: 80, cy: 245, icon: <MapPin size={12} /> },
-  neon: { cx: 325, cy: 200, icon: <Sparkles size={12} /> },
+// District label positions
+const DISTRICT_META: Record<DistrictId, { cx: number; cy: number; labelW: number }> = {
+  port: { cx: 85, cy: 88, labelW: 52 },
+  crown: { cx: 270, cy: 100, labelW: 72 },
+  iron: { cx: 195, cy: 195, labelW: 64 },
+  low: { cx: 80, cy: 245, labelW: 42 },
+  neon: { cx: 325, cy: 200, labelW: 56 },
 };
 
 export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, onSelectDistrict }: CityMapProps) {
@@ -316,9 +315,9 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
               {/* Label background */}
               <rect
-                x={meta.cx - 32}
+                x={meta.cx - meta.labelW / 2}
                 y={meta.cy - 8}
-                width="64"
+                width={meta.labelW}
                 height="16"
                 rx="3"
                 fill={isSelected ? 'hsla(45, 93%, 40%, 0.2)' : 'hsla(0, 0%, 5%, 0.85)'}
@@ -326,24 +325,24 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
                 strokeWidth={isSelected ? '1.5' : '0.5'}
               />
 
-              {/* District name */}
+              {/* District name — full name */}
               <text
                 x={meta.cx}
                 y={meta.cy + 3}
                 textAnchor="middle"
                 fill={isSelected ? 'hsl(45 93% 50%)' : isOwned ? 'hsl(0 72% 60%)' : 'hsl(0 0% 65%)'}
-                fontSize="7"
+                fontSize="6.5"
                 fontWeight="bold"
                 fontFamily="Inter, system-ui, sans-serif"
-                letterSpacing="0.5"
+                letterSpacing="0.3"
                 style={{ textTransform: 'uppercase' }}
               >
-                {district.name.length > 10 ? district.name.split(' ')[0] : district.name}
+                {district.name}
               </text>
 
               {/* Owned crown */}
               {isOwned && (
-                <g transform={`translate(${meta.cx + 26}, ${meta.cy - 10})`}>
+                <g transform={`translate(${meta.cx + meta.labelW / 2 - 2}, ${meta.cy - 10})`}>
                   <circle r="5" fill="hsl(0 72% 51%)" opacity="0.8" />
                   <text x="0" y="3" textAnchor="middle" fill="white" fontSize="6">♛</text>
                 </g>
@@ -351,7 +350,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
               {/* Demand indicator */}
               {hasDemand && (
-                <g transform={`translate(${meta.cx - 28}, ${meta.cy - 10})`}>
+                <g transform={`translate(${meta.cx - meta.labelW / 2 + 2}, ${meta.cy - 10})`}>
                   <circle r="4" fill="hsl(45 93% 40%)" opacity="0.9" />
                   <text x="0" y="3" textAnchor="middle" fill="hsl(0 0% 5%)" fontSize="5" fontWeight="bold">$</text>
                 </g>
