@@ -1,172 +1,115 @@
 
+# Stadskaart Vernieuwen: Een Levende Stad
 
-# Missies Verhaal-Gedreven Maken met Keuzes
+## Huidige Situatie
 
-## Wat er nu is
+De kaart bestaat nu uit generieke rechthoekige "gebouwen" die voor elk district hetzelfde eruit zien -- alleen de kleuren verschillen. Port Nero heeft geen haven, Crown Heights heeft geen wolkenkrabbers, en Lowrise ziet er niet uit als een arme buurt. De wegen zijn statisch op een paar bewegende stipjes na. Er gebeurt niets op de kaart.
 
-Het huidige missiesysteem werkt puur mechanisch: je klikt "GO" bij een solo-operatie of wijst een crewlid toe aan een contract, en je krijgt een enkel berichtje terug ("geslaagd" of "mislukt"). Er is geen verhaal, geen spanning, en geen keuzemomenten. De speler voelt niet wat er tijdens de missie gebeurt.
+## Wat verandert
 
-## Wat er verandert
+### 1. District-Specifieke Landmarks
 
-Missies worden omgebouwd naar een **meerstaps verhaalervaring**. Na het starten van een missie verschijnt een reeks **situatieschermen** met beschrijvende tekst, sfeervolle details gebaseerd op het district waar je bent, en **keuzes die de uitkomst beinvloeden**. Dit geldt voor zowel Solo Operaties als Contracten.
+Elk district krijgt unieke SVG-elementen die het karakter weerspiegelen:
 
----
+| District | Landmarks |
+|----------|-----------|
+| **Port Nero** | Waterlijn aan de linkerkant, kranen, containers, steiger, een schip silhouet |
+| **Crown Heights** | Hoge wolkenkrabbers met verlichte ramen, een penthouse-achtige toren, antenne |
+| **Iron Borough** | Fabrieksschoorstenen met rook-animatie, lage industriele gebouwen, hijskranen |
+| **Lowrise** | Lage, onregelmatige gebouwtjes, kapotte straatlantaarns, graffiti-accenten |
+| **Neon Strip** | Neonborden (geanimeerd), club-entrees, flikkerende lichten |
 
-### 1. Missie-Encounter Systeem
+Elk district behoudt een klikbaar gebied maar krijgt een compleet eigen silhouet.
 
-Elke missie krijgt een reeks van **2-3 encounters** (situaties) voordat de uitkomst bepaald wordt. Elke encounter toont:
+### 2. Dynamische Weg-Events
 
-- Een verhalende beschrijving (aangepast aan district + missietype)
-- 2-3 keuzes voor de speler
-- Elke keuze test een andere stat (muscle, brains, charm) en beinvloedt het resultaat
+Op de wegen verschijnen visuele events die veranderen per dag en op basis van game-state:
 
-**Voorbeeld: "Auto Diefstal" in Port Nero**
+| Event | Visueel | Voorwaarde |
+|-------|---------|------------|
+| **Politie Controle** | Blauw/rood knipperend icoon op een weg | Heat > 40, willekeurig per dag |
+| **Ongeluk/Wegblokkade** | Oranje waarschuwingsicoon | Willekeurig, beperkt reismogelijkheden visueel |
+| **Straatgevecht** | Rood knipperend punt | Factie-relatie < -30 |
+| **Zwarte Markt Deal** | Goud pulsend punt | Willekeurig, positief event |
+| **Surveillance Drone** | Bewegend punt langs een route | Heat > 60 |
 
-```text
-Encounter 1:
-"De zwarte BMW staat geparkeerd bij Dok 7. Een bewaker loopt 
-zijn ronde. Het regent. Je hebt drie opties..."
+Deze events worden opgeslagen in de GameState als `mapEvents` en regenereren elke dag (bij END_TURN). Ze zijn puur visueel en sfeer-verhogend -- ze beinvloeden niet direct de gameplay, maar geven de speler informatie over de staat van de stad.
 
-[FORCEER HET SLOT] (Muscle) - Direct maar luidruchtig
-[HACK DE SLEUTEL] (Brains) - Stil maar complex  
-[LEID AF] (Charm) - Stuur de bewaker weg
+### 3. Meer Stadslevensanimaties
 
-Encounter 2 (gebaseerd op keuze 1):
-"Je bent binnen, maar het alarmsysteem springt aan..."
+- **Meerdere voertuigen** op wegen (niet alleen 4, maar 8+) met verschillende snelheden en kleuren
+- **Knipperende ramen** in gebouwen (willekeurig aan/uit)
+- **Wateranimatie** bij Port Nero (golven)
+- **Rookpluimen** uit fabrieksschoorstenen bij Iron Borough
+- **Neonflickers** bij Neon Strip
+- **Ambulance/politie** die af en toe over een weg rijdt (rode/blauwe stip)
 
-[SCHEUR WEG] - Snelle ontsnapping, meer heat
-[SCHAKEL UIT] - Brains check, minder heat
-[BEL BACKUP] - Crew nodig, veiligste optie
-```
+### 4. Heat-Visuele Feedback op de Kaart
 
-### 2. District-Specifieke Verhaalvarianten
-
-Elk district geeft andere sfeer en situaties aan dezelfde missie. De verhaalteksten en beschikbare keuzes veranderen per locatie:
-
-| District | Sfeer | Invloed |
-|----------|-------|---------|
-| **Port Nero** | Donker, industrieel, containers | Meer ambush/stealth opties |
-| **Crown Heights** | Luxe, technologie, penthouse | Meer hack/social engineering |
-| **Iron Borough** | Rauw, brute kracht, fabrieken | Meer muscle/intimidatie opties |
-| **Lowrise** | Straatleven, chaos, snel | Meer vlucht/dirty trick opties |
-| **Neon Strip** | Nachtleven, afleidingen | Meer charm/misleiding opties |
-
-### 3. Keuze-Consequenties
-
-Elke keuze heeft gevolgen die verder gaan dan slagen/falen:
-
-- **Perfecte match** (stat hoog genoeg): Bonus beloning, minder heat, verhaalsucces
-- **Gedeeltelijk succes**: Missie slaagt maar met kosten (crew schade, extra heat)
-- **Mislukking**: Negatieve gevolgen maar met een uitweg (vlucht-keuze)
-
-Sommige keuzes beinvloeden ook:
-- Factie-relaties (kies je de gewelddadige of diplomatieke route)
-- Heat (stille aanpak vs. harde aanpak)
-- Crew gezondheid (bescherm je je crew of neem je risico)
-
-### 4. Visuele Presentatie
-
-De encounter wordt getoond als een **full-screen overlay** met:
-- Sfeervolle titel met district-icoon
-- Verhalende tekst in een leesbaar formaat
-- Keuze-knoppen met stat-indicatie en risico-niveau
-- Korte animatie bij keuze (fade/slide)
-- Resultaatscherm na de laatste encounter met samenvatting
-
-### 5. Contract-Encounters
-
-Contracten krijgen ook encounters, maar korter (1-2 stappen). Het toegewezen crewlid wordt in het verhaal genoemd:
-
-```text
-"Vinny (Enforcer) arriveert bij het magazijn voor de 
-wapenlevering. Er staan twee onbekende auto's..."
-
-[VINNY GAAT NAAR BINNEN] - Risicovol maar snel
-[VERKEN EERST] - Veiliger, Vinny's HP wordt gespaard
-[TREK TERUG] - Annuleer missie, geen beloning
-```
+Naarmate heat stijgt, verandert de sfeer van de hele kaart:
+- **Heat 0-30**: Normale sfeer
+- **Heat 30-60**: Subtiele rode tint aan de randen, meer politie-dots
+- **Heat 60-80**: Duidelijke rode gloed, politiecontroles verschijnen
+- **Heat 80+**: Rode pulserende rand, helikopter-animatie, "LOCKDOWN" tekst
 
 ---
 
 ## Technisch Overzicht
 
-### Nieuwe types
-
-```text
-MissionEncounter:
-  id: string
-  text: string                    -- Verhaaltekst
-  districtVariants: Record<DistrictId, string>  -- Alternatieve tekst per district
-  choices: MissionChoice[]
-
-MissionChoice:
-  id: string
-  label: string                   -- Knoptekst (bijv. "FORCEER HET SLOT")
-  stat: StatId                    -- Welke stat wordt getest
-  difficulty: number              -- Hoe moeilijk (0-100)
-  outcomes: { success: string; partial: string; fail: string }
-  effects: { heat: number; relChange: number; crewDamage: number; bonusReward: number }
-
-ActiveMission:
-  type: 'solo' | 'contract'
-  missionId: string
-  contractId?: number
-  crewIndex?: number
-  currentEncounter: number
-  encounters: MissionEncounter[]
-  totalReward: number
-  totalHeat: number
-  log: string[]                   -- Verhaallijn opbouwen
-```
-
 ### Aangepaste bestanden
 
 | Bestand | Wijziging |
 |---------|-----------|
-| `src/game/types.ts` | Nieuwe types: `MissionEncounter`, `MissionChoice`, `ActiveMission` |
-| `src/game/constants.ts` | Encounter-definities per missietype en district (MISSION_ENCOUNTERS) |
-| `src/game/engine.ts` | `generateMissionEncounters()` - bouwt encounters op basis van missie + district; `resolveMissionChoice()` - verwerkt een keuze en berekent uitkomst |
-| `src/contexts/GameContext.tsx` | Nieuwe actions: `START_MISSION`, `MISSION_CHOICE`, `END_MISSION` |
-| `src/components/game/MissionEncounterView.tsx` | Nieuw component: full-screen verhaalscherm met keuzes |
-| `src/components/game/OperationsView.tsx` | Aangepast: missies starten nu via het encounter-systeem in plaats van directe uitvoering |
-| `src/components/game/GameLayout.tsx` | ActiveMission overlay toevoegen |
+| `src/components/game/CityMap.tsx` | Volledige herbouw met district-landmarks, event-iconen, extra animaties, heat-visuelen |
+| `src/game/types.ts` | Nieuw type `MapEvent` en `mapEvents` aan GameState |
+| `src/game/constants.ts` | `MAP_EVENT_TYPES` definitie, `mapEvents: []` in initial state |
+| `src/game/engine.ts` | `generateMapEvents()` functie, aangeroepen in `endTurn` |
+| `src/components/game/MapView.tsx` | `mapEvents` doorsturen naar CityMap component |
 
-### Encounter-database structuur
-
-De encounters worden gedefinieerd per **missietype** met **district-varianten**:
+### Nieuwe types
 
 ```text
-MISSION_ENCOUNTERS = {
-  // Solo ops
-  pickpocket: [encounter1, encounter2],
-  car_theft: [encounter1, encounter2, encounter3],
-  store_robbery: [encounter1, encounter2, encounter3],
-  
-  // Contract types
-  delivery: [encounter1, encounter2],
-  combat: [encounter1, encounter2],
-  stealth: [encounter1, encounter2, encounter3],
-  tech: [encounter1, encounter2],
-}
+MapEvent:
+  id: string
+  type: 'police_checkpoint' | 'accident' | 'street_fight' | 'black_market' | 'drone' | 'ambulance'
+  roadIndex: number          -- Op welke weg het event zit
+  position: number           -- 0-100% positie op de weg
+  label: string              -- Tooltip tekst
 ```
 
-Elke encounter bevat een basis-tekst plus `districtVariants` die de tekst aanpast wanneer de speler in een specifiek district zit. Als er geen variant is voor het huidige district, wordt de basistekst gebruikt.
+### State uitbreiding
 
-### Engine functies
+```text
+GameState:
+  mapEvents: MapEvent[]      -- Actieve events op de kaart (regenereert per dag)
+```
 
-| Functie | Doel |
-|---------|------|
-| `generateMissionEncounters()` | Selecteert en past encounters aan voor missietype + district |
-| `resolveMissionChoice()` | Berekent uitkomst van een keuze (stat check + moeilijkheid) |
-| `completeMission()` | Verwerkt alle opgebouwde effecten na laatste encounter |
+### Nieuwe engine functie
+
+`generateMapEvents(state)`:
+- Genereert 2-5 events per dag op willekeurige wegen
+- Meer politie-events bij hogere heat
+- Meer straatgevecht-events bij lage factie-relaties
+- Zwarte markt deals verschijnen willekeurig
+- Wordt aangeroepen in `endTurn` samen met `generatePrices`
+
+### CityMap herbouw
+
+De CityMap component wordt volledig herschreven met:
+
+1. **District Renderers**: Aparte render-functies per district die unieke SVG-shapes tekenen
+2. **Water Layer**: Golvende lijnen aan de linkerkant voor de haven
+3. **Smoke Particles**: Animated circles voor fabrieksrook
+4. **Neon Signs**: Geanimeerde tekst-elementen met glow
+5. **Event Markers**: Geanimeerde iconen op wegen
+6. **Heat Overlay**: Rode gradient die toeneemt met heat-niveau
+7. **Meer verkeer**: Extra geanimeerde stipjes met variatie in kleur en snelheid
 
 ### Volgorde van implementatie
 
-1. Types toevoegen (MissionEncounter, MissionChoice, ActiveMission)
-2. Encounter-database definieren in constants (alle missietypes x districten)
-3. Engine functies schrijven (genereren, keuze verwerken, afronden)
-4. GameContext updaten met START_MISSION, MISSION_CHOICE, END_MISSION
-5. MissionEncounterView component bouwen (verhaalscherm met keuzes)
-6. OperationsView aanpassen (missies starten encounter flow)
-7. GameLayout aanpassen (overlay voor actieve missie)
-
+1. Types uitbreiden met MapEvent en mapEvents in GameState
+2. Map event generator schrijven in engine.ts
+3. MapView en GameContext updaten om mapEvents door te geven
+4. CityMap volledig herbouwen met district-landmarks
+5. Animaties en event-markers toevoegen
+6. Heat-visuelen implementeren
