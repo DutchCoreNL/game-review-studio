@@ -2,13 +2,14 @@ import { useGame } from '@/contexts/GameContext';
 import { SOLO_OPERATIONS, FAMILIES } from '@/game/constants';
 import { GameState, ActiveContract, ActiveMission } from '@/game/types';
 import { generateMissionEncounters } from '@/game/missions';
+import { calculateOperationRewardRange, rollActualReward } from '@/game/operationRewards';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles } from 'lucide-react';
+import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp } from 'lucide-react';
 import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -91,6 +92,7 @@ export function OperationsView() {
           <div className="space-y-2">
             {SOLO_OPERATIONS.map(op => {
               const locked = state.player.level < op.level;
+              const rewardRange = !locked ? calculateOperationRewardRange(op, state) : null;
               return (
                 <motion.div key={op.id} className={`game-card border-l-[3px] ${locked ? 'opacity-40 border-l-border' : 'border-l-gold'}`}>
                   <div className="flex justify-between items-center">
@@ -101,15 +103,32 @@ export function OperationsView() {
                         {!locked && <GameBadge variant="muted" size="xs">Lvl {op.level}+</GameBadge>}
                       </div>
                       <p className="text-[0.5rem] text-muted-foreground">{op.desc}</p>
-                      <div className="flex gap-3 mt-1">
+                      <div className="flex gap-3 mt-1 items-center">
                         <span className="text-[0.5rem] text-blood font-semibold">⚡ {op.risk}%</span>
-                        <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
+                        {rewardRange ? (
+                          <span className="text-[0.5rem] text-gold font-semibold">
+                            €{rewardRange.min.toLocaleString()} - €{rewardRange.max.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
+                        )}
                         <span className="text-[0.5rem] text-muted-foreground">🔥 +{op.heat}</span>
                       </div>
+                      {rewardRange && rewardRange.bonuses.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {rewardRange.bonuses.map((b, i) => (
+                            <span key={i} className="text-[0.4rem] font-bold px-1 py-0.5 rounded bg-gold/10 text-gold border border-gold/20 flex items-center gap-0.5">
+                              <TrendingUp size={7} /> {b.label} {b.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <GameButton variant="gold" size="sm" disabled={locked}
                       icon={<Crosshair size={12} />}
                       onClick={() => {
+                        const range = calculateOperationRewardRange(op, state);
+                        const actualReward = rollActualReward(range);
                         const encounters = generateMissionEncounters('solo', op.id);
                         const mission: ActiveMission = {
                           type: 'solo',
@@ -121,7 +140,7 @@ export function OperationsView() {
                           totalCrewDamage: 0,
                           totalRelChange: {},
                           log: [],
-                          baseReward: op.reward,
+                          baseReward: actualReward,
                           baseHeat: op.heat,
                           finished: false,
                           success: false,
