@@ -98,12 +98,12 @@ export function endTurn(state: GameState): { labYield: number; report: string } 
     if (space > 0) {
       const batchSize = Math.min(state.lab.chemicals, 20, space);
       state.lab.chemicals -= batchSize;
-      state.inventory.drugs = (state.inventory.drugs || 0) + batchSize;
+      const existingCount = state.inventory.drugs || 0;
+      const existingCost = state.inventoryCosts.drugs || 0;
       const baseCost = GOODS.find(g => g.id === 'drugs')!.base * 0.5;
-      const currentCount = state.inventory.drugs || 0;
-      const currentCost = state.inventoryCosts.drugs || 0;
-      const totalQty = currentCount + batchSize;
-      state.inventoryCosts.drugs = totalQty > 0 ? Math.floor(((currentCount * currentCost) + (batchSize * baseCost)) / totalQty) : baseCost;
+      const totalQty = existingCount + batchSize;
+      state.inventoryCosts.drugs = totalQty > 0 ? Math.floor(((existingCount * existingCost) + (batchSize * baseCost)) / totalQty) : baseCost;
+      state.inventory.drugs = totalQty;
       labYield = batchSize;
       state.heat += 4;
     }
@@ -209,9 +209,9 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   if (state.player.level < op.level) return { success: false, message: "Te laag level." };
 
   const statVal = getPlayerStat(state, op.stat);
-  const chance = Math.min(95, 100 - op.risk + (statVal * 5));
   const isLowrise = state.ownedDistricts.includes('low');
-  const adjustedRisk = isLowrise ? op.risk * 0.7 : op.risk;
+  const effectiveRisk = isLowrise ? Math.floor(op.risk * 0.7) : op.risk;
+  const chance = Math.min(95, 100 - effectiveRisk + (statVal * 5));
 
   if (Math.random() * 100 < chance) {
     state.dirtyMoney += op.reward;

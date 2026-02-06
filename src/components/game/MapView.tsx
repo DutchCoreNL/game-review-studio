@@ -160,6 +160,10 @@ export function MapView() {
       {/* End Turn */}
       <motion.button
         onClick={() => {
+          if (state.debt > 250000) {
+            showToast('Schuld te hoog! (>€250k) Los eerst af.', true);
+            return;
+          }
           dispatch({ type: 'END_TURN' });
           showToast(`Dag ${state.day + 1} begint...`);
         }}

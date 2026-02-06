@@ -14,9 +14,19 @@ export function MarketView() {
   const prices = state.prices[state.loc] || {};
 
   const handleTrade = (gid: GoodId) => {
+    const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+    if (tradeMode === 'buy' && invCount >= state.maxInv) {
+      return showToast("Kofferbak vol.", true);
+    }
+    const prevMoney = state.money;
     dispatch({ type: 'TRADE', gid, mode: tradeMode });
     if (tradeMode === 'buy') {
-      if (invCount >= state.maxInv) return showToast("Kofferbak vol.", true);
+      showToast(`${GOODS.find(g => g.id === gid)?.name} gekocht!`);
+    } else {
+      if ((state.inventory[gid] || 0) <= 0) {
+        return showToast("Niet op voorraad.", true);
+      }
+      showToast(`${GOODS.find(g => g.id === gid)?.name} verkocht!`);
     }
   };
 

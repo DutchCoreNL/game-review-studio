@@ -100,13 +100,13 @@ export const NEWS_ITEMS = [
 ];
 
 export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'first_blood', name: 'First Blood', desc: 'Win je eerste gevecht', icon: 'Swords', condition: (s) => s.rep > 0 },
+  { id: 'first_blood', name: 'First Blood', desc: 'Voltooi een solo operatie', icon: 'Swords', condition: (s) => s.rep >= 10 && s.player.level >= 1 },
   { id: 'drug_lord', name: 'Drug Lord', desc: 'Bezit het Synthetica Lab', icon: 'Pipette', condition: (s) => s.hqUpgrades.includes('lab') },
   { id: 'landlord', name: 'Vastgoed Baron', desc: 'Bezit 3 districten', icon: 'Building2', condition: (s) => s.ownedDistricts.length >= 3 },
   { id: 'millionaire', name: 'Miljonair', desc: 'Bezit €1.000.000', icon: 'BadgeDollarSign', condition: (s) => s.money >= 1000000 },
   { id: 'crew_boss', name: 'Crew Boss', desc: 'Huur 4 crewleden', icon: 'Users', condition: (s) => s.crew.length >= 4 },
   { id: 'kingpin', name: 'Kingpin', desc: 'Versla alle 3 factieleiders', icon: 'Crown', condition: (s) => s.leadersDefeated.length >= 3 },
-  { id: 'high_roller', name: 'High Roller', desc: 'Win €10.000 in het casino', icon: 'Dices', condition: (s) => s.money >= 10000 },
+  { id: 'high_roller', name: 'High Roller', desc: 'Bezit €50.000 aan cash', icon: 'Dices', condition: (s) => s.money >= 50000 },
   { id: 'clean_money', name: 'Witwasser', desc: 'Bezit een dekmantel', icon: 'Store', condition: (s) => s.ownedBusinesses.length > 0 },
   { id: 'car_collector', name: 'Auto Verzamelaar', desc: 'Bezit 3 voertuigen', icon: 'Car', condition: (s) => s.ownedVehicles.length >= 3 },
   { id: 'survivor', name: 'Overlever', desc: 'Overleef 30 dagen', icon: 'Clock', condition: (s) => s.day >= 30 },
