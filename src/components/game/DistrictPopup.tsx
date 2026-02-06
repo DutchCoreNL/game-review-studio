@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, DISTRICT_FLAVOR } from '@/game/constants';
-import { DistrictId } from '@/game/types';
+import { GameButton } from './ui/GameButton';
+import { InfoRow } from './ui/InfoRow';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Crown, Navigation, TrendingUp } from 'lucide-react';
 
@@ -29,20 +30,19 @@ export function DistrictPopup() {
 
   let btnText = '';
   let btnDisabled = true;
-  let btnStyle = 'bg-muted text-muted-foreground';
+  let btnVariant: 'blood' | 'gold' | 'muted' = 'muted';
 
   if (isHere && isOwned) {
     btnText = 'JOUW TERRITORIUM';
     btnDisabled = true;
-    btnStyle = 'bg-muted text-muted-foreground';
   } else if (isHere && !isOwned) {
     btnText = `OVERNEMEN — €${sel.cost.toLocaleString()}`;
     btnDisabled = state.money < sel.cost;
-    btnStyle = 'bg-gold text-secondary-foreground glow-gold';
+    btnVariant = 'gold';
   } else {
     btnText = travelCost > 0 ? `REIS HIERHEEN — €${travelCost}` : 'REIS HIERHEEN (GRATIS)';
     btnDisabled = state.money < travelCost;
-    btnStyle = 'bg-blood text-primary-foreground glow-blood';
+    btnVariant = 'blood';
   }
 
   const flavorKey = state.heat > 80 ? 'high_heat' : isOwned ? 'owned' : 'neutral';
@@ -75,24 +75,23 @@ export function DistrictPopup() {
             <X size={16} />
           </button>
 
-          {/* Header */}
           <div className="flex items-center gap-2.5 mb-3">
             {isOwned ? (
-              <div className="w-8 h-8 rounded-lg bg-[hsl(var(--blood)/0.15)] flex items-center justify-center">
+              <div className="w-8 h-8 rounded bg-blood/15 flex items-center justify-center">
                 <Crown size={16} className="text-blood" />
               </div>
             ) : isHere ? (
-              <div className="w-8 h-8 rounded-lg bg-[hsl(var(--gold)/0.15)] flex items-center justify-center">
+              <div className="w-8 h-8 rounded bg-gold/15 flex items-center justify-center">
                 <MapPin size={16} className="text-gold" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
                 <Navigation size={16} className="text-muted-foreground" />
               </div>
             )}
             <div>
-              <h3 className="font-bold text-sm">{sel.name}</h3>
-              <div className="flex items-center gap-2 text-[0.6rem] text-muted-foreground">
+              <h3 className="font-bold text-sm font-display tracking-wider">{sel.name}</h3>
+              <div className="flex items-center gap-2 text-[0.55rem] text-muted-foreground">
                 {isHere && <span className="text-gold font-semibold">📍 Je bent hier</span>}
                 {isOwned && <span className="text-blood font-semibold">♛ Jouw territorium</span>}
                 {!isHere && !isOwned && <span>Onbekend terrein</span>}
@@ -100,51 +99,37 @@ export function DistrictPopup() {
             </div>
           </div>
 
-          {/* Flavor text */}
           {flavor && (
-            <p className="text-[0.65rem] text-muted-foreground italic mb-3 pl-1 border-l-2 border-border ml-1">
-              "{flavor}"
-            </p>
+            <p className="text-[0.6rem] text-muted-foreground italic mb-3 pl-1 border-l-2 border-border ml-1">"{flavor}"</p>
           )}
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="bg-muted/50 rounded px-2.5 py-1.5 text-xs">
-              <span className="text-muted-foreground">Inkomen:</span>{' '}
-              <span className="font-bold text-gold">€{sel.income}/dag</span>
-            </div>
-            <div className="bg-muted/50 rounded px-2.5 py-1.5 text-xs">
-              <span className="text-muted-foreground">Prijs:</span>{' '}
-              <span className="font-bold">€{sel.cost.toLocaleString()}</span>
-            </div>
+          <div className="space-y-1.5 mb-3">
+            <InfoRow label="Inkomen" value={`€${sel.income}/dag`} valueClass="text-gold" />
+            <InfoRow label="Prijs" value={`€${sel.cost.toLocaleString()}`} />
           </div>
 
-          {/* Perk */}
-          <div className={`text-[0.6rem] px-2.5 py-1.5 rounded mb-3 font-semibold ${
-            isOwned ? 'bg-[hsl(var(--blood)/0.1)] text-blood' : 'bg-muted text-muted-foreground'
+          <div className={`text-[0.55rem] px-2.5 py-1.5 rounded mb-3 font-semibold ${
+            isOwned ? 'bg-blood/10 text-blood' : 'bg-muted text-muted-foreground'
           }`}>
             ♛ {sel.perk}
           </div>
 
-          {/* Demand */}
           {demand && (
-            <div className="flex items-center gap-1.5 mb-3 text-[0.65rem] text-gold font-semibold bg-[hsl(var(--gold)/0.08)] rounded px-2.5 py-1.5">
-              <TrendingUp size={12} />
-              Hoge vraag: {demand} (+60% prijs)
+            <div className="flex items-center gap-1.5 mb-3 text-[0.6rem] text-gold font-semibold bg-gold/8 rounded px-2.5 py-1.5">
+              <TrendingUp size={12} /> Hoge vraag: {demand} (+60% prijs)
             </div>
           )}
 
-          {/* Action Button */}
-          <motion.button
-            onClick={handleAction}
+          <GameButton
+            variant={btnVariant}
+            size="lg"
+            fullWidth
             disabled={btnDisabled}
-            className={`w-full py-3 rounded font-bold text-sm uppercase tracking-wider transition-all ${
-              btnDisabled ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60' : btnStyle
-            }`}
-            whileTap={!btnDisabled ? { scale: 0.97 } : undefined}
+            glow={!btnDisabled}
+            onClick={handleAction}
           >
             {btnText}
-          </motion.button>
+          </GameButton>
         </div>
       </motion.div>
     </AnimatePresence>
