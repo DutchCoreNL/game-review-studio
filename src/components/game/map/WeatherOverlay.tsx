@@ -30,7 +30,7 @@ function RainOverlay() {
   }));
 
   return (
-    <g opacity="0.35">
+    <g opacity="0.35" pointerEvents="none">
       {lines.map((l, i) => (
         <motion.line
           key={`rain-${i}`}
@@ -52,7 +52,7 @@ function RainOverlay() {
 
 function FogOverlay() {
   return (
-    <g>
+    <g pointerEvents="none">
       {/* Fog layers */}
       <motion.rect
         x="0" y="100" width="400" height="80"
@@ -82,7 +82,7 @@ function FogOverlay() {
 
 function HeatwaveOverlay() {
   return (
-    <g>
+    <g pointerEvents="none">
       {/* Red/orange glow */}
       <rect x="0" y="0" width="400" height="290" fill="hsla(0, 80%, 40%, 0.04)" />
       {/* Heat shimmer lines */}
@@ -113,7 +113,7 @@ function HeatwaveOverlay() {
 
 function StormOverlay() {
   return (
-    <g>
+    <g pointerEvents="none">
       {/* Dark overlay */}
       <rect x="0" y="0" width="400" height="290" fill="hsla(240, 20%, 10%, 0.1)" />
       
