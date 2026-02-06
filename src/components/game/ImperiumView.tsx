@@ -231,11 +231,39 @@ function FamiliesPanel() {
   const charmStat = getPlayerStat(state, 'charm');
   const bribeCost = Math.max(1000, 3500 - (charmStat * 150));
 
+  const conqueredCount = state.conqueredFactions?.length || 0;
+  const totalFactions = Object.keys(FAMILIES).length;
+
   return (
     <div>
       <SectionHeader title="Onderwereld" icon={<Skull size={12} />} />
+
+      {/* Conquest progress */}
+      {conqueredCount > 0 && (
+        <div className="game-card border-l-[3px] border-l-gold mb-3">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="font-bold text-xs text-gold">Verovering Voortgang</h4>
+              <p className="text-[0.55rem] text-muted-foreground">
+                {conqueredCount}/{totalFactions} facties onderworpen
+                {conqueredCount >= totalFactions && ' — 👑 ABSOLUTE MACHT!'}
+              </p>
+            </div>
+            <div className="flex gap-1">
+              {(Object.keys(FAMILIES) as FamilyId[]).map(fid => (
+                <div key={fid} className={`w-6 h-6 rounded flex items-center justify-center text-[0.5rem] font-bold ${
+                  state.conqueredFactions?.includes(fid) ? 'bg-gold text-secondary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {state.conqueredFactions?.includes(fid) ? '👑' : '?'}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <p className="text-[0.6rem] text-muted-foreground mb-3">
-        Klik op een factie om acties uit te voeren. Max 1 actie per factie per dag.
+        Versla leiders of bereik relatie 100 om facties te annexeren. Klik om te interacteren.
       </p>
 
       <div className="space-y-3 mb-4">

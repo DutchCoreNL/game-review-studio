@@ -223,4 +223,5 @@ export interface GameState {
   priceHistory: Record<string, Record<string, number[]>>;
   washUsedToday: number;
   factionCooldowns: Record<string, string[]>;
+  conqueredFactions: FamilyId[];
 }
