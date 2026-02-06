@@ -9,6 +9,49 @@ export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
 export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | null;
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
 
+// ========== NEW FEATURE TYPES ==========
+
+export type WeatherType = 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm';
+
+export interface NemesisState {
+  name: string;
+  power: number;
+  location: DistrictId;
+  hp: number;
+  maxHp: number;
+  cooldown: number;
+  defeated: number;
+  lastAction: string;
+}
+
+export interface DistrictDefense {
+  level: number;
+  stationedCrew: number[];
+  wallUpgrade: boolean;
+  turretUpgrade: boolean;
+}
+
+export interface SmuggleRoute {
+  id: string;
+  from: DistrictId;
+  to: DistrictId;
+  good: GoodId;
+  active: boolean;
+  daysActive: number;
+}
+
+export interface PhoneMessage {
+  id: string;
+  from: string;
+  avatar: string;
+  text: string;
+  day: number;
+  read: boolean;
+  type: 'info' | 'warning' | 'opportunity' | 'threat';
+}
+
+// ========== EXISTING TYPES ==========
+
 export interface District {
   name: string;
   cost: number;
@@ -98,6 +141,7 @@ export interface CrewMember {
   hp: number;
   xp: number;
   level: number;
+  specialization: string | null;
 }
 
 export interface OwnedVehicle {
@@ -132,6 +176,7 @@ export interface CombatState {
   turn: number;
   finished: boolean;
   won: boolean;
+  isNemesis?: boolean;
 }
 
 export interface Achievement {
@@ -164,6 +209,11 @@ export interface NightReportData {
   crewHealing: number;
   vehicleDecay: { id: string; amount: number }[];
   randomEvent: RandomEvent | null;
+  // New feature fields
+  weatherChange?: WeatherType;
+  smuggleResults?: { routeId: string; good: GoodId; income: number; intercepted: boolean }[];
+  defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string }[];
+  nemesisAction?: string;
 }
 
 export interface RandomEvent {
@@ -273,4 +323,14 @@ export interface GameState {
   factionCooldowns: Record<string, string[]>;
   conqueredFactions: FamilyId[];
   mapEvents: MapEvent[];
+
+  // ========== NEW FEATURE STATE ==========
+  weather: WeatherType;
+  districtRep: Record<DistrictId, number>;
+  nemesis: NemesisState;
+  districtDefenses: Record<DistrictId, DistrictDefense>;
+  smuggleRoutes: SmuggleRoute[];
+  phone: { messages: PhoneMessage[]; unread: number };
+  showPhone: boolean;
+  pendingSpecChoice: { crewIndex: number; level: number } | null;
 }

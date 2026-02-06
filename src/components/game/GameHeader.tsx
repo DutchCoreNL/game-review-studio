@@ -1,11 +1,30 @@
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle } from '@/game/engine';
+import { WEATHER_EFFECTS } from '@/game/constants';
+import { WeatherType } from '@/game/types';
 import { motion } from 'framer-motion';
-import { Flame, Skull } from 'lucide-react';
+import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone } from 'lucide-react';
+
+const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
+  clear: <Sun size={11} />,
+  rain: <CloudRain size={11} />,
+  fog: <CloudFog size={11} />,
+  heatwave: <Thermometer size={11} />,
+  storm: <CloudLightning size={11} />,
+};
+
+const WEATHER_COLORS: Record<WeatherType, string> = {
+  clear: 'text-gold',
+  rain: 'text-ice',
+  fog: 'text-muted-foreground',
+  heatwave: 'text-blood',
+  storm: 'text-game-purple',
+};
 
 export function GameHeader() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const rank = getRankTitle(state.rep);
+  const weatherDef = WEATHER_EFFECTS[state.weather];
 
   return (
     <header className="flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-4 py-2.5">
@@ -15,19 +34,41 @@ export function GameHeader() {
           <h1 className="font-display text-lg text-blood uppercase tracking-[3px] font-bold blood-text-glow leading-none">
             Noxhaven
           </h1>
-          <div className="text-[0.55rem] text-gold uppercase tracking-[0.15em] font-semibold mt-0.5 gold-text-glow">
-            {rank} — Dag {state.day}
+          <div className="flex items-center gap-1.5 text-[0.55rem] text-gold uppercase tracking-[0.15em] font-semibold mt-0.5 gold-text-glow">
+            <span>{rank} — Dag {state.day}</span>
+            <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[state.weather]}`} title={weatherDef?.desc}>
+              {WEATHER_ICONS[state.weather]}
+              <span className="text-[0.45rem]">{weatherDef?.name}</span>
+            </span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-bold text-foreground tracking-wide">
-            €{state.money.toLocaleString()}
-          </div>
-          {state.dirtyMoney > 0 && (
-            <div className="text-[0.55rem] text-dirty font-medium">
-              💰 €{state.dirtyMoney.toLocaleString()} zwart
+        <div className="flex items-center gap-3">
+          {/* Phone button */}
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_PHONE' })}
+            className="relative text-muted-foreground hover:text-gold transition-colors"
+          >
+            <Phone size={16} />
+            {state.phone.unread > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blood text-primary-foreground rounded-full text-[0.4rem] font-bold flex items-center justify-center"
+              >
+                {state.phone.unread}
+              </motion.span>
+            )}
+          </button>
+          <div className="text-right">
+            <div className="text-sm font-bold text-foreground tracking-wide">
+              €{state.money.toLocaleString()}
             </div>
-          )}
+            {state.dirtyMoney > 0 && (
+              <div className="text-[0.55rem] text-dirty font-medium">
+                💰 €{state.dirtyMoney.toLocaleString()} zwart
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
