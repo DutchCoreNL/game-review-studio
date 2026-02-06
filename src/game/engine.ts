@@ -1,5 +1,5 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType } from './types';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
 
 const SAVE_KEY = 'noxhaven_save_v9';
 
@@ -302,6 +302,23 @@ export function endTurn(state: GameState): NightReportData {
 
   // Reset daily wash counter
   state.washUsedToday = 0;
+
+  // Reset faction cooldowns
+  state.factionCooldowns = { cartel: [], syndicate: [], bikers: [] };
+
+  // Apply faction war effects for hostile factions
+  applyFactionWar(state);
+
+  // Faction alliance passive income
+  (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
+    const rel = state.familyRel[fid] || 0;
+    if (rel >= 80) {
+      const income = 500;
+      state.money += income;
+      state.stats.totalEarned += income;
+      report.businessIncome += income;
+    }
+  });
 
   generatePrices(state);
   generateContracts(state);
@@ -710,4 +727,186 @@ export function getDailyDeal(state: GameState): { item: typeof GEAR[0]; discount
   const discount = 0.3;
   const discountedPrice = Math.floor(item.cost * (1 - discount));
   return { item, discountedPrice, discount };
+}
+
+// ========== FACTION SYSTEM ==========
+
+export function getFactionStatus(rel: number): { label: string; color: string } {
+  if (rel >= 80) return { label: 'ALLIANTIE', color: 'text-gold' };
+  if (rel >= 50) return { label: 'BONDGENOOT', color: 'text-emerald' };
+  if (rel >= 20) return { label: 'VRIENDELIJK', color: 'text-emerald' };
+  if (rel > -20) return { label: 'NEUTRAAL', color: 'text-muted-foreground' };
+  if (rel > -50) return { label: 'VIJANDIG', color: 'text-blood' };
+  return { label: 'OORLOG', color: 'text-blood' };
+}
+
+export function getFactionPerks(rel: number): typeof FACTION_REWARDS {
+  return FACTION_REWARDS.filter(r => rel >= r.minRel);
+}
+
+export function performFactionAction(
+  state: GameState,
+  familyId: FamilyId,
+  actionType: FactionActionType
+): { success: boolean; message: string } {
+  const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
+  if (!actionDef) return { success: false, message: 'Actie niet gevonden.' };
+
+  const fam = FAMILIES[familyId];
+  if (!fam) return { success: false, message: 'Factie niet gevonden.' };
+
+  // Check cooldown
+  const cooldowns = state.factionCooldowns[familyId] || [];
+  if (cooldowns.includes(actionType)) {
+    return { success: false, message: 'Je hebt vandaag al een actie uitgevoerd bij deze factie.' };
+  }
+
+  // Check district requirement
+  if (actionDef.requiresDistrict && state.loc !== fam.home) {
+    return { success: false, message: `Je moet in ${DISTRICTS[fam.home].name} zijn.` };
+  }
+
+  // Check relation requirements
+  const rel = state.familyRel[familyId] || 0;
+  if (actionDef.minRelation !== null && rel < actionDef.minRelation) {
+    return { success: false, message: `Relatie te laag (min: ${actionDef.minRelation}).` };
+  }
+  if (actionDef.maxRelation !== null && rel > actionDef.maxRelation) {
+    return { success: false, message: `Relatie te hoog (max: ${actionDef.maxRelation}).` };
+  }
+
+  // Check if leader is dead
+  if (state.leadersDefeated.includes(familyId)) {
+    return { success: false, message: 'Leider is verslagen, factie is verzwakt.' };
+  }
+
+  let relChange = 0;
+  let heatChange = 0;
+  let repChange = 0;
+  let moneyChange = 0;
+  let message = '';
+
+  const charm = getPlayerStat(state, 'charm');
+  const muscle = getPlayerStat(state, 'muscle');
+  const brains = getPlayerStat(state, 'brains');
+
+  switch (actionType) {
+    case 'negotiate': {
+      const cost = Math.max(500, actionDef.baseCost - (charm * 100));
+      if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
+      moneyChange = -cost;
+      relChange = 8 + Math.floor(Math.random() * 8) + Math.floor(charm * 0.5);
+      message = `Onderhandeling geslaagd! +${relChange} relatie met ${fam.name}.`;
+      break;
+    }
+    case 'bribe': {
+      const cost = actionDef.baseCost + Math.floor(Math.abs(rel) * 30);
+      if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
+      moneyChange = -cost;
+      relChange = 20;
+      heatChange = 3;
+      message = `${fam.contact} accepteert je geld. +${relChange} relatie.`;
+      break;
+    }
+    case 'intimidate': {
+      const successChance = 0.5 + (muscle * 0.05);
+      if (Math.random() < successChance) {
+        relChange = -15;
+        repChange = 15;
+        heatChange = 10;
+        const extortion = Math.floor(1000 + Math.random() * 2000);
+        moneyChange = extortion;
+        message = `Je intimideert ${fam.contact}. +€${extortion}, +${repChange} REP, -${Math.abs(relChange)} relatie.`;
+      } else {
+        relChange = -10;
+        heatChange = 8;
+        message = `Intimidatie mislukt! ${fam.contact} is woedend. -${Math.abs(relChange)} relatie.`;
+      }
+      break;
+    }
+    case 'sabotage': {
+      const cost = actionDef.baseCost;
+      if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
+      const successChance = 0.4 + (brains * 0.06);
+      moneyChange = -cost;
+      if (Math.random() < successChance) {
+        relChange = -25;
+        repChange = 20;
+        heatChange = 15;
+        message = `Sabotage geslaagd! ${fam.name} operaties beschadigd. +${repChange} REP.`;
+      } else {
+        relChange = -15;
+        heatChange = 12;
+        message = `Sabotage ontdekt! ${fam.name} weet dat jij het was.`;
+      }
+      break;
+    }
+    case 'gift': {
+      const giftGood = FACTION_GIFTS[familyId];
+      const giftCount = state.inventory[giftGood] || 0;
+      if (giftCount < 3) {
+        const goodName = GOODS.find(g => g.id === giftGood)?.name || giftGood;
+        return { success: false, message: `Je hebt minimaal 3x ${goodName} nodig.` };
+      }
+      state.inventory[giftGood] = giftCount - 3;
+      relChange = 10 + Math.floor(charm * 0.3);
+      message = `Gift geaccepteerd door ${fam.contact}! +${relChange} relatie.`;
+      break;
+    }
+    case 'intel': {
+      const cost = actionDef.baseCost;
+      if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
+      moneyChange = -cost;
+      relChange = -2;
+      gainXp(state, 15);
+      message = `Informatie gekocht van ${fam.name}. Handelsroutes onthuld! +15 XP.`;
+      break;
+    }
+  }
+
+  // Apply effects
+  if (moneyChange < 0) {
+    if (state.money < Math.abs(moneyChange)) return { success: false, message: 'Niet genoeg geld.' };
+    state.money += moneyChange;
+    state.stats.totalSpent += Math.abs(moneyChange);
+  } else if (moneyChange > 0) {
+    state.dirtyMoney += moneyChange;
+    state.stats.totalEarned += moneyChange;
+  }
+
+  state.familyRel[familyId] = Math.max(-100, Math.min(100, (state.familyRel[familyId] || 0) + relChange));
+  state.heat = Math.max(0, Math.min(100, state.heat + heatChange));
+  state.rep += repChange;
+
+  // Register cooldown — one action per faction per day
+  if (!state.factionCooldowns[familyId]) state.factionCooldowns[familyId] = [];
+  state.factionCooldowns[familyId].push(actionType);
+
+  return { success: true, message };
+}
+
+function applyFactionWar(state: GameState): void {
+  (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
+    const rel = state.familyRel[fid] || 0;
+    if (rel < -50) {
+      // Faction attacks
+      if (Math.random() < 0.4) {
+        // Steal goods
+        const goods = Object.keys(state.inventory) as GoodId[];
+        const target = goods.find(g => (state.inventory[g] || 0) > 0);
+        if (target) {
+          const stolen = Math.min(state.inventory[target] || 0, Math.ceil(Math.random() * 3));
+          state.inventory[target] = Math.max(0, (state.inventory[target] || 0) - stolen);
+        }
+      }
+      if (Math.random() < 0.3) {
+        // Attack crew
+        state.crew.forEach(c => {
+          if (c.hp > 0 && Math.random() < 0.4) {
+            c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 15 + 5));
+          }
+        });
+      }
+    }
+  });
 }

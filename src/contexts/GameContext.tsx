@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId } from '../game/types';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS } from '../game/constants';
 import * as Engine from '../game/engine';
 
@@ -51,6 +51,7 @@ type GameAction =
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' }
   | { type: 'END_COMBAT' }
+  | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -331,6 +332,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'FACTION_ACTION': {
+      const result = Engine.performFactionAction(s, action.familyId, action.actionType);
+      (s as any)._lastFactionResult = result;
+      Engine.checkAchievements(s);
+      return s;
+    }
+
     case 'RESET':
       return createInitialState();
 
@@ -351,6 +359,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0 };
       if (saved.nightReport === undefined) saved.nightReport = null;
       if (!saved.priceHistory) saved.priceHistory = {};
+      if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
+      if (!saved.factionCooldowns) saved.factionCooldowns = { cartel: [], syndicate: [], bikers: [] };
       if (saved.washUsedToday === undefined) saved.washUsedToday = 0;
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {

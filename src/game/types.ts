@@ -7,6 +7,7 @@ export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
 export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | null;
+export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
 
 export interface District {
   name: string;
@@ -221,4 +222,5 @@ export interface GameState {
   nightReport: NightReportData | null;
   priceHistory: Record<string, Record<string, number[]>>;
   washUsedToday: number;
+  factionCooldowns: Record<string, string[]>;
 }
