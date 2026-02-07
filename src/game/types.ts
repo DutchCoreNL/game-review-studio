@@ -52,6 +52,17 @@ export interface PhoneMessage {
   type: 'info' | 'warning' | 'opportunity' | 'threat';
 }
 
+// ========== STORY & PERSONALITY TYPES ==========
+
+export type PersonalityTrait = 'loyaal' | 'hebzuchtig' | 'rustig' | 'impulsief' | 'slim' | 'brutaal' | 'charmant' | 'paranoid';
+
+export type ScreenEffectType = 'shake' | 'blood-flash' | 'gold-flash' | null;
+
+export interface StreetEventResult {
+  success: boolean;
+  text: string;
+}
+
 // ========== EXISTING TYPES ==========
 
 export interface District {
@@ -367,4 +378,11 @@ export interface GameState {
   newGamePlusLevel: number;
   finalBossDefeated: boolean;
   freePlayMode: boolean;
+
+  // ========== STORY & ANIMATION STATE ==========
+  pendingStreetEvent: any | null;
+  streetEventResult: StreetEventResult | null;
+  screenEffect: ScreenEffectType;
+  lastRewardAmount: number;
+  crewPersonalities: Record<number, PersonalityTrait>;
 }

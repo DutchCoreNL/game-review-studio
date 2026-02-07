@@ -3,6 +3,8 @@ import { getRankTitle } from '@/game/engine';
 import { WEATHER_EFFECTS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
+import { AnimatedCounter } from './animations/AnimatedCounter';
+import { RewardPopup } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
 import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone } from 'lucide-react';
 
@@ -65,10 +67,11 @@ export function GameHeader() {
               </motion.span>
             )}
           </button>
-          <div className="text-right">
+          <div className="text-right relative">
             <div className="text-sm font-bold text-foreground tracking-wide">
-              €{state.money.toLocaleString()}
+              <AnimatedCounter value={state.money} />
             </div>
+            <RewardPopup amount={state.lastRewardAmount} />
             {state.dirtyMoney > 0 && (
               <div className="text-[0.55rem] text-dirty font-medium">
                 💰 €{state.dirtyMoney.toLocaleString()} zwart
