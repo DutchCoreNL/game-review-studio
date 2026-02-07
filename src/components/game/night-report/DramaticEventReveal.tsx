@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Zap, AlertTriangle, Sparkles } from 'lucide-react';
 import { RandomEvent } from '@/game/types';
+import { playDramaticReveal } from '@/game/sounds';
 
 interface DramaticEventRevealProps {
   event: RandomEvent;
@@ -12,7 +13,10 @@ export function DramaticEventReveal({ event, delay = 0 }: DramaticEventRevealPro
   const [phase, setPhase] = useState<'hidden' | 'flash' | 'reveal' | 'text'>('hidden');
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('flash'), delay * 1000);
+    const t1 = setTimeout(() => {
+      setPhase('flash');
+      playDramaticReveal();
+    }, delay * 1000);
     const t2 = setTimeout(() => setPhase('reveal'), delay * 1000 + 400);
     const t3 = setTimeout(() => setPhase('text'), delay * 1000 + 900);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
