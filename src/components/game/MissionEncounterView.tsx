@@ -1,12 +1,12 @@
 import { useGame } from '@/contexts/GameContext';
-import { getEncounterText } from '@/game/missions';
+import { getEncounterText, getEffectiveDifficulty } from '@/game/missions';
 import { getPlayerStat } from '@/game/engine';
 import { DISTRICTS } from '@/game/constants';
 import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
-import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap } from 'lucide-react';
+import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users } from 'lucide-react';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
@@ -31,6 +31,13 @@ const DIFFICULTY_LABELS = (d: number) => {
   if (d <= 40) return { label: 'GEMIDDELD', color: 'text-gold' };
   if (d <= 55) return { label: 'MOEILIJK', color: 'text-blood' };
   return { label: 'EXTREEM', color: 'text-blood' };
+};
+
+const WEATHER_ICONS: Record<string, React.ReactNode> = {
+  rain: <CloudRain size={10} />,
+  fog: <CloudFog size={10} />,
+  heatwave: <Sun size={10} />,
+  storm: <CloudLightning size={10} />,
 };
 
 export function MissionEncounterView() {
@@ -128,7 +135,6 @@ export function MissionEncounterView() {
             <div className="space-y-2.5">
               {encounter.choices.map((choice, idx) => {
                 const statVal = getPlayerStat(state, choice.stat);
-                const diff = DIFFICULTY_LABELS(choice.difficulty);
                 const statColor = STAT_COLORS[choice.stat];
 
                 return (
@@ -140,32 +146,50 @@ export function MissionEncounterView() {
                     onClick={() => dispatch({ type: 'MISSION_CHOICE', choiceId: choice.id })}
                     className="w-full game-card-interactive p-3 text-left"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-xs uppercase tracking-wider text-foreground">
-                            {choice.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className={`flex items-center gap-1 text-[0.55rem] font-bold ${statColor}`}>
-                            {STAT_ICONS[choice.stat]}
-                            <span>{STAT_LABELS[choice.stat]}</span>
-                            <span className="text-foreground ml-0.5">({statVal})</span>
+                    {(() => {
+                      const { difficulty: effDiff, weatherMod, crewMod } = getEffectiveDifficulty(state, choice, mission);
+                      const effLabel = DIFFICULTY_LABELS(effDiff);
+                      return (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-bold text-xs uppercase tracking-wider text-foreground">
+                                {choice.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className={`flex items-center gap-1 text-[0.55rem] font-bold ${statColor}`}>
+                                {STAT_ICONS[choice.stat]}
+                                <span>{STAT_LABELS[choice.stat]}</span>
+                                <span className="text-foreground ml-0.5">({statVal})</span>
+                              </div>
+                              <span className={`text-[0.5rem] font-bold ${effLabel.color}`}>{effLabel.label}</span>
+                              {weatherMod !== 0 && (
+                                <span className={`text-[0.5rem] font-semibold flex items-center gap-0.5 ${weatherMod > 0 ? 'text-blood' : 'text-emerald'}`}>
+                                  {WEATHER_ICONS[state.weather] || null}
+                                  {weatherMod > 0 ? `+${weatherMod}` : `${weatherMod}`}
+                                </span>
+                              )}
+                              {crewMod !== 0 && (
+                                <span className="text-[0.5rem] font-semibold flex items-center gap-0.5 text-ice">
+                                  <Users size={8} />
+                                  {crewMod}
+                                </span>
+                              )}
+                              {choice.effects.bonusReward > 0 && (
+                                <span className="text-[0.5rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
+                              )}
+                              {choice.effects.heat > 5 && (
+                                <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
+                                  <Flame size={8} /> +{choice.effects.heat}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <span className={`text-[0.5rem] font-bold ${diff.color}`}>{diff.label}</span>
-                          {choice.effects.bonusReward > 0 && (
-                            <span className="text-[0.5rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
-                          )}
-                          {choice.effects.heat > 5 && (
-                            <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
-                              <Flame size={8} /> +{choice.effects.heat}
-                            </span>
-                          )}
+                          <Zap size={16} className="text-muted-foreground mt-1" />
                         </div>
-                      </div>
-                      <Zap size={16} className="text-muted-foreground mt-1" />
-                    </div>
+                      );
+                    })()}
                   </motion.button>
                 );
               })}
