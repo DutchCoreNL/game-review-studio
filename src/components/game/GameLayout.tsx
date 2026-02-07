@@ -32,7 +32,7 @@ export function GameLayout() {
     <div className="noise-overlay vignette flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
       <GameHeader />
 
-      <main className="flex-1 overflow-y-auto pb-16 px-4 pt-2 game-scroll">
+      <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.activeCombat ? 'combat' : view}
