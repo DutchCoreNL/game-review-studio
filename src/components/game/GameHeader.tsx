@@ -1,12 +1,12 @@
 import { useGame } from '@/contexts/GameContext';
-import { getRankTitle } from '@/game/engine';
+import { getRankTitle, getActiveVehicleHeat } from '@/game/engine';
 import { WEATHER_EFFECTS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
-import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone } from 'lucide-react';
+import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff } from 'lucide-react';
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={11} />,
@@ -24,11 +24,20 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
   storm: 'text-game-purple',
 };
 
+function getHeatColor(value: number): string {
+  if (value > 70) return 'text-blood';
+  if (value > 50) return 'text-gold';
+  return 'text-muted-foreground';
+}
+
 export function GameHeader() {
   const { state, dispatch } = useGame();
   const rank = getRankTitle(state.rep);
   const weatherDef = WEATHER_EFFECTS[state.weather];
   const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
+  const vehicleHeat = getActiveVehicleHeat(state);
+  const personalHeat = state.personalHeat || 0;
+  const isHiding = (state.hidingDays || 0) > 0;
 
   return (
     <header className="flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-4 py-2.5">
@@ -82,15 +91,36 @@ export function GameHeader() {
       </div>
 
       {/* Bottom row: compact resource strip */}
-      <div className="flex items-center gap-3 text-[0.6rem]">
+      <div className="flex items-center gap-2.5 text-[0.6rem]">
         <ResourceChip label="REP" value={state.rep} color="text-gold" />
-        <ResourceChip
-          label="HEAT"
-          value={`${state.heat}%`}
-          color={state.heat > 50 ? 'text-blood' : 'text-muted-foreground'}
-          icon={state.heat > 70 ? <Flame size={9} className="text-blood" /> : undefined}
-          pulse={state.heat > 70}
-        />
+
+        {/* Dual Heat Display */}
+        <div className="flex items-center gap-1">
+          <span className="text-muted-foreground font-bold tracking-wider text-[0.6rem]">HEAT</span>
+          <span className={`flex items-center gap-0.5 ${getHeatColor(vehicleHeat)}`} title="Voertuig Heat">
+            <Car size={8} />
+            <span className="font-bold">{vehicleHeat}%</span>
+          </span>
+          <span className="text-muted-foreground/40">|</span>
+          <span className={`flex items-center gap-0.5 ${getHeatColor(personalHeat)} ${personalHeat > 70 ? 'animate-pulse' : ''}`} title="Persoonlijke Heat">
+            <Flame size={8} />
+            <span className="font-bold">{personalHeat}%</span>
+          </span>
+        </div>
+
+        {/* Hiding indicator */}
+        {isHiding && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="flex items-center gap-0.5 text-ice"
+            title={`Ondergedoken: ${state.hidingDays} dag(en)`}
+          >
+            <EyeOff size={9} />
+            <span className="font-bold text-[0.5rem]">{state.hidingDays}d</span>
+          </motion.div>
+        )}
+
         <ResourceChip
           label="SCHULD"
           value={`€${(state.debt / 1000).toFixed(0)}k`}

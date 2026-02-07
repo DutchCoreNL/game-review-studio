@@ -166,14 +166,27 @@ export function NightReport() {
               <AnimatedReportRow icon={<TrendingDown size={14} />} label="Schuld Rente" value={report.debtInterest} prefix="€" positive color="text-blood" delay={debtDelay} />
             )}
 
-            {/* Heat bar */}
+            {/* Vehicle Heat bar */}
+            <AnimatedResourceBar
+              icon={<Car size={14} />}
+              label={`Auto Heat ${(report.vehicleHeatChange || 0) >= 0 ? '+' : ''}${report.vehicleHeatChange || 0}%`}
+              value={Math.min(100, Math.max(0, (() => {
+                const v = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+                return v?.vehicleHeat || 0;
+              })()))}
+              max={100}
+              color={(report.vehicleHeatChange || 0) > 0 ? 'blood' : 'emerald'}
+              delay={heatDelay}
+            />
+
+            {/* Personal Heat bar */}
             <AnimatedResourceBar
               icon={<Flame size={14} />}
-              label={`Heat ${report.heatChange >= 0 ? '+' : ''}${report.heatChange}%`}
-              value={Math.min(100, Math.max(0, (state.heat || 0)))}
+              label={`Pers. Heat ${(report.personalHeatChange || 0) >= 0 ? '+' : ''}${report.personalHeatChange || 0}%`}
+              value={Math.min(100, Math.max(0, (state.personalHeat || 0)))}
               max={100}
-              color={report.heatChange > 0 ? 'blood' : 'emerald'}
-              delay={heatDelay}
+              color={(report.personalHeatChange || 0) > 0 ? 'blood' : 'emerald'}
+              delay={heatDelay + 0.12}
             />
 
             {/* Crew healing */}

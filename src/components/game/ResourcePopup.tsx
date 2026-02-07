@@ -1,7 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
-import { getRankTitle, getPlayerStat } from '@/game/engine';
+import { getRankTitle, getPlayerStat, getActiveVehicleHeat } from '@/game/engine';
+import { REKAT_COSTS, VEHICLES } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem } from 'lucide-react';
+import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench } from 'lucide-react';
 import { StatId } from '@/game/types';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | null;
@@ -123,19 +124,39 @@ function RepPanel() {
   );
 }
 
-// ========== HEAT PANEL ==========
+// ========== HEAT PANEL (Heat 2.0) ==========
 function HeatPanel({ onClose }: { onClose: () => void }) {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch, showToast, setView } = useGame();
   const charm = getPlayerStat(state, 'charm');
-  const bribeCost = Math.max(1000, 3500 - (charm * 150));
+  const bribeCost = Math.max(1500, 4000 - (charm * 150));
+  const vehicleHeat = getActiveVehicleHeat(state);
+  const personalHeat = state.personalHeat || 0;
+  const isHiding = (state.hidingDays || 0) > 0;
+  const activeVehicle = VEHICLES.find(v => v.id === state.activeVehicle);
+  const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  const rekatCost = REKAT_COSTS[state.activeVehicle] || 5000;
+  const canRekat = activeObj && (activeObj.rekatCooldown || 0) <= 0 && state.money >= rekatCost;
 
-  let heatDecay = 5;
-  if (state.ownedDistricts.includes('crown')) heatDecay += Math.floor(heatDecay * 0.2);
-  if (state.hqUpgrades.includes('server')) heatDecay += 10;
-  if (state.crew.some(c => c.role === 'Hacker')) heatDecay += 3;
+  // Decay info
+  let vDecay = 8;
+  if (state.ownedDistricts.includes('crown')) vDecay += 2;
+  if (state.hqUpgrades.includes('server')) vDecay += 3;
+  let pDecay = 2;
+  if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
+  if (state.ownedDistricts.includes('crown')) pDecay += 1;
+  if (state.hqUpgrades.includes('server')) pDecay += 3;
+  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
 
-  const dangerLevel = state.heat > 70 ? 'KRITIEK' : state.heat > 50 ? 'HOOG' : state.heat > 25 ? 'MATIG' : 'LAAG';
-  const dangerColor = state.heat > 70 ? 'text-blood' : state.heat > 50 ? 'text-gold' : state.heat > 25 ? 'text-foreground' : 'text-emerald';
+  const vDanger = vehicleHeat > 70 ? 'KRITIEK' : vehicleHeat > 50 ? 'HOOG' : vehicleHeat > 25 ? 'MATIG' : 'LAAG';
+  const pDanger = personalHeat > 70 ? 'KRITIEK' : personalHeat > 50 ? 'HOOG' : personalHeat > 25 ? 'MATIG' : 'LAAG';
+
+  function getBarColor(val: number) {
+    return val > 70 ? 'bg-blood' : val > 50 ? 'bg-gold' : 'bg-emerald';
+  }
+
+  function getDangerColor(val: number) {
+    return val > 70 ? 'text-blood' : val > 50 ? 'text-gold' : val > 25 ? 'text-foreground' : 'text-emerald';
+  }
 
   return (
     <div>
@@ -144,54 +165,152 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
         <h3 className="font-bold text-sm uppercase tracking-wider">Heat Level</h3>
       </div>
 
-      <div className="text-center mb-4">
-        <span className={`text-3xl font-bold ${dangerColor}`}>{state.heat}%</span>
-        <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${dangerColor}`}>{dangerLevel}</p>
-      </div>
-
-      <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
+      {/* Hiding banner */}
+      {isHiding && (
         <motion.div
-          className={`h-full rounded-full ${state.heat > 70 ? 'bg-blood' : state.heat > 50 ? 'bg-gold' : 'bg-emerald'}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${state.heat}%` }}
-          transition={{ duration: 0.5 }}
-        />
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[hsl(var(--ice)/0.1)] border border-ice rounded-lg p-3 mb-4 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <EyeOff size={16} className="text-ice" />
+            <div>
+              <p className="text-xs font-bold text-ice">ONDERGEDOKEN</p>
+              <p className="text-[0.6rem] text-muted-foreground">Nog {state.hidingDays} dag(en) — geen acties mogelijk</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              dispatch({ type: 'CANCEL_HIDING' });
+              showToast('Onderduiken geannuleerd');
+            }}
+            className="px-2 py-1 rounded text-[0.6rem] font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood"
+          >
+            STOP
+          </button>
+        </motion.div>
+      )}
+
+      {/* Vehicle Heat */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Car size={14} className="text-gold" />
+            <span className="text-xs font-bold">Voertuig Heat</span>
+            {activeVehicle && <span className="text-[0.5rem] text-muted-foreground">({activeVehicle.name})</span>}
+          </div>
+          <span className={`text-xs font-bold ${getDangerColor(vehicleHeat)}`}>{vehicleHeat}% — {vDanger}</span>
+        </div>
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden mb-2">
+          <motion.div
+            className={`h-full rounded-full ${getBarColor(vehicleHeat)}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${vehicleHeat}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        <div className="flex gap-2 text-[0.55rem]">
+          <span className="text-emerald">Afname: -{vDecay}/dag</span>
+          {vehicleHeat > 40 && <span className="text-gold">⚠ Checkpoint risico</span>}
+          {vehicleHeat > 70 && <span className="text-blood">⚠ Smokkel onderschepping</span>}
+        </div>
+
+        {/* Omkatten button */}
+        <button
+          onClick={() => {
+            dispatch({ type: 'REKAT_VEHICLE', vehicleId: state.activeVehicle });
+            showToast(`${activeVehicle?.name || 'Voertuig'} omgekat! Heat → 0`);
+          }}
+          disabled={!canRekat || vehicleHeat === 0}
+          className="w-full mt-2 py-2 rounded text-xs font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30 flex items-center justify-center gap-1.5"
+        >
+          <Wrench size={12} /> OMKATTEN (€{rekatCost.toLocaleString()})
+          {activeObj && (activeObj.rekatCooldown || 0) > 0 && (
+            <span className="text-muted-foreground ml-1">({activeObj.rekatCooldown}d cooldown)</span>
+          )}
+        </button>
       </div>
 
-      <div className="space-y-2 mb-4">
-        <InfoRow label="Dagelijkse afname" value={`-${heatDecay}%`} valueClass="text-emerald" />
-        <InfoRow label="Politie relatie" value={`${state.policeRel}/100`} />
-        {state.heat > 50 && (
-          <InfoRow label="Markttoeslag" value="+20%" valueClass="text-blood" />
-        )}
-        {state.heat > 70 && (
-          <InfoRow label="Inval risico" value="30%/dag" valueClass="text-blood" />
-        )}
+      {/* Divider */}
+      <div className="border-t border-border my-3" />
+
+      {/* Personal Heat */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Flame size={14} className="text-blood" />
+            <span className="text-xs font-bold">Persoonlijke Heat</span>
+          </div>
+          <span className={`text-xs font-bold ${getDangerColor(personalHeat)}`}>{personalHeat}% — {pDanger}</span>
+        </div>
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden mb-2">
+          <motion.div
+            className={`h-full rounded-full ${getBarColor(personalHeat)}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${personalHeat}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        <div className="flex gap-2 text-[0.55rem]">
+          <span className="text-emerald">Afname: -{pDecay}/dag</span>
+          {personalHeat > 60 && <span className="text-blood">⚠ Inval risico 30%/dag</span>}
+          {!state.hqUpgrades.includes('safehouse') && <span className="text-muted-foreground">Safe house: 2× decay</span>}
+        </div>
       </div>
 
-      <button
-        onClick={() => {
-          if (state.money < bribeCost) {
-            showToast('Niet genoeg geld!', true);
-            return;
-          }
-          dispatch({ type: 'BRIBE_POLICE' });
-          showToast('Politie omgekocht! Heat -15');
-        }}
-        disabled={state.money < bribeCost}
-        className="w-full py-2.5 rounded text-xs font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood disabled:opacity-30 flex items-center justify-center gap-1.5"
-      >
-        <Shield size={14} /> KOOP POLITIE OM (€{bribeCost.toLocaleString()})
-      </button>
+      {/* Actions */}
+      <div className="space-y-2">
+        {/* Bribe (personal heat only) */}
+        <button
+          onClick={() => {
+            if (state.money < bribeCost) {
+              showToast('Niet genoeg geld!', true);
+              return;
+            }
+            dispatch({ type: 'BRIBE_POLICE' });
+            showToast('Politie omgekocht! Persoonlijke heat -10');
+          }}
+          disabled={state.money < bribeCost || personalHeat === 0}
+          className="w-full py-2.5 rounded text-xs font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood disabled:opacity-30 flex items-center justify-center gap-1.5"
+        >
+          <Shield size={14} /> KOOP POLITIE OM — pers. heat -10 (€{bribeCost.toLocaleString()})
+        </button>
+
+        {/* Go into hiding */}
+        {!isHiding && personalHeat > 0 && (
+          <div>
+            <p className="text-[0.6rem] text-muted-foreground mb-1.5 font-semibold">🏠 Onderduiken (geen acties, heat daalt flink):</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3].map(days => {
+                const heatReduction = days === 1 ? 15 : days === 2 ? 25 : 35;
+                const safeBonus = state.hqUpgrades.includes('safehouse') ? 5 : 0;
+                return (
+                  <button
+                    key={days}
+                    onClick={() => {
+                      dispatch({ type: 'GO_INTO_HIDING', days });
+                      showToast(`Ondergedoken voor ${days} dag(en)! Pers. heat -${heatReduction + safeBonus}`);
+                      onClose();
+                    }}
+                    className="py-2 rounded text-[0.6rem] font-bold bg-[hsl(var(--ice)/0.1)] border border-ice text-ice disabled:opacity-30"
+                  >
+                    {days} DAG
+                    <br />
+                    <span className="text-[0.5rem] text-emerald">-{heatReduction + safeBonus} heat</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       <p className="text-[0.6rem] text-muted-foreground mt-3 italic">
-        Heat stijgt bij handel, operaties en reizen. Houd het laag om boetes en invallen te vermijden.
+        Voertuig heat stijgt bij handel & reizen. Persoonlijke heat stijgt bij combat, witwassen & mislukte missies. Hoge heat = meer controles, boetes en invallen.
       </p>
     </div>
   );
 }
-
-// ========== DEBT PANEL ==========
 function DebtPanel({ onClose }: { onClose: () => void }) {
   const { state, dispatch, showToast } = useGame();
   const dailyInterest = Math.floor(state.debt * 0.03);
