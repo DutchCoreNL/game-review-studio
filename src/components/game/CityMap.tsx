@@ -12,6 +12,8 @@ interface CityMapProps {
   districtDemands: Record<string, any>;
   mapEvents: MapEvent[];
   heat: number;
+  vehicleHeat: number;
+  personalHeat: number;
   weather: WeatherType;
   nemesis: NemesisState | null;
   travelAnim: { from: DistrictId; to: DistrictId } | null;
@@ -289,7 +291,7 @@ function NeonStripLandmarks({ isOwned, isSelected }: { isOwned: boolean; isSelec
 
 // ========== MAP EVENT MARKERS ==========
 
-function MapEventMarkers({ events }: { events: MapEvent[] }) {
+function MapEventMarkers({ events, vehicleHeat }: { events: MapEvent[]; vehicleHeat: number }) {
   return (
     <g>
       {events.map((event, idx) => {
@@ -313,7 +315,7 @@ function MapEventMarkers({ events }: { events: MapEvent[] }) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: idx * 0.08, type: 'spring', stiffness: 300, damping: 15 }}
           >
-            <MapEventIcon event={event} x={x} y={y} />
+            <MapEventIcon event={event} x={x} y={y} vehicleHeat={vehicleHeat} />
           </motion.g>
         );
       })}
@@ -321,9 +323,10 @@ function MapEventMarkers({ events }: { events: MapEvent[] }) {
   );
 }
 
-function MapEventIcon({ event, x, y }: { event: MapEvent; x: number; y: number }) {
+function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number; y: number; vehicleHeat?: number }) {
   // All event icons get a subtle bounce animation
   const bounceTransition = { duration: 2, repeat: Infinity, ease: 'easeInOut' as const };
+  const isHighVehicleHeat = (vehicleHeat ?? 0) > 50;
 
   switch (event.type) {
     case 'police_checkpoint':
@@ -333,13 +336,23 @@ function MapEventIcon({ event, x, y }: { event: MapEvent; x: number; y: number }
           transition={bounceTransition}
         >
           <g transform={`translate(${x}, 0)`}>
-            <motion.circle cy={0} r="4" fill="hsla(220, 80%, 50%, 0.3)"
-              animate={{ r: [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
-              transition={{ duration: 1.2, repeat: Infinity }} />
-            <circle cy={0} r="2.5" fill="hsla(220, 80%, 50%, 0.6)" />
+            {/* Checkpoint reacts to vehicle heat — larger/more intense when vehicle is hot */}
+            <motion.circle cy={0} r={isHighVehicleHeat ? 5 : 4}
+              fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.35)' : 'hsla(220, 80%, 50%, 0.3)'}
+              animate={{ r: isHighVehicleHeat ? [5, 8, 5] : [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
+              transition={{ duration: isHighVehicleHeat ? 0.8 : 1.2, repeat: Infinity }} />
+            <circle cy={0} r="2.5" fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.7)' : 'hsla(220, 80%, 50%, 0.6)'} />
             <motion.circle cy={0} r="1" fill="hsla(0, 80%, 50%, 0.8)"
               animate={{ opacity: [1, 0, 1] }}
-              transition={{ duration: 0.8, repeat: Infinity }} />
+              transition={{ duration: isHighVehicleHeat ? 0.4 : 0.8, repeat: Infinity }} />
+            {/* Vehicle heat warning icon */}
+            {isHighVehicleHeat && (
+              <motion.text textAnchor="middle" y="-6" fontSize="5" fill="hsla(0, 80%, 60%, 0.9)"
+                animate={{ opacity: [0.9, 0.5, 0.9] }}
+                transition={{ duration: 1, repeat: Infinity }}>
+                🚗
+              </motion.text>
+            )}
           </g>
         </motion.g>
       );
@@ -420,29 +433,60 @@ function MapEventIcon({ event, x, y }: { event: MapEvent; x: number; y: number }
 
 // ========== HEAT OVERLAY ==========
 
-function HeatOverlay({ heat }: { heat: number }) {
-  if (heat < 30) return null;
+function HeatOverlay({ heat, vehicleHeat, personalHeat }: { heat: number; vehicleHeat: number; personalHeat: number }) {
+  const maxHeat = Math.max(heat, vehicleHeat, personalHeat);
+  if (maxHeat < 30) return null;
 
-  const intensity = Math.min(1, (heat - 30) / 70);
+  const intensity = Math.min(1, (maxHeat - 30) / 70);
   const opacity = 0.05 + intensity * 0.2;
+
+  // Use vehicle heat for border color (blue = vehicle, red = personal)
+  const isVehicleDominant = vehicleHeat > personalHeat;
+  const borderHue = isVehicleDominant ? '220' : '0';
 
   return (
     <g pointerEvents="none">
-      {/* Red vignette edges */}
+      {/* Vignette edges — color shifts based on dominant heat source */}
       <rect x="0" y="0" width="400" height="290" rx="0"
-        fill="none" stroke={`hsla(0, 80%, 40%, ${opacity})`}
+        fill="none" stroke={`hsla(${borderHue}, 80%, 40%, ${opacity})`}
         strokeWidth={4 + intensity * 8} />
 
-      {heat > 60 && (
+      {maxHeat > 60 && (
         <rect x="0" y="0" width="400" height="290"
-          fill={`hsla(0, 80%, 30%, ${0.02 + intensity * 0.05})`} />
+          fill={`hsla(${borderHue}, 80%, 30%, ${0.02 + intensity * 0.05})`} />
       )}
 
-      {heat > 80 && (
+      {/* Vehicle heat indicator — police cruiser on roads */}
+      {vehicleHeat > 40 && (
+        <motion.circle r="2" opacity={0.4 + (vehicleHeat / 100) * 0.4}
+          animate={{ offsetDistance: ['0%', '100%'] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
+          style={{ offsetPath: `path("${ROADS[1]}")` }}>
+          <animate attributeName="fill" values="hsla(220,80%,50%,0.9);hsla(0,80%,50%,0.9)" dur="0.3s" repeatCount="indefinite" />
+        </motion.circle>
+      )}
+
+      {/* Personal heat indicator — surveillance drone */}
+      {personalHeat > 50 && (
+        <motion.g
+          animate={{ x: [50, 350, 50], y: [40, 70, 40] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}>
+          <circle r="1.5" fill="hsla(0, 0%, 60%, 0.5)" />
+          <motion.circle r="1" fill="hsla(0, 80%, 50%, 0.6)"
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 0.5, repeat: Infinity }} />
+          <motion.line x1="-2" y1="2.5" x2="2" y2="2.5"
+            stroke="hsla(0, 80%, 50%, 0.15)" strokeWidth="0.4"
+            animate={{ opacity: [0.15, 0.4, 0.15] }}
+            transition={{ duration: 1.5, repeat: Infinity }} />
+        </motion.g>
+      )}
+
+      {maxHeat > 80 && (
         <>
-          {/* Pulsing red border */}
+          {/* Pulsing border */}
           <motion.rect x="0" y="0" width="400" height="290" rx="0"
-            fill="none" stroke="hsla(0, 80%, 40%, 0.3)" strokeWidth="3"
+            fill="none" stroke={`hsla(${borderHue}, 80%, 40%, 0.3)`} strokeWidth="3"
             animate={{ opacity: [0.3, 0.1, 0.3] }}
             transition={{ duration: 1.5, repeat: Infinity }} />
 
@@ -452,18 +496,20 @@ function HeatOverlay({ heat }: { heat: number }) {
             fontFamily="Inter, sans-serif" letterSpacing="4"
             animate={{ opacity: [0.4, 0.2, 0.4] }}
             transition={{ duration: 2, repeat: Infinity }}>
-            LOCKDOWN
+            {personalHeat > 80 ? 'GEZOCHT' : vehicleHeat > 80 ? 'VOERTUIG ALERT' : 'LOCKDOWN'}
           </motion.text>
 
-          {/* Helicopter */}
-          <motion.g
-            animate={{ x: [0, 380, 0], y: [30, 60, 30] }}
-            transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}>
-            <circle r="2" fill="hsla(0, 0%, 70%, 0.4)" />
-            <motion.circle r="5" fill="none" stroke="hsla(0, 0%, 60%, 0.15)" strokeWidth="0.5"
-              animate={{ r: [5, 8, 5] }}
-              transition={{ duration: 0.3, repeat: Infinity }} />
-          </motion.g>
+          {/* Helicopter (personal heat driven) */}
+          {personalHeat > 70 && (
+            <motion.g
+              animate={{ x: [0, 380, 0], y: [30, 60, 30] }}
+              transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}>
+              <circle r="2" fill="hsla(0, 0%, 70%, 0.4)" />
+              <motion.circle r="5" fill="none" stroke="hsla(0, 0%, 60%, 0.15)" strokeWidth="0.5"
+                animate={{ r: [5, 8, 5] }}
+                transition={{ duration: 0.3, repeat: Infinity }} />
+            </motion.g>
+          )}
         </>
       )}
     </g>
@@ -538,7 +584,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, weather, nemesis, travelAnim, onSelectDistrict }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict }: CityMapProps) {
   return (
     <div className="relative w-full aspect-[10/7] rounded-lg overflow-hidden border border-border shadow-[inset_0_0_60px_rgba(0,0,0,0.9)]">
       <svg viewBox="0 0 400 290" className="w-full h-full" style={{ background: 'hsl(0 0% 3%)' }}>
@@ -718,18 +764,18 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
             transition={{ duration: 5 + i * 1.5, repeat: Infinity, ease: 'linear', delay: i * 1.2 + 2 }}
             style={{ offsetPath: `path("${d}")` }} />
         ))}
-        {/* Emergency vehicle (if high heat) */}
-        {heat > 50 && (
+        {/* Emergency vehicle (reacts to vehicle heat) */}
+        {vehicleHeat > 40 && (
           <motion.circle r="1.8" opacity="0.5"
             animate={{ offsetDistance: ['0%', '100%'] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            style={{ offsetPath: `path("${ROADS[Math.floor(heat / 30) % ROADS.length]}")` }}>
+            style={{ offsetPath: `path("${ROADS[Math.floor(vehicleHeat / 30) % ROADS.length]}")` }}>
             <animate attributeName="fill" values="hsla(220,80%,50%,0.8);hsla(0,80%,50%,0.8)" dur="0.4s" repeatCount="indefinite" />
           </motion.circle>
         )}
 
         {/* === MAP EVENTS === */}
-        <MapEventMarkers events={mapEvents} />
+        <MapEventMarkers events={mapEvents} vehicleHeat={vehicleHeat} />
 
         {/* === TRAVEL ANIMATION === */}
         <AnimatePresence>
@@ -749,7 +795,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         <WeatherOverlay weather={weather} />
 
         {/* === HEAT OVERLAY === */}
-        <HeatOverlay heat={heat} />
+        <HeatOverlay heat={heat} vehicleHeat={vehicleHeat} personalHeat={personalHeat} />
 
         {/* === SCANLINE === */}
         <motion.rect x="0" width="400" height="2" fill="hsla(45, 93%, 40%, 0.04)" pointerEvents="none"
@@ -764,9 +810,11 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
       <div className="absolute bottom-2 right-2 text-[0.45rem] text-muted-foreground font-mono opacity-30">
         Tactical Overview v3.0
       </div>
-      {heat > 70 && (
-        <div className="absolute top-2 right-2 text-[0.5rem] text-blood font-mono font-bold opacity-60 animate-pulse">
-          ● HIGH ALERT
+      {Math.max(vehicleHeat, personalHeat) > 70 && (
+        <div className="absolute top-2 right-2 text-[0.5rem] font-mono font-bold opacity-60 animate-pulse flex items-center gap-1">
+          {vehicleHeat > 70 && <span className="text-ice">● 🚗</span>}
+          {personalHeat > 70 && <span className="text-blood">● 🔥</span>}
+          <span className="text-blood">HIGH ALERT</span>
         </div>
       )}
     </div>
