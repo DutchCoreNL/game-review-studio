@@ -231,7 +231,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!v || s.money < v.cost) return s;
       s.money -= v.cost;
       s.stats.totalSpent += v.cost;
-      s.ownedVehicles.push({ id: action.id, condition: 100 });
+      s.ownedVehicles.push({ id: action.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
       return s;
     }
 
