@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, BUSINESSES, HQ_UPGRADES } from '@/game/constants';
+import { VEHICLES, BUSINESSES, HQ_UPGRADES, REKAT_COSTS } from '@/game/constants';
 import { motion } from 'framer-motion';
-import { Car, Gauge, Shield, Gem, Wrench, Factory, Store } from 'lucide-react';
+import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Flame } from 'lucide-react';
 
 export function AssetsView() {
   const { state, dispatch, showToast } = useGame();
@@ -38,7 +38,7 @@ export function AssetsView() {
           </div>
 
           {/* Condition */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs mb-2">
             <span className="text-muted-foreground">Conditie:</span>
             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
               <div
@@ -49,17 +49,48 @@ export function AssetsView() {
             <span className="font-bold">{activeObj.condition}%</span>
           </div>
 
-          {activeObj.condition < 100 && (
-            <button
-              onClick={() => {
-                dispatch({ type: 'REPAIR_VEHICLE' });
-                showToast('Auto gerepareerd!');
-              }}
-              className="w-full mt-2 py-2 rounded text-xs font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood flex items-center justify-center gap-1.5"
-            >
-              <Wrench size={12} /> REPAREER (€{(100 - activeObj.condition) * 25})
-            </button>
-          )}
+          {/* Vehicle Heat bar */}
+          <div className="flex items-center gap-2 text-xs mb-2">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Flame size={10} className="text-blood" /> Heat:
+            </span>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${(activeObj.vehicleHeat || 0) > 70 ? 'bg-blood' : (activeObj.vehicleHeat || 0) > 50 ? 'bg-gold' : 'bg-emerald'}`}
+                style={{ width: `${activeObj.vehicleHeat || 0}%` }}
+              />
+            </div>
+            <span className={`font-bold ${(activeObj.vehicleHeat || 0) > 50 ? 'text-blood' : ''}`}>{activeObj.vehicleHeat || 0}%</span>
+          </div>
+
+          <div className="flex gap-2">
+            {activeObj.condition < 100 && (
+              <button
+                onClick={() => {
+                  dispatch({ type: 'REPAIR_VEHICLE' });
+                  showToast('Auto gerepareerd!');
+                }}
+                className="flex-1 py-2 rounded text-xs font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood flex items-center justify-center gap-1.5"
+              >
+                <Wrench size={12} /> REPAREER (€{(100 - activeObj.condition) * 25})
+              </button>
+            )}
+            {(activeObj.vehicleHeat || 0) > 0 && (
+              <button
+                onClick={() => {
+                  dispatch({ type: 'REKAT_VEHICLE', vehicleId: state.activeVehicle });
+                  showToast(`${activeV.name} omgekat! Heat → 0`);
+                }}
+                disabled={(activeObj.rekatCooldown || 0) > 0 || state.money < (REKAT_COSTS[state.activeVehicle] || 5000)}
+                className="flex-1 py-2 rounded text-xs font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30 flex items-center justify-center gap-1.5"
+              >
+                <Car size={12} /> OMKATTEN (€{(REKAT_COSTS[state.activeVehicle] || 5000).toLocaleString()})
+                {(activeObj.rekatCooldown || 0) > 0 && (
+                  <span className="text-muted-foreground text-[0.5rem] ml-0.5">({activeObj.rekatCooldown}d)</span>
+                )}
+              </button>
+            )}
+          </div>
         </motion.div>
       )}
 
@@ -72,7 +103,9 @@ export function AssetsView() {
               <div key={ov.id} className="game-card flex justify-between items-center">
                 <div>
                   <h4 className="font-bold text-xs">{vDef.name}</h4>
-                  <p className="text-[0.55rem] text-muted-foreground">Conditie: {ov.condition}%</p>
+                  <p className="text-[0.55rem] text-muted-foreground">
+                    Conditie: {ov.condition}% | Heat: <span className={(ov.vehicleHeat || 0) > 50 ? 'text-blood font-bold' : ''}>{ov.vehicleHeat || 0}%</span>
+                  </p>
                 </div>
                 <button
                   onClick={() => {
