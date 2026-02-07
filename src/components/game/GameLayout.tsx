@@ -17,6 +17,7 @@ import { CrewSpecPopup } from './CrewSpecPopup';
 import { VictoryScreen } from './VictoryScreen';
 import { StoryEventPopup } from './StoryEventPopup';
 import { StoryArcEvent } from './StoryArcEvent';
+import { CarTheftPopup } from './CarTheftPopup';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -67,6 +68,7 @@ export function GameLayout() {
         {state.victoryData && <VictoryScreen />}
         {state.pendingStreetEvent && <StoryEventPopup />}
         {state.pendingArcEvent && <StoryArcEvent />}
+        {state.pendingCarTheft && <CarTheftPopup />}
       </div>
     </ScreenEffects>
   );
