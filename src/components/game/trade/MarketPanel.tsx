@@ -67,11 +67,24 @@ export function MarketPanel() {
     <>
       <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
 
-      {state.heat > 50 && (
-        <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
-          ⚠️ HIGH HEAT: +20% risico toeslag op inkoop!
-        </div>
-      )}
+      {/* Heat surcharge — uses average of vehicle + personal heat */}
+      {(() => {
+        const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+        const vHeat = activeVehicle?.vehicleHeat ?? 0;
+        const pHeat = state.personalHeat ?? 0;
+        const avgHeat = Math.round((vHeat + pHeat) / 2);
+        if (avgHeat <= 50) return null;
+
+        const surcharge = Math.min(40, Math.floor((avgHeat - 50) * 0.8));
+        return (
+          <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
+            ⚠️ HEAT TOESLAG: +{surcharge}% risico toeslag op inkoop!
+            <span className="block text-[0.5rem] font-normal text-blood/70 mt-0.5">
+              🚗 Voertuig: {vHeat}% · 🔥 Persoonlijk: {pHeat}% · Gem: {avgHeat}%
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Stats strip */}
       <div className="flex justify-between items-center mb-3">
@@ -139,7 +152,15 @@ export function MarketPanel() {
             }
           } else {
             if (g.faction && (state.familyRel[g.faction] || 0) > 50) displayPrice = Math.floor(displayPrice * 0.7);
-            if (state.heat > 50) displayPrice = Math.floor(displayPrice * 1.2);
+            // Heat surcharge based on average of vehicle + personal heat
+            const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+            const vHeat = activeVehicle?.vehicleHeat ?? 0;
+            const pHeat = state.personalHeat ?? 0;
+            const avgHeat = Math.round((vHeat + pHeat) / 2);
+            if (avgHeat > 50) {
+              const surcharge = 1 + Math.min(0.4, (avgHeat - 50) * 0.008);
+              displayPrice = Math.floor(displayPrice * surcharge);
+            }
             if (invCount >= state.maxInv) disabled = true;
           }
 
