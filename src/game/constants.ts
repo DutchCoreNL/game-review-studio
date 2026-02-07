@@ -119,7 +119,7 @@ export const VEHICLE_UPGRADES: Record<VehicleUpgradeType, {
     maxLevel: 3,
     costs: [4000, 10000, 22000],
     bonuses: [1, 2, 3],
-    desc: 'Verlaagt reiskosten en heat bij transport.',
+    desc: 'Lagere reiskosten, minder checkpoints & onderschepping.',
     unit: 'speed',
   },
   storage: {

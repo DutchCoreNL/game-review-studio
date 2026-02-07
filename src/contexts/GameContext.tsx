@@ -129,15 +129,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const hasRacer = s.crew.some(c => c.specialization === 'racer');
       const isOwned = s.ownedDistricts.includes(action.to);
       const isStorm = s.weather === 'storm';
-      const cost = (hasChauffeur || hasRacer || isOwned || isStorm) ? 0 : 50;
+      const speedBonus = Engine.getVehicleUpgradeBonus(s, 'speed');
+      // Speed upgrade reduces travel cost: -15/€ per bonus point (max 6 at level 3)
+      let baseCost = 50;
+      if (speedBonus > 0) baseCost = Math.max(0, baseCost - speedBonus * 8);
+      const cost = (hasChauffeur || hasRacer || isOwned || isStorm) ? 0 : baseCost;
       if (s.money < cost) return s;
       s.money -= cost;
       if (cost > 0) s.stats.totalSpent += cost;
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
-      const speedBonus = Engine.getVehicleUpgradeBonus(s, 'speed');
       if (activeV && (activeV.speed + speedBonus) >= 4) travelHeat = Math.floor(travelHeat * 0.5);
       if (s.crew.some(c => c.specialization === 'phantom')) travelHeat = Math.max(0, travelHeat - 1);
+      // Speed upgrade level 3: extra heat reduction
+      if (speedBonus >= 6) travelHeat = Math.max(0, travelHeat - 1);
       // Heat 2.0: travel heat goes to vehicle
       Engine.addVehicleHeat(s, travelHeat);
       Engine.recomputeHeat(s);

@@ -169,9 +169,12 @@ export function generateMapEvents(state: GameState): void {
     const roll = Math.random();
 
     const vHeat = getActiveVehicleHeat(state);
+    // Speed upgrade reduces checkpoint spawn chance
+    const speedUpgrade = getVehicleUpgradeBonus(state, 'speed');
+    const checkpointReduction = speedUpgrade * 0.05; // 5%/15%/30% less likely at lvl 1/2/3
     if (vHeat > 60 && roll < 0.3) {
       type = 'drone';
-    } else if (vHeat > 40 && roll < 0.5) {
+    } else if (vHeat > 40 && roll < (0.5 - checkpointReduction)) {
       type = 'police_checkpoint';
     } else if (Object.values(state.familyRel).some(r => (r || 0) < -30) && roll < 0.6) {
       type = 'street_fight';

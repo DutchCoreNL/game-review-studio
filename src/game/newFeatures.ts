@@ -4,7 +4,7 @@
  */
 
 import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, SmuggleRoute, PhoneMessage, NightReportData } from './types';
-import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat } from './engine';
+import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus } from './engine';
 import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
@@ -269,6 +269,9 @@ export function processSmuggleRoutes(state: GameState, report: NightReportData):
     let interceptChance = 0.10 + getActiveVehicleHeat(state) / 200;
     // While hiding: +15% interception (no supervision)
     if ((state.hidingDays || 0) > 0) interceptChance += 0.15;
+    // Speed upgrade reduces interception: -3% per bonus point
+    const speedUpgrade = getVehicleUpgradeBonus(state, 'speed');
+    if (speedUpgrade > 0) interceptChance -= speedUpgrade * 0.03;
     // Smokkelaar crew reduces risk
     if (state.crew.some(c => c.role === 'Smokkelaar')) interceptChance -= 0.05;
     if (state.crew.some(c => c.specialization === 'ghost')) interceptChance -= 0.05;
