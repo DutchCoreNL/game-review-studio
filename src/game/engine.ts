@@ -794,7 +794,12 @@ export function getWashCapacity(state: GameState): { total: number; used: number
 }
 
 export function getDailyDeal(state: GameState): { item: typeof GEAR[0]; discountedPrice: number; discount: number } | null {
-  const availableGear = GEAR.filter(g => !state.ownedGear.includes(g.id));
+  const availableGear = GEAR.filter(g => {
+    if (state.ownedGear.includes(g.id)) return false;
+    // Exclude gear with unmet reputation requirements
+    if (g.reqRep && (state.familyRel[g.reqRep.f] || 0) < g.reqRep.val) return false;
+    return true;
+  });
   if (availableGear.length === 0) return null;
   const index = state.day % availableGear.length;
   const item = availableGear[index];
