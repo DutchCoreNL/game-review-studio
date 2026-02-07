@@ -7,9 +7,10 @@ import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { PriceSparkline } from './PriceSparkline';
+import { TradeRewardFloater } from '../animations/RewardPopup';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 const QUANTITIES = [1, 5, 10, 0];
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
@@ -25,6 +26,7 @@ const GOOD_ICONS: Record<string, React.ReactNode> = {
 export function MarketPanel() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
   const [quantity, setQuantity] = useState(1);
+  const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: TradeMode } | null>(null);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -33,7 +35,7 @@ export function MarketPanel() {
   const district = DISTRICTS[state.loc];
   const route = getBestTradeRoute(state);
 
-  const handleTrade = (gid: GoodId) => {
+  const handleTrade = useCallback((gid: GoodId) => {
     const owned = state.inventory[gid] || 0;
     const actualQty = quantity === 0
       ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
@@ -43,10 +45,23 @@ export function MarketPanel() {
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
+    const moneyBefore = state.money;
     dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
     const good = GOODS.find(g => g.id === gid);
     showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
-  };
+
+    // Calculate trade amount for floater
+    const basePrice = prices[gid] || 0;
+    const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
+    const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
+    const buyPrice = basePrice;
+    const tradeAmount = tradeMode === 'sell'
+      ? sellPrice * Math.min(actualQty, owned)
+      : buyPrice * Math.min(actualQty, Math.floor(state.money / buyPrice));
+
+    setLastTrade({ gid, amount: tradeAmount, mode: tradeMode });
+    setTimeout(() => setLastTrade(null), 1200);
+  }, [state, quantity, tradeMode, invCount, dispatch, showToast, prices, totalCharm]);
 
   return (
     <>
@@ -183,7 +198,7 @@ export function MarketPanel() {
                 </div>
 
                 {/* Action */}
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-1 relative">
                   <GameButton
                     variant={tradeMode === 'sell' ? 'blood' : 'gold'}
                     size="sm"
@@ -200,6 +215,11 @@ export function MarketPanel() {
                       €{totalCost.toLocaleString()}
                     </span>
                   )}
+                  <TradeRewardFloater
+                    amount={lastTrade?.gid === g.id ? lastTrade.amount : 0}
+                    show={lastTrade?.gid === g.id}
+                    type={lastTrade?.mode === 'sell' ? 'profit' : 'cost'}
+                  />
                 </div>
               </div>
             </motion.div>

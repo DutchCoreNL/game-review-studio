@@ -69,7 +69,7 @@ export function GameHeader() {
           </button>
           <div className="text-right relative">
             <div className="text-sm font-bold text-foreground tracking-wide">
-              <AnimatedCounter value={state.money} />
+              <AnimatedCounter value={state.money} className={state.lastRewardAmount > 0 ? 'money-earned' : ''} />
             </div>
             <RewardPopup amount={state.lastRewardAmount} />
             {state.dirtyMoney > 0 && (
