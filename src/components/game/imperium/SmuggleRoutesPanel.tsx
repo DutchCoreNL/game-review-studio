@@ -5,7 +5,7 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Route, Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { Route, Trash2, Plus, AlertTriangle, Car } from 'lucide-react';
 import { useState } from 'react';
 
 export function SmuggleRoutesPanel() {
@@ -106,12 +106,37 @@ export function SmuggleRoutesPanel() {
         )}
       </div>
 
-      {/* Risk warning */}
-      {state.heat > 50 && state.smuggleRoutes.length > 0 && (
-        <div className="flex items-center gap-1.5 text-[0.55rem] text-blood bg-blood/8 rounded px-2.5 py-1.5 mb-3">
-          <AlertTriangle size={12} /> Hoge heat verhoogt onderscheppingsrisico!
-        </div>
-      )}
+      {/* Vehicle heat warning — smokkelroutes worden onderschept op basis van voertuig heat */}
+      {(() => {
+        const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+        const vHeat = activeVehicle?.vehicleHeat ?? 0;
+        const personalHeat = state.personalHeat ?? 0;
+        const maxHeat = Math.max(vHeat, personalHeat);
+
+        if (state.smuggleRoutes.length === 0) return null;
+
+        return (
+          <>
+            {vHeat > 30 && (
+              <div className="flex items-center gap-1.5 text-[0.55rem] text-ice bg-ice/8 rounded px-2.5 py-1.5 mb-2 border border-ice/15">
+                <Car size={12} />
+                <span>
+                  <span className="font-bold">Voertuig Heat {vHeat}%</span> — {vHeat > 60 ? 'Zeer hoog onderscheppingsrisico!' : 'Verhoogd onderscheppingsrisico.'}
+                  {' '}Overweeg omkatten.
+                </span>
+              </div>
+            )}
+            {personalHeat > 50 && (
+              <div className="flex items-center gap-1.5 text-[0.55rem] text-blood bg-blood/8 rounded px-2.5 py-1.5 mb-2 border border-blood/15">
+                <AlertTriangle size={12} />
+                <span>
+                  <span className="font-bold">Persoonlijke Heat {personalHeat}%</span> — Politie-invallen kunnen routes verstoren!
+                </span>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Create new route */}
       <AnimatePresence>
