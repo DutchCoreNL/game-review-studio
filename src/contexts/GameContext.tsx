@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -87,6 +87,10 @@ type GameAction =
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
   | { type: 'DISMISS_ARC_EVENT' }
+  // Heat 2.0 actions
+  | { type: 'REKAT_VEHICLE'; vehicleId: string }
+  | { type: 'GO_INTO_HIDING'; days: number }
+  | { type: 'CANCEL_HIDING' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -99,8 +103,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return action.state;
 
     case 'TRADE': {
+      if ((s.hidingDays || 0) > 0) return s; // Can't trade while hiding
       const moneyBefore = s.money;
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
+      // Heat 2.0: trade heat goes to vehicle (transport of goods)
+      const tradeHeat = action.mode === 'buy' ? 1 : 2;
+      Engine.addVehicleHeat(s, tradeHeat);
+      Engine.recomputeHeat(s);
       // District rep gain for trading
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 1);
       // Track reward for popup animation on sell
@@ -114,6 +123,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRAVEL': {
+      if ((s.hidingDays || 0) > 0) return s; // Can't travel while hiding
       const hasChauffeur = s.crew.some(c => c.role === 'Chauffeur');
       const hasRacer = s.crew.some(c => c.specialization === 'racer');
       const isOwned = s.ownedDistricts.includes(action.to);
@@ -126,7 +136,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
       if (activeV && activeV.speed >= 4) travelHeat = Math.floor(travelHeat * 0.5);
       if (s.crew.some(c => c.specialization === 'phantom')) travelHeat = Math.max(0, travelHeat - 1);
-      s.heat += travelHeat;
+      // Heat 2.0: travel heat goes to vehicle
+      Engine.addVehicleHeat(s, travelHeat);
+      Engine.recomputeHeat(s);
       s.loc = action.to;
       // Roll for street event
       const travelEvent = rollStreetEvent(s, 'travel');
@@ -275,16 +287,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BRIBE_POLICE': {
       const charm = Engine.getPlayerStat(s, 'charm');
-      const cost = Math.max(1000, 3500 - (charm * 150));
+      const cost = Math.max(1500, 4000 - (charm * 150));
       if (s.money < cost) return s;
       s.money -= cost;
       s.stats.totalSpent += cost;
-      s.policeRel = Math.min(100, s.policeRel + 20);
-      s.heat = Math.max(0, s.heat - 15);
+      s.policeRel = Math.min(100, s.policeRel + 15);
+      // Heat 2.0: bribe only reduces personal heat, and less effectively
+      Engine.addPersonalHeat(s, -10);
+      Engine.recomputeHeat(s);
       return s;
     }
 
     case 'WASH_MONEY': {
+      if ((s.hidingDays || 0) > 0) return s;
       if (s.dirtyMoney <= 0) return s;
       const amount = Math.min(s.dirtyMoney, 3000 + (s.ownedDistricts.length * 1000));
       s.dirtyMoney -= amount;
@@ -293,12 +308,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const clean = Math.floor(washed * 0.85);
       s.money += clean;
       s.stats.totalEarned += clean;
-      s.heat += 8;
+      // Heat 2.0: washing generates personal heat (financial crime)
+      Engine.addPersonalHeat(s, 8);
+      Engine.recomputeHeat(s);
       Engine.gainXp(s, 5);
       return s;
     }
 
     case 'WASH_MONEY_AMOUNT': {
+      if ((s.hidingDays || 0) > 0) return s;
       if (s.dirtyMoney <= 0 || action.amount <= 0) return s;
       const washCap = Engine.getWashCapacity(s);
       const maxWash = Math.min(s.dirtyMoney, washCap.remaining);
@@ -311,7 +329,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money += cleanAmt;
       s.stats.totalEarned += cleanAmt;
       s.washUsedToday = (s.washUsedToday || 0) + washAmt;
-      s.heat += Math.max(1, Math.floor(washAmt / 500));
+      // Heat 2.0: washing generates personal heat
+      Engine.addPersonalHeat(s, Math.max(1, Math.floor(washAmt / 500)));
+      Engine.recomputeHeat(s);
       Engine.gainXp(s, Math.max(1, Math.floor(washAmt / 200)));
       return s;
     }
@@ -327,7 +347,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SOLO_OP': {
+      if ((s.hidingDays || 0) > 0) return s; // Can't do ops while hiding
       Engine.performSoloOp(s, action.opId);
+      Engine.recomputeHeat(s);
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
       // Roll for street event
@@ -476,7 +498,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.money += 100000;
         s.stats.totalEarned += 100000;
         Engine.gainXp(s, 500);
+        // Heat 2.0: reset both heat types
         s.heat = 0;
+        s.personalHeat = 0;
+        s.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
         s.victoryData = buildVictoryData(s);
         addPhoneMessage(s, 'anonymous', 'Commissaris Decker is verslagen. Noxhaven is van jou. De stad knielt.', 'opportunity');
       }
@@ -643,7 +668,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money += 100000;
       s.stats.totalEarned += 100000;
       Engine.gainXp(s, 500);
+      // Heat 2.0: reset both heat types
       s.heat = 0;
+      s.personalHeat = 0;
+      s.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
       // Build victory data
       s.victoryData = buildVictoryData(s);
       addPhoneMessage(s, 'anonymous', 'Commissaris Decker is verslagen. Noxhaven is van jou. De stad knielt.', 'opportunity');
@@ -670,7 +698,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (result.success) {
         s.money += result.effects.money;
         s.dirtyMoney += result.effects.dirtyMoney;
-        s.heat = Math.max(0, s.heat + result.effects.heat);
+        // Heat 2.0: street events split heat
+        Engine.splitHeat(s, result.effects.heat, 0.5);
+        Engine.recomputeHeat(s);
         s.rep += result.effects.rep;
         if (result.effects.money > 0) s.stats.totalEarned += result.effects.money;
         if (result.effects.dirtyMoney > 0) s.stats.totalEarned += result.effects.dirtyMoney;
@@ -685,7 +715,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       } else {
         s.money += result.effects.money; // negative on fail
-        s.heat = Math.max(0, s.heat + result.effects.heat);
+        // Heat 2.0: failed events add more personal heat
+        Engine.splitHeat(s, result.effects.heat, 0.3);
+        Engine.recomputeHeat(s);
         s.rep += result.effects.rep;
         if (result.effects.crewDamage > 0 && s.crew.length > 0) {
           const target = s.crew[Math.floor(Math.random() * s.crew.length)];
@@ -717,7 +749,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (arcResult.success) {
         s.money += arcResult.effects.money;
         s.dirtyMoney += arcResult.effects.dirtyMoney;
-        s.heat = Math.max(0, s.heat + arcResult.effects.heat);
+        // Heat 2.0: arc events split heat
+        Engine.splitHeat(s, arcResult.effects.heat, 0.4);
+        Engine.recomputeHeat(s);
         s.rep += arcResult.effects.rep;
         if (arcResult.effects.money > 0) s.stats.totalEarned += arcResult.effects.money;
         if (arcResult.effects.dirtyMoney > 0) s.stats.totalEarned += arcResult.effects.dirtyMoney;
@@ -731,7 +765,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       } else {
         s.money += arcResult.effects.money;
-        s.heat = Math.max(0, s.heat + arcResult.effects.heat);
+        Engine.splitHeat(s, arcResult.effects.heat, 0.3);
+        Engine.recomputeHeat(s);
         s.rep += arcResult.effects.rep;
         if (arcResult.effects.crewDamage > 0 && s.crew.length > 0) {
           const target = s.crew[Math.floor(Math.random() * s.crew.length)];
@@ -748,6 +783,34 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'DISMISS_ARC_EVENT': {
       s.pendingArcEvent = null;
       s.arcEventResult = null;
+      return s;
+    }
+
+    // ========== HEAT 2.0 ACTIONS ==========
+
+    case 'REKAT_VEHICLE': {
+      const vehicle = s.ownedVehicles.find(v => v.id === action.vehicleId);
+      if (!vehicle) return s;
+      if ((vehicle.rekatCooldown || 0) > 0) return s;
+      const cost = REKAT_COSTS[action.vehicleId] || 5000;
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      vehicle.vehicleHeat = 0;
+      vehicle.rekatCooldown = 3;
+      Engine.recomputeHeat(s);
+      return s;
+    }
+
+    case 'GO_INTO_HIDING': {
+      if ((s.hidingDays || 0) > 0) return s; // Already hiding
+      const days = Math.max(1, Math.min(3, action.days));
+      s.hidingDays = days;
+      return s;
+    }
+
+    case 'CANCEL_HIDING': {
+      s.hidingDays = 0;
       return s;
     }
 
@@ -805,6 +868,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.phone) saved.phone = { messages: [], unread: 0 };
       if (saved.showPhone === undefined) saved.showPhone = false;
       if (saved.pendingSpecChoice === undefined) saved.pendingSpecChoice = null;
+      // Heat 2.0 migrations
+      if (saved.personalHeat === undefined) {
+        // Migrate: 30% of existing heat goes to personal, 70% to active vehicle
+        const oldHeat = saved.heat || 0;
+        saved.personalHeat = Math.round(oldHeat * 0.3);
+        const activeVehicle = saved.ownedVehicles?.find((v: any) => v.id === saved.activeVehicle);
+        if (activeVehicle) {
+          activeVehicle.vehicleHeat = Math.round(oldHeat * 0.7);
+        }
+      }
+      if (saved.hidingDays === undefined) saved.hidingDays = 0;
+      // Ensure all vehicles have Heat 2.0 fields
+      saved.ownedVehicles?.forEach((v: any) => {
+        if (v.vehicleHeat === undefined) v.vehicleHeat = 0;
+        if (v.rekatCooldown === undefined) v.rekatCooldown = 0;
+      });
       // Endgame migrations
       if (!saved.endgamePhase) saved.endgamePhase = calculateEndgamePhase(saved);
       if (saved.victoryData === undefined) saved.victoryData = null;
