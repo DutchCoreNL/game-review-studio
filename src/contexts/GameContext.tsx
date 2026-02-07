@@ -99,9 +99,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return action.state;
 
     case 'TRADE': {
+      const moneyBefore = s.money;
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
       // District rep gain for trading
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 1);
+      // Track reward for popup animation on sell
+      if (action.mode === 'sell') {
+        const earned = s.money - moneyBefore;
+        if (earned > 0) {
+          s.lastRewardAmount = earned;
+        }
+      }
       return s;
     }
 

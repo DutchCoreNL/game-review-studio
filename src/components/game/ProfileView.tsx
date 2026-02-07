@@ -8,6 +8,7 @@ import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
+import { AnimatedXPBar } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
 import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -52,7 +53,7 @@ export function ProfileView() {
               )}
             </div>
             <div className="mt-1.5">
-              <StatBar value={state.player.xp} max={state.player.nextXp} color="blood" height="sm" />
+              <AnimatedXPBar xp={state.player.xp} nextXp={state.player.nextXp} level={state.player.level} />
               <p className="text-[0.5rem] text-muted-foreground mt-0.5 text-right">
                 {state.player.xp}/{state.player.nextXp} XP
                 {state.player.skillPoints > 0 && <span className="text-gold font-bold ml-1">({state.player.skillPoints} SP)</span>}
