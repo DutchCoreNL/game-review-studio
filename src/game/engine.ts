@@ -1,6 +1,6 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
-import { applyNewFeatures, resolveNemesisDefeat } from './newFeatures';
+import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -322,6 +322,13 @@ export function endTurn(state: GameState): NightReportData {
     state.hidingDays = Math.max(0, state.hidingDays - 1);
     const safeHouseBonus = state.hqUpgrades.includes('safehouse') ? 5 : 0;
     addPersonalHeat(state, -(15 + safeHouseBonus));
+
+    // Notify when hiding ends
+    if (state.hidingDays <= 0) {
+      addPhoneMessage(state, 'anonymous', 'Je bent weer op straat. Wees voorzichtig — vijanden hebben je afwezigheid opgemerkt.', 'info');
+    } else {
+      addPhoneMessage(state, 'anonymous', `Nog ${state.hidingDays} dag(en) ondergedoken. Je bent veilig, maar je mist alles.`, 'info');
+    }
   }
 
   // District income (0 while hiding)

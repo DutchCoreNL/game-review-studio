@@ -187,8 +187,10 @@ export function resolveDistrictAttacks(state: GameState, report: NightReportData
   if (!report.defenseResults) report.defenseResults = [];
 
   state.ownedDistricts.forEach(distId => {
-    // Base attack chance: 15% + day/200 + heat/200
-    const attackChance = 0.15 + state.day / 200 + (state.personalHeat || 0) / 200;
+    // Base attack chance: 15% + day/200 + personalHeat/200
+    // While hiding: +25% extra attack chance (enemies exploit your absence)
+    const hidingBonus = (state.hidingDays || 0) > 0 ? 0.25 : 0;
+    const attackChance = 0.15 + state.day / 200 + (state.personalHeat || 0) / 200 + hidingBonus;
     if (Math.random() > attackChance) {
       return; // No attack tonight
     }
@@ -265,6 +267,8 @@ export function processSmuggleRoutes(state: GameState, report: NightReportData):
 
     // Interception chance
     let interceptChance = 0.10 + getActiveVehicleHeat(state) / 200;
+    // While hiding: +15% interception (no supervision)
+    if ((state.hidingDays || 0) > 0) interceptChance += 0.15;
     // Smokkelaar crew reduces risk
     if (state.crew.some(c => c.role === 'Smokkelaar')) interceptChance -= 0.05;
     if (state.crew.some(c => c.specialization === 'ghost')) interceptChance -= 0.05;
