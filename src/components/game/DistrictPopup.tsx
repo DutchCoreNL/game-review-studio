@@ -47,7 +47,10 @@ export function DistrictPopup() {
     btnVariant = 'blood';
   }
 
-  const flavorKey = state.heat > 80 ? 'high_heat' : isOwned ? 'owned' : 'neutral';
+  const activeVehicleHeat = state.ownedVehicles.find(v => v.id === state.activeVehicle)?.vehicleHeat ?? 0;
+  const personalHeat = state.personalHeat ?? 0;
+  const effectiveHeat = Math.max(activeVehicleHeat, personalHeat);
+  const flavorKey = effectiveHeat > 80 ? 'high_heat' : isOwned ? 'owned' : 'neutral';
   const flavor = DISTRICT_FLAVOR[selectedDistrict]?.[flavorKey] || '';
   const demand = state.districtDemands[selectedDistrict];
 

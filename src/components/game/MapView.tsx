@@ -80,6 +80,8 @@ export function MapView() {
           districtDemands={state.districtDemands}
           mapEvents={state.mapEvents || []}
           heat={state.heat}
+          vehicleHeat={state.ownedVehicles.find(v => v.id === state.activeVehicle)?.vehicleHeat ?? 0}
+          personalHeat={state.personalHeat ?? 0}
           weather={state.weather}
           nemesis={state.nemesis}
           travelAnim={travelAnim}
