@@ -1,13 +1,15 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Map, Package, Users, Crosshair, Dices, ChevronRight } from 'lucide-react';
+import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff } from 'lucide-react';
 
 const STEPS = [
   { title: "Welkom in Noxhaven", desc: "Jij bent een straatrat met een droom: de hele stad overnemen. Handel, vecht en verover je weg naar de top.", icon: <Map size={32} className="text-gold" /> },
   { title: "Handel", desc: "Koop laag, verkoop hoog. Reis tussen districten voor de beste prijzen. Let op de vraag-indicatoren!", icon: <Package size={32} className="text-gold" /> },
   { title: "Crew & Missies", desc: "Huur specialisten en neem contracten aan. Elke rol heeft unieke vaardigheden in gevechten.", icon: <Users size={32} className="text-gold" /> },
-  { title: "Gevaar", desc: "Heat trekt politie aan. Houd je heat laag door te omkopen of te wachten. Schuld groeit 3% per dag!", icon: <Crosshair size={32} className="text-blood" /> },
+  { title: "Voertuig Heat", desc: "Je auto bouwt heat op door handel en reizen. Hoge voertuig heat = checkpoints en onderschepping. Laat je auto omkatten bij de garage om heat te resetten.", icon: <Car size={32} className="text-ice" /> },
+  { title: "Persoonlijke Heat", desc: "Combat, sabotage en failed missies verhogen jouw persoonlijke heat. Dit trekt politie-invallen en de Nemesis aan. Veel moeilijker weg te krijgen!", icon: <Flame size={32} className="text-blood" /> },
+  { title: "Onderduiken", desc: "Te heet? Duik onder voor 1-3 dagen. Je heat daalt flink, maar je verliest inkomen en vijanden kunnen aanvallen. Een Safe House verdubbelt je natuurlijke heat decay.", icon: <EyeOff size={32} className="text-game-purple" /> },
   { title: "Aan de slag!", desc: "Verover alle 5 districten, versla de 3 factieleiders en verzamel €5.000.000 om Kingpin te worden.", icon: <Dices size={32} className="text-gold" /> },
 ];
 
