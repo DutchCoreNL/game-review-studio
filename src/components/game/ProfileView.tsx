@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { getPlayerStat, getRankTitle } from '@/game/engine';
 import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/constants';
+import { ENDGAME_PHASES, getPhaseIndex } from '@/game/endgame';
 import { StatId, DistrictId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -44,7 +45,12 @@ export function ProfileView() {
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
-            <p className="text-[0.6rem] text-gold font-semibold">{rank} — Level {state.player.level}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[0.6rem] text-gold font-semibold">{rank} — Level {state.player.level}</p>
+              {state.newGamePlusLevel > 0 && (
+                <span className="text-[0.5rem] text-game-purple font-bold">NG+{state.newGamePlusLevel}</span>
+              )}
+            </div>
             <div className="mt-1.5">
               <StatBar value={state.player.xp} max={state.player.nextXp} color="blood" height="sm" />
               <p className="text-[0.5rem] text-muted-foreground mt-0.5 text-right">
@@ -227,6 +233,32 @@ export function ProfileView() {
 
       {profileTab === 'trophies' && (
         <>
+          {/* Progression Timeline */}
+          <SectionHeader title="Progressie" icon={<Crown size={12} />} />
+          <div className="game-card mb-4">
+            <div className="space-y-2">
+              {ENDGAME_PHASES.map((phase, i) => {
+                const currentIdx = getPhaseIndex(state.endgamePhase);
+                const isCompleted = i <= currentIdx;
+                const isCurrent = i === currentIdx;
+                return (
+                  <div key={phase.id} className={`flex items-center gap-2 text-xs rounded p-1.5 ${
+                    isCurrent ? 'bg-gold/10 border border-gold' : isCompleted ? 'opacity-70' : 'opacity-30'
+                  }`}>
+                    <span className="text-base">{phase.icon}</span>
+                    <div className="flex-1">
+                      <span className={`font-bold ${isCurrent ? 'text-gold' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {phase.label}
+                      </span>
+                      <p className="text-[0.45rem] text-muted-foreground">{phase.desc}</p>
+                    </div>
+                    {isCompleted && <span className="text-emerald text-xs font-bold">✓</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <SectionHeader title="Achievements" icon={<Trophy size={12} />} />
           <div className="grid grid-cols-2 gap-2 mb-4">
             {ACHIEVEMENTS.map(a => {

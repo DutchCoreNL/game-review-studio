@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle } from '@/game/engine';
 import { WEATHER_EFFECTS } from '@/game/constants';
+import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
 import { motion } from 'framer-motion';
 import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone } from 'lucide-react';
@@ -25,6 +26,7 @@ export function GameHeader() {
   const { state, dispatch } = useGame();
   const rank = getRankTitle(state.rep);
   const weatherDef = WEATHER_EFFECTS[state.weather];
+  const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
 
   return (
     <header className="flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-4 py-2.5">
@@ -35,11 +37,15 @@ export function GameHeader() {
             Noxhaven
           </h1>
           <div className="flex items-center gap-1.5 text-[0.55rem] text-gold uppercase tracking-[0.15em] font-semibold mt-0.5 gold-text-glow">
-            <span>{rank} — Dag {state.day}</span>
+            <span>{phaseData?.icon || '🔫'}</span>
+            <span>{phaseData?.label || rank} — Dag {state.day}</span>
             <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[state.weather]}`} title={weatherDef?.desc}>
               {WEATHER_ICONS[state.weather]}
               <span className="text-[0.45rem]">{weatherDef?.name}</span>
             </span>
+            {state.newGamePlusLevel > 0 && (
+              <span className="text-game-purple text-[0.45rem] font-bold">NG+{state.newGamePlusLevel}</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

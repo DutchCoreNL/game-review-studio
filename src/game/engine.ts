@@ -2,7 +2,7 @@ import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, Combat
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat } from './newFeatures';
 
-const SAVE_KEY = 'noxhaven_save_v10';
+const SAVE_KEY = 'noxhaven_save_v11';
 
 export function saveGame(state: GameState): void {
   try {
@@ -18,7 +18,7 @@ export function loadGame(): GameState | null {
     let data = localStorage.getItem(SAVE_KEY);
     if (data) return JSON.parse(data);
     // Migrate from older versions
-    for (const oldKey of ['noxhaven_save_v9', 'noxhaven_save_v8']) {
+    for (const oldKey of ['noxhaven_save_v10', 'noxhaven_save_v9', 'noxhaven_save_v8']) {
       data = localStorage.getItem(oldKey);
       if (data) {
         const old = JSON.parse(data);

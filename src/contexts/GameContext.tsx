@@ -4,6 +4,7 @@ import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES,
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
+import { calculateEndgamePhase, buildVictoryData, startFinalBoss, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage } from '../game/endgame';
 
 interface GameContextType {
   state: GameState;
@@ -75,6 +76,10 @@ type GameAction =
   | { type: 'TRACK_HIGHLOW_ROUND'; round: number }
   | { type: 'JACKPOT_ADD'; amount: number }
   | { type: 'JACKPOT_RESET' }
+  | { type: 'START_FINAL_BOSS' }
+  | { type: 'RESOLVE_FINAL_BOSS' }
+  | { type: 'NEW_GAME_PLUS' }
+  | { type: 'FREE_PLAY' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -127,6 +132,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.debt > 250000) return s;
       Engine.endTurn(s);
       Engine.checkAchievements(s);
+      // Check endgame phase progression
+      const oldPhase = s.endgamePhase;
+      s.endgamePhase = calculateEndgamePhase(s);
       return s;
     }
 
@@ -390,11 +398,32 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.activeCombat) return s;
       Engine.combatAction(s, action.action);
       Engine.checkAchievements(s);
+      // Check if this was the final boss combat and it was won
+      if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.targetName === 'Commissaris Decker') {
+        // Will be resolved when END_COMBAT is dispatched
+        (s as any)._finalBossWon = true;
+      }
+      // Update endgame phase after combat
+      s.endgamePhase = calculateEndgamePhase(s);
       return s;
     }
 
     case 'END_COMBAT': {
+      const wasFinalBoss = (s as any)._finalBossWon;
+      delete (s as any)._finalBossWon;
       s.activeCombat = null;
+      if (wasFinalBoss) {
+        // Trigger final boss resolution
+        s.finalBossDefeated = true;
+        s.endgamePhase = 'noxhaven_baas';
+        s.rep += 500;
+        s.money += 100000;
+        s.stats.totalEarned += 100000;
+        Engine.gainXp(s, 500);
+        s.heat = 0;
+        s.victoryData = buildVictoryData(s);
+        addPhoneMessage(s, 'anonymous', 'Commissaris Decker is verslagen. Noxhaven is van jou. De stad knielt.', 'opportunity');
+      }
       return s;
     }
 
@@ -545,6 +574,39 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'START_FINAL_BOSS': {
+      const finalCombat = startFinalBoss(s);
+      if (finalCombat) s.activeCombat = finalCombat;
+      return s;
+    }
+
+    case 'RESOLVE_FINAL_BOSS': {
+      s.finalBossDefeated = true;
+      s.endgamePhase = 'noxhaven_baas';
+      s.rep += 500;
+      s.money += 100000;
+      s.stats.totalEarned += 100000;
+      Engine.gainXp(s, 500);
+      s.heat = 0;
+      // Build victory data
+      s.victoryData = buildVictoryData(s);
+      addPhoneMessage(s, 'anonymous', 'Commissaris Decker is verslagen. Noxhaven is van jou. De stad knielt.', 'opportunity');
+      return s;
+    }
+
+    case 'NEW_GAME_PLUS': {
+      const ngPlus = createNewGamePlus(s);
+      Engine.generatePrices(ngPlus);
+      Engine.generateContracts(ngPlus);
+      return ngPlus;
+    }
+
+    case 'FREE_PLAY': {
+      s.freePlayMode = true;
+      s.victoryData = null;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -599,6 +661,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.phone) saved.phone = { messages: [], unread: 0 };
       if (saved.showPhone === undefined) saved.showPhone = false;
       if (saved.pendingSpecChoice === undefined) saved.pendingSpecChoice = null;
+      // Endgame migrations
+      if (!saved.endgamePhase) saved.endgamePhase = calculateEndgamePhase(saved);
+      if (saved.victoryData === undefined) saved.victoryData = null;
+      if (saved.newGamePlusLevel === undefined) saved.newGamePlusLevel = 0;
+      if (saved.finalBossDefeated === undefined) saved.finalBossDefeated = false;
+      if (saved.freePlayMode === undefined) saved.freePlayMode = false;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
@@ -621,6 +689,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [toastError, setToastError] = React.useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevAchievementsRef = useRef<string[]>(state.achievements);
+  const prevPhaseRef = useRef(state.endgamePhase);
 
   const showToast = useCallback((msg: string, isError = false) => {
     setToast(msg);
@@ -633,7 +702,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     rawDispatch(action);
   }, []);
 
-  // Auto-save on state change + check for new achievements
+  // Auto-save on state change + check for new achievements + phase-up
   useEffect(() => {
     Engine.saveGame(state);
     const prev = prevAchievementsRef.current;
@@ -645,6 +714,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
     }
     prevAchievementsRef.current = [...state.achievements];
+
+    // Check phase progression
+    const phaseMsg = getPhaseUpMessage(prevPhaseRef.current, state.endgamePhase);
+    if (phaseMsg) {
+      setTimeout(() => showToast(phaseMsg), 500);
+    }
+    prevPhaseRef.current = state.endgamePhase;
   }, [state, showToast]);
 
   // Generate prices if empty

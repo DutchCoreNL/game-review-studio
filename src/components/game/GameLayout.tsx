@@ -13,6 +13,7 @@ import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
+import { VictoryScreen } from './VictoryScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -54,6 +55,7 @@ export function GameLayout() {
       {state.activeMission && <MissionEncounterView />}
       {state.showPhone && <PhoneOverlay />}
       {state.pendingSpecChoice && <CrewSpecPopup />}
+      {state.victoryData && <VictoryScreen />}
     </div>
   );
 }
