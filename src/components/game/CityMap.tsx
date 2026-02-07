@@ -1,6 +1,7 @@
 import { DistrictId, MapEvent, WeatherType, NemesisState } from '@/game/types';
 import { DISTRICTS } from '@/game/constants';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
 import { WeatherOverlay } from './map/WeatherOverlay';
 import { NemesisMarker } from './map/NemesisMarker';
 
@@ -13,6 +14,7 @@ interface CityMapProps {
   heat: number;
   weather: WeatherType;
   nemesis: NemesisState | null;
+  travelAnim: { from: DistrictId; to: DistrictId } | null;
   onSelectDistrict: (id: DistrictId) => void;
 }
 
@@ -290,11 +292,10 @@ function NeonStripLandmarks({ isOwned, isSelected }: { isOwned: boolean; isSelec
 function MapEventMarkers({ events }: { events: MapEvent[] }) {
   return (
     <g>
-      {events.map(event => {
+      {events.map((event, idx) => {
         const road = ROADS[event.roadIndex];
         if (!road) return null;
 
-        // Approximate position on road using the start/end approach
         const match = road.match(/M\s*([\d.]+),([\d.]+)/);
         const endMatch = road.match(/([\d.]+),([\d.]+)\s*$/);
         if (!match || !endMatch) return null;
@@ -305,51 +306,83 @@ function MapEventMarkers({ events }: { events: MapEvent[] }) {
         const x = sx + (ex - sx) * t;
         const y = sy + (ey - sy) * t;
 
-        return <MapEventIcon key={event.id} event={event} x={x} y={y} />;
+        return (
+          <motion.g
+            key={event.id}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: idx * 0.08, type: 'spring', stiffness: 300, damping: 15 }}
+          >
+            <MapEventIcon event={event} x={x} y={y} />
+          </motion.g>
+        );
       })}
     </g>
   );
 }
 
 function MapEventIcon({ event, x, y }: { event: MapEvent; x: number; y: number }) {
+  // All event icons get a subtle bounce animation
+  const bounceTransition = { duration: 2, repeat: Infinity, ease: 'easeInOut' as const };
+
   switch (event.type) {
     case 'police_checkpoint':
       return (
-        <g transform={`translate(${x}, ${y})`}>
-          <motion.circle r="4" fill="hsla(220, 80%, 50%, 0.3)"
-            animate={{ r: [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
-            transition={{ duration: 1.2, repeat: Infinity }} />
-          <circle r="2.5" fill="hsla(220, 80%, 50%, 0.6)" />
-          <motion.circle r="1" fill="hsla(0, 80%, 50%, 0.8)"
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 0.8, repeat: Infinity }} />
-        </g>
+        <motion.g
+          animate={{ y: [y - 1, y + 1, y - 1] }}
+          transition={bounceTransition}
+        >
+          <g transform={`translate(${x}, 0)`}>
+            <motion.circle cy={0} r="4" fill="hsla(220, 80%, 50%, 0.3)"
+              animate={{ r: [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity }} />
+            <circle cy={0} r="2.5" fill="hsla(220, 80%, 50%, 0.6)" />
+            <motion.circle cy={0} r="1" fill="hsla(0, 80%, 50%, 0.8)"
+              animate={{ opacity: [1, 0, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }} />
+          </g>
+        </motion.g>
       );
     case 'accident':
       return (
-        <g transform={`translate(${x}, ${y})`}>
-          <circle r="3" fill="hsla(30, 90%, 50%, 0.4)" />
-          <text textAnchor="middle" y="2.5" fontSize="4" fill="hsla(30, 90%, 60%, 0.9)">⚠</text>
-        </g>
+        <motion.g
+          animate={{ y: [y - 1.5, y + 1.5, y - 1.5] }}
+          transition={{ ...bounceTransition, delay: 0.3 }}
+        >
+          <g transform={`translate(${x}, 0)`}>
+            <circle cy={0} r="3" fill="hsla(30, 90%, 50%, 0.4)" />
+            <text textAnchor="middle" y="2.5" fontSize="4" fill="hsla(30, 90%, 60%, 0.9)">⚠</text>
+          </g>
+        </motion.g>
       );
     case 'street_fight':
       return (
-        <g transform={`translate(${x}, ${y})`}>
-          <motion.circle r="3" fill="hsla(0, 80%, 45%, 0.4)"
-            animate={{ r: [3, 5, 3], opacity: [0.4, 0.2, 0.4] }}
-            transition={{ duration: 0.8, repeat: Infinity }} />
-          <circle r="2" fill="hsla(0, 80%, 45%, 0.6)" />
-        </g>
+        <motion.g
+          animate={{ y: [y, y - 2, y], x: [x, x + 1, x - 1, x] }}
+          transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <g>
+            <motion.circle r="3" fill="hsla(0, 80%, 45%, 0.4)"
+              animate={{ r: [3, 5, 3], opacity: [0.4, 0.2, 0.4] }}
+              transition={{ duration: 0.8, repeat: Infinity }} />
+            <circle r="2" fill="hsla(0, 80%, 45%, 0.6)" />
+          </g>
+        </motion.g>
       );
     case 'black_market':
       return (
-        <g transform={`translate(${x}, ${y})`}>
-          <motion.circle r="3" fill="hsla(45, 93%, 40%, 0.3)"
-            animate={{ r: [3, 5, 3], opacity: [0.3, 0.1, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity }} />
-          <circle r="2" fill="hsla(45, 93%, 40%, 0.5)" />
-          <text textAnchor="middle" y="2" fontSize="3" fill="hsla(45, 93%, 60%, 0.9)">$</text>
-        </g>
+        <motion.g
+          animate={{ y: [y - 1, y + 1, y - 1] }}
+          transition={{ ...bounceTransition, delay: 0.5 }}
+        >
+          <g transform={`translate(${x}, 0)`}>
+            <motion.circle cy={0} r="3" fill="hsla(45, 93%, 40%, 0.3)"
+              animate={{ r: [3, 5, 3], opacity: [0.3, 0.1, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity }} />
+            <circle cy={0} r="2" fill="hsla(45, 93%, 40%, 0.5)" />
+            <text textAnchor="middle" y="2" fontSize="3" fill="hsla(45, 93%, 60%, 0.9)">$</text>
+          </g>
+        </motion.g>
       );
     case 'drone':
       return (
@@ -360,6 +393,12 @@ function MapEventIcon({ event, x, y }: { event: MapEvent; x: number; y: number }
           <motion.circle r="1" fill="hsla(0, 80%, 50%, 0.6)"
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 0.5, repeat: Infinity }} />
+          {/* Scan line below drone */}
+          <motion.line x1="-3" y1="3" x2="3" y2="3"
+            stroke="hsla(0, 80%, 50%, 0.2)" strokeWidth="0.5"
+            animate={{ opacity: [0.2, 0.5, 0.2], y1: [3, 6, 3], y2: [3, 6, 3] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
         </motion.g>
       );
     case 'ambulance':
@@ -431,9 +470,75 @@ function HeatOverlay({ heat }: { heat: number }) {
   );
 }
 
+// ========== TRAVEL ANIMATION ==========
+
+function TravelAnimation({ from, to, districtMeta }: {
+  from: DistrictId;
+  to: DistrictId;
+  districtMeta: Record<DistrictId, { cx: number; cy: number }>;
+}) {
+  const fromMeta = districtMeta[from];
+  const toMeta = districtMeta[to];
+  if (!fromMeta || !toMeta) return null;
+
+  const startX = fromMeta.cx;
+  const startY = fromMeta.cy - 18;
+  const endX = toMeta.cx;
+  const endY = toMeta.cy - 18;
+
+  return (
+    <g pointerEvents="none">
+      {/* Trail line */}
+      <motion.line
+        x1={startX} y1={startY}
+        x2={startX} y2={startY}
+        stroke="hsla(45, 93%, 50%, 0.4)"
+        strokeWidth="1.5"
+        strokeDasharray="4 3"
+        strokeLinecap="round"
+        animate={{
+          x2: endX,
+          y2: endY,
+        }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+      />
+
+      {/* Moving dot */}
+      <motion.g
+        initial={{ x: startX, y: startY, scale: 1 }}
+        animate={{ x: endX, y: endY, scale: [1, 1.3, 1] }}
+        exit={{ opacity: 0, scale: 0 }}
+        transition={{ duration: 0.8, ease: 'easeInOut' }}
+      >
+        {/* Glow */}
+        <motion.circle
+          r="6" fill="none"
+          stroke="hsla(45, 93%, 50%, 0.3)"
+          strokeWidth="1"
+          animate={{ r: [5, 8, 5], opacity: [0.3, 0.1, 0.3] }}
+          transition={{ duration: 0.5, repeat: Infinity }}
+        />
+        {/* Core dot */}
+        <circle r="3" fill="hsl(45, 93%, 50%)" />
+        <circle r="1.5" fill="hsl(45, 93%, 70%)" />
+      </motion.g>
+
+      {/* Arrival flash at destination */}
+      <motion.circle
+        cx={endX} cy={endY}
+        r="3"
+        fill="hsla(45, 93%, 50%, 0.5)"
+        initial={{ r: 3, opacity: 0 }}
+        animate={{ r: 20, opacity: [0, 0.3, 0] }}
+        transition={{ duration: 0.6, delay: 0.7 }}
+      />
+    </g>
+  );
+}
+
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, weather, nemesis, onSelectDistrict }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, weather, nemesis, travelAnim, onSelectDistrict }: CityMapProps) {
   return (
     <div className="relative w-full aspect-[10/7] rounded-lg overflow-hidden border border-border shadow-[inset_0_0_60px_rgba(0,0,0,0.9)]">
       <svg viewBox="0 0 400 290" className="w-full h-full" style={{ background: 'hsl(0 0% 3%)' }}>
@@ -513,6 +618,32 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
           return (
             <g key={`label-${id}`} onClick={() => onSelectDistrict(id)} className="cursor-pointer">
+              {/* Owned district pulse glow */}
+              {isOwned && !isSelected && (
+                <motion.circle
+                  cx={meta.cx} cy={meta.cy} r="22"
+                  fill="none"
+                  stroke="hsla(0, 72%, 51%, 0.15)"
+                  strokeWidth="1.5"
+                  animate={{
+                    r: [20, 26, 20],
+                    opacity: [0.15, 0.05, 0.15],
+                    strokeWidth: [1.5, 0.8, 1.5],
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+              {isOwned && !isSelected && (
+                <motion.circle
+                  cx={meta.cx} cy={meta.cy} r="15"
+                  fill="hsla(0, 72%, 51%, 0.04)"
+                  animate={{
+                    r: [15, 18, 15],
+                    opacity: [0.04, 0.01, 0.04],
+                  }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                />
+              )}
               {isSelected && (
                 <circle cx={meta.cx} cy={meta.cy} r="20" fill="hsla(45, 93%, 40%, 0.08)" filter="url(#district-glow)" />
               )}
@@ -520,6 +651,20 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
                 fill={isSelected ? 'hsla(45, 93%, 40%, 0.2)' : 'hsla(0, 0%, 5%, 0.85)'}
                 stroke={isSelected ? 'hsl(45 93% 40%)' : isOwned ? 'hsl(0 72% 51%)' : 'hsl(0 0% 20%)'}
                 strokeWidth={isSelected ? '1.5' : '0.5'} />
+              {/* Owned border pulse */}
+              {isOwned && !isSelected && (
+                <motion.rect
+                  x={meta.cx - meta.labelW / 2} y={meta.cy - 8}
+                  width={meta.labelW} height="16" rx="3"
+                  fill="none"
+                  stroke="hsl(0 72% 51%)"
+                  strokeWidth="0.5"
+                  animate={{
+                    strokeOpacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
               <text x={meta.cx} y={meta.cy + 3} textAnchor="middle"
                 fill={isSelected ? 'hsl(45 93% 50%)' : isOwned ? 'hsl(0 72% 60%)' : 'hsl(0 0% 65%)'}
                 fontSize="6.5" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif" letterSpacing="0.3"
@@ -528,15 +673,22 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               </text>
               {isOwned && (
                 <g transform={`translate(${meta.cx + meta.labelW / 2 - 2}, ${meta.cy - 10})`}>
-                  <circle r="5" fill="hsl(0 72% 51%)" opacity="0.8" />
+                  <motion.circle r="5" fill="hsl(0 72% 51%)"
+                    animate={{ opacity: [0.8, 1, 0.8] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  />
                   <text x="0" y="3" textAnchor="middle" fill="white" fontSize="6">♛</text>
                 </g>
               )}
               {hasDemand && (
-                <g transform={`translate(${meta.cx - meta.labelW / 2 + 2}, ${meta.cy - 10})`}>
+                <motion.g
+                  transform={`translate(${meta.cx - meta.labelW / 2 + 2}, ${meta.cy - 10})`}
+                  animate={{ y: [0, -1.5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                >
                   <circle r="4" fill="hsl(45 93% 40%)" opacity="0.9" />
                   <text x="0" y="3" textAnchor="middle" fill="hsl(0 0% 5%)" fontSize="5" fontWeight="bold">$</text>
-                </g>
+                </motion.g>
               )}
             </g>
           );
@@ -578,6 +730,17 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
         {/* === MAP EVENTS === */}
         <MapEventMarkers events={mapEvents} />
+
+        {/* === TRAVEL ANIMATION === */}
+        <AnimatePresence>
+          {travelAnim && (
+            <TravelAnimation
+              from={travelAnim.from}
+              to={travelAnim.to}
+              districtMeta={DISTRICT_META}
+            />
+          )}
+        </AnimatePresence>
 
         {/* === NEMESIS MARKER === */}
         {nemesis && <NemesisMarker nemesis={nemesis} districtMeta={DISTRICT_META} />}
