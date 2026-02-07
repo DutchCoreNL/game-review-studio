@@ -9,6 +9,7 @@ import { NemesisInfo } from './map/NemesisInfo';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Moon, Dices } from 'lucide-react';
 import { DistrictId } from '@/game/types';
+import { HidingOverlay } from './HidingOverlay';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -57,8 +58,13 @@ export function MapView() {
     );
   }
 
+  const isHiding = (state.hidingDays || 0) > 0;
+
   return (
-    <div>
+    <div className="relative">
+      {/* Hiding overlay */}
+      <HidingOverlay />
+
       {/* News ticker */}
       <div className="bg-background border border-border rounded overflow-hidden mb-3 flex items-center font-mono">
         <span className="text-blood font-bold text-[0.6rem] uppercase border-r border-border px-2 py-1.5 flex-shrink-0 bg-background z-10 relative">
@@ -93,28 +99,30 @@ export function MapView() {
       {state.nemesis && <NemesisInfo />}
 
       {/* District Popup */}
-      {selectedDistrict && <DistrictPopup />}
+      {selectedDistrict && !isHiding && <DistrictPopup />}
 
       {/* Action buttons */}
       <div className="flex gap-2">
         <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
           DAG AFSLUITEN
         </GameButton>
-        <GameButton
-          variant="purple"
-          size="lg"
-          icon={<Dices size={14} />}
-          onClick={() => {
-            if (state.weather === 'storm') {
-              showToast('Casino gesloten wegens storm!', true);
-              return;
-            }
-            setShowCasino(true);
-          }}
-          className={`px-4 ${state.weather === 'storm' ? 'opacity-50' : ''}`}
-        >
-          CASINO
-        </GameButton>
+        {!isHiding && (
+          <GameButton
+            variant="purple"
+            size="lg"
+            icon={<Dices size={14} />}
+            onClick={() => {
+              if (state.weather === 'storm') {
+                showToast('Casino gesloten wegens storm!', true);
+                return;
+              }
+              setShowCasino(true);
+            }}
+            className={`px-4 ${state.weather === 'storm' ? 'opacity-50' : ''}`}
+          >
+            CASINO
+          </GameButton>
+        )}
       </div>
 
       <ConfirmDialog
