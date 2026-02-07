@@ -6,6 +6,7 @@ import { InfoRow } from './ui/InfoRow';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star } from 'lucide-react';
+import { GaragePanel } from './garage/GaragePanel';
 
 export function DistrictPopup() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -221,6 +222,9 @@ export function DistrictPopup() {
               </div>
             );
           })()}
+
+          {/* Garage (when at this district) */}
+          {isHere && <GaragePanel />}
 
           <GameButton
             variant={btnVariant}
