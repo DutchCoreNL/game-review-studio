@@ -6,6 +6,7 @@ import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
+import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 
 interface GameContextType {
   state: GameState;
@@ -84,6 +85,8 @@ type GameAction =
   | { type: 'RESOLVE_STREET_EVENT'; choiceId: string }
   | { type: 'DISMISS_STREET_EVENT' }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
+  | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
+  | { type: 'DISMISS_ARC_EVENT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -148,6 +151,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (endTurnEvent) {
         s.pendingStreetEvent = endTurnEvent;
         s.streetEventResult = null;
+      }
+      // Story arcs: check triggers and progression
+      checkArcTriggers(s);
+      if (!s.pendingStreetEvent) {
+        checkArcProgression(s);
       }
       return s;
     }
@@ -674,6 +682,47 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'RESOLVE_ARC_EVENT': {
+      if (!s.pendingArcEvent) return s;
+      const arcResult = resolveArcChoice(s, action.arcId, action.choiceId);
+      // Apply effects
+      if (arcResult.success) {
+        s.money += arcResult.effects.money;
+        s.dirtyMoney += arcResult.effects.dirtyMoney;
+        s.heat = Math.max(0, s.heat + arcResult.effects.heat);
+        s.rep += arcResult.effects.rep;
+        if (arcResult.effects.money > 0) s.stats.totalEarned += arcResult.effects.money;
+        if (arcResult.effects.dirtyMoney > 0) s.stats.totalEarned += arcResult.effects.dirtyMoney;
+        if (arcResult.effects.crewDamage > 0 && s.crew.length > 0) {
+          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
+          target.hp = Math.max(1, target.hp - arcResult.effects.crewDamage);
+        }
+        if (arcResult.effects.money > 5000 || arcResult.effects.dirtyMoney > 5000) {
+          s.screenEffect = 'gold-flash';
+          s.lastRewardAmount = arcResult.effects.money + arcResult.effects.dirtyMoney;
+        }
+      } else {
+        s.money += arcResult.effects.money;
+        s.heat = Math.max(0, s.heat + arcResult.effects.heat);
+        s.rep += arcResult.effects.rep;
+        if (arcResult.effects.crewDamage > 0 && s.crew.length > 0) {
+          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
+          target.hp = Math.max(1, target.hp - arcResult.effects.crewDamage);
+        }
+        if (arcResult.effects.crewDamage > 10) {
+          s.screenEffect = 'blood-flash';
+        }
+      }
+      s.arcEventResult = { success: arcResult.success, text: arcResult.text };
+      return s;
+    }
+
+    case 'DISMISS_ARC_EVENT': {
+      s.pendingArcEvent = null;
+      s.arcEventResult = null;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -740,6 +789,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.screenEffect === undefined) saved.screenEffect = null;
       if (saved.lastRewardAmount === undefined) saved.lastRewardAmount = 0;
       if (!saved.crewPersonalities) saved.crewPersonalities = {};
+      // Story arcs migrations
+      if (!saved.activeStoryArcs) saved.activeStoryArcs = [];
+      if (!saved.completedArcs) saved.completedArcs = [];
+      if (saved.pendingArcEvent === undefined) saved.pendingArcEvent = null;
+      if (saved.arcEventResult === undefined) saved.arcEventResult = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
