@@ -15,7 +15,7 @@ export function GameNav() {
   const { view, setView } = useGame();
 
   return (
-    <nav className="absolute bottom-0 left-0 right-0 h-[60px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
+    <nav className="flex-shrink-0 h-[60px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
       {NAV_ITEMS.map(item => {
         const isActive = view === item.id;
         const Icon = item.icon;
