@@ -6,13 +6,27 @@ import { DistrictPopup } from './DistrictPopup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
 import { NemesisInfo } from './map/NemesisInfo';
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Moon, Dices } from 'lucide-react';
+import { DistrictId } from '@/game/types';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
   const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
+  const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
+  const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevLoc = useRef(state.loc);
+
+  // Detect location changes and trigger travel animation
+  useEffect(() => {
+    if (prevLoc.current !== state.loc) {
+      setTravelAnim({ from: prevLoc.current, to: state.loc });
+      if (travelTimeout.current) clearTimeout(travelTimeout.current);
+      travelTimeout.current = setTimeout(() => setTravelAnim(null), 1200);
+      prevLoc.current = state.loc;
+    }
+  }, [state.loc]);
 
   const newsText = NEWS_ITEMS[state.day % NEWS_ITEMS.length];
 
@@ -68,6 +82,7 @@ export function MapView() {
           heat={state.heat}
           weather={state.weather}
           nemesis={state.nemesis}
+          travelAnim={travelAnim}
           onSelectDistrict={selectDistrict}
         />
       </div>
