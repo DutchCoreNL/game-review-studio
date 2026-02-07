@@ -58,7 +58,7 @@ export function MissionsView() {
                         <div className="flex gap-3 mt-1">
                           <span className="text-[0.5rem] text-blood font-semibold">⚡ Risico {op.risk}%</span>
                           <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
-                          <span className="text-[0.5rem] text-muted-foreground">🔥 +{op.heat}</span>
+                          <span className="text-[0.5rem] text-muted-foreground" title="Persoonlijke heat">🔥 +{op.heat}</span>
                         </div>
                       </div>
                       <button
@@ -237,6 +237,8 @@ function ContractCard({ contract, crew, isExpanded, onToggle, onAssign }: { cont
                 <span className="text-[0.5rem] px-1 py-0.5 rounded bg-muted uppercase font-bold text-muted-foreground">{contract.type}</span>
                 <span className="text-[0.5rem] text-blood font-semibold">⚡{contract.risk}%</span>
                 <span className="text-[0.5rem] text-gold font-semibold">€{contract.reward.toLocaleString()}</span>
+                {contract.type === 'delivery' && <span className="text-[0.45rem] text-ice font-semibold" title="Voertuig heat">🚗</span>}
+                {(contract.type === 'combat' || contract.type === 'stealth') && <span className="text-[0.45rem] text-blood font-semibold" title="Persoonlijke heat">🔥</span>}
               </div>
             </div>
           </div>

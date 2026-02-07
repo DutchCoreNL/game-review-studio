@@ -6,7 +6,7 @@ import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
-import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users } from 'lucide-react';
+import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car } from 'lucide-react';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
@@ -197,16 +197,31 @@ export function MissionEncounterView() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Running totals */}
+        {/* Running totals with heat split */}
         <div className="flex gap-3 mt-5 text-[0.55rem] text-muted-foreground justify-center">
           {mission.totalReward > 0 && (
             <span className="text-gold font-semibold">+€{mission.totalReward}</span>
           )}
-          {mission.totalHeat > 0 && (
-            <span className="text-blood font-semibold flex items-center gap-0.5">
-              <Flame size={8} /> +{mission.totalHeat}
-            </span>
-          )}
+          {mission.totalHeat > 0 && (() => {
+            const contract = mission.contractId != null ? state.activeContracts.find(c => c.id === mission.contractId) : null;
+            const isTransport = mission.type === 'contract' && contract?.type === 'delivery';
+            const vehicleHeatPart = isTransport ? Math.ceil(mission.totalHeat * 0.7) : Math.ceil(mission.totalHeat * 0.3);
+            const personalHeatPart = mission.totalHeat - vehicleHeatPart;
+            return (
+              <>
+                {vehicleHeatPart > 0 && (
+                  <span className="text-ice font-semibold flex items-center gap-0.5">
+                    <Car size={8} /> +{vehicleHeatPart}
+                  </span>
+                )}
+                {personalHeatPart > 0 && (
+                  <span className="text-blood font-semibold flex items-center gap-0.5">
+                    <Flame size={8} /> +{personalHeatPart}
+                  </span>
+                )}
+              </>
+            );
+          })()}
           {mission.totalCrewDamage > 0 && (
             <span className="text-blood font-semibold flex items-center gap-0.5">
               <Heart size={8} /> -{mission.totalCrewDamage}
@@ -278,10 +293,25 @@ function MissionResult() {
               <span className="text-gold font-bold">+€{mission.totalReward}</span>
             </div>
           )}
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Heat</span>
-            <span className="text-blood font-bold">+{mission.totalHeat + mission.baseHeat}</span>
-          </div>
+          {(() => {
+            const totalHeat = mission.totalHeat + mission.baseHeat;
+            const contract = mission.contractId != null ? state.activeContracts.find(c => c.id === mission.contractId) : null;
+            const isTransport = mission.type === 'contract' && contract?.type === 'delivery';
+            const vehicleHeatPart = isTransport ? Math.ceil(totalHeat * 0.7) : Math.ceil(totalHeat * 0.3);
+            const personalHeatPart = totalHeat - vehicleHeatPart;
+            return (
+              <>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1"><Car size={10} className="text-ice" /> Voertuig Heat</span>
+                  <span className="text-ice font-bold">+{vehicleHeatPart}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1"><Flame size={10} className="text-blood" /> Persoonlijke Heat</span>
+                  <span className="text-blood font-bold">+{personalHeatPart}</span>
+                </div>
+              </>
+            );
+          })()}
           {mission.totalCrewDamage > 0 && (
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Crew Schade</span>
