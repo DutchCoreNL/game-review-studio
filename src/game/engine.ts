@@ -244,8 +244,12 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
       break;
     }
     case 'crew_damage': {
+      const armorBonus = getVehicleUpgradeBonus(state, 'armor');
+      const dmgReduction = armorBonus > 0 ? armorBonus * 0.06 : 0;
       state.crew.forEach(c => {
-        if (c.hp > 0) c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 20 + 10));
+        let dmg = Math.floor(Math.random() * 20 + 10);
+        if (dmgReduction > 0) dmg = Math.floor(dmg * (1 - dmgReduction));
+        if (c.hp > 0) c.hp = Math.max(1, c.hp - dmg);
       });
       break;
     }
@@ -256,7 +260,12 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
     }
     case 'vehicle_damage': {
       const activeV = state.ownedVehicles.find(v => v.id === state.activeVehicle);
-      if (activeV) activeV.condition = Math.max(10, activeV.condition - 25);
+      if (activeV) {
+        let vDmg = 25;
+        const armorBonusV = getVehicleUpgradeBonus(state, 'armor');
+        if (armorBonusV > 0) vDmg = Math.floor(vDmg * (1 - armorBonusV * 0.06));
+        activeV.condition = Math.max(10, activeV.condition - vDmg);
+      }
       break;
     }
     case 'bonus_money': {
@@ -394,7 +403,12 @@ export function endTurn(state: GameState): NightReportData {
 
   // Police heat check (uses personalHeat)
   if ((state.personalHeat || 0) > 60 && Math.random() < 0.3 && state.policeRel < 50) {
-    const fine = Math.floor(state.money * 0.1);
+    let fine = Math.floor(state.money * 0.1);
+    // Armor upgrade reduces police fine
+    const armorBonus = getVehicleUpgradeBonus(state, 'armor');
+    if (armorBonus > 0) {
+      fine = Math.floor(fine * (1 - armorBonus * 0.06));
+    }
     state.money -= fine;
     addPersonalHeat(state, -20);
     report.policeRaid = true;
@@ -806,6 +820,15 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6));
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
+    }
+    // Armor upgrade reduces incoming damage
+    const armorBonus = getVehicleUpgradeBonus(state, 'armor');
+    if (armorBonus > 0) {
+      const armorReduction = armorBonus * 0.06; // 6%/12%/24% at level 1/2/3 (cumulative bonuses 1/3/7)
+      enemyDamage = Math.floor(enemyDamage * (1 - armorReduction));
+      if (armorReduction >= 0.18) {
+        combat.logs.push(`Pantser absorbeert ${Math.round(armorReduction * 100)}% schade.`);
+      }
     }
     combat.playerHP = Math.max(0, combat.playerHP - enemyDamage);
     combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDamage} schade!`);
