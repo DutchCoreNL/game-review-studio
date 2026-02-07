@@ -281,6 +281,8 @@ export function endTurn(state: GameState): NightReportData {
     debtInterest: 0,
     labYield: 0,
     heatChange: 0,
+    vehicleHeatChange: 0,
+    personalHeatChange: 0,
     policeRaid: false,
     policeFine: 0,
     crewHealing: 0,
