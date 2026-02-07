@@ -16,6 +16,7 @@ export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
   const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
+  const [showChopShop, setShowChopShop] = useState(false);
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
@@ -44,6 +45,20 @@ export function MapView() {
     setConfirmEndTurn(false);
     dispatch({ type: 'END_TURN' });
   };
+
+  if (showChopShop) {
+    return (
+      <div>
+        <ChopShopView />
+        <button
+          onClick={() => setShowChopShop(false)}
+          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
+        >
+          ← TERUG NAAR KAART
+        </button>
+      </div>
+    );
+  }
 
   if (showCasino) {
     return (
@@ -124,6 +139,17 @@ export function MapView() {
             className={`px-4 ${state.weather === 'storm' ? 'opacity-50' : ''}`}
           >
             CASINO
+          </GameButton>
+        )}
+        {!isHiding && state.loc === 'iron' && (
+          <GameButton
+            variant="gold"
+            size="lg"
+            icon={<Wrench size={14} />}
+            onClick={() => setShowChopShop(true)}
+            className="px-4"
+          >
+            CHOP SHOP
           </GameButton>
         )}
       </div>
