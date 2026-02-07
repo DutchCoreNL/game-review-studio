@@ -286,6 +286,28 @@ export interface MapEvent {
   label: string;
 }
 
+export type EndgamePhase = 'straatdealer' | 'wijkbaas' | 'districtheerser' | 'onderwerelds_koning' | 'noxhaven_baas';
+
+export type VictoryRank = 'S' | 'A' | 'B' | 'C' | 'D';
+
+export interface VictoryData {
+  day: number;
+  rank: VictoryRank;
+  score: number;
+  totalEarned: number;
+  totalSpent: number;
+  missionsCompleted: number;
+  missionsFailed: number;
+  factionsConquered: number;
+  nemesisDefeated: number;
+  achievementsUnlocked: number;
+  casinoWon: number;
+  casinoLost: number;
+  districtsOwned: number;
+  crewSize: number;
+  method: string; // how they won (combat, diplomacy, mix)
+}
+
 export interface GameState {
   day: number;
   money: number;
@@ -338,4 +360,11 @@ export interface GameState {
   showPhone: boolean;
   pendingSpecChoice: { crewIndex: number; level: number } | null;
   casinoJackpot: number;
+
+  // ========== ENDGAME STATE ==========
+  endgamePhase: EndgamePhase;
+  victoryData: VictoryData | null;
+  newGamePlusLevel: number;
+  finalBossDefeated: boolean;
+  freePlayMode: boolean;
 }

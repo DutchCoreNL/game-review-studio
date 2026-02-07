@@ -1,12 +1,13 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS } from '@/game/constants';
+import { canTriggerFinalBoss, ENDGAME_PHASES } from '@/game/endgame';
 import { FamilyId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { motion } from 'framer-motion';
-import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown } from 'lucide-react';
+import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle } from 'lucide-react';
 
 export function CombatView() {
   const { state, dispatch, showToast } = useGame();
@@ -75,9 +76,16 @@ export function CombatView() {
       ) : (
         <div className="text-center">
           <div className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}>
-            {combat.won ? '🏆 OVERWINNING!' : '💀 VERSLAGEN'}
+            {combat.won
+              ? combat.targetName === 'Commissaris Decker' ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
+              : '💀 VERSLAGEN'}
           </div>
-          {combat.won && <p className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</p>}
+          {combat.won && combat.targetName === 'Commissaris Decker' && (
+            <p className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</p>
+          )}
+          {combat.won && combat.targetName !== 'Commissaris Decker' && (
+            <p className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</p>
+          )}
           <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
             DOORGAAN
           </GameButton>
@@ -158,6 +166,44 @@ function CombatMenu() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Final Boss Trigger */}
+      {canTriggerFinalBoss(state) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 game-card border-2 border-blood pulse-glow"
+        >
+          <div className="text-center">
+            <AlertTriangle size={24} className="text-blood mx-auto mb-2" />
+            <h3 className="font-display font-bold text-sm text-blood blood-text-glow tracking-wider mb-1">
+              ⚠️ OPERATIE GERECHTIGHEID ⚠️
+            </h3>
+            <p className="text-[0.55rem] text-muted-foreground mb-3">
+              Je hebt alle facties veroverd en je rivaal verslagen. Commissaris Decker van de NHPD komt persoonlijk
+              afrekenen. Dit is je laatste gevecht — versla hem om Noxhaven definitief te claimen.
+            </p>
+            <GameButton
+              variant="blood"
+              size="lg"
+              fullWidth
+              glow
+              icon={<Swords size={14} />}
+              onClick={() => dispatch({ type: 'START_FINAL_BOSS' })}
+            >
+              CONFRONTEER COMMISSARIS DECKER
+            </GameButton>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Free Play indicator */}
+      {state.freePlayMode && (
+        <div className="mt-4 game-card border-gold text-center">
+          <p className="text-xs text-gold font-bold font-display">🌆 VRIJ SPELEN MODUS</p>
+          <p className="text-[0.5rem] text-muted-foreground">Je hebt Noxhaven veroverd. Speel door zo lang je wilt.</p>
         </div>
       )}
     </div>

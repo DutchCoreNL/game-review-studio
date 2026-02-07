@@ -385,5 +385,11 @@ export function createInitialState(): import('./types').GameState {
     showPhone: false,
     pendingSpecChoice: null,
     casinoJackpot: 10000,
+    // Endgame state
+    endgamePhase: 'straatdealer',
+    victoryData: null,
+    newGamePlusLevel: 0,
+    finalBossDefeated: false,
+    freePlayMode: false,
   };
 }
