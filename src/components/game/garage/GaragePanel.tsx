@@ -3,6 +3,7 @@ import { VEHICLES, REKAT_COSTS } from '@/game/constants';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { VehicleUpgradePanel } from './VehicleUpgradePanel';
+import { VehiclePreview } from './VehiclePreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Wrench, Clock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
@@ -54,7 +55,15 @@ export function GaragePanel() {
         </div>
       </div>
 
-      {/* Vehicle info */}
+      {/* Vehicle Preview */}
+      <VehiclePreview
+        vehicleId={state.activeVehicle}
+        vehicleName={activeVehicle.name}
+        upgrades={activeObj.upgrades || {}}
+        heatLevel={heatLevel}
+      />
+
+      {/* Vehicle info bar */}
       <div className="flex items-center gap-2 mb-2 bg-background/50 rounded px-2.5 py-2 border border-border">
         <Car size={16} className={heatColors[heatLevel]} />
         <div className="flex-1">
