@@ -3,6 +3,7 @@ import { getEncounterText } from '@/game/missions';
 import { getPlayerStat } from '@/game/engine';
 import { DISTRICTS } from '@/game/constants';
 import { StatId } from '@/game/types';
+import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
 import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap } from 'lucide-react';
@@ -119,7 +120,7 @@ export function MissionEncounterView() {
           >
             <div className="game-card border-l-[3px] border-l-gold p-4 mb-5">
               <p className="text-sm text-foreground leading-relaxed font-light">
-                {text}
+                <TypewriterText text={text} speed={20} />
               </p>
             </div>
 

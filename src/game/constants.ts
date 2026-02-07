@@ -391,5 +391,11 @@ export function createInitialState(): import('./types').GameState {
     newGamePlusLevel: 0,
     finalBossDefeated: false,
     freePlayMode: false,
+    // Story & animation state
+    pendingStreetEvent: null,
+    streetEventResult: null,
+    screenEffect: null,
+    lastRewardAmount: 0,
+    crewPersonalities: {},
   };
 }

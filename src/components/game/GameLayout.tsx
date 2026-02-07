@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useCallback } from 'react';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
 import { MapView } from './MapView';
@@ -14,6 +15,8 @@ import { NightReport } from './NightReport';
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
 import { VictoryScreen } from './VictoryScreen';
+import { StoryEventPopup } from './StoryEventPopup';
+import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -25,37 +28,44 @@ const views: Record<string, React.ComponentType> = {
 };
 
 export function GameLayout() {
-  const { view, state } = useGame();
+  const { view, state, dispatch } = useGame();
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
+  const clearEffect = useCallback(() => {
+    dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
+  }, [dispatch]);
+
   return (
-    <div className="noise-overlay vignette flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
-      <GameHeader />
+    <ScreenEffects effect={state.screenEffect} onDone={clearEffect}>
+      <div className="noise-overlay vignette flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
+        <GameHeader />
 
-      <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={state.activeCombat ? 'combat' : view}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-          >
-            <ViewComponent />
-          </motion.div>
-        </AnimatePresence>
-      </main>
+        <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={state.activeCombat ? 'combat' : view}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ViewComponent />
+            </motion.div>
+          </AnimatePresence>
+        </main>
 
-      <GameNav />
-      <GameToast />
+        <GameNav />
+        <GameToast />
 
-      {!state.tutorialDone && <TutorialOverlay />}
-      {state.nightReport && <NightReport />}
-      {state.activeMission && <MissionEncounterView />}
-      {state.showPhone && <PhoneOverlay />}
-      {state.pendingSpecChoice && <CrewSpecPopup />}
-      {state.victoryData && <VictoryScreen />}
-    </div>
+        {!state.tutorialDone && <TutorialOverlay />}
+        {state.nightReport && <NightReport />}
+        {state.activeMission && <MissionEncounterView />}
+        {state.showPhone && <PhoneOverlay />}
+        {state.pendingSpecChoice && <CrewSpecPopup />}
+        {state.victoryData && <VictoryScreen />}
+        {state.pendingStreetEvent && <StoryEventPopup />}
+      </div>
+    </ScreenEffects>
   );
 }

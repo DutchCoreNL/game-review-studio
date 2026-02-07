@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute } from '../game/types';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage } from '../game/endgame';
+import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 
 interface GameContextType {
   state: GameState;
@@ -80,6 +81,9 @@ type GameAction =
   | { type: 'RESOLVE_FINAL_BOSS' }
   | { type: 'NEW_GAME_PLUS' }
   | { type: 'FREE_PLAY' }
+  | { type: 'RESOLVE_STREET_EVENT'; choiceId: string }
+  | { type: 'DISMISS_STREET_EVENT' }
+  | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -110,10 +114,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
       if (activeV && activeV.speed >= 4) travelHeat = Math.floor(travelHeat * 0.5);
-      // Phantom spec reduces heat
       if (s.crew.some(c => c.specialization === 'phantom')) travelHeat = Math.max(0, travelHeat - 1);
       s.heat += travelHeat;
       s.loc = action.to;
+      // Roll for street event
+      const travelEvent = rollStreetEvent(s, 'travel');
+      if (travelEvent) {
+        s.pendingStreetEvent = travelEvent;
+        s.streetEventResult = null;
+      }
       return s;
     }
 
@@ -132,9 +141,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.debt > 250000) return s;
       Engine.endTurn(s);
       Engine.checkAchievements(s);
-      // Check endgame phase progression
       const oldPhase = s.endgamePhase;
       s.endgamePhase = calculateEndgamePhase(s);
+      // Roll for street event
+      const endTurnEvent = rollStreetEvent(s, 'end_turn');
+      if (endTurnEvent) {
+        s.pendingStreetEvent = endTurnEvent;
+        s.streetEventResult = null;
+      }
       return s;
     }
 
@@ -300,6 +314,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.performSoloOp(s, action.opId);
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
+      // Roll for street event
+      const soloEvent = rollStreetEvent(s, 'solo_op');
+      if (soloEvent) {
+        s.pendingStreetEvent = soloEvent;
+        s.streetEventResult = null;
+      }
       return s;
     }
 
@@ -607,6 +627,53 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'RESOLVE_STREET_EVENT': {
+      if (!s.pendingStreetEvent) return s;
+      const result = resolveStreetChoice(s, s.pendingStreetEvent, action.choiceId);
+      // Apply effects
+      if (result.success) {
+        s.money += result.effects.money;
+        s.dirtyMoney += result.effects.dirtyMoney;
+        s.heat = Math.max(0, s.heat + result.effects.heat);
+        s.rep += result.effects.rep;
+        if (result.effects.money > 0) s.stats.totalEarned += result.effects.money;
+        if (result.effects.dirtyMoney > 0) s.stats.totalEarned += result.effects.dirtyMoney;
+        if (result.effects.crewDamage > 0 && s.crew.length > 0) {
+          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
+          target.hp = Math.max(1, target.hp - result.effects.crewDamage);
+        }
+        // Set screen effect
+        if (result.effects.money > 2000 || result.effects.dirtyMoney > 3000) {
+          s.screenEffect = 'gold-flash';
+          s.lastRewardAmount = result.effects.money + result.effects.dirtyMoney;
+        }
+      } else {
+        s.money += result.effects.money; // negative on fail
+        s.heat = Math.max(0, s.heat + result.effects.heat);
+        s.rep += result.effects.rep;
+        if (result.effects.crewDamage > 0 && s.crew.length > 0) {
+          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
+          target.hp = Math.max(1, target.hp - result.effects.crewDamage);
+        }
+        if (result.effects.crewDamage > 10) {
+          s.screenEffect = 'blood-flash';
+        }
+      }
+      s.streetEventResult = { success: result.success, text: result.text };
+      return s;
+    }
+
+    case 'DISMISS_STREET_EVENT': {
+      s.pendingStreetEvent = null;
+      s.streetEventResult = null;
+      return s;
+    }
+
+    case 'SET_SCREEN_EFFECT': {
+      s.screenEffect = action.effect;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -667,6 +734,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.newGamePlusLevel === undefined) saved.newGamePlusLevel = 0;
       if (saved.finalBossDefeated === undefined) saved.finalBossDefeated = false;
       if (saved.freePlayMode === undefined) saved.freePlayMode = false;
+      // Story & animation migrations
+      if (saved.pendingStreetEvent === undefined) saved.pendingStreetEvent = null;
+      if (saved.streetEventResult === undefined) saved.streetEventResult = null;
+      if (saved.screenEffect === undefined) saved.screenEffect = null;
+      if (saved.lastRewardAmount === undefined) saved.lastRewardAmount = 0;
+      if (!saved.crewPersonalities) saved.crewPersonalities = {};
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
