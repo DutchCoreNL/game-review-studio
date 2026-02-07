@@ -1,13 +1,14 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS } from '@/game/constants';
-import { canTriggerFinalBoss, ENDGAME_PHASES } from '@/game/endgame';
+import { canTriggerFinalBoss } from '@/game/endgame';
 import { FamilyId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 export function CombatView() {
   const { state, dispatch, showToast } = useGame();
@@ -23,22 +24,22 @@ export function CombatView() {
     <div>
       <SectionHeader title="GEVECHT" icon={<Swords size={12} />} />
 
-      {/* HP Bars */}
+      {/* HP Bars with damage flash */}
       <div className="space-y-3 mb-5">
-        <div>
-          <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
-            <span className="font-bold text-foreground">Jij</span>
-            <span>{combat.playerHP}/{combat.playerMaxHP}</span>
-          </div>
-          <StatBar value={combat.playerHP} max={combat.playerMaxHP} color="emerald" height="lg" />
-        </div>
-        <div>
-          <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
-            <span className="font-bold text-foreground">{combat.targetName}</span>
-            <span>{combat.targetHP}/{combat.enemyMaxHP}</span>
-          </div>
-          <StatBar value={combat.targetHP} max={combat.enemyMaxHP} color="blood" height="lg" />
-        </div>
+        <AnimatedHPBar
+          label="Jij"
+          current={combat.playerHP}
+          max={combat.playerMaxHP}
+          color="emerald"
+          flashColor="blood"
+        />
+        <AnimatedHPBar
+          label={combat.targetName}
+          current={combat.targetHP}
+          max={combat.enemyMaxHP}
+          color="blood"
+          flashColor="gold"
+        />
       </div>
 
       {/* Combat Log */}
@@ -74,26 +75,90 @@ export function CombatView() {
             onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })} variant="purple" />
         </div>
       ) : (
-        <div className="text-center">
-          <div className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200 }}
+          className="text-center"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+            className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}
+          >
             {combat.won
               ? combat.targetName === 'Commissaris Decker' ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
               : '💀 VERSLAGEN'}
-          </div>
+          </motion.div>
           {combat.won && combat.targetName === 'Commissaris Decker' && (
-            <p className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</motion.p>
           )}
           {combat.won && combat.targetName !== 'Commissaris Decker' && (
-            <p className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</motion.p>
           )}
           <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
             DOORGAAN
           </GameButton>
-        </div>
+        </motion.div>
       )}
     </div>
   );
 }
+
+// ========== Animated HP Bar ==========
+
+function AnimatedHPBar({ label, current, max, color, flashColor }: {
+  label: string; current: number; max: number; color: 'blood' | 'gold' | 'emerald' | 'purple' | 'ice' | 'auto'; flashColor: string;
+}) {
+  const [flash, setFlash] = useState(false);
+  const prevHP = useRef(current);
+
+  useEffect(() => {
+    if (current < prevHP.current) {
+      setFlash(true);
+      const t = setTimeout(() => setFlash(false), 300);
+      prevHP.current = current;
+      return () => clearTimeout(t);
+    }
+    prevHP.current = current;
+  }, [current]);
+
+  return (
+    <motion.div animate={flash ? { x: [-2, 2, -2, 2, 0] } : {}} transition={{ duration: 0.3 }}>
+      <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
+        <span className="font-bold text-foreground">{label}</span>
+        <motion.span
+          key={current}
+          initial={{ scale: 1.3, color: `hsl(var(--${flashColor}))` }}
+          animate={{ scale: 1, color: 'hsl(var(--muted-foreground))' }}
+          transition={{ duration: 0.4 }}
+        >
+          {current}/{max}
+        </motion.span>
+      </div>
+      <div className="relative">
+        <StatBar value={current} max={max} color={color} height="lg" />
+        <AnimatePresence>
+          {flash && (
+            <motion.div
+              initial={{ opacity: 0.8 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 rounded"
+              style={{ background: `hsl(var(--${flashColor}) / 0.4)` }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+// ========== Combat Menu (unchanged logic) ==========
 
 function CombatMenu() {
   const { state, dispatch, showToast } = useGame();
@@ -210,9 +275,13 @@ function CombatMenu() {
   );
 }
 
+// ========== Combat Action Button ==========
+
 function CombatAction({ icon, label, sub, onClick, variant }: {
   icon: React.ReactNode; label: string; sub: string; onClick: () => void; variant: string;
 }) {
+  const [impactPulse, setImpactPulse] = useState(false);
+
   const styles: Record<string, string> = {
     blood: 'bg-blood text-primary-foreground',
     gold: 'bg-gold/15 border border-gold text-gold',
@@ -220,10 +289,31 @@ function CombatAction({ icon, label, sub, onClick, variant }: {
     purple: 'bg-game-purple/15 border border-game-purple text-game-purple',
   };
 
+  const handleClick = () => {
+    setImpactPulse(true);
+    setTimeout(() => setImpactPulse(false), 200);
+    onClick();
+  };
+
   return (
-    <motion.button onClick={onClick}
-      className={`py-3 rounded ${styles[variant] || styles.muted} font-bold text-xs flex flex-col items-center gap-0.5`}
-      whileTap={{ scale: 0.95 }}>
+    <motion.button
+      onClick={handleClick}
+      className={`py-3 rounded ${styles[variant] || styles.muted} font-bold text-xs flex flex-col items-center gap-0.5 relative overflow-hidden`}
+      whileTap={{ scale: 0.92 }}
+    >
+      {/* Impact ripple effect */}
+      <AnimatePresence>
+        {impactPulse && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0.5 }}
+            animate={{ scale: 2.5, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 rounded-full bg-white/20"
+            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%' }}
+          />
+        )}
+      </AnimatePresence>
       {icon}
       <span>{label}</span>
       <span className="text-[0.45rem] font-normal opacity-70">{sub}</span>

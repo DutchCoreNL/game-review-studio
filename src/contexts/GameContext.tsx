@@ -424,11 +424,31 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'COMBAT_ACTION': {
       if (!s.activeCombat) return s;
+      const hpBefore = s.activeCombat.playerHP;
+      const enemyHpBefore = s.activeCombat.targetHP;
       Engine.combatAction(s, action.action);
       Engine.checkAchievements(s);
+
+      // Trigger screen effects based on combat outcome
+      if (s.activeCombat) {
+        const playerTookDamage = s.activeCombat.playerHP < hpBefore;
+        const dealtHeavyDamage = (enemyHpBefore - s.activeCombat.targetHP) > 15;
+        const enemyDefeated = s.activeCombat.finished && s.activeCombat.won;
+        const playerDefeated = s.activeCombat.finished && !s.activeCombat.won;
+
+        if (enemyDefeated) {
+          s.screenEffect = 'gold-flash';
+        } else if (playerDefeated) {
+          s.screenEffect = 'blood-flash';
+        } else if (action.action === 'heavy' && dealtHeavyDamage) {
+          s.screenEffect = 'shake';
+        } else if (playerTookDamage && (hpBefore - s.activeCombat.playerHP) > 10) {
+          s.screenEffect = 'blood-flash';
+        }
+      }
+
       // Check if this was the final boss combat and it was won
       if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.targetName === 'Commissaris Decker') {
-        // Will be resolved when END_COMBAT is dispatched
         (s as any)._finalBossWon = true;
       }
       // Update endgame phase after combat
