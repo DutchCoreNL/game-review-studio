@@ -157,11 +157,19 @@ export interface CrewMember {
   specialization: string | null;
 }
 
+export type VehicleUpgradeType = 'armor' | 'speed' | 'storage';
+
+export interface VehicleUpgradeLevel {
+  type: VehicleUpgradeType;
+  level: number; // 0-3
+}
+
 export interface OwnedVehicle {
   id: string;
   condition: number;
   vehicleHeat: number;
   rekatCooldown: number;
+  upgrades?: Partial<Record<VehicleUpgradeType, number>>; // level per upgrade type
 }
 
 export interface ActiveContract {

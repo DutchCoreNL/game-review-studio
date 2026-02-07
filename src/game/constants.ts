@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -93,6 +93,44 @@ export const REKAT_COSTS: Record<string, number> = {
   meridiolux: 10000,
   lupoghini: 12000,
   royaleryce: 15000,
+};
+
+export const VEHICLE_UPGRADES: Record<VehicleUpgradeType, {
+  name: string;
+  icon: string;
+  maxLevel: number;
+  costs: number[];
+  bonuses: number[];
+  desc: string;
+  unit: string;
+}> = {
+  armor: {
+    name: 'Pantser',
+    icon: '🛡️',
+    maxLevel: 3,
+    costs: [3000, 8000, 18000],
+    bonuses: [1, 2, 4],
+    desc: 'Vermindert schade bij checkpoints en combat.',
+    unit: 'armor',
+  },
+  speed: {
+    name: 'Motor',
+    icon: '⚡',
+    maxLevel: 3,
+    costs: [4000, 10000, 22000],
+    bonuses: [1, 2, 3],
+    desc: 'Verlaagt reiskosten en heat bij transport.',
+    unit: 'speed',
+  },
+  storage: {
+    name: 'Opslag',
+    icon: '📦',
+    maxLevel: 3,
+    costs: [2500, 7000, 15000],
+    bonuses: [3, 5, 8],
+    desc: 'Meer bagage-ruimte voor handel.',
+    unit: 'slots',
+  },
 };
 
 export const COMBAT_ENVIRONMENTS: Record<string, { name: string; actionName: string; desc: string; log: string; type: string }> = {

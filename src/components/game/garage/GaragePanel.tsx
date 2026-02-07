@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, REKAT_COSTS } from '@/game/constants';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
+import { VehicleUpgradePanel } from './VehicleUpgradePanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Wrench, Clock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
@@ -215,6 +216,12 @@ export function GaragePanel() {
           Te weinig geld (€{cost.toLocaleString()} nodig)
         </p>
       )}
+
+      {/* Separator */}
+      <div className="border-t border-border my-3" />
+
+      {/* Vehicle Upgrades */}
+      <VehicleUpgradePanel />
     </div>
   );
 }
