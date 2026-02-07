@@ -385,4 +385,10 @@ export interface GameState {
   screenEffect: ScreenEffectType;
   lastRewardAmount: number;
   crewPersonalities: Record<number, PersonalityTrait>;
+
+  // ========== STORY ARCS STATE ==========
+  activeStoryArcs: import('../game/storyArcs').ActiveStoryArc[];
+  completedArcs: string[];
+  pendingArcEvent: { arcId: string; stepIndex: number } | null;
+  arcEventResult: { success: boolean; text: string } | null;
 }

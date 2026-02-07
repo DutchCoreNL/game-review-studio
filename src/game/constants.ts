@@ -397,5 +397,10 @@ export function createInitialState(): import('./types').GameState {
     screenEffect: null,
     lastRewardAmount: 0,
     crewPersonalities: {},
+    // Story arcs state
+    activeStoryArcs: [],
+    completedArcs: [],
+    pendingArcEvent: null,
+    arcEventResult: null,
   };
 }
