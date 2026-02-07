@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -89,6 +89,7 @@ type GameAction =
   | { type: 'DISMISS_ARC_EVENT' }
   // Heat 2.0 actions
   | { type: 'REKAT_VEHICLE'; vehicleId: string }
+  | { type: 'UPGRADE_VEHICLE'; vehicleId: string; upgradeType: VehicleUpgradeType }
   | { type: 'GO_INTO_HIDING'; days: number }
   | { type: 'CANCEL_HIDING' }
   | { type: 'RESET' };
@@ -134,7 +135,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (cost > 0) s.stats.totalSpent += cost;
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
-      if (activeV && activeV.speed >= 4) travelHeat = Math.floor(travelHeat * 0.5);
+      const speedBonus = Engine.getVehicleUpgradeBonus(s, 'speed');
+      if (activeV && (activeV.speed + speedBonus) >= 4) travelHeat = Math.floor(travelHeat * 0.5);
       if (s.crew.some(c => c.specialization === 'phantom')) travelHeat = Math.max(0, travelHeat - 1);
       // Heat 2.0: travel heat goes to vehicle
       Engine.addVehicleHeat(s, travelHeat);
@@ -802,6 +804,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'UPGRADE_VEHICLE': {
+      const vehicle = s.ownedVehicles.find(v => v.id === action.vehicleId);
+      if (!vehicle) return s;
+      const upgradeDef = VEHICLE_UPGRADES[action.upgradeType];
+      if (!upgradeDef) return s;
+      if (!vehicle.upgrades) vehicle.upgrades = {};
+      const currentLevel = vehicle.upgrades[action.upgradeType] || 0;
+      if (currentLevel >= upgradeDef.maxLevel) return s;
+      const cost = upgradeDef.costs[currentLevel];
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      vehicle.upgrades[action.upgradeType] = currentLevel + 1;
+      s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
     case 'GO_INTO_HIDING': {
       if ((s.hidingDays || 0) > 0) return s; // Already hiding
       const days = Math.max(1, Math.min(3, action.days));
@@ -883,6 +902,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       saved.ownedVehicles?.forEach((v: any) => {
         if (v.vehicleHeat === undefined) v.vehicleHeat = 0;
         if (v.rekatCooldown === undefined) v.rekatCooldown = 0;
+        if (v.upgrades === undefined) v.upgrades = {};
       });
       // Endgame migrations
       if (!saved.endgamePhase) saved.endgamePhase = calculateEndgamePhase(saved);

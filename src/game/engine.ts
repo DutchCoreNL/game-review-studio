@@ -58,10 +58,26 @@ export function recalcMaxInv(state: GameState): number {
   let inv = 15;
   const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
   if (activeV) inv = activeV.storage;
+  // Vehicle storage upgrades
+  const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  if (activeObj?.upgrades?.storage) {
+    const storageUpgrades = [3, 5, 8];
+    const totalBonus = storageUpgrades.slice(0, activeObj.upgrades.storage).reduce((a, b) => a + b, 0);
+    inv += totalBonus;
+  }
   if (state.hqUpgrades.includes('garage')) inv += 10;
   if (state.ownedDistricts.includes('port')) inv = Math.floor(inv * 1.1);
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
   return inv;
+}
+
+// ========== VEHICLE UPGRADE HELPERS ==========
+
+export function getVehicleUpgradeBonus(state: GameState, type: 'armor' | 'speed' | 'storage'): number {
+  const v = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  if (!v?.upgrades?.[type]) return 0;
+  const bonusTable = { armor: [1, 2, 4], speed: [1, 2, 3], storage: [3, 5, 8] };
+  return bonusTable[type].slice(0, v.upgrades[type]!).reduce((a, b) => a + b, 0);
 }
 
 // ========== HEAT 2.0 HELPERS ==========
