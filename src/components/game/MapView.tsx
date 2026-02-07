@@ -92,6 +92,8 @@ export function MapView() {
           nemesis={state.nemesis}
           travelAnim={travelAnim}
           onSelectDistrict={selectDistrict}
+          smuggleRoutes={state.smuggleRoutes || []}
+          districtRep={state.districtRep}
         />
       </div>
 
