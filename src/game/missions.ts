@@ -1,8 +1,8 @@
-import { MissionEncounter, MissionChoice, ActiveMission, GameState, DistrictId, StatId } from './types';
+import { MissionEncounter, MissionChoice, ActiveMission, GameState, DistrictId, StatId, WeatherType } from './types';
 import { SOLO_OPERATIONS, DISTRICTS } from './constants';
 import { getPlayerStat } from './engine';
 
-// ========== ENCOUNTER DATABASE ==========
+// ========== ENCOUNTER DATABASE — SOLO ==========
 
 const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   pickpocket: [
@@ -57,6 +57,54 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW encounter — negotiation with a fence
+    {
+      id: 'pp_3',
+      text: 'Een heler in een achterafgelegen kroeg biedt je aan om de buit op te kopen. Maar zijn prijs is laag.',
+      districtVariants: {
+        crown: 'De heler is een galeriehouder die "speciale stukken" verkoopt aan rijke verzamelaars.',
+        neon: 'De barman van de Velvet Room fluistert: "Ik ken iemand die dat wil hebben."',
+        low: 'Een oude vrouw in een rommelwinkel bekijkt je buit met een loep. "Ik geef je de helft."',
+      },
+      choices: [
+        {
+          id: 'pp_3a', label: 'ONDERHANDELEN', stat: 'charm', difficulty: 35,
+          outcomes: { success: 'Je praat de prijs omhoog. De heler grijnst — hij respecteert je lef.', partial: 'Hij geeft iets meer, maar niet wat het waard is. Beter dan niets.', fail: 'Hij trekt zijn aanbod in. "Te veel gedoe. Ga maar weg."' },
+          effects: { heat: 0, relChange: 2, crewDamage: 0, bonusReward: 120 },
+        },
+        {
+          id: 'pp_3b', label: 'ZELF VERKOPEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'Je vindt online een koper die het dubbele betaalt. Slim.', partial: 'De deal duurt langer maar je krijgt een redelijke prijs.', fail: 'De koper is een undercover agent. Je dumpt alles en rent.' },
+          effects: { heat: 4, relChange: 0, crewDamage: 0, bonusReward: 200 },
+        },
+        {
+          id: 'pp_3c', label: 'DREIGEN', stat: 'muscle', difficulty: 30,
+          outcomes: { success: '"Betaal wat het waard is, of ik zoek een andere heler — en vertel iedereen over jou."', partial: 'Hij betaalt meer uit angst, maar je hebt een vijand gemaakt.', fail: 'Hij trekt een mes onder de toonbank. "Wegwezen."' },
+          effects: { heat: 3, relChange: -3, crewDamage: 5, bonusReward: 150 },
+        },
+      ],
+    },
+    // NEW encounter — unexpected twist
+    {
+      id: 'pp_4',
+      text: 'In de gestolen portemonnee vind je een briefje: "Ontmoet me bij de brug. Middernacht. Breng het pakket." Er zit een sleutel bij.',
+      districtVariants: {
+        port: 'De sleutel past op een kluisje in het havenkantoor. Wat zit erin?',
+        iron: 'Het briefje verwijst naar een verlaten fabriek. Een val of een kans?',
+      },
+      choices: [
+        {
+          id: 'pp_4a', label: 'ONDERZOEKEN', stat: 'brains', difficulty: 45,
+          outcomes: { success: 'Het kluisje bevat documenten die duizenden waard zijn op de zwarte markt.', partial: 'Je vindt het kluisje maar het alarm gaat af. Je grijpt wat je kunt.', fail: 'Het is een val van de politie. Je ontsnapt maar net.' },
+          effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 300 },
+        },
+        {
+          id: 'pp_4b', label: 'NEGEREN', stat: 'charm', difficulty: 15,
+          outcomes: { success: 'Je gooit het briefje weg. Niet jouw probleem. Veilige keuze.', partial: 'Je aarzelt maar besluit het te laten. Toch blijft het knagen.', fail: 'Je aarzeling trekt aandacht. Iemand heeft je de sleutel zien pakken.' },
+          effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 0 },
+        },
+      ],
+    },
   ],
 
   atm_skimming: [
@@ -103,6 +151,32 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
           id: 'atm_2b', label: 'SKIMMER SNEL VERWIJDEREN', stat: 'brains', difficulty: 40,
           outcomes: { success: 'Je verwijdert de skimmer in seconden en loopt weg met alle data. Perfect.', partial: 'Je haalt de skimmer eruit maar verliest een deel van de data.', fail: 'De skimmer zit vast. Je trekt te hard en de ATM piept alarm.' },
           effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 300 },
+        },
+      ],
+    },
+    // NEW — rival hacker encounter
+    {
+      id: 'atm_3',
+      text: 'Als je de data bekijkt, merk je dat iemand anders ook aan het skimmen is — dezelfde ATM, andere frequentie.',
+      districtVariants: {
+        neon: 'De rivaal is een bekende hacker van de Neon Strip. Hij weet wie je bent.',
+        iron: 'Het signaal komt uit een busje aan de overkant. Iron Skulls-logo op de zijkant.',
+      },
+      choices: [
+        {
+          id: 'atm_3a', label: 'SIGNAAL KAPEN', stat: 'brains', difficulty: 50,
+          outcomes: { success: 'Je kapt zijn signaal en steelt ook zijn data. Dubbele buit!', partial: 'Je blokkeert zijn signaal maar hij merkt het. Hij is boos maar machteloos.', fail: 'Hij is beter dan jij. Hij kapt jouw data en verdwijnt.' },
+          effects: { heat: 3, relChange: -2, crewDamage: 0, bonusReward: 400 },
+        },
+        {
+          id: 'atm_3b', label: 'SAMENWERKEN', stat: 'charm', difficulty: 35,
+          outcomes: { success: '"We splitsen de opbrengst. Geen gedoe." Hij stemt in. Nieuwe contactpersoon.', partial: 'Hij is wantrouwig maar gaat akkoord. Beperkte samenwerking.', fail: 'Hij vertrouwt niemand. Hij pakt zijn spullen en vertrekt — met jouw skimmer.' },
+          effects: { heat: 0, relChange: 3, crewDamage: 0, bonusReward: 200 },
+        },
+        {
+          id: 'atm_3c', label: 'CONFRONTEREN', stat: 'muscle', difficulty: 30,
+          outcomes: { success: 'Je loopt naar het busje en klopt op het raam. "Dit is mijn plek." Hij rijdt weg.', partial: 'Hij schreeuwt maar maakt zich uit de voeten. Wel wat tumult.', fail: 'Hij heeft een taser. Je ligt op de grond voordat je het weet.' },
+          effects: { heat: 5, relChange: -3, crewDamage: 8, bonusReward: 100 },
         },
       ],
     },
@@ -164,6 +238,58 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW — betrayal encounter
+    {
+      id: 'ct_3',
+      text: 'De auto is afgeleverd bij de heler, maar hij zegt dat de eigenaar een bounty op je hoofd heeft gezet. Iemand heeft gepraat.',
+      districtVariants: {
+        iron: 'De Iron Skulls beweren dat de auto van hen was. Ze willen gecompenseerd worden.',
+        crown: 'De eigenaar is een politicus. Hij heeft privédetectives ingehuurd om je te vinden.',
+      },
+      choices: [
+        {
+          id: 'ct_3a', label: 'HET LIJK VERBERGEN', stat: 'brains', difficulty: 45,
+          outcomes: { success: 'Je wist alle sporen. De auto was nooit gestolen. Forensisch schoon.', partial: 'De meeste sporen zijn weg, maar er is nog een getuige.', fail: 'De politie heeft al DNA-materiaal. Te laat.' },
+          effects: { heat: -5, relChange: 0, crewDamage: 0, bonusReward: 100 },
+        },
+        {
+          id: 'ct_3b', label: 'DE VERRADER VINDEN', stat: 'muscle', difficulty: 40,
+          outcomes: { success: 'Je vindt degene die heeft gepraat. Na een "gesprek" zal hij zwijgen.', partial: 'Je vindt hem maar hij is al gevlucht. Tenminste weet je wie het was.', fail: 'Het was een val. De verrader had backup.' },
+          effects: { heat: 8, relChange: -5, crewDamage: 10, bonusReward: 0 },
+        },
+        {
+          id: 'ct_3c', label: 'DEAL SLUITEN', stat: 'charm', difficulty: 35,
+          outcomes: { success: 'Je biedt de eigenaar een deel van de opbrengst aan. Hij trekt de bounty in.', partial: 'Hij wil meer dan verwacht, maar uiteindelijk bereiken jullie een akkoord.', fail: 'Hij wil alles terug plus schadevergoeding. Geen deal.' },
+          effects: { heat: -3, relChange: 2, crewDamage: 0, bonusReward: -100 },
+        },
+      ],
+    },
+    // NEW — chase encounter
+    {
+      id: 'ct_4',
+      text: 'Een rivaliserende autodief heeft dezelfde auto op het oog. Jullie staan oog in oog op de parkeerplaats.',
+      districtVariants: {
+        neon: 'Het is een bekende racer van de Strip. Hij daagt je uit: wie eerst bij de auto is.',
+        port: 'Een havenrat met een sloophammer loopt op de auto af. Hij wil hem strippen.',
+      },
+      choices: [
+        {
+          id: 'ct_4a', label: 'RACE ERNAARTOE', stat: 'muscle', difficulty: 35,
+          outcomes: { success: 'Je bent sneller. De sleutel is in je hand voor hij halverwege is.', partial: 'Jullie komen tegelijk aan. Een kort gevecht, maar jij wint.', fail: 'Hij is sneller en groter. De auto is van hem.' },
+          effects: { heat: 5, relChange: 0, crewDamage: 5, bonusReward: 150 },
+        },
+        {
+          id: 'ct_4b', label: 'SLIM SPELEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'Je hebt het alarm al uitgeschakeld terwijl hij nog staat te kijken. De auto start.', partial: 'Je hackt het slot maar hij probeert in te stappen. Je rijdt weg met een open deur.', fail: 'Je techniek faalt onder druk. Hij lacht en rijdt weg.' },
+          effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 300 },
+        },
+        {
+          id: 'ct_4c', label: 'ONDERHANDELEN', stat: 'charm', difficulty: 30,
+          outcomes: { success: '"Er zijn genoeg auto\'s. Neem jij de Audi, ik neem de BMW." Deal.', partial: 'Hij wil een percentage. Minder winst, maar geen problemen.', fail: 'Hij vertrouwt je niet. Het escaleert.' },
+          effects: { heat: 0, relChange: 3, crewDamage: 0, bonusReward: 50 },
+        },
+      ],
+    },
   ],
 
   store_robbery: [
@@ -215,6 +341,32 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW — hostage negotiation encounter
+    {
+      id: 'sr_3',
+      text: 'De bewaker heeft de noodknop ingedrukt. De politie is onderweg. Een klant begint te schreeuwen. Dit escaleert snel.',
+      districtVariants: {
+        crown: 'De klant is de vrouw van een raadslid. Dit kan diplomatiek interessant zijn — of een nachtmerrie.',
+        neon: 'De paniek trekt een menigte. Camera\'s flitsen. Je bent live op sociale media.',
+      },
+      choices: [
+        {
+          id: 'sr_3a', label: 'GIJZELINGSSITUATIE', stat: 'muscle', difficulty: 55,
+          outcomes: { success: 'Je neemt de controle. De politie durft niet binnen te komen. Je dicteert de voorwaarden.', partial: 'De situatie stabiliseert maar de spanning is om te snijden. Je hebt weinig tijd.', fail: 'De SWAT-eenheid is sneller dan verwacht. Ze stormen binnen.' },
+          effects: { heat: 20, relChange: -5, crewDamage: 15, bonusReward: 600 },
+        },
+        {
+          id: 'sr_3b', label: 'IEDEREEN KALMEREN', stat: 'charm', difficulty: 45,
+          outcomes: { success: '"Luister, niemand hoeft gewond te raken. Jullie laten mij gaan, en dat is het." Ze gehoorzamen.', partial: 'De klant kalmeert maar de bewaker is nog steeds een probleem.', fail: 'De paniek escaleert. Iemand probeert je wapen af te pakken.' },
+          effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 300 },
+        },
+        {
+          id: 'sr_3c', label: 'ROOKBOM GOOIEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'De rook vult de winkel. In de chaos glijp je naar buiten met de buit.', partial: 'De rook werkt maar je botst tegen een vitrine. Minder buit.', fail: 'De rookbom ontploft niet. Iedereen staart je aan.' },
+          effects: { heat: 10, relChange: 0, crewDamage: 0, bonusReward: 400 },
+        },
+      ],
+    },
   ],
 
   crypto_heist: [
@@ -262,8 +414,62 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW — insider betrayal
+    {
+      id: 'ch_3',
+      text: 'Je insider-contact stuurt een bericht: "Plans zijn veranderd. Er is een extra beveiligingslaag. Ik wil meer geld."',
+      districtVariants: {
+        crown: 'De insider werkt voor de CFO. Hij kan het hele systeem platleggen — voor de juiste prijs.',
+        neon: 'Je contact blijkt voor twee partijen te werken. Hij verkoopt info aan de hoogste bieder.',
+      },
+      choices: [
+        {
+          id: 'ch_3a', label: 'EXTRA BETALEN', stat: 'charm', difficulty: 40,
+          outcomes: { success: 'Het extra geld overtuigt hem. Hij schakelt de beveiliging uit. Doorgang vrij.', partial: 'Hij wil meer, maar uiteindelijk geeft hij je gedeeltelijke toegang.', fail: 'Hij neemt het geld en verdwijnt. Geen informatie, geen toegang.' },
+          effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 1500 },
+        },
+        {
+          id: 'ch_3b', label: 'DREIGEN', stat: 'muscle', difficulty: 45,
+          outcomes: { success: '"Ik weet waar je woont. Doe wat je moet doen." Hij gehoorzaamt trillend.', partial: 'Hij doet het, maar je weet dat hij je gaat verraden zodra het kan.', fail: 'Hij belt de beveiliging. "Er is een indringer."' },
+          effects: { heat: 5, relChange: -5, crewDamage: 5, bonusReward: 2000 },
+        },
+        {
+          id: 'ch_3c', label: 'ZELF HACKEN', stat: 'brains', difficulty: 55,
+          outcomes: { success: 'Wie heeft hem nodig? Je kraakt de extra laag zelf. Pure vaardigheid.', partial: 'Het kost je meer tijd maar je komt erdoor. Net op tijd.', fail: 'De extra beveiliging is te complex. Zonder de insider kom je er niet in.' },
+          effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 2500 },
+        },
+      ],
+    },
+    // NEW — post-heist chase
+    {
+      id: 'ch_4',
+      text: 'De crypto is overgemaakt maar het gebouw gaat in lockdown. Alle deuren sluiten. Er zijn 60 seconden tot de politie arriveert.',
+      districtVariants: {
+        crown: 'Het penthouse heeft een helikopterplatform op het dak. Als je daar komt...',
+        neon: 'De nooduitgang leidt naar de dansvloer van de club. Verdwijn in de menigte.',
+      },
+      choices: [
+        {
+          id: 'ch_4a', label: 'VENTILATIESCHACHT', stat: 'brains', difficulty: 45,
+          outcomes: { success: 'Je kruipt door de ventilatie naar het dak. Vrije val naar de brandtrap. Vrij.', partial: 'De schacht is smaller dan verwacht. Je komt erdoor maar bent geschaafd.', fail: 'Je zit vast in de schacht. De beveiliging vindt je.' },
+          effects: { heat: 0, relChange: 0, crewDamage: 3, bonusReward: 500 },
+        },
+        {
+          id: 'ch_4b', label: 'DEUR FORCEREN', stat: 'muscle', difficulty: 50,
+          outcomes: { success: 'De deur geeft mee na drie schoppen. Je rent de straat op en verdwijnt.', partial: 'De deur buigt maar breekt niet helemaal. Je wurmt je erdoor.', fail: 'De deur is versterkt staal. Je voet doet pijn en je zit nog steeds vast.' },
+          effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 0 },
+        },
+        {
+          id: 'ch_4c', label: 'BLUF JE ERUIT', stat: 'charm', difficulty: 40,
+          outcomes: { success: '"Ik ben van IT! Er was een beveiligingslek, ik heb het gefixt." Ze laten je gaan.', partial: 'Ze geloven je half. Een escorte naar de uitgang — ongemakkelijk maar je bent vrij.', fail: '"Laat je ID zien." Je hebt geen ID. De handboelen klikken.' },
+          effects: { heat: -3, relChange: 0, crewDamage: 0, bonusReward: 300 },
+        },
+      ],
+    },
   ],
 };
+
+// ========== ENCOUNTER DATABASE — CONTRACTS ==========
 
 const CONTRACT_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   delivery: [
@@ -290,6 +496,59 @@ const CONTRACT_ENCOUNTERS: Record<string, MissionEncounter[]> = {
           id: 'del_1c', label: 'KOERIER INHUREN', stat: 'charm', difficulty: 25,
           outcomes: { success: 'Je regelt een betrouwbare koerier. De lading komt veilig aan.', partial: 'De koerier is laat maar het lukt. Niet ideaal.', fail: 'De koerier steelt een deel van de lading. Onbetrouwbaar.' },
           effects: { heat: 0, relChange: 2, crewDamage: 0, bonusReward: 50 },
+        },
+      ],
+    },
+    // NEW — ambush during delivery
+    {
+      id: 'del_2',
+      text: 'Halverwege de route blokkeert een busje de weg. Gemaskerde mannen stappen uit. Dit is een hinderlaag.',
+      districtVariants: {
+        iron: 'De Iron Skulls hebben de route gelekt. Drie motoren versperren de weg.',
+        port: 'Havenratten springen van achter containers tevoorschijn. Ze willen de lading.',
+        low: 'Een rivaliserende gang in Lowrise. Ze wisten precies waar je zou zijn.',
+      },
+      choices: [
+        {
+          id: 'del_2a', label: 'DOORBRÉKEN', stat: 'muscle', difficulty: 45,
+          outcomes: { success: 'Je geeft gas en ramt het busje opzij. De aanvallers duiken weg.', partial: 'Je breekt door maar de lading raakt beschadigd. De klant zal niet blij zijn.', fail: 'Het busje is te zwaar. Je auto stopt. Ze openen de deuren.' },
+          effects: { heat: 10, relChange: -3, crewDamage: 10, bonusReward: 0 },
+        },
+        {
+          id: 'del_2b', label: 'OMRIJDEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'Je zag de hinderlaag net op tijd. Achteruit, zijstraat in, alternatieve route.', partial: 'Je ontsnapt maar verliest waardevolle tijd. De klant is ongeduldig.', fail: 'De zijstraat is ook geblokkeerd. Ze hadden dit gepland.' },
+          effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 200 },
+        },
+        {
+          id: 'del_2c', label: 'ONDERHANDELEN', stat: 'charm', difficulty: 35,
+          outcomes: { success: '"We kunnen dit op twee manieren doen. Ik stel de makkelijke manier voor." Ze laten je door.', partial: 'Ze nemen een deel van de lading als "tol." Beter dan alles verliezen.', fail: 'Ze lachen. "Grappig. Geef alles." Geen onderhandeling mogelijk.' },
+          effects: { heat: 2, relChange: 2, crewDamage: 0, bonusReward: -50 },
+        },
+      ],
+    },
+    // NEW — client betrayal
+    {
+      id: 'del_3',
+      text: 'Je arriveert op de afleverlocatie. De klant is er, maar hij heeft bewapende mannen bij zich. "Ik heb besloten om niet te betalen."',
+      districtVariants: {
+        crown: 'De klant is een zakenman die denkt dat hij onaantastbaar is. Zijn bodyguards dragen Armani.',
+        neon: 'In de VIP-lounge van een club. De klant grijnst achter een champagneglas.',
+      },
+      choices: [
+        {
+          id: 'del_3a', label: 'KRACHT TONEN', stat: 'muscle', difficulty: 50,
+          outcomes: { success: 'Je kijkt de bewakers één voor één aan. "Betaal. Nu." Ze zien het in je ogen. De klant betaalt.', partial: 'Een kort gevecht. De bewakers trekken zich terug. De klant betaalt, maar niet alles.', fail: 'De bewakers zijn beter dan verwacht. Je trekt je terug — zonder betaling.' },
+          effects: { heat: 8, relChange: -5, crewDamage: 10, bonusReward: 500 },
+        },
+        {
+          id: 'del_3b', label: 'SLIM SPELEN', stat: 'brains', difficulty: 45,
+          outcomes: { success: '"Ik heb een kopie van de lading-inhoud naar je concurrent gestuurd. Betaal, of iedereen weet het."', partial: 'Je bluf werkt half. Hij betaalt de helft om het risico te beperken.', fail: 'Hij roept je bluf. "Doe maar. Ik heb niets te verliezen."' },
+          effects: { heat: 3, relChange: -3, crewDamage: 0, bonusReward: 400 },
+        },
+        {
+          id: 'del_3c', label: 'WEGLOPEN', stat: 'charm', difficulty: 30,
+          outcomes: { success: '"Prima. Maar vergeet niet — ik onthoud dit." Je draait je om. Hij realiseert wat dit betekent en betaalt toch.', partial: 'Je loopt weg. Geen betaling, maar ook geen problemen. De lading is weg.', fail: 'Ze schieten op je als je wegloopt. Benen maken.' },
+          effects: { heat: 0, relChange: -8, crewDamage: 5, bonusReward: -100 },
         },
       ],
     },
@@ -322,6 +581,59 @@ const CONTRACT_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW — the confrontation
+    {
+      id: 'cmb_2',
+      text: 'Je staat oog in oog met het doelwit. Hij is niet alleen — drie lijfwachten staan klaar.',
+      districtVariants: {
+        iron: 'De Iron Skulls-leider zit achter een bureau van staal. Hij glimlacht. "Ik verwachtte je."',
+        crown: 'De zakenman in zijn penthouse. Panoramisch uitzicht. "Laten we dit als beschaafde mensen oplossen."',
+        low: 'Een gangster in een souterrain. Het ruikt naar vocht en gevaar.',
+      },
+      choices: [
+        {
+          id: 'cmb_2a', label: 'VOLLEDIGE AANVAL', stat: 'muscle', difficulty: 55,
+          outcomes: { success: 'Je valt aan met alles wat je hebt. De lijfwachten vallen één voor één. Het doelwit geeft zich over.', partial: 'Een zwaar gevecht. Je wint, maar je crew heeft flinke klappen opgelopen.', fail: 'Ze zijn met te veel. Je wordt teruggedreven en moet vluchten.' },
+          effects: { heat: 15, relChange: -8, crewDamage: 20, bonusReward: 800 },
+        },
+        {
+          id: 'cmb_2b', label: 'PSYCHOLOGISCH SPEL', stat: 'charm', difficulty: 45,
+          outcomes: { success: '"Je lijfwachten werken voor geld. Ik betaal meer." Twee van de drie lopen weg.', partial: 'Eén lijfwacht aarzelt. Genoeg om een opening te creëren.', fail: 'Ze lachen je uit. De loyaliteit van deze mannen is niet te koop.' },
+          effects: { heat: 5, relChange: -3, crewDamage: 5, bonusReward: 400 },
+        },
+        {
+          id: 'cmb_2c', label: 'TACTISCH VOORDEEL', stat: 'brains', difficulty: 50,
+          outcomes: { success: 'Je hebt van tevoren de stroomkast gevonden. Lichten uit. In het donker heb jij het voordeel.', partial: 'De stroom valt uit maar ze hebben zaklampen. Toch een voordeel.', fail: 'De stroomkast is vergrendeld. Plan B had je niet.' },
+          effects: { heat: 5, relChange: -3, crewDamage: 8, bonusReward: 600 },
+        },
+      ],
+    },
+    // NEW — aftermath/escape
+    {
+      id: 'cmb_3',
+      text: 'Het doelwit is uitgeschakeld, maar sirenes naderen. Iemand heeft de politie gebeld. Tijd om te verdwijnen.',
+      districtVariants: {
+        port: 'De haven is afgesloten. Kustwachtboten scannen het water.',
+        neon: 'De Strip is vol mensen. Perfect om in te verdwijnen — of juist niet.',
+      },
+      choices: [
+        {
+          id: 'cmb_3a', label: 'VLUCHTAUTO', stat: 'muscle', difficulty: 35,
+          outcomes: { success: 'De chauffeur staat klaar. Banden piepen. Binnen 30 seconden ben je verdwenen.', partial: 'De auto start niet direct. Kostbare seconden verloren, maar je ontsnapt.', fail: 'De auto is geblokkeerd door politieauto\'s. Je moet te voet verder.' },
+          effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 0 },
+        },
+        {
+          id: 'cmb_3b', label: 'BEWIJS VERNIETIGEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'Je wist alle sporen. Camera-beelden gewist. DNA vernietigd. Het was alsof je er nooit was.', partial: 'De meeste sporen zijn weg, maar er is een vaag camerabeeld overgebleven.', fail: 'Je vergeet de buitencamera. Perfect beeld van je gezicht.' },
+          effects: { heat: -8, relChange: 0, crewDamage: 0, bonusReward: 100 },
+        },
+        {
+          id: 'cmb_3c', label: 'VERMOMMING', stat: 'charm', difficulty: 30,
+          outcomes: { success: 'Je trekt een jas aan en loopt als een toerist langs de politie. Onzichtbaar.', partial: 'De vermomming houdt stand, maar een agent kijkt twee keer. Je loopt door.', fail: 'Een getuige herkent je ondanks de vermomming. "Dat is hem!"' },
+          effects: { heat: -3, relChange: 0, crewDamage: 0, bonusReward: 50 },
+        },
+      ],
+    },
   ],
 
   stealth: [
@@ -348,6 +660,58 @@ const CONTRACT_ENCOUNTERS: Record<string, MissionEncounter[]> = {
           id: 'stl_1c', label: 'FORCEER EEN RAAM', stat: 'muscle', difficulty: 35,
           outcomes: { success: 'Het raam breekt geluidloos. Je glijdt naar binnen als een schaduw.', partial: 'Het raam kraakt. Een bewaker kijkt op maar ziet niets. Close call.', fail: 'Het glas versplintering. Het hele gebouw is gealarmeerd.' },
           effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 200 },
+        },
+      ],
+    },
+    // NEW — inside the vault
+    {
+      id: 'stl_2',
+      text: 'Je bent binnen. De kluis is achter een stalen deur met een combinatieslot. De bewaker maakt zijn ronde. Twee minuten.',
+      districtVariants: {
+        crown: 'De kluis heeft een tijdslot — hij opent alleen tussen 02:00 en 02:05. Het is 01:58.',
+        port: 'De "kluis" is een verroeste container met een hangslot. Maar er ligt een slapende bewaker naast.',
+      },
+      choices: [
+        {
+          id: 'stl_2a', label: 'COMBINATIE KRAKEN', stat: 'brains', difficulty: 55,
+          outcomes: { success: 'Je hoort de pinnetjes klikken. De deur zwaait open. Jackpot.', partial: 'Het duurt langer dan verwacht. Je hoort voetstappen naderen.', fail: 'De combinatie is gewijzigd sinds je laatste intel. Niets past.' },
+          effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 1000 },
+        },
+        {
+          id: 'stl_2b', label: 'DEUR OPENBRÉKEN', stat: 'muscle', difficulty: 50,
+          outcomes: { success: 'Met een koevoet en brute kracht buig je de deur open. Stil genoeg.', partial: 'De deur buigt maar niet genoeg. Je grijpt wat je kunt door de spleet.', fail: 'De koevoet glijdt uit. Het lawaai echoot door de hal.' },
+          effects: { heat: 10, relChange: 0, crewDamage: 5, bonusReward: 600 },
+        },
+        {
+          id: 'stl_2c', label: 'BEWAKER AFLEIDEN', stat: 'charm', difficulty: 40,
+          outcomes: { success: 'Je stuurt een vals alarm naar de andere kant van het gebouw. Hij rent weg. Meer tijd.', partial: 'Het alarm werkt maar hij komt sneller terug dan verwacht.', fail: 'Hij doorziet het valse alarm en komt recht naar jou.' },
+          effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 500 },
+        },
+      ],
+    },
+    // NEW — double cross
+    {
+      id: 'stl_3',
+      text: 'Je hebt de buit. Maar bij de uitgang staat je opdrachtgever\'s "partner". "Ik neem het hier over. Geef me alles."',
+      districtVariants: {
+        crown: 'De partner is een bekende fixer in Crown Heights. Hij heeft connecties overal.',
+        low: 'Een straatgangster die denkt dat hij slim is. Maar hij is alleen.',
+      },
+      choices: [
+        {
+          id: 'stl_3a', label: 'WEIGEREN', stat: 'muscle', difficulty: 45,
+          outcomes: { success: 'Je duwt hem opzij. "Zeg tegen je baas dat ik niet te bestelen ben."', partial: 'Een kort gevecht. Je houdt de buit maar hij ontsnapt — en hij zal praten.', fail: 'Hij heeft een wapen. Je moet de buit achterlaten.' },
+          effects: { heat: 5, relChange: -5, crewDamage: 8, bonusReward: 300 },
+        },
+        {
+          id: 'stl_3b', label: 'SPLITSEN', stat: 'charm', difficulty: 35,
+          outcomes: { success: '"Laten we het delen. 70/30, mijn kant. Dat is meer dan je verdient." Hij stemt in.', partial: '50/50. Niet ideaal, maar geen problemen.', fail: 'Hij wil 80%. En hij heeft een pistool om het af te dwingen.' },
+          effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: -200 },
+        },
+        {
+          id: 'stl_3c', label: 'OMSLUIPEN', stat: 'brains', difficulty: 40,
+          outcomes: { success: 'Je kent een andere uitgang. Je bent al buiten voor hij doorheeft dat je weg bent.', partial: 'De andere uitgang is smal. Je verliest een deel van de buit onderweg.', fail: 'Er is geen andere uitgang. Je staat vast met hem.' },
+          effects: { heat: 0, relChange: -2, crewDamage: 0, bonusReward: 200 },
         },
       ],
     },
@@ -380,21 +744,110 @@ const CONTRACT_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         },
       ],
     },
+    // NEW — data extraction
+    {
+      id: 'tech_2',
+      text: 'Je hebt toegang tot het systeem. De data is enorm — je USB kan maar 40% opslaan. Wat prioriteer je?',
+      districtVariants: {
+        crown: 'Het systeem bevat financiële gegevens, klantendatabases en beveiligingsprotocollen.',
+        neon: 'Gokgegevens, VIP-lijsten en zwart geld-transacties. Alles waardevol.',
+      },
+      choices: [
+        {
+          id: 'tech_2a', label: 'FINANCIËLE DATA', stat: 'brains', difficulty: 45,
+          outcomes: { success: 'Je downloadt de bankrekeningen en transacties. Dit is goud waard op de zwarte markt.', partial: 'De download wordt onderbroken. Je hebt 60% van de financiële data.', fail: 'De data is versleuteld. Zonder de sleutel is het waardeloos.' },
+          effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 1200 },
+        },
+        {
+          id: 'tech_2b', label: 'CHANTAGE-MATERIAAL', stat: 'charm', difficulty: 40,
+          outcomes: { success: 'E-mails, foto\'s, geheimen. Dit geeft je macht over belangrijke mensen.', partial: 'Je vindt bruikbaar materiaal maar het is niet zo explosief als gehoopt.', fail: 'De meeste bestanden zijn onschuldig. Verspilde moeite.' },
+          effects: { heat: 5, relChange: 5, crewDamage: 0, bonusReward: 800 },
+        },
+        {
+          id: 'tech_2c', label: 'BEVEILIGINGSCODES', stat: 'muscle', difficulty: 30,
+          outcomes: { success: 'Alarmsystemen, kluiscodes, bewakingsschema\'s. Dit opent deuren — letterlijk.', partial: 'Sommige codes zijn verlopen. Maar de rest is bruikbaar.', fail: 'De codes worden live geroteerd. Tegen de tijd dat je ze gebruikt, zijn ze oud.' },
+          effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 600 },
+        },
+      ],
+    },
+    // NEW — system admin confrontation
+    {
+      id: 'tech_3',
+      text: 'De systeembeheerder is teruggekomen van pauze. Hij ziet jou achter zijn terminal. "Wie ben jij?!"',
+      districtVariants: {
+        iron: 'De sysadmin is een ex-militair. Hij is niet bang en heeft een beveiligingsbadge.',
+        neon: 'Een jonge nerd met koptelefoon. Hij is geschrokken maar grijpt naar zijn telefoon.',
+      },
+      choices: [
+        {
+          id: 'tech_3a', label: 'NEERSLÁAN', stat: 'muscle', difficulty: 40,
+          outcomes: { success: 'Een snelle klap. Hij is bewusteloos voor hij kan schreeuwen. Bind hem vast.', partial: 'Hij valt maar schreeuwt eerst. Je hebt misschien 30 seconden.', fail: 'Hij is sterker dan hij eruitziet. Hij drukt het alarm in terwijl jullie vechten.' },
+          effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 0 },
+        },
+        {
+          id: 'tech_3b', label: 'BLUFFEN', stat: 'charm', difficulty: 45,
+          outcomes: { success: '"Ik ben van het hoofdkantoor. Beveiligingsaudit. Alles in orde." Hij gelooft je.', partial: 'Hij is skeptisch maar belt niet de beveiliging. Nog niet tenminste.', fail: '"Onzin. Ik bel de politie." Hij pakt zijn telefoon.' },
+          effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 300 },
+        },
+        {
+          id: 'tech_3c', label: 'HACKEN & WISSEN', stat: 'brains', difficulty: 50,
+          outcomes: { success: 'Je wist de beveiligingslogs en je eigen aanwezigheid uit het systeem. Hij kan niets bewijzen.', partial: 'De logs zijn gewist maar de sysadmin heeft je gezicht gezien.', fail: 'Het wissen triggert een backup-alarm. Het hele systeem gaat in lockdown.' },
+          effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 500 },
+        },
+      ],
+    },
   ],
 };
 
+// ========== WEATHER MODIFIERS ==========
+
+const WEATHER_DIFFICULTY_MOD: Record<WeatherType, Partial<Record<StatId, number>>> = {
+  clear: {},
+  rain: { muscle: 5, brains: -3, charm: 3 },     // Slippery = harder muscle, easier brains (less witnesses)
+  fog: { brains: -5, muscle: 3, charm: 5 },       // Fog = easier brains (cover), harder charm (can't see faces)
+  heatwave: { muscle: 8, charm: -3, brains: 3 },  // Heat = harder muscle (exhaustion), easier charm (people distracted)
+  storm: { muscle: 10, brains: 5, charm: -5 },    // Storm = harder everything physical, easier charm (chaos)
+};
+
+// ========== CREW SPECIALIZATION BONUSES ==========
+
+const SPEC_MISSION_BONUS: Record<string, { stat: StatId; difficultyReduction: number }> = {
+  brute: { stat: 'muscle', difficultyReduction: 8 },
+  bodyguard: { stat: 'muscle', difficultyReduction: 5 },
+  phantom: { stat: 'brains', difficultyReduction: 8 },
+  netrunner: { stat: 'brains', difficultyReduction: 10 },
+  fixer: { stat: 'charm', difficultyReduction: 8 },
+  face: { stat: 'charm', difficultyReduction: 10 },
+  racer: { stat: 'muscle', difficultyReduction: 5 },
+  medic: { stat: 'brains', difficultyReduction: 3 },
+  demolitionist: { stat: 'muscle', difficultyReduction: 6 },
+  smuggler_wagon: { stat: 'brains', difficultyReduction: 4 },
+};
+
 // ========== ENCOUNTER ENGINE ==========
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export function generateMissionEncounters(
   missionType: 'solo' | 'contract',
   missionId: string,
   contractType?: string
 ): MissionEncounter[] {
-  if (missionType === 'solo') {
-    return SOLO_ENCOUNTERS[missionId] || SOLO_ENCOUNTERS['pickpocket'];
-  } else {
-    return CONTRACT_ENCOUNTERS[contractType || 'delivery'] || CONTRACT_ENCOUNTERS['delivery'];
-  }
+  const pool = missionType === 'solo'
+    ? (SOLO_ENCOUNTERS[missionId] || SOLO_ENCOUNTERS['pickpocket'])
+    : (CONTRACT_ENCOUNTERS[contractType || 'delivery'] || CONTRACT_ENCOUNTERS['delivery']);
+
+  // Shuffle the pool and pick 2-3 encounters (min 2, max pool size)
+  const shuffled = shuffleArray(pool);
+  const count = Math.min(shuffled.length, Math.max(2, 2 + Math.floor(Math.random() * 2))); // 2-3
+  return shuffled.slice(0, count);
 }
 
 export function resolveMissionChoice(
@@ -405,6 +858,8 @@ export function resolveMissionChoice(
   result: 'success' | 'partial' | 'fail';
   outcomeText: string;
   effects: MissionChoice['effects'];
+  weatherMod?: string;
+  crewBonus?: string;
 } {
   const encounter = mission.encounters[mission.currentEncounter];
   if (!encounter) {
@@ -418,7 +873,50 @@ export function resolveMissionChoice(
 
   const statVal = getPlayerStat(state, choice.stat);
   const isLowrise = state.ownedDistricts.includes('low') && mission.type === 'solo';
-  const effectiveDifficulty = isLowrise ? Math.floor(choice.difficulty * 0.7) : choice.difficulty;
+
+  // Base difficulty
+  let effectiveDifficulty = isLowrise ? Math.floor(choice.difficulty * 0.7) : choice.difficulty;
+
+  // Weather modifier
+  const weatherMods = WEATHER_DIFFICULTY_MOD[state.weather] || {};
+  const weatherDiffMod = weatherMods[choice.stat] || 0;
+  effectiveDifficulty += weatherDiffMod;
+  let weatherModText: string | undefined;
+  if (weatherDiffMod !== 0) {
+    const weatherLabels: Record<WeatherType, string> = {
+      clear: '', rain: 'Regen', fog: 'Mist', heatwave: 'Hittegolf', storm: 'Storm',
+    };
+    weatherModText = weatherDiffMod > 0
+      ? `${weatherLabels[state.weather]}: +${weatherDiffMod} moeilijkheid`
+      : `${weatherLabels[state.weather]}: ${weatherDiffMod} moeilijkheid`;
+  }
+
+  // Crew specialization bonus
+  let crewBonusText: string | undefined;
+  if (mission.crewIndex !== undefined) {
+    const crew = state.crew[mission.crewIndex];
+    if (crew?.specialization) {
+      const specBonus = SPEC_MISSION_BONUS[crew.specialization];
+      if (specBonus && specBonus.stat === choice.stat) {
+        effectiveDifficulty -= specBonus.difficultyReduction;
+        crewBonusText = `${crew.name} (${crew.specialization}): -${specBonus.difficultyReduction} moeilijkheid`;
+      }
+    }
+  }
+  // Also check all crew for passive bonuses (non-contract missions)
+  if (mission.type === 'solo') {
+    state.crew.forEach(c => {
+      if (c.specialization) {
+        const specBonus = SPEC_MISSION_BONUS[c.specialization];
+        if (specBonus && specBonus.stat === choice.stat) {
+          effectiveDifficulty -= Math.floor(specBonus.difficultyReduction * 0.3); // 30% passive bonus
+        }
+      }
+    });
+  }
+
+  // Ensure minimum difficulty
+  effectiveDifficulty = Math.max(5, effectiveDifficulty);
 
   // Calculate success: stat * 5 + random(0-30) vs difficulty
   const roll = statVal * 5 + Math.floor(Math.random() * 30);
@@ -432,7 +930,7 @@ export function resolveMissionChoice(
     result = 'fail';
   }
 
-  // Crew bonus for contracts
+  // Crew bonus for contracts (level-based save)
   if (mission.type === 'contract' && mission.crewIndex !== undefined) {
     const crew = state.crew[mission.crewIndex];
     if (crew) {
@@ -445,7 +943,7 @@ export function resolveMissionChoice(
 
   const outcomeText = choice.outcomes[result];
 
-  return { result, outcomeText, effects: choice.effects };
+  return { result, outcomeText, effects: choice.effects, weatherMod: weatherModText, crewBonus: crewBonusText };
 }
 
 export function completeMission(state: GameState, mission: ActiveMission): { message: string; success: boolean } {
@@ -518,10 +1016,6 @@ export function completeMission(state: GameState, mission: ActiveMission): { mes
   // Remove contract if it was a contract mission
   if (mission.type === 'contract' && mission.contractId !== undefined) {
     state.activeContracts = state.activeContracts.filter(c => c.id !== mission.contractId);
-
-    // Employer/target relation
-    const contract = state.activeContracts.find(c => c.id === mission.contractId);
-    // Already removed, but we stored the IDs in totalRelChange
   }
 
   const crewText = mission.crewName ? ` (${mission.crewName})` : '';
@@ -535,4 +1029,50 @@ export function completeMission(state: GameState, mission: ActiveMission): { mes
 
 export function getEncounterText(encounter: MissionEncounter, district: DistrictId): string {
   return encounter.districtVariants[district] || encounter.text;
+}
+
+// ========== DIFFICULTY HELPER (for UI) ==========
+
+export function getEffectiveDifficulty(
+  state: GameState,
+  choice: MissionChoice,
+  mission: ActiveMission
+): { difficulty: number; weatherMod: number; crewMod: number } {
+  let difficulty = choice.difficulty;
+  const isLowrise = state.ownedDistricts.includes('low') && mission.type === 'solo';
+  if (isLowrise) difficulty = Math.floor(difficulty * 0.7);
+
+  // Weather
+  const weatherMods = WEATHER_DIFFICULTY_MOD[state.weather] || {};
+  const weatherMod = weatherMods[choice.stat] || 0;
+  difficulty += weatherMod;
+
+  // Crew specs
+  let crewMod = 0;
+  if (mission.crewIndex !== undefined) {
+    const crew = state.crew[mission.crewIndex];
+    if (crew?.specialization) {
+      const specBonus = SPEC_MISSION_BONUS[crew.specialization];
+      if (specBonus && specBonus.stat === choice.stat) {
+        crewMod = -specBonus.difficultyReduction;
+        difficulty -= specBonus.difficultyReduction;
+      }
+    }
+  }
+  if (mission.type === 'solo') {
+    state.crew.forEach(c => {
+      if (c.specialization) {
+        const specBonus = SPEC_MISSION_BONUS[c.specialization];
+        if (specBonus && specBonus.stat === choice.stat) {
+          const passive = -Math.floor(specBonus.difficultyReduction * 0.3);
+          crewMod += passive;
+          difficulty += passive;
+        }
+      }
+    });
+  }
+
+  difficulty = Math.max(5, difficulty);
+
+  return { difficulty, weatherMod, crewMod };
 }
