@@ -1,129 +1,55 @@
 
-# Noxhaven: Verhaal & Animatie Upgrade
+# Geluidsindicaties bij het Night Report
 
 ## Overzicht
-Dit plan voegt vier grote systemen toe: random story events met keuzes, verhaalbogen over meerdere dagen, meer missie-variatie, crew-persoonlijkheid, en een complete set animaties (typewriter, geld-tellers, scherm-effecten en kaart-animaties).
+Geluidseffecten toevoegen aan het Night Report zodat elke belangrijke gebeurtenis auditief wordt versterkt. We gebruiken de **Web Audio API** om synthetische geluiden te genereren — geen externe bestanden of afhankelijkheden nodig.
 
----
+## Wat verandert er?
 
-## Deel 1: Verhaal & Narratief
+### 1. Nieuw bestand: Sound Engine (`src/game/sounds.ts`)
+Een lichtgewicht geluidssysteem gebouwd op de Web Audio API met de volgende geluiden:
 
-### 1A. Random Street Events (Straatgebeurtenissen met keuzes)
-Tijdens het spelen (bij reizen, handelen of rondkijken) verschijnen er willekeurige verhalende pop-ups met 2-3 keuzes die echte gevolgen hebben.
+- **Coin/cash geluid**: Korte, hoge tonen die snel na elkaar spelen — klinkt als munten die vallen. Wordt afgespeeld bij inkomstenregels (district, bedrijf, witwassen, smokkel).
+- **Alarm/sirene geluid**: Een oscillerende toon die op en neer gaat — klinkt als een politiesirene. Wordt afgespeeld bij politie-invallen.
+- **Dramatisch reveal geluid**: Een lage, opbouwende toon gevolgd door een "hit" — spanning die wordt opgelost. Wordt afgespeeld bij random events.
+- **Negatief geluid**: Een korte, dalende toon voor kosten en verliezen (schuld rente, verloren districten).
+- **Positief "ding"**: Een helder belletje voor positieve resultaten (aanvallen afgeslagen, smokkelwinst).
 
-**Voorbeelden:**
-- "Een verwonde man strompelt naar je toe. Hij biedt je een koffer vol cash aan als je hem naar Port Nero brengt."
-  - **Help hem** (Charm check): +geld, +rep, risico op heat
-  - **Neem de koffer** (Muscle check): +geld, +heat, -rep
-  - **Loop door**: Geen gevolgen
-- "Een mysterieuze vrouw biedt je een tip over een grote lading in de haven."
-- "Een kind steelt je portemonnee op straat."
+### 2. Integratie in Night Report (`NightReport.tsx`)
+Geluiden worden getimed aan de bestaande animatie-delays zodat ze synchroon lopen met de visuele effecten:
 
-Er komen 20+ unieke events met district-specifieke varianten. Events worden getriggerd bij TRAVEL, END_TURN en SOLO_OP acties met een configureerbare kans.
+- Inkomstenrijen: coin-geluid op het moment dat de rij verschijnt
+- Politie-inval: alarm op het moment dat het rode blok verschijnt
+- Random event: dramatisch geluid synchroon met de flash-fase van `DramaticEventReveal`
+- Kostenrijen: negatief geluid bij schuld rente
+- Netto inkomen: coin of negatief geluid afhankelijk van positief/negatief resultaat
 
-### 1B. Verhaalbogen (Multi-dag storylines)
-Verhaallijnen die zich over meerdere dagen ontvouwen via het telefoonsysteem en speciale events:
+### 3. Integratie in DramaticEventReveal (`DramaticEventReveal.tsx`)
+Het dramatische geluid wordt afgespeeld wanneer de "flash" fase start, synchroon met de visuele onthulling.
 
-**Drie startverhaalbogen:**
-1. **De Informant** - Een mysterieuze bron stuurt berichten over een corrupt politienetwerk. Elke paar dagen een nieuw bericht met een keuze: vertrouw je hem, of is het een val?
-2. **Het Erfenis-mysterie** - Je ontdekt dat een oud maffiafortuin ergens in Noxhaven verborgen is. Volg aanwijzingen over meerdere districten.
-3. **De Rivaal** - Een nieuwe speler in de stad daagt je positie uit. Diplomatie of geweld?
+### 4. Volume-instelling
+Een eenvoudige master volume-instelling (0-1) wordt opgeslagen, zodat spelers het geluid kunnen dempen als ze dat willen. Een mute-knop wordt zichtbaar in de Night Report header.
 
-Elke boog heeft 4-6 stappen, wordt random getriggerd na bepaalde game-condities (dag, rep, districts owned), en eindigt met een unieke beloning.
+## Technische details
 
-**Technisch:** Een nieuw `StoryArc` type in `types.ts` met `activeArcs` array in GameState die voortgang bijhoudt.
-
-### 1C. Meer Missie-Variatie
-- Verdubbeling van het aantal encounters per missie-type (van 2 naar 4-5 per type)
-- Encounters worden random geselecteerd uit de pool (niet altijd dezelfde volgorde)
-- Nieuwe encounter-typen: onderhandelingen, achtervolging, verraad-momenten
-- Uitkomsten worden beinvloed door weer, district-rep en crew-specialisaties
-
-### 1D. Crew Persoonlijkheid
-- Elk crewlid krijgt een willekeurig **persoonlijkheidstrait** bij rekrutering (bijv. "Loyaal", "Hebzuchtig", "Rustig", "Impulsief")
-- Traits beinvloeden missie-dialogen en keuze-uitkomsten
-- Crewleden sturen af en toe persoonlijke berichten via de telefoon
-- Bij speciale events kunnen crewleden een persoonlijke missie aanbieden
-
----
-
-## Deel 2: Animaties
-
-### 2A. Typewriter Tekst-Effect
-- Een herbruikbaar `TypewriterText` component dat tekst letter voor letter toont
-- Toegepast op: missie-encounter tekst, street events, verhaalboog-momenten
-- Snelheid instelbaar, met een "skip" optie (tik om alles te tonen)
-- Subtiel cursor-knippereffect aan het einde
-
-### 2B. Geld & Resource Animaties
-- **Animated Counter**: Geld in de header telt geleidelijk op/af bij veranderingen (van oud bedrag naar nieuw)
-- **Reward Popup**: Bij het verdienen van geld verschijnt een "+€500" tekst die omhoog zweeft en verdwijnt
-- **XP Bar Fill**: Progressiebalk vult vloeiend op bij XP-winst
-- **Resource Shine**: Gouden glans-effect over verdiende bedragen
-
-### 2C. Scherm-Effecten
-- **Screen Shake**: Bij gevechtsacties en explosieve events (CSS keyframe animation)
-- **Blood Flash**: Rood flash-effect bij het ontvangen van schade
-- **Gold Flash**: Gouden flash bij grote beloningen
-- **Fade Transitions**: Zachte fade/slide transities tussen alle game views (al deels aanwezig, wordt verbeterd)
-- **Impact Pulse**: Korte puls-animatie op knoppen na interactie
-
-### 2D. Kaart Animaties
-- **Reis-animatie**: Bij reizen beweegt een klein icoon van district A naar B over de kaart
-- **Pulserende districten**: Owned districten pulseren zachtjes, vijandige districten gloeien rood
-- **Event markers**: Map events (politiecontroles etc.) hebben subtiele bounce/pulse animaties
-- **Nemesis marker**: De nemesis-marker op de kaart beweegt vloeiender en heeft een dreigend glow-effect
-
----
-
-## Technische Details
-
-### Nieuwe Bestanden
+### Sound Engine API
 ```text
-src/game/storyEvents.ts        - Street events database + logica
-src/game/storyArcs.ts           - Verhaalbogen database + progressie-logica  
-src/game/crewPersonality.ts     - Persoonlijkheidstraits + dialogen
-src/components/game/StoryEventPopup.tsx  - UI voor random street events
-src/components/game/StoryArcEvent.tsx    - UI voor verhaalboog-momenten
-src/components/game/animations/TypewriterText.tsx
-src/components/game/animations/AnimatedCounter.tsx
-src/components/game/animations/RewardPopup.tsx
-src/components/game/animations/ScreenEffects.tsx
+src/game/sounds.ts
+  - playCoinSound()      -> snel stijgende tonen (pentatonisch)
+  - playAlarmSound()     -> oscillerende sirene (2 sec)  
+  - playDramaticReveal() -> lage drone + hit
+  - playNegativeSound()  -> dalende toon
+  - playPositiveSound()  -> stijgende ding
+  - setVolume(v: number) -> master volume 0-1
+  - isMuted() / toggleMute()
 ```
 
-### Aangepaste Bestanden
-```text
-src/game/types.ts              - Nieuwe types (StoryArc, StreetEvent, PersonalityTrait)
-src/game/constants.ts           - Crew personality data
-src/game/missions.ts            - Extra encounters + shuffle-logica
-src/contexts/GameContext.tsx     - Nieuwe actions en state
-src/components/game/GameLayout.tsx - Screen effects wrapper + story event layer
-src/components/game/GameHeader.tsx - AnimatedCounter voor geld
-src/components/game/MissionEncounterView.tsx - Typewriter effect
-src/components/game/CombatView.tsx - Screen shake + damage flash
-src/components/game/CityMap.tsx    - Kaart animaties
-src/components/game/NightReport.tsx - Verbeterde animaties
-src/index.css                     - Nieuwe keyframe animaties
-```
+### Timing in NightReport
+De bestaande `next()` delay-functie wordt hergebruikt om `setTimeout` calls te plannen die de geluiden op het juiste moment afspelen via een `useEffect`.
 
-### State Uitbreidingen (types.ts)
-- `activeStoryArcs: StoryArc[]` - Actieve verhaalbogen
-- `completedArcs: string[]` - Voltooide bogen
-- `pendingStreetEvent: StreetEvent | null` - Huidige street event popup
-- `crewPersonalities: Record<number, PersonalityTrait>` - Crew traits
-- `lastRewardAmount: number` - Voor reward popup animatie
+### Bestanden die worden aangemaakt
+- `src/game/sounds.ts` — Web Audio API geluidssynthese
 
-### Implementatievolgorde
-1. Typewriter component + screen effects (basis animatie-infra)
-2. AnimatedCounter voor geld in header
-3. Street Events systeem + popup
-4. Verhaalbogen systeem
-5. Extra missie-encounters + shuffle
-6. Crew persoonlijkheid
-7. Kaart animaties
-8. Combat effecten (shake, flash)
-9. Reward popups
-10. Integratie en finetuning
-
-### Omvang
-Dit is een grote feature-set. De implementatie zal worden verdeeld over meerdere stappen, maar alle onderdelen werken samen om een veel rijkere en steeds andere spelervaring te creeren.
+### Bestanden die worden aangepast
+- `src/components/game/NightReport.tsx` — geluiden afspelen bij animatie-delays
+- `src/components/game/night-report/DramaticEventReveal.tsx` — dramatisch geluid bij flash-fase
