@@ -63,8 +63,9 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
 export const HQ_UPGRADES: HQUpgrade[] = [
   { id: 'security', name: 'Versterkte Deuren', cost: 5000, desc: 'Vermindert kans op aanvallen met 20%.' },
   { id: 'garage', name: 'Grotere Garage', cost: 8000, desc: '+10 Bagage ruimte.' },
-  { id: 'server', name: 'Encrypted Server', cost: 12000, desc: 'Sneller Heat verlies (-10 p/d).' },
-  { id: 'lab', name: 'Synthetica Lab', cost: 15000, desc: 'Produceer je eigen drugs.' }
+  { id: 'server', name: 'Encrypted Server', cost: 12000, desc: 'Sneller Heat verlies.' },
+  { id: 'lab', name: 'Synthetica Lab', cost: 15000, desc: 'Produceer je eigen drugs.' },
+  { id: 'safehouse', name: 'Safe House', cost: 20000, desc: 'Verdubbelt persoonlijke heat decay & bonus bij onderduiken.' }
 ];
 
 export const GEAR: GearItem[] = [
@@ -84,6 +85,15 @@ export const BUSINESSES: Business[] = [
   { id: 'club', name: 'Club Paradiso', cost: 25000, income: 800, clean: 600, desc: 'Nachtclub met dubieuze gasten.' },
   { id: 'autogarage', name: 'Tony\'s Autogarage', cost: 15000, income: 500, clean: 400, desc: 'Garagebedrijf en chop shop.' }
 ];
+
+export const REKAT_COSTS: Record<string, number> = {
+  toyohata: 2000,
+  forgedyer: 4000,
+  bavamotor: 6000,
+  meridiolux: 10000,
+  lupoghini: 12000,
+  royaleryce: 15000,
+};
 
 export const COMBAT_ENVIRONMENTS: Record<string, { name: string; actionName: string; desc: string; log: string; type: string }> = {
   port: { name: "Havenkade", actionName: "HINDERLAAG", desc: "Container val", log: "Je lokt de vijand tussen de containers...", type: "ambush" },
@@ -323,6 +333,8 @@ export function createInitialState(): import('./types').GameState {
     debt: 2000,
     rep: 0,
     heat: 0,
+    personalHeat: 0,
+    hidingDays: 0,
     loc: 'low' as DistrictId,
     player: {
       level: 1,
@@ -337,7 +349,7 @@ export function createInitialState(): import('./types').GameState {
     maxInv: 15,
     crew: [],
     ownedDistricts: [],
-    ownedVehicles: [{ id: 'toyohata', condition: 100 }],
+    ownedVehicles: [{ id: 'toyohata', condition: 100, vehicleHeat: 0, rekatCooldown: 0 }],
     activeVehicle: 'toyohata',
     ownedBusinesses: [],
     ownedGear: [],

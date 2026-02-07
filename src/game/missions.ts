@@ -981,7 +981,9 @@ export function completeMission(state: GameState, mission: ActiveMission): { mes
     state.stats.missionsFailed++;
   }
 
-  state.heat = Math.min(100, Math.max(0, state.heat + finalHeat));
+  // Split mission heat between vehicle and personal
+  const { splitHeat: splitH } = require('./engine');
+  splitH(state, finalHeat, mission.type === 'contract' ? 0.5 : 0.4);
 
   // Apply crew damage
   if (mission.crewIndex !== undefined && mission.totalCrewDamage > 0) {
