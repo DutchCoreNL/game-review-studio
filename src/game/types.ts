@@ -15,6 +15,57 @@ export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage
 
 export type WeatherType = 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm';
 
+// ========== CAR THEFT TYPES ==========
+
+export type StolenCarRarity = 'common' | 'uncommon' | 'rare' | 'exotic';
+
+export interface StealableCarDef {
+  id: string;
+  name: string;
+  brand: string;
+  rarity: StolenCarRarity;
+  baseValue: number;
+  stealDifficulty: number; // 0-100
+  heatGain: number;
+  districts: DistrictId[]; // where it can appear
+  desc: string;
+}
+
+export type ChopShopUpgradeId = 'paint' | 'engine_tune' | 'interior' | 'bodykit' | 'nitro';
+
+export interface ChopShopUpgrade {
+  id: ChopShopUpgradeId;
+  name: string;
+  cost: number;
+  valueBonus: number; // percentage increase
+  desc: string;
+}
+
+export interface StolenCar {
+  id: string;
+  carTypeId: string;
+  condition: number; // 0-100
+  omgekat: boolean;
+  upgrades: ChopShopUpgradeId[];
+  stolenDay: number;
+  stolenFrom: DistrictId;
+  baseValue: number;
+}
+
+export interface CarOrder {
+  id: string;
+  carTypeId: string;
+  clientName: string;
+  bonusPercent: number; // extra % on top of value
+  deadline: number; // day number
+  desc: string;
+}
+
+export interface CarTheftEncounter {
+  carTypeId: string;
+  district: DistrictId;
+}
+
 export interface NemesisState {
   name: string;
   power: number;
@@ -392,6 +443,11 @@ export interface GameState {
   newGamePlusLevel: number;
   finalBossDefeated: boolean;
   freePlayMode: boolean;
+
+  // ========== CAR THEFT STATE ==========
+  stolenCars: StolenCar[];
+  carOrders: CarOrder[];
+  pendingCarTheft: CarTheftEncounter | null;
 
   // ========== STORY & ANIMATION STATE ==========
   pendingStreetEvent: any | null;

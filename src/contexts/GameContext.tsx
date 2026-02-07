@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -92,6 +92,13 @@ type GameAction =
   | { type: 'UPGRADE_VEHICLE'; vehicleId: string; upgradeType: VehicleUpgradeType }
   | { type: 'GO_INTO_HIDING'; days: number }
   | { type: 'CANCEL_HIDING' }
+  // Car theft actions
+  | { type: 'ATTEMPT_CAR_THEFT' }
+  | { type: 'DISMISS_CAR_THEFT' }
+  | { type: 'OMKAT_STOLEN_CAR'; carId: string }
+  | { type: 'UPGRADE_STOLEN_CAR'; carId: string; upgradeId: ChopShopUpgradeId }
+  | { type: 'SELL_STOLEN_CAR'; carId: string; orderId: string | null }
+  | { type: 'USE_STOLEN_CAR'; carId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -153,6 +160,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.pendingStreetEvent = travelEvent;
         s.streetEventResult = null;
       }
+      // Roll for car theft encounter (15% base chance, only if no street event)
+      if (!s.pendingStreetEvent && !s.pendingCarTheft && s.stolenCars.length < 8) {
+        const carTheftChance = 0.15 + (s.player.level * 0.01);
+        if (Math.random() < carTheftChance) {
+          // Find cars available in this district
+          const availableCars = STEALABLE_CARS.filter(c => c.districts.includes(action.to));
+          if (availableCars.length > 0) {
+            // Weight by rarity: common 50%, uncommon 30%, rare 15%, exotic 5%
+            const weights: Record<string, number> = { common: 50, uncommon: 30, rare: 15, exotic: 5 };
+            const totalWeight = availableCars.reduce((sum, c) => sum + (weights[c.rarity] || 10), 0);
+            let roll = Math.random() * totalWeight;
+            let picked = availableCars[0];
+            for (const car of availableCars) {
+              roll -= weights[car.rarity] || 10;
+              if (roll <= 0) { picked = car; break; }
+            }
+            s.pendingCarTheft = { carTypeId: picked.id, district: action.to };
+          }
+        }
+      }
       return s;
     }
 
@@ -184,6 +211,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.pendingStreetEvent) {
         checkArcProgression(s);
       }
+      // Car orders: generate new orders every 3 days, max 3 active
+      if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {
+        // Remove expired orders
+        s.carOrders = s.carOrders.filter(o => o.deadline >= s.day);
+        // Add new order
+        const randomCar = STEALABLE_CARS[Math.floor(Math.random() * STEALABLE_CARS.length)];
+        const client = CAR_ORDER_CLIENTS[Math.floor(Math.random() * CAR_ORDER_CLIENTS.length)];
+        const bonusPercent = 20 + Math.floor(Math.random() * 60); // 20-80% bonus
+        s.carOrders.push({
+          id: `order_${s.day}_${Math.floor(Math.random() * 1000)}`,
+          carTypeId: randomCar.id,
+          clientName: `${client.emoji} ${client.name}`,
+          bonusPercent,
+          deadline: s.day + 5 + Math.floor(Math.random() * 5),
+          desc: `Zoekt een ${randomCar.name}. Betaalt ${bonusPercent}% extra.`,
+        });
+      }
+      // Decay stolen car condition slightly
+      s.stolenCars.forEach(car => {
+        if (!car.omgekat) car.condition = Math.max(20, car.condition - 1);
+      });
       return s;
     }
 
@@ -838,6 +886,140 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== CAR THEFT ACTIONS ==========
+
+    case 'ATTEMPT_CAR_THEFT': {
+      if (!s.pendingCarTheft) return s;
+      const carDef = STEALABLE_CARS.find(c => c.id === s.pendingCarTheft!.carTypeId);
+      if (!carDef) { s.pendingCarTheft = null; return s; }
+
+      const brains = Engine.getPlayerStat(s, 'brains');
+      const muscle = Engine.getPlayerStat(s, 'muscle');
+      const statBonus = Math.floor((brains + muscle) / 2);
+      const successChance = Math.min(95, Math.max(20, 100 - carDef.stealDifficulty + statBonus * 2));
+      const roll = Math.random() * 100;
+
+      if (roll < successChance) {
+        // Success!
+        const condition = 60 + Math.floor(Math.random() * 40); // 60-100%
+        const newCar = {
+          id: `stolen_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          carTypeId: carDef.id,
+          condition,
+          omgekat: false,
+          upgrades: [] as string[],
+          stolenDay: s.day,
+          stolenFrom: s.pendingCarTheft!.district,
+          baseValue: carDef.baseValue,
+        };
+        s.stolenCars.push(newCar as any);
+        Engine.addVehicleHeat(s, carDef.heatGain);
+        Engine.addPersonalHeat(s, Math.floor(carDef.heatGain * 0.5));
+        Engine.recomputeHeat(s);
+        Engine.gainXp(s, 15 + Math.floor(carDef.baseValue / 2000));
+        s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 3);
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = carDef.baseValue;
+      } else {
+        // Failed — heat and possible damage
+        Engine.addPersonalHeat(s, carDef.heatGain + 10);
+        Engine.addVehicleHeat(s, 5);
+        Engine.recomputeHeat(s);
+        // Crew damage on failure
+        if (s.crew.length > 0 && Math.random() < 0.3) {
+          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
+          target.hp = Math.max(1, target.hp - 10);
+        }
+        s.screenEffect = 'blood-flash';
+      }
+      s.pendingCarTheft = null;
+      return s;
+    }
+
+    case 'DISMISS_CAR_THEFT': {
+      s.pendingCarTheft = null;
+      return s;
+    }
+
+    case 'OMKAT_STOLEN_CAR': {
+      const car = s.stolenCars.find(c => c.id === action.carId);
+      if (!car || car.omgekat || s.money < OMKAT_COST) return s;
+      s.money -= OMKAT_COST;
+      s.stats.totalSpent += OMKAT_COST;
+      car.omgekat = true;
+      return s;
+    }
+
+    case 'UPGRADE_STOLEN_CAR': {
+      const car = s.stolenCars.find(c => c.id === action.carId);
+      if (!car) return s;
+      const upg = CHOP_SHOP_UPGRADES.find(u => u.id === action.upgradeId);
+      if (!upg || car.upgrades.includes(action.upgradeId as any) || s.money < upg.cost) return s;
+      s.money -= upg.cost;
+      s.stats.totalSpent += upg.cost;
+      car.upgrades.push(action.upgradeId as any);
+      return s;
+    }
+
+    case 'SELL_STOLEN_CAR': {
+      const car = s.stolenCars.find(c => c.id === action.carId);
+      if (!car || !car.omgekat) return s;
+
+      // Calculate value
+      let value = car.baseValue * (car.condition / 100);
+      car.upgrades.forEach((uid: any) => {
+        const upg = CHOP_SHOP_UPGRADES.find(u => u.id === uid);
+        if (upg) value *= (1 + upg.valueBonus / 100);
+      });
+      value = Math.floor(value);
+
+      // Check for order bonus
+      if (action.orderId) {
+        const order = s.carOrders.find(o => o.id === action.orderId);
+        if (order && order.carTypeId === car.carTypeId) {
+          value = Math.floor(value * (1 + order.bonusPercent / 100));
+          s.carOrders = s.carOrders.filter(o => o.id !== action.orderId);
+        }
+      }
+
+      s.dirtyMoney += value;
+      s.stats.totalEarned += value;
+      s.stolenCars = s.stolenCars.filter(c => c.id !== action.carId);
+      s.lastRewardAmount = value;
+      s.screenEffect = 'gold-flash';
+      Engine.gainXp(s, 20 + Math.floor(value / 3000));
+      return s;
+    }
+
+    case 'USE_STOLEN_CAR': {
+      const car = s.stolenCars.find(c => c.id === action.carId);
+      if (!car || !car.omgekat) return s;
+      const carDef = STEALABLE_CARS.find(c => c.id === car.carTypeId);
+      if (!carDef) return s;
+
+      // Map stolen car types to closest vehicle
+      const vehicleMap: Record<string, string> = {
+        'rusted_sedan': 'toyohata',
+        'city_hatch': 'toyohata',
+        'delivery_van': 'forgedyer',
+        'sport_coupe': 'bavamotor',
+        'suv_terrain': 'forgedyer',
+        'luxury_sedan': 'meridiolux',
+        'muscle_car': 'bavamotor',
+        'exotic_sports': 'lupoghini',
+        'armored_limo': 'royaleryce',
+        'rare_classic': 'meridiolux',
+      };
+      const vehicleId = vehicleMap[car.carTypeId] || 'toyohata';
+
+      // Add as owned vehicle if not already owned
+      if (!s.ownedVehicles.some(v => v.id === vehicleId)) {
+        s.ownedVehicles.push({ id: vehicleId, condition: car.condition, vehicleHeat: 0, rekatCooldown: 0 });
+      }
+      s.stolenCars = s.stolenCars.filter(c => c.id !== action.carId);
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -926,6 +1108,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.completedArcs) saved.completedArcs = [];
       if (saved.pendingArcEvent === undefined) saved.pendingArcEvent = null;
       if (saved.arcEventResult === undefined) saved.arcEventResult = null;
+      // Car theft migrations
+      if (!saved.stolenCars) saved.stolenCars = [];
+      if (!saved.carOrders) saved.carOrders = [];
+      if (saved.pendingCarTheft === undefined) saved.pendingCarTheft = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

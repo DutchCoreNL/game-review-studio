@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -441,6 +441,10 @@ export function createInitialState(): import('./types').GameState {
     newGamePlusLevel: 0,
     finalBossDefeated: false,
     freePlayMode: false,
+    // Car theft state
+    stolenCars: [],
+    carOrders: [],
+    pendingCarTheft: null,
     // Story & animation state
     pendingStreetEvent: null,
     streetEventResult: null,
@@ -454,3 +458,38 @@ export function createInitialState(): import('./types').GameState {
     arcEventResult: null,
   };
 }
+
+// ========== CAR THEFT CONSTANTS ==========
+
+export const STEALABLE_CARS: StealableCarDef[] = [
+  { id: 'rusted_sedan', name: 'Roest Sedan', brand: 'Volkmar', rarity: 'common', baseValue: 1500, stealDifficulty: 15, heatGain: 5, districts: ['low', 'iron'], desc: 'Oud en verroest, maar rijdt nog.' },
+  { id: 'city_hatch', name: 'Stads Hatchback', brand: 'Fiat-Mora', rarity: 'common', baseValue: 3000, stealDifficulty: 20, heatGain: 8, districts: ['low', 'iron', 'port'], desc: 'Gewone stadsauto. Makkelijk te stelen.' },
+  { id: 'delivery_van', name: 'Bestelbus', brand: 'Forge-Dyer', rarity: 'common', baseValue: 4500, stealDifficulty: 25, heatGain: 10, districts: ['port', 'iron'], desc: 'Perfect voor transport. Of smokkel.' },
+  { id: 'sport_coupe', name: 'Sport Coupé', brand: 'Bava-Motor', rarity: 'uncommon', baseValue: 12000, stealDifficulty: 40, heatGain: 15, districts: ['crown', 'neon'], desc: 'Snelle tweezitter met alarm.' },
+  { id: 'suv_terrain', name: 'SUV Terreinwagen', brand: 'Rangor', rarity: 'uncommon', baseValue: 18000, stealDifficulty: 45, heatGain: 18, districts: ['crown', 'iron'], desc: 'Zware SUV. Geparkeerd bij de country club.' },
+  { id: 'luxury_sedan', name: 'Luxe Sedan', brand: 'Meridio-Lux', rarity: 'uncommon', baseValue: 28000, stealDifficulty: 55, heatGain: 22, districts: ['crown', 'neon'], desc: 'Leren interieur, GPS-tracking.' },
+  { id: 'muscle_car', name: 'Muscle Car', brand: 'Amero-V8', rarity: 'rare', baseValue: 45000, stealDifficulty: 60, heatGain: 25, districts: ['neon', 'iron'], desc: 'Brullende V8. Valt op.' },
+  { id: 'exotic_sports', name: 'Exotische Sportwagen', brand: 'Lupo-Ghini', rarity: 'rare', baseValue: 85000, stealDifficulty: 75, heatGain: 35, districts: ['crown', 'neon'], desc: 'Miljoenen waard. Zwaar beveiligd.' },
+  { id: 'armored_limo', name: 'Gepantserde Limousine', brand: 'Royale-Ryce', rarity: 'exotic', baseValue: 120000, stealDifficulty: 85, heatGain: 40, districts: ['crown'], desc: 'VIP-limo met kogelvrij glas.' },
+  { id: 'rare_classic', name: 'Zeldzame Klassieker', brand: 'Aston-Veil', rarity: 'exotic', baseValue: 200000, stealDifficulty: 90, heatGain: 30, districts: ['crown'], desc: 'Vintage collectorsitem. Onvervangbaar.' },
+];
+
+export const CHOP_SHOP_UPGRADES: ChopShopUpgrade[] = [
+  { id: 'paint', name: 'Respray', cost: 500, valueBonus: 10, desc: 'Nieuwe lak en kleur.' },
+  { id: 'engine_tune', name: 'Motor Tune', cost: 2000, valueBonus: 20, desc: 'Chip-tuning en uitlaat upgrade.' },
+  { id: 'interior', name: 'Interieur', cost: 1500, valueBonus: 15, desc: 'Nieuw leer en dashboard.' },
+  { id: 'bodykit', name: 'Bodykit', cost: 3000, valueBonus: 25, desc: 'Spoilers, skirts en velgen.' },
+  { id: 'nitro', name: 'Nitro Systeem', cost: 5000, valueBonus: 30, desc: 'N2O injectie. Instant vermogen.' },
+];
+
+export const CAR_ORDER_CLIENTS = [
+  { name: 'Viktor K.', emoji: '🕶️' },
+  { name: 'Madame Chen', emoji: '💎' },
+  { name: 'El Gordo', emoji: '🎩' },
+  { name: 'Yuki R.', emoji: '🏎️' },
+  { name: 'Mr. Black', emoji: '🖤' },
+  { name: 'De Kolonel', emoji: '🎖️' },
+];
+
+export const OMKAT_COST = 2500;
+export const OMKAT_DAYS = 1; // days before car is "clean"

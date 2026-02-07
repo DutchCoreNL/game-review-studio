@@ -5,9 +5,10 @@ import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
+import { ChopShopView } from './ChopShopView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices } from 'lucide-react';
+import { Moon, Dices, Wrench } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { HidingOverlay } from './HidingOverlay';
 
