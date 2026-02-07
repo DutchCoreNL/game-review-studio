@@ -4,6 +4,7 @@
  */
 
 import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, SmuggleRoute, PhoneMessage, NightReportData } from './types';
+import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat } from './engine';
 import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
@@ -24,12 +25,12 @@ export function generateWeather(state: GameState): WeatherType {
 export function applyWeatherEffects(state: GameState, report: NightReportData): void {
   switch (state.weather) {
     case 'rain':
-      state.heat = Math.max(0, state.heat - 5);
-      report.heatChange -= 5;
+      addPersonalHeat(state, -5);
+      report.personalHeatChange = (report.personalHeatChange || 0) - 5;
       break;
     case 'heatwave':
-      state.heat = Math.min(100, state.heat + 3);
-      report.heatChange += 3;
+      addPersonalHeat(state, 3);
+      report.personalHeatChange = (report.personalHeatChange || 0) + 3;
       // Crew loses HP
       state.crew.forEach(c => {
         if (c.hp > 0) c.hp = Math.max(1, c.hp - 5);
@@ -53,7 +54,7 @@ export function updateDistrictRep(state: GameState): void {
   });
 
   // High heat in current district loses rep
-  if (state.heat > 70) {
+  if ((state.personalHeat || 0) > 70) {
     state.districtRep[state.loc] = Math.max(0, (state.districtRep[state.loc] || 0) - 3);
   }
 }
@@ -187,7 +188,7 @@ export function resolveDistrictAttacks(state: GameState, report: NightReportData
 
   state.ownedDistricts.forEach(distId => {
     // Base attack chance: 15% + day/200 + heat/200
-    const attackChance = 0.15 + state.day / 200 + state.heat / 200;
+    const attackChance = 0.15 + state.day / 200 + (state.personalHeat || 0) / 200;
     if (Math.random() > attackChance) {
       return; // No attack tonight
     }
@@ -263,7 +264,7 @@ export function processSmuggleRoutes(state: GameState, report: NightReportData):
     const income = Math.max(100, Math.floor((sellPrice - buyPrice) * 0.6));
 
     // Interception chance
-    let interceptChance = 0.10 + state.heat / 200;
+    let interceptChance = 0.10 + getActiveVehicleHeat(state) / 200;
     // Smokkelaar crew reduces risk
     if (state.crew.some(c => c.role === 'Smokkelaar')) interceptChance -= 0.05;
     if (state.crew.some(c => c.specialization === 'ghost')) interceptChance -= 0.05;
@@ -275,7 +276,7 @@ export function processSmuggleRoutes(state: GameState, report: NightReportData):
 
     if (Math.random() < interceptChance) {
       // Intercepted!
-      state.heat += 15;
+      addVehicleHeat(state, 15);
       const fine = Math.floor(income * 3);
       state.money = Math.max(0, state.money - fine);
       report.smuggleResults!.push({
@@ -365,13 +366,13 @@ export function generateDailyMessages(state: GameState): void {
   }
 
   // ======= HEAT — escalating warnings =======
-  if (state.heat >= 80) {
+  if ((state.personalHeat || 0) >= 80) {
     addPhoneMessage(state, 'police', pick([
       `NHPD heeft een speciaal team op je gezet. Verlaat ${districtName} of lig laag. Nu.`,
       `Bronnen bij het bureau: er is een arrestatiebevel onderweg. Alles boven 80% heat is zelfmoord.`,
       `Je staat op de radar van de commissaris persoonlijk. Ze plannen een inval.`,
     ]), 'threat');
-  } else if (state.heat >= 60) {
+  } else if ((state.personalHeat || 0) >= 60) {
     addPhoneMessage(state, 'police', pick([
       `Politie patrouilleert extra in ${districtName}. Wees voorzichtig met deals.`,
       `Mijn bron zegt dat ze je in de gaten houden. Houd het rustig vandaag.`,

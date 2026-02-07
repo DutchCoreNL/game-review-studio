@@ -160,6 +160,8 @@ export interface CrewMember {
 export interface OwnedVehicle {
   id: string;
   condition: number;
+  vehicleHeat: number;
+  rekatCooldown: number;
 }
 
 export interface ActiveContract {
@@ -217,6 +219,8 @@ export interface NightReportData {
   debtInterest: number;
   labYield: number;
   heatChange: number;
+  vehicleHeatChange: number;
+  personalHeatChange: number;
   policeRaid: boolean;
   policeFine: number;
   crewHealing: number;
@@ -326,6 +330,8 @@ export interface GameState {
   debt: number;
   rep: number;
   heat: number;
+  personalHeat: number;
+  hidingDays: number;
   loc: DistrictId;
   player: PlayerState;
   inventory: Partial<Record<GoodId, number>>;

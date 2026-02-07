@@ -64,6 +64,39 @@ export function recalcMaxInv(state: GameState): number {
   return inv;
 }
 
+// ========== HEAT 2.0 HELPERS ==========
+
+export function getActiveVehicleHeat(state: GameState): number {
+  const v = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  return v?.vehicleHeat || 0;
+}
+
+export function addVehicleHeat(state: GameState, amount: number): void {
+  const v = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  if (v) {
+    v.vehicleHeat = Math.max(0, Math.min(100, (v.vehicleHeat || 0) + amount));
+  }
+}
+
+export function addPersonalHeat(state: GameState, amount: number): void {
+  state.personalHeat = Math.max(0, Math.min(100, (state.personalHeat || 0) + amount));
+}
+
+export function splitHeat(state: GameState, amount: number, vehiclePct = 0.5): void {
+  const vHeat = Math.round(amount * vehiclePct);
+  const pHeat = amount - vHeat;
+  addVehicleHeat(state, vHeat);
+  addPersonalHeat(state, pHeat);
+}
+
+export function recomputeHeat(state: GameState): void {
+  state.heat = Math.max(getActiveVehicleHeat(state), state.personalHeat || 0);
+}
+
+export function getAverageHeat(state: GameState): number {
+  return Math.round((getActiveVehicleHeat(state) + (state.personalHeat || 0)) / 2);
+}
+
 export function generatePrices(state: GameState): void {
   state.prices = {};
   state.districtDemands = {};
@@ -119,9 +152,10 @@ export function generateMapEvents(state: GameState): void {
     let type: MapEvent['type'];
     const roll = Math.random();
 
-    if (state.heat > 60 && roll < 0.3) {
+    const vHeat = getActiveVehicleHeat(state);
+    if (vHeat > 60 && roll < 0.3) {
       type = 'drone';
-    } else if (state.heat > 40 && roll < 0.5) {
+    } else if (vHeat > 40 && roll < 0.5) {
       type = 'police_checkpoint';
     } else if (Object.values(state.familyRel).some(r => (r || 0) < -30) && roll < 0.6) {
       type = 'street_fight';
@@ -151,7 +185,7 @@ export function generateMapEvents(state: GameState): void {
     });
   }
 
-  if (state.heat > 70 && events.filter(e => e.type === 'police_checkpoint').length === 0) {
+  if (getActiveVehicleHeat(state) > 70 && events.filter(e => e.type === 'police_checkpoint').length === 0) {
     let roadIndex: number;
     do { roadIndex = Math.floor(Math.random() * totalRoads); } while (usedRoads.has(roadIndex));
     events.push({
@@ -216,7 +250,7 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
       break;
     }
     case 'reduce_heat': {
-      state.heat = Math.max(0, state.heat - 25);
+      addPersonalHeat(state, -25);
       break;
     }
     case 'heal_crew': {
@@ -254,7 +288,8 @@ export function endTurn(state: GameState): NightReportData {
     randomEvent: null,
   };
 
-  const heatBefore = state.heat;
+  const personalHeatBefore = state.personalHeat || 0;
+  const vehicleHeatBefore = getActiveVehicleHeat(state);
 
   // Lab production (storm gives +50% output, not double)
   const labMultiplier = state.weather === 'storm' ? 1.5 : 1;
@@ -272,45 +307,71 @@ export function endTurn(state: GameState): NightReportData {
       state.inventoryCosts.drugs = totalQty > 0 ? Math.floor(((existingCount * existingCost) + (batchSize * baseCost)) / totalQty) : baseCost;
       state.inventory.drugs = totalQty;
       report.labYield = batchSize;
-      state.heat += 4;
+      addPersonalHeat(state, 4);
     }
   }
 
   state.day++;
   state.stats.daysPlayed++;
 
-  // District income
-  report.districtIncome = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
-  
-  // Business income & washing
-  state.ownedBusinesses.forEach(bid => {
-    const biz = BUSINESSES.find(b => b.id === bid);
-    if (biz) {
-      report.businessIncome += biz.income;
-      let washAmount = Math.min(state.dirtyMoney, biz.clean);
-      if (state.ownedDistricts.includes('neon')) washAmount = Math.floor(washAmount * 1.2);
-      state.dirtyMoney -= washAmount;
-      const washed = Math.floor(washAmount * 0.85);
-      state.money += washed;
-      report.totalWashed += washAmount;
-    }
-  });
+  // === HIDING DAYS PROCESSING ===
+  const isHiding = (state.hidingDays || 0) > 0;
+  if (isHiding) {
+    state.hidingDays = Math.max(0, state.hidingDays - 1);
+    const safeHouseBonus = state.hqUpgrades.includes('safehouse') ? 5 : 0;
+    addPersonalHeat(state, -(15 + safeHouseBonus));
+  }
+
+  // District income (0 while hiding)
+  if (!isHiding) {
+    report.districtIncome = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
+  }
+
+  // Business income & washing (0 while hiding)
+  if (!isHiding) {
+    state.ownedBusinesses.forEach(bid => {
+      const biz = BUSINESSES.find(b => b.id === bid);
+      if (biz) {
+        report.businessIncome += biz.income;
+        let washAmount = Math.min(state.dirtyMoney, biz.clean);
+        if (state.ownedDistricts.includes('neon')) washAmount = Math.floor(washAmount * 1.2);
+        state.dirtyMoney -= washAmount;
+        const washed = Math.floor(washAmount * 0.85);
+        state.money += washed;
+        report.totalWashed += washAmount;
+      }
+    });
+  }
 
   state.money += report.districtIncome + report.businessIncome;
   state.stats.totalEarned += report.districtIncome + report.businessIncome;
 
-  // Heat decay
-  let heatDecay = 5;
-  if (state.ownedDistricts.includes('crown')) heatDecay += Math.floor(heatDecay * 0.2);
-  if (state.hqUpgrades.includes('server')) heatDecay += 10;
-  if (state.crew.some(c => c.role === 'Hacker')) heatDecay += 3;
-  state.heat = Math.max(0, state.heat - heatDecay);
+  // === VEHICLE HEAT DECAY (each vehicle) ===
+  state.ownedVehicles.forEach(v => {
+    let vDecay = 8;
+    if (state.ownedDistricts.includes('crown')) vDecay += 2;
+    if (state.hqUpgrades.includes('server')) vDecay += 3;
+    v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
+    // Rekat cooldown countdown
+    if (v.rekatCooldown > 0) v.rekatCooldown--;
+  });
 
-  // Police heat check
-  if (state.heat > 70 && Math.random() < 0.3 && state.policeRel < 50) {
+  // === PERSONAL HEAT DECAY ===
+  let pDecay = 2;
+  if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
+  if (state.ownedDistricts.includes('crown')) pDecay += 1;
+  if (state.hqUpgrades.includes('server')) pDecay += 3;
+  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
+  addPersonalHeat(state, -pDecay);
+
+  // Recompute effective heat
+  recomputeHeat(state);
+
+  // Police heat check (uses personalHeat)
+  if ((state.personalHeat || 0) > 60 && Math.random() < 0.3 && state.policeRel < 50) {
     const fine = Math.floor(state.money * 0.1);
     state.money -= fine;
-    state.heat = Math.max(0, state.heat - 20);
+    addPersonalHeat(state, -20);
     report.policeRaid = true;
     report.policeFine = fine;
   }
@@ -350,7 +411,10 @@ export function endTurn(state: GameState): NightReportData {
     report.randomEvent = event;
   }
 
-  report.heatChange = state.heat - heatBefore;
+  recomputeHeat(state);
+  report.vehicleHeatChange = getActiveVehicleHeat(state) - vehicleHeatBefore;
+  report.personalHeatChange = (state.personalHeat || 0) - personalHeatBefore;
+  report.heatChange = state.heat - Math.max(vehicleHeatBefore, personalHeatBefore);
 
   // Track price history before regenerating
   if (!state.priceHistory) state.priceHistory = {};
@@ -414,7 +478,7 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     if (good?.faction && (state.familyRel[good.faction] || 0) > 50) {
       buyPrice = Math.floor(buyPrice * 0.7);
     }
-    if (state.heat > 50) buyPrice = Math.floor(buyPrice * 1.2);
+    if (getAverageHeat(state) > 50) buyPrice = Math.floor(buyPrice * 1.2);
 
     const actualQty = Math.min(maxBuy, Math.floor(state.money / buyPrice));
     if (actualQty <= 0) return { success: false, message: "Te weinig kapitaal." };
@@ -475,14 +539,14 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
 
   if (Math.random() * 100 < chance) {
     state.dirtyMoney += op.reward;
-    state.heat += op.heat;
+    splitHeat(state, op.heat, 0.4);
     state.rep += 10;
     state.stats.totalEarned += op.reward;
     state.stats.missionsCompleted++;
     gainXp(state, 15);
     return { success: true, message: `${op.name} geslaagd! +€${op.reward} zwart geld.` };
   } else {
-    state.heat += Math.floor(op.heat * 1.5);
+    splitHeat(state, Math.floor(op.heat * 1.5), 0.3);
     state.stats.missionsFailed++;
     return { success: false, message: `${op.name} mislukt! Extra heat opgelopen.` };
   }
@@ -528,7 +592,7 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
 
   if (success) {
     state.dirtyMoney += contract.reward;
-    state.heat += contract.heat;
+    splitHeat(state, contract.heat, contract.type === 'delivery' ? 0.8 : 0.3);
     state.rep += 15;
     repChange = 15;
     state.stats.totalEarned += contract.reward;
@@ -549,7 +613,7 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
       member.hp = Math.max(1, member.hp - crewDamage);
     }
   } else {
-    state.heat += Math.floor(contract.heat * 1.5);
+    splitHeat(state, Math.floor(contract.heat * 1.5), 0.3);
     crewDamage = Math.floor(Math.random() * 30) + 15;
     member.hp = Math.max(0, member.hp - crewDamage);
     state.stats.missionsFailed++;
