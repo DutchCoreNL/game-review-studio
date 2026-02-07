@@ -21,6 +21,7 @@ interface CityMapProps {
   onSelectDistrict: (id: DistrictId) => void;
   smuggleRoutes?: SmuggleRoute[];
   districtRep?: Record<DistrictId, number>;
+  onChopShopClick?: () => void;
 }
 
 // Road paths connecting districts
@@ -218,7 +219,7 @@ function CrownHeightsLandmarks({ isOwned, isSelected }: { isOwned: boolean; isSe
   );
 }
 
-function IronBoroughLandmarks({ isOwned, isSelected }: { isOwned: boolean; isSelected: boolean }) {
+function IronBoroughLandmarks({ isOwned, isSelected, onChopShopClick }: { isOwned: boolean; isSelected: boolean; onChopShopClick?: () => void }) {
   const baseColor = isOwned ? 'hsla(0, 25%, 13%, 0.8)' : 'hsla(30, 15%, 12%, 0.8)';
   const metalColor = 'hsla(30, 20%, 30%, 0.6)';
   const rustColor = 'hsla(20, 50%, 20%, 0.3)';
@@ -281,49 +282,57 @@ function IronBoroughLandmarks({ isOwned, isSelected }: { isOwned: boolean; isSel
       <rect x="155" y="192" width="10" height="8" fill={baseColor} rx="0.5" />
       <rect x="168" y="194" width="8" height="6" fill={baseColor} rx="0.5" />
 
-      {/* Chop Shop garage */}
-      <rect x="195" y="192" width="20" height="10" fill="hsla(30, 18%, 14%, 0.85)" rx="1" />
-      {/* Garage door */}
-      <rect x="198" y="195" width="7" height="7" fill="hsla(0, 0%, 8%, 0.6)" rx="0.5" />
-      <rect x="207" y="195" width="7" height="7" fill="hsla(0, 0%, 8%, 0.6)" rx="0.5" />
-      {/* Garage door lines */}
-      {[196.5, 198, 199.5].map((y, i) => (
-        <line key={`gd1-${i}`} x1="198.5" y1={y} x2="204.5" y2={y} stroke="hsla(0, 0%, 15%, 0.3)" strokeWidth="0.3" />
-      ))}
-      {[196.5, 198, 199.5].map((y, i) => (
-        <line key={`gd2-${i}`} x1="207.5" y1={y} x2="213.5" y2={y} stroke="hsla(0, 0%, 15%, 0.3)" strokeWidth="0.3" />
-      ))}
-      {/* Roof accent */}
-      <rect x="195" y="191.5" width="20" height="1.5" fill={metalColor} />
-      {/* Wrench sign on wall */}
-      <g transform="translate(203, 193.5) scale(0.35)">
-        <motion.g animate={{ rotate: [0, 15, 0, -15, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
-          <path d="M2,8 L6,4 L8,6 L4,10 Z" fill="hsla(40, 80%, 50%, 0.7)" />
-          <path d="M7,3 L10,0 L12,2 L9,5 Z" fill="hsla(40, 80%, 50%, 0.7)" />
-        </motion.g>
-      </g>
-      {/* Neon "CHOP" sign */}
-      <motion.text
-        x="205" y="190" textAnchor="middle" fontSize="3"
-        fontWeight="bold" fontFamily="monospace"
-        fill="hsla(40, 90%, 55%, 0.8)"
-        animate={{ opacity: [0.6, 1, 0.6], fill: ['hsla(40, 90%, 55%, 0.6)', 'hsla(40, 90%, 60%, 1)', 'hsla(40, 90%, 55%, 0.6)'] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      {/* Chop Shop garage — clickable */}
+      <g
+        onClick={(e) => { e.stopPropagation(); onChopShopClick?.(); }}
+        style={{ cursor: onChopShopClick ? 'pointer' : 'default' }}
+        className="chop-shop-landmark"
       >
-        CHOP SHOP
-      </motion.text>
-      {/* Sign glow */}
-      <motion.rect x="193" y="187" width="24" height="5" rx="1" fill="hsla(40, 80%, 50%, 0.04)"
-        animate={{ opacity: [0.03, 0.08, 0.03] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      {/* Sparks from inside garage */}
-      <motion.circle cx="201" cy="199" r="0.5" fill="hsla(40, 100%, 70%, 0.8)"
-        animate={{ opacity: [0, 1, 0], cy: [199, 197], x: [0, 1.5] }}
-        transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 3, ease: 'easeOut' }} />
-      <motion.circle cx="202" cy="199" r="0.3" fill="hsla(30, 100%, 60%, 0.7)"
-        animate={{ opacity: [0, 0.8, 0], cy: [199, 196.5], x: [0, -1] }}
-        transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3, ease: 'easeOut', delay: 0.1 }} />
+        {/* Hover hitbox (slightly larger for easier clicking) */}
+        <rect x="191" y="185" width="28" height="18" fill="transparent" />
+        <rect x="195" y="192" width="20" height="10" fill="hsla(30, 18%, 14%, 0.85)" rx="1" />
+        {/* Garage door */}
+        <rect x="198" y="195" width="7" height="7" fill="hsla(0, 0%, 8%, 0.6)" rx="0.5" />
+        <rect x="207" y="195" width="7" height="7" fill="hsla(0, 0%, 8%, 0.6)" rx="0.5" />
+        {/* Garage door lines */}
+        {[196.5, 198, 199.5].map((y, i) => (
+          <line key={`gd1-${i}`} x1="198.5" y1={y} x2="204.5" y2={y} stroke="hsla(0, 0%, 15%, 0.3)" strokeWidth="0.3" />
+        ))}
+        {[196.5, 198, 199.5].map((y, i) => (
+          <line key={`gd2-${i}`} x1="207.5" y1={y} x2="213.5" y2={y} stroke="hsla(0, 0%, 15%, 0.3)" strokeWidth="0.3" />
+        ))}
+        {/* Roof accent */}
+        <rect x="195" y="191.5" width="20" height="1.5" fill={metalColor} />
+        {/* Wrench sign on wall */}
+        <g transform="translate(203, 193.5) scale(0.35)">
+          <motion.g animate={{ rotate: [0, 15, 0, -15, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+            <path d="M2,8 L6,4 L8,6 L4,10 Z" fill="hsla(40, 80%, 50%, 0.7)" />
+            <path d="M7,3 L10,0 L12,2 L9,5 Z" fill="hsla(40, 80%, 50%, 0.7)" />
+          </motion.g>
+        </g>
+        {/* Neon "CHOP" sign */}
+        <motion.text
+          x="205" y="190" textAnchor="middle" fontSize="3"
+          fontWeight="bold" fontFamily="monospace"
+          fill="hsla(40, 90%, 55%, 0.8)"
+          animate={{ opacity: [0.6, 1, 0.6], fill: ['hsla(40, 90%, 55%, 0.6)', 'hsla(40, 90%, 60%, 1)', 'hsla(40, 90%, 55%, 0.6)'] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          CHOP SHOP
+        </motion.text>
+        {/* Sign glow */}
+        <motion.rect x="193" y="187" width="24" height="5" rx="1" fill="hsla(40, 80%, 50%, 0.04)"
+          animate={{ opacity: [0.03, 0.08, 0.03] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        {/* Sparks from inside garage */}
+        <motion.circle cx="201" cy="199" r="0.5" fill="hsla(40, 100%, 70%, 0.8)"
+          animate={{ opacity: [0, 1, 0], cy: [199, 197], x: [0, 1.5] }}
+          transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 3, ease: 'easeOut' }} />
+        <motion.circle cx="202" cy="199" r="0.3" fill="hsla(30, 100%, 60%, 0.7)"
+          animate={{ opacity: [0, 0.8, 0], cy: [199, 196.5], x: [0, -1] }}
+          transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3, ease: 'easeOut', delay: 0.1 }} />
+      </g>
       
       {/* Factory windows with industrial glow */}
       {[[163, 173], [170, 178], [188, 178], [196, 182], [210, 184], [220, 184]].map(([x, y], i) => (
@@ -768,7 +777,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -832,7 +841,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         {/* === DISTRICT LANDMARKS === */}
         <PortNeroLandmarks isOwned={ownedDistricts.includes('port')} isSelected={selectedDistrict === 'port'} />
         <CrownHeightsLandmarks isOwned={ownedDistricts.includes('crown')} isSelected={selectedDistrict === 'crown'} />
-        <IronBoroughLandmarks isOwned={ownedDistricts.includes('iron')} isSelected={selectedDistrict === 'iron'} />
+        <IronBoroughLandmarks isOwned={ownedDistricts.includes('iron')} isSelected={selectedDistrict === 'iron'} onChopShopClick={onChopShopClick} />
         <LowriseLandmarks isOwned={ownedDistricts.includes('low')} isSelected={selectedDistrict === 'low'} />
         <NeonStripLandmarks isOwned={ownedDistricts.includes('neon')} isSelected={selectedDistrict === 'neon'} />
 

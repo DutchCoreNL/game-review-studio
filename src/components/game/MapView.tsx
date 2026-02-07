@@ -110,6 +110,7 @@ export function MapView() {
           onSelectDistrict={selectDistrict}
           smuggleRoutes={state.smuggleRoutes || []}
           districtRep={state.districtRep}
+          onChopShopClick={!isHiding && state.loc === 'iron' ? () => setShowChopShop(true) : undefined}
         />
       </div>
 
