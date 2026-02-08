@@ -450,6 +450,11 @@ export function createInitialState(): import('./types').GameState {
     // Corruption network state
     corruptContacts: [],
     pendingCorruptionEvent: null,
+    // Daily challenges state
+    dailyChallenges: [],
+    challengeDay: 0,
+    challengesCompleted: 0,
+    dailyProgress: { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 },
     // Story & animation state
     pendingStreetEvent: null,
     streetEventResult: null,
