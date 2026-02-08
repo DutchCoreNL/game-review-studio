@@ -1,89 +1,97 @@
 
-# Verhaal Verdieping voor Noxhaven: Blood & Empire
 
-Het spel heeft al een solide basis met 3 verhaalbogen (De Informant, Het Erfenis-mysterie, De Rivaal), 20+ straatgebeurtenissen, en een Nemesis-systeem. Hier zijn concrete voorstellen om het narratieve aspect significant te versterken.
+# Noxhaven City Map -- Realistischer Stadsbeeld
 
----
+## Doel
+De huidige kaart ziet eruit als een "tactisch overzicht" met losstaande rechthoekige gebouwen en eenvoudige lijnen. We gaan dit transformeren naar een realistischer stadsbeeld waar de 5 districten visueel aansluiten als onderdeel van 1 samenhangende stad.
 
-## 1. Persoonlijk Verleden & Herkomst (Proloog Keuze-systeem)
+## Huidige Situatie
+- De kaart is een 400x290 SVG met 5 losse "eilandjes" van gebouwen
+- Districten zijn visueel gescheiden door lege ruimte
+- Wegen zijn simpele rechte lijnen die districten verbinden
+- Gebouwen zijn basale rechthoeken met subtiele details
+- Er is geen stadsweefsel (stadsblokken, straatpatronen) tussen de districten
 
-Bij het starten van een nieuw spel kiest de speler een achtergrondverhaal. Dit beinvloedt startbonussen, unieke dialoogopties en welke verhaalbogen eerder beschikbaar worden.
+## Verbeterplan
 
-**Drie achtergronden:**
-- **De Weduwnaar** -- Je partner is vermoord door de politie. Je wilt wraak. Start met +3 Kracht, lagere politierelatie, en unieke wraak-verhaalboog.
-- **De Gevallen Bankier** -- Je verloor alles door een corrupte deal. Start met +3 Vernuft, extra startgeld, en een unieke schuld-verhaalboog.
-- **Het Straatkind** -- Opgegroeid in Lowrise, niks te verliezen. Start met +3 Charisma, extra reputatie, en een unieke loyaliteits-verhaalboog.
+### 1. Stadsweefsel als Achtergrond
+Voeg een dicht netwerk van kleine gebouwblokken toe die de hele kaart vullen, zodat er geen "lege gaten" meer zijn tussen districten. Dit creëert het gevoel van een echte stad:
+- Kleine generieke stadsblokken (3x3 tot 8x6 px) in donkere tinten verspreid over de hele kaart
+- Variatie in hoogte/kleur per zone (hogere/lichtere blokken richting Crown Heights, lagere/donkerdere richting Lowrise)
+- Subtiele straatjes (dunne lijnen) tussen de blokken
 
-Elke achtergrond ontgrendelt 1 exclusieve verhaalboog (4-5 stappen) die verweven is met de hoofdverhaallijn.
+### 2. Organisch Wegennetwerk
+Het huidige netwerk van 8 rechte wegen wordt uitgebreid met:
+- Meer tussenliggende straten die een rasterpatroon vormen (stad-grid)
+- Gebogen wegen die het organischer maken (met Q-curves in SVG paths)
+- Brede hoofdwegen (boulevards) vs. smalle zijstraten
+- Rotonde of kruispunt bij Iron Borough (centraal gelegen district)
+- Duidelijke kustlijn/kade langs Port Nero
 
----
+### 3. Verbeterde District-Identiteit
+Elk district krijgt een subtiel onderscheidend kleuraccent in de achtergrondblokken:
+- **Port Nero**: Blauwige tint, uitgebreider havengebied met kade, kranen en waterfront
+- **Crown Heights**: Hogere gebouwen met glas-reflecties, parkgebied met bomen, penthouse-torens
+- **Iron Borough**: Roestige/bruine tint, industriele complexen, spoorwegemplacement
+- **Lowrise**: Donkerder/verwaarloosder, lage bouw, steegjes, graffiti
+- **Neon Strip**: Paars/roze neon-gloed, entertainment-feel met meer neonreclames
 
-## 2. NPC Relatie-systeem met Terugkerende Personages
+### 4. Geografische Elementen
+- **Rivier/kustlijn**: Breder wateroppervlak langs de westzijde (Port Nero) met een duidelijke kustlijn
+- **Parken**: Klein parkgebied in Crown Heights met boomsilhouetten
+- **Spoorlijn**: Duidelijker treinspoor door Iron Borough, eventueel met een stationsgebouw
+- **Brug**: Een brug over het water die Port Nero verbindt met Lowrise
 
-In plaats van eenmalige ontmoetingen, introduceren we terugkerende NPC's die een relatie met de speler opbouwen.
+### 5. Skyline-effect
+Een subtiele skyline-silhouet langs de bovenkant van de kaart, die de gebouwen van Crown Heights als achtergrond laat afsteken.
 
-**5 Kernpersonages:**
-- **Rosa** (Barvrouw in Neon Strip) -- Geeft tips, wordt romantische interesse of zakenpartner afhankelijk van keuzes.
-- **Oude Marco** (Gepensioneerde mafioso in Lowrise) -- Mentor-figuur. Deelt wijsheid en soms wapens.
-- **Inspecteur Yilmaz** (Eerlijke politieagent) -- Tegenstander die je kunt corrumperen of respecteren. Beinvloedt het eindgevecht.
-- **Luna** (Straatkind/informant) -- Groeit op naarmate het spel vordert. Wordt uiteindelijk een potentieel crewlid.
-- **Viktor Krow** (Uit de bestaande Rivaal-boog) -- Wordt uitgebreid tot een terugkerend personage, ook na de boog.
-
-Elke NPC heeft een relatiewaarde (0-100) die stijgt/daalt op basis van keuzes, en verandert dialogen en beschikbare opties.
-
----
-
-## 3. Morele Keuzes met Gevolgen (Karma-systeem)
-
-Een verborgen karma-meter die de toon van het spel beinvloedt.
-
-**Hoe het werkt:**
-- Keuzes in events en verhaalbogen verschuiven je karma richting "Meedogenloos" of "Eerbaar".
-- Karma beinvloedt: welke crew je kunt rekruteren, factie-reacties, NPC-dialogen, en het einde van het spel.
-- Geen "goed" of "fout" -- beide paden hebben unieke voordelen en verhaallijnen.
-
-**Voorbeelden:**
-- Meedogenloos: hogere fear-rep, goedkopere intimidatie, maar verraad-risico van crew stijgt.
-- Eerbaar: loyalere crew, betere politierelatie, maar minder inkomen van illegale activiteiten.
-
----
-
-## 4. District-specifieke Verhaallijnen
-
-Elk van de 5 districten krijgt een eigen korte verhaallijn (3 stappen) die activeert wanneer je het district koopt. Dit geeft elk district meer persoonlijkheid.
-
-**Voorbeelden:**
-- **Port Nero: "De Verdwenen Lading"** -- Een mysterieuze container verschijnt in de haven. Wat zit erin? Drugs, wapens, of iets veel ergers?
-- **Crown Heights: "De Gouden Gijzeling"** -- Een bankiersdochter is ontvoerd. Red je haar, of eis je een deel van het losgeld?
-- **Iron Borough: "De Fabrieksbrand"** -- Een explosie onthult een ondergronds tunnelnetwerk. Wie heeft het gebouwd?
-- **Lowrise: "Het Kind van de Straat"** -- Een weeskind steelt van je. Straf je hem, of neem je hem onder je hoede?
-- **Neon Strip: "De Valse Jackpot"** -- Het casino wordt gebruikt voor geldwitwassen door een onbekende organisatie. Neem je het over?
+### 6. Extra Sfeer-details
+- Meer rook/stoom uit schoorstenen in Iron Borough
+- Betere waterreflecties in het havengebied
+- Subtiele fog/haze-gradient van onder naar boven
+- Tiny details: verkeerslichten op kruispunten, bankjes in parkgebied
 
 ---
 
-## 5. Consequentie-Flashbacks
+## Technische Aanpak
 
-Na grote beslissingen (verhaalboog-afronding, factie-verovering, nemesis-gevecht) verschijnt een korte "flashback" scene die laat zien hoe je eerdere keuzes tot dit moment hebben geleid. Dit versterkt het gevoel dat keuzes ertoe doen.
+### Bestanden die worden aangepast:
 
-**Implementatie:**
-- Een FlashbackOverlay component die 2-3 regels toont als een filmische herinnering.
-- Getriggerd door milestone-momenten.
-- Verwijst naar specifieke keuzes die de speler eerder maakte.
+**`src/components/game/CityMap.tsx`** (hoofdbestand, ~1080 regels):
+- Nieuw `CityFabric` component: genereert een dense achtergrondlaag van kleine gebouwblokken over de hele kaart (via loops, niet handmatig)
+- Uitbreiden van `ROADS` array met 8-12 extra zijstraten voor een dichter stratennet
+- Uitbreiden van `AMBIENT_ROADS` met nog meer achtergrondstraten
+- Aanpassen van de SVG viewBox achtergrond en grid-pattern naar een subtieler stadsraster
+- Toevoegen van een kustlijn/watergebied als volledige westelijke rand
+- Toevoegen van een brug-element
+- Verbeteren van bestaande landmark-functies met extra detail-elementen
 
----
+**`src/components/game/map/CityAmbience.tsx`**:
+- Uitbreiden van `RiverWaterway` naar een volledige kustlijn met kade-elementen
+- Verbeteren van `StreetLights` om ook op de nieuwe wegen te verschijnen
+- Toevoegen van `CityFog` component voor een subtiele atmosferische haze
+- Aanpassen van `HarborActivity` voor het bredere watergebied
 
-## Aanbevolen Implementatievolgorde
+**Geen nieuwe bestanden nodig** -- alle verbeteringen passen binnen de bestaande architectuur.
 
-1. **District-verhaallijnen** -- Meest directe impact, bouwt voort op het bestaande story-arc systeem.
-2. **Terugkerende NPC's** -- Voegt diepte toe aan de wereld en maakt events persoonlijker.
-3. **Persoonlijk Verleden** -- Verandert het begin van het spel en voegt herhaalspeelwaarde toe.
-4. **Morele Keuzes** -- Subtiel systeem dat geleidelijk impact heeft.
-5. **Consequentie-Flashbacks** -- Polijstlaag die alles samenvoegt.
+### Rendering-volgorde (van achter naar voor):
+1. Water/kustlijn
+2. Stadsweefsel (achtergrondblokken)
+3. Stratennetwerk (ambient + hoofd)
+4. District landmarks (bestaand, verbeterd)
+5. Ambience-elementen (lichten, voetgangers, verkeer)
+6. UI-labels, speler-marker, events
+7. Weer-overlay, heat-overlay
 
----
+### Performance-overwegingen
+- Achtergrondblokken worden als statische SVG-elementen gerenderd (geen animaties) om performance te behouden
+- Gebruik van `pointerEvents="none"` op alle decoratieve lagen
+- Maximaal 150-200 extra statische rect-elementen voor het stadsweefsel (dit is prima voor SVG performance)
+- Animaties blijven beperkt tot de bestaande dynamische elementen
 
-## Technisch Overzicht
+## Aanbevolen Extra Verbeteringen
+Naast het realistischer maken van de kaart zou ik ook willen voorstellen:
+- **Mini-map compass**: Een klein kompas-icoon in een hoek voor orientatie
+- **Schaal-indicator**: "500m" balk onderaan voor gevoel van schaal
+- **Dag/nacht-cyclus hint**: De achtergrondtint subtiel aanpassen op basis van het dag-nummer (even = nacht-tint, oneven = iets lichter)
 
-- **Nieuwe bestanden:** `src/game/backstory.ts`, `src/game/npcs.ts`, `src/game/districtStories.ts`, `src/components/game/BackstorySelection.tsx`, `src/components/game/FlashbackOverlay.tsx`
-- **Bestaande wijzigingen:** `types.ts` (nieuwe state velden), `storyArcs.ts` (nieuwe bogen), `constants.ts` (NPC definities), `GameContext.tsx` (nieuwe actions), `engine.ts` (karma/relatie processing)
-- Het story-arc systeem (`StoryArcTemplate`, `StoryArcStep`, `StoryArcChoice`) wordt hergebruikt voor alle nieuwe verhaallijnen, waardoor de bestaande popup-UI en logica direct werken.
