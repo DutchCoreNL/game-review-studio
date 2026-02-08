@@ -1,6 +1,6 @@
 /**
  * Endgame system for Noxhaven
- * Progression phases, final boss, ranking, New Game+
+ * Progression phases, final boss (multi-phase), ranking, New Game+, endgame events
  */
 
 import { GameState, EndgamePhase, VictoryData, VictoryRank, CombatState, FamilyId } from './types';
@@ -40,31 +40,86 @@ export function canTriggerFinalBoss(state: GameState): boolean {
   return allFactionsConquered && nemesisDefeatedOnce;
 }
 
+// ========== MULTI-PHASE FINAL BOSS ==========
+
+export const BOSS_PHASES = [
+  {
+    phase: 1,
+    name: 'SWAT-Commandant Voss',
+    title: 'FASE 1: SWAT INVAL',
+    desc: 'Decker stuurt zijn beste SWAT-team vooruit. Commandant Voss leidt de operatie.',
+    introLines: [
+      '🚔 SWAT-teams bestormen je positie van alle kanten!',
+      'Commandant Voss: "Op de grond! NU!"',
+      'Je crew bereidt zich voor op het eerste vuurgevecht.',
+    ],
+  },
+  {
+    phase: 2,
+    name: 'Commissaris Decker',
+    title: 'FASE 2: DE COMMISSARIS',
+    desc: 'Decker betreedt persoonlijk het slagveld. Dit is het einde.',
+    introLines: [
+      '⚠️ De rookwolken trekken op...',
+      'Een silhouet stapt door de puinhopen.',
+      'Decker: "Ik kom niet arresteren. Ik kom afrekenen."',
+      '🔥 LAATSTE GEVECHT — VERSLA DECKER OM DE STAD TE CLAIMEN',
+    ],
+  },
+];
+
 export function startFinalBoss(state: GameState): CombatState | null {
   if (!canTriggerFinalBoss(state)) return null;
+  return createBossPhase(state, 1);
+}
 
+export function createBossPhase(state: GameState, phase: number): CombatState {
   const muscle = getPlayerStat(state, 'muscle');
   const playerMaxHP = 100 + (state.player.level * 8) + (muscle * 4);
+  const phaseData = BOSS_PHASES[phase - 1];
 
-  // Final boss: Commissioner Decker - scales with player
+  if (phase === 1) {
+    // Phase 1: SWAT Commander Voss
+    const hp = 120 + state.player.level * 6 + state.day;
+    const attack = 14 + Math.floor(state.player.level * 0.7) + Math.floor(state.day * 0.15);
+    return {
+      idx: 0,
+      targetName: phaseData.name,
+      targetHP: hp,
+      enemyMaxHP: hp,
+      enemyAttack: attack,
+      playerHP: playerMaxHP,
+      playerMaxHP,
+      logs: [...phaseData.introLines, ''],
+      isBoss: true,
+      familyId: null,
+      stunned: false,
+      turn: 0,
+      finished: false,
+      won: false,
+      isNemesis: false,
+      bossPhase: 1,
+    };
+  }
+
+  // Phase 2: Commissioner Decker
   const bossHP = 200 + state.player.level * 10 + state.day * 2;
   const bossAttack = 20 + state.player.level + Math.floor(state.day * 0.3);
 
+  // Carry over remaining HP from phase 1 (or full if starting fresh)
+  const currentHP = state.activeCombat
+    ? Math.max(Math.floor(playerMaxHP * 0.4), state.activeCombat.playerHP) // At least 40% HP
+    : playerMaxHP;
+
   return {
     idx: 0,
-    targetName: 'Commissaris Decker',
+    targetName: phaseData.name,
     targetHP: bossHP,
     enemyMaxHP: bossHP,
     enemyAttack: bossAttack,
-    playerHP: playerMaxHP,
+    playerHP: currentHP,
     playerMaxHP,
-    logs: [
-      '⚠️ OPERATIE GERECHTIGHEID ⚠️',
-      'Commissaris Decker leidt persoonlijk de grootste politie-inval in de geschiedenis van Noxhaven.',
-      '"Je hebt lang genoeg de baas gespeeld. Vanavond eindigt het."',
-      '',
-      'Dit is je laatste gevecht. Versla Decker om Noxhaven definitief te claimen.',
-    ],
+    logs: [...phaseData.introLines, ''],
     isBoss: true,
     familyId: null,
     stunned: false,
@@ -72,7 +127,104 @@ export function startFinalBoss(state: GameState): CombatState | null {
     finished: false,
     won: false,
     isNemesis: false,
+    bossPhase: 2,
   };
+}
+
+export function isFinalBossPhase1Complete(combat: CombatState): boolean {
+  return combat.bossPhase === 1 && combat.finished && combat.won;
+}
+
+// ========== DECKER COMBAT DIALOGUE ==========
+
+export const DECKER_COMBAT_DIALOGUE: { phase: number; hpThreshold: number; line: string }[] = [
+  // Phase 1 - Voss
+  { phase: 1, hpThreshold: 0.7, line: 'Voss: "Alle eenheden, doelwit is sterker dan verwacht!"' },
+  { phase: 1, hpThreshold: 0.4, line: 'Voss: "We verliezen terrein! Commissaris, we hebben versterking nodig!"' },
+  { phase: 1, hpThreshold: 0.1, line: 'Voss: "Retreat! RETREAT! ...Dit is niet te stoppen."' },
+  // Phase 2 - Decker
+  { phase: 2, hpThreshold: 0.8, line: 'Decker: "Je bent niets meer dan een crimineel met geluk."' },
+  { phase: 2, hpThreshold: 0.6, line: 'Decker: "Ik heb 30 jaar aan dit moment gewerkt..."' },
+  { phase: 2, hpThreshold: 0.4, line: 'Decker: "Hoe... hoe kun je zo sterk zijn?!"' },
+  { phase: 2, hpThreshold: 0.2, line: 'Decker: "Nee... NOXHAVEN IS MIJN STAD!"' },
+  { phase: 2, hpThreshold: 0.05, line: 'Decker: "Je... je hebt gewonnen. De stad is van jou. Ik hoop dat je beseft wat dat betekent."' },
+];
+
+export function getDeckDialogue(combat: CombatState): string | null {
+  if (!combat.bossPhase) return null;
+  const hpRatio = combat.targetHP / combat.enemyMaxHP;
+
+  for (const d of DECKER_COMBAT_DIALOGUE) {
+    if (d.phase !== combat.bossPhase) continue;
+    // Check if we just crossed this threshold
+    if (hpRatio <= d.hpThreshold && !combat.logs.some(l => l === d.line)) {
+      return d.line;
+    }
+  }
+  return null;
+}
+
+// ========== ENDGAME EVENTS ==========
+
+export interface EndgameEvent {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  reward: { money?: number; rep?: number; xp?: number; heat?: number };
+}
+
+export const ENDGAME_EVENTS: EndgameEvent[] = [
+  {
+    id: 'decker_warning',
+    title: 'Waarschuwing van Decker',
+    desc: 'Commissaris Decker stuurt een boodschap: "Geniet van je laatste dagen van vrijheid."',
+    icon: '📋',
+    reward: { heat: 15 },
+  },
+  {
+    id: 'police_sweep',
+    title: 'Grootschalige Politie-inval',
+    desc: 'De NHPD voert huiszoekingen uit in al je districten. Extra heat voor al je operaties.',
+    icon: '🚔',
+    reward: { heat: 25 },
+  },
+  {
+    id: 'informant_reward',
+    title: 'Informant Bonus',
+    desc: 'Een informant binnen de NHPD geeft je cruciale informatie over Deckers plannen.',
+    icon: '🕵️',
+    reward: { money: 15000, xp: 50 },
+  },
+  {
+    id: 'loyalty_test',
+    title: 'Loyaliteitstest',
+    desc: 'Je vazallen tonen hun trouw. Extra inkomsten en reputatie.',
+    icon: '🤝',
+    reward: { money: 25000, rep: 100 },
+  },
+  {
+    id: 'arms_deal',
+    title: 'Wapendeal voor de Confrontatie',
+    desc: 'Je crew bereidt zich voor op het gevecht. Extra wapens en uitrusting.',
+    icon: '🔫',
+    reward: { money: -10000, xp: 75, rep: 50 },
+  },
+];
+
+export function getEndgameEvent(state: GameState): EndgameEvent | null {
+  if ((state.conqueredFactions?.length || 0) < 3) return null;
+  if (state.finalBossDefeated) return null;
+
+  // 30% chance per night cycle when conditions met
+  if (Math.random() > 0.3) return null;
+
+  const available = ENDGAME_EVENTS.filter(e =>
+    !(state as any).seenEndgameEvents?.includes(e.id)
+  );
+  if (available.length === 0) return null;
+
+  return available[Math.floor(Math.random() * available.length)];
 }
 
 // ========== RANKING SYSTEM ==========

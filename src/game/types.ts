@@ -251,6 +251,7 @@ export interface CombatState {
   finished: boolean;
   won: boolean;
   isNemesis?: boolean;
+  bossPhase?: number; // 1 = SWAT, 2 = Decker
 }
 
 export interface Achievement {
