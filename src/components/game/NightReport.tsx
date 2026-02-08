@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
 import { DramaticEventReveal } from './night-report/DramaticEventReveal';
@@ -47,7 +47,11 @@ export function NightReport() {
   if (report.totalWashed > 0) scheduleSound(washedDelay, playCoinSound);
 
   const labDelay = report.labYield > 0 ? next() : d;
-  if (report.labYield > 0) scheduleSound(labDelay, playPositiveSound);
+   if (report.labYield > 0) scheduleSound(labDelay, playPositiveSound);
+
+  // Ammo factory
+  const ammoFactoryDelay = report.ammoFactoryProduction && report.ammoFactoryProduction > 0 ? next() : d;
+  if (report.ammoFactoryProduction && report.ammoFactoryProduction > 0) scheduleSound(ammoFactoryDelay, playPositiveSound);
 
   // Costs
   const debtDelay = report.debtInterest > 0 ? next() : d;
@@ -159,6 +163,11 @@ export function NightReport() {
             )}
             {report.labYield > 0 && (
               <AnimatedReportRow icon={<Factory size={14} />} label="Lab Productie" value={report.labYield} prefix="" suffix=" Synthetica" positive color="text-game-purple" delay={labDelay} />
+            )}
+
+            {/* Ammo factory production */}
+            {report.ammoFactoryProduction && report.ammoFactoryProduction > 0 && (
+              <AnimatedReportRow icon={<Crosshair size={14} />} label="Kogelfabriek" value={report.ammoFactoryProduction} prefix="+" suffix=" kogels" positive color="text-blood" delay={ammoFactoryDelay} />
             )}
 
             {/* Costs */}

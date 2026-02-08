@@ -1,11 +1,11 @@
 import { useGame } from '@/contexts/GameContext';
-import { STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST } from '@/game/constants';
-import { StolenCar, ChopShopUpgradeId } from '@/game/types';
+import { STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CRUSHER_AMMO_REWARDS } from '@/game/constants';
+import { StolenCar, ChopShopUpgradeId, StolenCarRarity } from '@/game/types';
 import { GameButton } from './ui/GameButton';
 import { SectionHeader } from './ui/SectionHeader';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Car, Wrench, DollarSign, Paintbrush, ShieldCheck, Clock, ArrowLeft, Zap, Star, Package } from 'lucide-react';
+import { Car, Wrench, DollarSign, Paintbrush, ShieldCheck, Clock, ArrowLeft, Zap, Star, Package, Hammer, Crosshair } from 'lucide-react';
 import { useState } from 'react';
 
 const RARITY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
@@ -32,6 +32,77 @@ function getCarValue(car: StolenCar): number {
     if (upg) value = Math.floor(value * (1 + upg.valueBonus / 100));
   });
   return value;
+}
+
+function getCrusherAmmo(car: StolenCar): { min: number; max: number; expected: number } {
+  const carDef = STEALABLE_CARS.find(c => c.id === car.carTypeId);
+  if (!carDef) return { min: 3, max: 5, expected: 4 };
+  const [minAmmo, maxAmmo] = CRUSHER_AMMO_REWARDS[carDef.rarity as StolenCarRarity] || [3, 5];
+  let bonusMin = 0;
+  let bonusMax = 0;
+  // Condition bonus
+  if (car.condition >= 80) { bonusMin += 2; bonusMax += 2; }
+  // Upgrade bonus
+  bonusMin += car.upgrades.length;
+  bonusMax += car.upgrades.length;
+  return {
+    min: minAmmo + bonusMin,
+    max: maxAmmo + bonusMax,
+    expected: Math.floor((minAmmo + maxAmmo) / 2) + bonusMin,
+  };
+}
+
+function CrusherSection({ car, onBack }: { car: StolenCar; onBack: () => void }) {
+  const { state, dispatch, showToast } = useGame();
+  const carDef = STEALABLE_CARS.find(c => c.id === car.carTypeId);
+  if (!carDef) return null;
+
+  const ammoInfo = getCrusherAmmo(car);
+  const currentAmmo = state.ammo || 0;
+  const atMax = currentAmmo >= 99;
+
+  const handleCrush = () => {
+    dispatch({ type: 'CRUSH_CAR', carId: car.id });
+    showToast(`${carDef.name} gesloopt! +~${ammoInfo.expected} kogels verkregen`);
+    onBack();
+  };
+
+  return (
+    <div className="game-card bg-blood/5 border border-blood/20 p-3 mt-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Hammer size={14} className="text-blood" />
+        <span className="text-xs font-bold uppercase tracking-wider">Crusher</span>
+      </div>
+      <p className="text-[0.5rem] text-muted-foreground mb-2">
+        Sloop deze auto voor munitie. Geen omkatten vereist.
+      </p>
+      <div className="flex items-center justify-between bg-background/50 rounded px-2.5 py-1.5 mb-2 text-[0.55rem]">
+        <span className="text-muted-foreground flex items-center gap-1">
+          <Crosshair size={10} /> Verwacht
+        </span>
+        <span className="font-bold text-blood">~{ammoInfo.expected} kogels ({ammoInfo.min}-{ammoInfo.max})</span>
+      </div>
+      {car.condition >= 80 && (
+        <div className="text-[0.45rem] text-emerald mb-1.5">✦ Conditie bonus: +2 kogels</div>
+      )}
+      {car.upgrades.length > 0 && (
+        <div className="text-[0.45rem] text-ice mb-1.5">✦ Upgrade bonus: +{car.upgrades.length} kogels</div>
+      )}
+      <GameButton
+        variant="blood"
+        size="md"
+        fullWidth
+        icon={<Hammer size={12} />}
+        disabled={atMax}
+        onClick={handleCrush}
+      >
+        SLOPEN — ~{ammoInfo.expected} KOGELS
+      </GameButton>
+      {atMax && (
+        <p className="text-[0.45rem] text-muted-foreground text-center mt-1">Munitie vol (99/99)</p>
+      )}
+    </div>
+  );
 }
 
 function CarCard({ car, onSelect, isNew }: { car: StolenCar; onSelect: () => void; isNew: boolean }) {
@@ -295,6 +366,9 @@ function CarDetail({ car, onBack }: { car: StolenCar; onBack: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Crusher section - always available */}
+      <CrusherSection car={car} onBack={onBack} />
     </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -121,6 +121,7 @@ type GameAction =
   // Hitman & Ammo actions
   | { type: 'BUY_AMMO'; packId: string }
   | { type: 'EXECUTE_HIT'; hitId: string }
+  | { type: 'CRUSH_CAR'; carId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1325,6 +1326,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.screenEffect = 'blood-flash';
       }
       Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'CRUSH_CAR': {
+      const car = s.stolenCars.find(c => c.id === action.carId);
+      if (!car) return s;
+      const carDef = STEALABLE_CARS.find(c => c.id === car.carTypeId);
+      if (!carDef) return s;
+
+      // Calculate ammo from rarity
+      const [minAmmo, maxAmmo] = CRUSHER_AMMO_REWARDS[carDef.rarity] || [3, 5];
+      let ammoGain = minAmmo + Math.floor(Math.random() * (maxAmmo - minAmmo + 1));
+
+      // Condition bonus: +2 if 80%+
+      if (car.condition >= 80) ammoGain += 2;
+
+      // Upgrades: +1 per upgrade
+      ammoGain += car.upgrades.length;
+
+      // Apply to state (cap at 99)
+      const oldAmmo = s.ammo || 0;
+      s.ammo = Math.min(99, oldAmmo + ammoGain);
+      const actualGain = s.ammo - oldAmmo;
+
+      // Remove car
+      s.stolenCars = s.stolenCars.filter(c => c.id !== action.carId);
+
+      // XP reward
+      Engine.gainXp(s, 10);
+
+      // Visual feedback
+      s.screenEffect = 'gold-flash';
+      s.lastRewardAmount = actualGain;
+
       return s;
     }
 
