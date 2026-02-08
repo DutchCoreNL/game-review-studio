@@ -34,7 +34,14 @@ export function CarTheftPopup() {
   const successChance = Math.min(95, Math.max(20, 100 - carDef.stealDifficulty + statBonus * 2));
 
   const handleSteal = () => {
-    dispatch({ type: 'ATTEMPT_CAR_THEFT' });
+    const roll = Math.random() * 100;
+    const success = roll < successChance;
+    if (success) {
+      showToast(`🚗 ${carDef.name} gestolen! Check de Chop Shop.`, false);
+    } else {
+      showToast(`❌ Autodiefstal mislukt! Alarm afgegaan, +${carDef.heatGain + 10} heat.`, true);
+    }
+    dispatch({ type: 'ATTEMPT_CAR_THEFT', success });
   };
 
   const handleIgnore = () => {

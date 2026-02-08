@@ -93,7 +93,7 @@ type GameAction =
   | { type: 'GO_INTO_HIDING'; days: number }
   | { type: 'CANCEL_HIDING' }
   // Car theft actions
-  | { type: 'ATTEMPT_CAR_THEFT' }
+  | { type: 'ATTEMPT_CAR_THEFT'; success: boolean }
   | { type: 'DISMISS_CAR_THEFT' }
   | { type: 'OMKAT_STOLEN_CAR'; carId: string }
   | { type: 'UPGRADE_STOLEN_CAR'; carId: string; upgradeId: ChopShopUpgradeId }
@@ -893,13 +893,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const carDef = STEALABLE_CARS.find(c => c.id === s.pendingCarTheft!.carTypeId);
       if (!carDef) { s.pendingCarTheft = null; return s; }
 
-      const brains = Engine.getPlayerStat(s, 'brains');
-      const muscle = Engine.getPlayerStat(s, 'muscle');
-      const statBonus = Math.floor((brains + muscle) / 2);
-      const successChance = Math.min(95, Math.max(20, 100 - carDef.stealDifficulty + statBonus * 2));
-      const roll = Math.random() * 100;
-
-      if (roll < successChance) {
+      if (action.success) {
         // Success!
         const condition = 60 + Math.floor(Math.random() * 40); // 60-100%
         const newCar = {
@@ -925,7 +919,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         Engine.addPersonalHeat(s, carDef.heatGain + 10);
         Engine.addVehicleHeat(s, 5);
         Engine.recomputeHeat(s);
-        // Crew damage on failure
         if (s.crew.length > 0 && Math.random() < 0.3) {
           const target = s.crew[Math.floor(Math.random() * s.crew.length)];
           target.hp = Math.max(1, target.hp - 10);
