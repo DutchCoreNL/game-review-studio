@@ -3,10 +3,11 @@ import { getRankTitle, getActiveVehicleHeat } from '@/game/engine';
 import { WEATHER_EFFECTS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
+import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
-import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff } from 'lucide-react';
+import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff, Shield, Zap } from 'lucide-react';
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={11} />,
@@ -38,6 +39,9 @@ export function GameHeader() {
   const vehicleHeat = getActiveVehicleHeat(state);
   const personalHeat = state.personalHeat || 0;
   const isHiding = (state.hidingDays || 0) > 0;
+  const karma = state.karma || 0;
+  const karmaAlign = getKarmaAlignment(karma);
+  const karmaLbl = getKarmaLabel(karma);
 
   return (
     <header className="flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-4 py-2.5">
@@ -133,6 +137,9 @@ export function GameHeader() {
           color="text-gold"
           badge={state.player.skillPoints > 0 ? state.player.skillPoints : undefined}
         />
+
+        {/* Karma indicator */}
+        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} />
       </div>
     </header>
   );
@@ -160,6 +167,53 @@ function ResourceChip({ label, value, color, icon, pulse, badge }: {
           {badge}
         </motion.span>
       )}
+    </div>
+  );
+}
+
+function KarmaChip({ karma, alignment, label }: {
+  karma: number;
+  alignment: 'meedogenloos' | 'neutraal' | 'eerbaar';
+  label: string;
+}) {
+  const isMeedogenloos = alignment === 'meedogenloos';
+  const isEerbaar = alignment === 'eerbaar';
+  const isNeutraal = alignment === 'neutraal';
+
+  const color = isMeedogenloos ? 'text-blood' : isEerbaar ? 'text-gold' : 'text-muted-foreground';
+  const Icon = isMeedogenloos ? Zap : isEerbaar ? Shield : null;
+
+  // Normalized position for the tiny bar (0 = left/meedogenloos, 100 = right/eerbaar)
+  const barPos = Math.round(((karma + 100) / 200) * 100);
+
+  return (
+    <div className="flex items-center gap-1" title={`Karma: ${karma} — ${label}`}>
+      {Icon && <Icon size={8} className={color} />}
+      <span className="text-muted-foreground font-bold tracking-wider text-[0.6rem]">
+        {isNeutraal ? '⚖️' : ''}
+      </span>
+      {/* Mini karma bar */}
+      <div className="relative w-8 h-1.5 rounded-full bg-muted/40 overflow-hidden">
+        {/* Gradient background */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: 'linear-gradient(90deg, hsl(0 72% 51% / 0.3), transparent 40%, transparent 60%, hsl(45 93% 47% / 0.3))',
+          }}
+        />
+        {/* Indicator dot */}
+        <motion.div
+          className={`absolute top-0 h-full w-1.5 rounded-full ${
+            isMeedogenloos ? 'bg-blood' : isEerbaar ? 'bg-gold' : 'bg-muted-foreground'
+          }`}
+          style={{ left: `${Math.max(0, Math.min(100, barPos) - 5)}%` }}
+          animate={{ left: `${Math.max(0, Math.min(100, barPos) - 5)}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+      <span className={`font-bold text-[0.5rem] ${color}`}>
+        {label.slice(0, 4).toUpperCase()}
+      </span>
     </div>
   );
 }
