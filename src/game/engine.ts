@@ -1,5 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
@@ -545,6 +545,17 @@ export function endTurn(state: GameState): NightReportData {
 
   // Process corruption network (payments, betrayals, passive effects)
   processCorruptionNetwork(state, report);
+
+  // Ammo factory production
+  if (state.ownedBusinesses.includes('ammo_factory')) {
+    const produced = AMMO_FACTORY_DAILY_PRODUCTION;
+    const oldAmmo = state.ammo || 0;
+    state.ammo = Math.min(99, oldAmmo + produced);
+    const actualProduced = state.ammo - oldAmmo;
+    if (actualProduced > 0) {
+      report.ammoFactoryProduction = actualProduced;
+    }
+  }
 
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;

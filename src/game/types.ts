@@ -430,6 +430,7 @@ export interface NightReportData {
   smuggleResults?: { routeId: string; good: GoodId; income: number; intercepted: boolean }[];
   defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string }[];
   nemesisAction?: string;
+  ammoFactoryProduction?: number;
 }
 
 export interface RandomEvent {

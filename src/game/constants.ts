@@ -8,6 +8,19 @@ export const AMMO_PACKS: AmmoPack[] = [
   { id: 'ammo_large', name: '30 Kogels', amount: 30, cost: 2000, icon: '💣' },
 ];
 
+// ========== CRUSHER AMMO REWARDS ==========
+
+import { StolenCarRarity } from './types';
+
+export const CRUSHER_AMMO_REWARDS: Record<StolenCarRarity, [number, number]> = {
+  common: [3, 5],
+  uncommon: [5, 8],
+  rare: [8, 12],
+  exotic: [12, 18],
+};
+
+export const AMMO_FACTORY_DAILY_PRODUCTION = 3;
+
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
   crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.8, weapons: 1.5, tech: 1.4, luxury: 2.5, meds: 1.2 }, perk: "-20% Heat Daily & Hacker Efficiency" },
@@ -91,7 +104,8 @@ export const GEAR: GearItem[] = [
 export const BUSINESSES: Business[] = [
   { id: 'restaurant', name: 'Ristorante Nero', cost: 10000, income: 400, clean: 300, desc: 'Wasstraat voor zwart geld.' },
   { id: 'club', name: 'Club Paradiso', cost: 25000, income: 800, clean: 600, desc: 'Nachtclub met dubieuze gasten.' },
-  { id: 'autogarage', name: 'Tony\'s Autogarage', cost: 15000, income: 500, clean: 400, desc: 'Garagebedrijf en chop shop.' }
+  { id: 'autogarage', name: 'Tony\'s Autogarage', cost: 15000, income: 500, clean: 400, desc: 'Garagebedrijf en chop shop.' },
+  { id: 'ammo_factory', name: 'Kogelfabriek', cost: 35000, income: 0, clean: 0, desc: 'Produceert dagelijks 3 kogels.' },
 ];
 
 export const REKAT_COSTS: Record<string, number> = {
