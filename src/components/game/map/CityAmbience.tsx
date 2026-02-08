@@ -22,7 +22,6 @@ const DISTRICT_CENTERS: Record<DistrictId, { cx: number; cy: number }> = {
 function CityGlow() {
   return (
     <g pointerEvents="none">
-      {/* Sky glow above city */}
       <defs>
         <radialGradient id="city-sky-glow" cx="50%" cy="0%" r="80%">
           <stop offset="0%" stopColor="hsla(30, 40%, 20%, 0.12)" />
@@ -30,58 +29,88 @@ function CityGlow() {
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
         <radialGradient id="port-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="hsla(210, 50%, 25%, 0.1)" />
+          <stop offset="0%" stopColor="hsla(210, 50%, 25%, 0.12)" />
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
         <radialGradient id="neon-area-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="hsla(300, 60%, 40%, 0.06)" />
+          <stop offset="0%" stopColor="hsla(300, 60%, 40%, 0.08)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <radialGradient id="crown-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="hsla(220, 40%, 25%, 0.08)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <radialGradient id="iron-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="hsla(25, 40%, 20%, 0.06)" />
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
       </defs>
       <rect x="0" y="0" width="400" height="290" fill="url(#city-sky-glow)" />
       
-      {/* Port Nero water glow */}
-      <ellipse cx="60" cy="85" rx="50" ry="40" fill="url(#port-glow)" />
+      {/* District-specific ambient glows */}
+      <ellipse cx="75" cy="85" rx="55" ry="45" fill="url(#port-glow)" />
+      <ellipse cx="265" cy="95" rx="55" ry="45" fill="url(#crown-glow)" />
+      <ellipse cx="195" cy="190" rx="45" ry="35" fill="url(#iron-glow)" />
       
-      {/* Neon Strip ambient glow */}
       <motion.ellipse cx="325" cy="195" rx="55" ry="40" fill="url(#neon-area-glow)"
         animate={{ opacity: [0.8, 1, 0.8] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
       
       {/* Edge vignette for depth */}
       <rect x="0" y="0" width="400" height="290" fill="none"
-        stroke="hsla(0, 0%, 0%, 0.4)" strokeWidth="20" />
+        stroke="hsla(0, 0%, 0%, 0.5)" strokeWidth="24" />
     </g>
   );
 }
 
-// ========== RIVER / WATERWAY ==========
-function RiverWaterway() {
+// ========== HARBOR ACTIVITY ==========
+function HarborActivity() {
   return (
     <g pointerEvents="none">
-      {/* Main waterway from port area southward */}
-      <path d="M 30,120 Q 25,160 35,200 Q 45,240 30,280"
-        fill="none" stroke="hsla(210, 50%, 18%, 0.5)" strokeWidth="8" strokeLinecap="round" />
-      <path d="M 30,120 Q 25,160 35,200 Q 45,240 30,280"
-        fill="none" stroke="hsla(210, 60%, 25%, 0.2)" strokeWidth="4" strokeLinecap="round" />
+      {/* Boat 1 - slowly drifting along coastline */}
+      <motion.g
+        animate={{ x: [15, 25, 15], y: [100, 103, 100] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}>
+        <path d="M -4,0 L 4,0 L 3,2 L -3,2 Z" fill="hsla(30, 30%, 25%, 0.6)" />
+        <rect x="-0.5" y="-3" width="1" height="3" fill="hsla(0, 0%, 30%, 0.5)" />
+      </motion.g>
       
-      {/* Water ripples */}
-      <motion.path d="M 27,140 Q 32,137 37,140" fill="none" stroke="hsla(210, 60%, 40%, 0.15)" strokeWidth="0.6"
-        animate={{ y: [0, 3, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.path d="M 30,180 Q 35,177 40,180" fill="none" stroke="hsla(210, 60%, 40%, 0.12)" strokeWidth="0.6"
-        animate={{ y: [0, -2, 0] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1 }} />
-      <motion.path d="M 28,220 Q 33,217 38,220" fill="none" stroke="hsla(210, 60%, 40%, 0.1)" strokeWidth="0.6"
-        animate={{ y: [0, 2, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 2 }} />
-      <motion.path d="M 32,260 Q 37,257 42,260" fill="none" stroke="hsla(210, 60%, 40%, 0.08)" strokeWidth="0.6"
-        animate={{ y: [0, -1.5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
+      {/* Boat 2 - cargo vessel */}
+      <motion.g
+        animate={{ x: [10, 25, 10], y: [65, 68, 65] }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 3 }}>
+        <path d="M -5,0 L 5,0 L 4,2.5 L -4,2.5 Z" fill="hsla(200, 30%, 20%, 0.5)" />
+        <rect x="-2" y="-1.5" width="4" height="1.5" fill="hsla(0, 40%, 25%, 0.4)" rx="0.3" />
+      </motion.g>
+
+      {/* Boat 3 - small fishing boat */}
+      <motion.g
+        animate={{ x: [20, 30, 20], y: [160, 165, 160] }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 6 }}>
+        <path d="M -3,0 L 3,0 L 2,1.5 L -2,1.5 Z" fill="hsla(30, 25%, 22%, 0.5)" />
+        <rect x="-0.3" y="-2" width="0.6" height="2" fill="hsla(0, 0%, 28%, 0.4)" />
+      </motion.g>
+
+      {/* Buoys */}
+      <motion.circle cx="30" cy="80" r="1" fill="hsla(0, 70%, 45%, 0.4)"
+        animate={{ y: [80, 82, 80] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle cx="25" cy="140" r="0.8" fill="hsla(120, 60%, 40%, 0.35)"
+        animate={{ y: [140, 142, 140] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
+      <motion.circle cx="28" cy="250" r="0.7" fill="hsla(0, 70%, 45%, 0.3)"
+        animate={{ y: [250, 252, 250] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }} />
+      
+      {/* Lighthouse beacon on pier */}
+      <motion.circle cx="46" cy="60" r="2.5"
+        fill="hsla(45, 80%, 50%, 0.15)"
+        animate={{ opacity: [0.15, 0.45, 0.15], r: [2.5, 4, 2.5] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
     </g>
   );
 }
 
 // ========== STREET LIGHTS ==========
 function StreetLights({ roads }: { roads: string[] }) {
-  // Place lights at intervals along roads
-  const lights = roads.slice(0, 8).flatMap((road, ri) => {
+  const lights = roads.slice(0, 12).flatMap((road, ri) => {
     const match = road.match(/M\s*([\d.]+),([\d.]+)/);
     const endMatch = road.match(/([\d.]+),([\d.]+)\s*$/);
     if (!match || !endMatch) return [];
@@ -89,7 +118,7 @@ function StreetLights({ roads }: { roads: string[] }) {
     const sx = parseFloat(match[1]), sy = parseFloat(match[2]);
     const ex = parseFloat(endMatch[1]), ey = parseFloat(endMatch[2]);
     
-    return [0.25, 0.75].map((t, li) => ({
+    return [0.25, 0.5, 0.75].filter(() => Math.random() > 0.3).map((t, li) => ({
       x: sx + (ex - sx) * t,
       y: sy + (ey - sy) * t,
       key: `sl-${ri}-${li}`,
@@ -101,14 +130,11 @@ function StreetLights({ roads }: { roads: string[] }) {
     <g pointerEvents="none">
       {lights.map(l => (
         <g key={l.key}>
-          {/* Pole */}
           <rect x={l.x - 0.3} y={l.y - 4} width="0.6" height="4" fill="hsla(0, 0%, 25%, 0.4)" />
-          {/* Light glow */}
           <motion.circle cx={l.x} cy={l.y - 4} r="4"
             fill="hsla(45, 70%, 50%, 0.06)"
             animate={{ opacity: [0.06, 0.1, 0.06] }}
             transition={{ duration: l.flickerDur, repeat: Infinity, ease: 'easeInOut' }} />
-          {/* Bulb */}
           <circle cx={l.x} cy={l.y - 4} r="0.8" fill="hsla(45, 80%, 60%, 0.25)" />
         </g>
       ))}
@@ -118,8 +144,7 @@ function StreetLights({ roads }: { roads: string[] }) {
 
 // ========== PEDESTRIANS ==========
 function Pedestrians({ roads }: { roads: string[] }) {
-  // Subtle small dots walking along some roads
-  const pedRoads = roads.slice(0, 6);
+  const pedRoads = roads.slice(0, 8);
   
   return (
     <g pointerEvents="none" opacity="0.4">
@@ -130,41 +155,6 @@ function Pedestrians({ roads }: { roads: string[] }) {
           transition={{ duration: 8 + i * 2.5, repeat: Infinity, ease: 'linear', delay: i * 1.8 }}
           style={{ offsetPath: `path("${road}")` }} />
       ))}
-    </g>
-  );
-}
-
-// ========== HARBOR ACTIVITY ==========
-function HarborActivity() {
-  return (
-    <g pointerEvents="none">
-      {/* Boat 1 - slowly drifting */}
-      <motion.g
-        animate={{ x: [25, 35, 25], y: [100, 103, 100] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}>
-        <path d="M -4,0 L 4,0 L 3,2 L -3,2 Z" fill="hsla(30, 30%, 25%, 0.6)" />
-        <rect x="-0.5" y="-3" width="1" height="3" fill="hsla(0, 0%, 30%, 0.5)" />
-      </motion.g>
-      
-      {/* Boat 2 - cargo vessel */}
-      <motion.g
-        animate={{ x: [20, 30, 20], y: [75, 78, 75] }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 3 }}>
-        <path d="M -5,0 L 5,0 L 4,2.5 L -4,2.5 Z" fill="hsla(200, 30%, 20%, 0.5)" />
-        <rect x="-2" y="-1.5" width="4" height="1.5" fill="hsla(0, 40%, 25%, 0.4)" rx="0.3" />
-      </motion.g>
-
-      {/* Buoys */}
-      <motion.circle cx="38" cy="88" r="1" fill="hsla(0, 70%, 45%, 0.4)"
-        animate={{ y: [88, 90, 88] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.circle cx="35" cy="105" r="0.8" fill="hsla(120, 60%, 40%, 0.35)"
-        animate={{ y: [105, 107, 105] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
-      
-      {/* Lighthouse beacon on pier */}
-      <motion.circle cx="42" cy="65" r="2"
-        fill="hsla(45, 80%, 50%, 0.15)"
-        animate={{ opacity: [0.15, 0.4, 0.15], r: [2, 3.5, 2] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
     </g>
   );
 }
@@ -181,37 +171,25 @@ function SmuggleRouteLines({ routes, districtMeta }: { routes: SmuggleRoute[]; d
         const to = districtMeta[route.to];
         if (!from || !to) return null;
 
-        // Risk color based on days active (longer = more risky)
         const risk = Math.min(route.daysActive / 10, 1);
-        const hue = 120 - risk * 120; // green to red
+        const hue = 120 - risk * 120;
 
         return (
           <g key={route.id}>
-            {/* Route glow */}
             <motion.line
-              x1={from.cx} y1={from.cy}
-              x2={to.cx} y2={to.cy}
-              stroke={`hsla(${hue}, 70%, 45%, 0.08)`}
-              strokeWidth="6"
+              x1={from.cx} y1={from.cy} x2={to.cx} y2={to.cy}
+              stroke={`hsla(${hue}, 70%, 45%, 0.08)`} strokeWidth="6"
               animate={{ opacity: [0.08, 0.15, 0.08] }}
               transition={{ duration: 2 + i * 0.5, repeat: Infinity, ease: 'easeInOut' }}
             />
-            {/* Route line */}
             <motion.line
-              x1={from.cx} y1={from.cy}
-              x2={to.cx} y2={to.cy}
-              stroke={`hsla(${hue}, 70%, 50%, 0.35)`}
-              strokeWidth="1.2"
-              strokeDasharray="4 4"
+              x1={from.cx} y1={from.cy} x2={to.cx} y2={to.cy}
+              stroke={`hsla(${hue}, 70%, 50%, 0.35)`} strokeWidth="1.2" strokeDasharray="4 4"
               animate={{ strokeDashoffset: [0, -16] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             />
-            {/* Moving package dot */}
             <motion.circle r="1.5" fill={`hsla(${hue}, 70%, 55%, 0.6)`}
-              animate={{
-                cx: [from.cx, to.cx],
-                cy: [from.cy, to.cy],
-              }}
+              animate={{ cx: [from.cx, to.cx], cy: [from.cy, to.cy] }}
               transition={{ duration: 3 + i, repeat: Infinity, ease: 'linear' }}
             />
           </g>
@@ -239,11 +217,9 @@ function OwnedDistrictGlow({ ownedDistricts }: { ownedDistricts: DistrictId[] })
         const z = zones[id];
         return (
           <motion.rect key={`owned-glow-${id}`}
-            x={z.x} y={z.y} width={z.w} height={z.h}
-            rx="6"
+            x={z.x} y={z.y} width={z.w} height={z.h} rx="6"
             fill="hsla(0, 72%, 40%, 0.04)"
-            stroke="hsla(0, 72%, 40%, 0.06)"
-            strokeWidth="1"
+            stroke="hsla(0, 72%, 40%, 0.06)" strokeWidth="1"
             animate={{ opacity: [0.6, 1, 0.6] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -255,7 +231,6 @@ function OwnedDistrictGlow({ ownedDistricts }: { ownedDistricts: DistrictId[] })
 
 // ========== DISTRICT ACTIVITY LEVEL ==========
 function DistrictActivity({ districtRep }: { districtRep: Record<DistrictId, number> }) {
-  // More activity (flickering lights / movement) in higher-rep districts
   return (
     <g pointerEvents="none">
       {(Object.keys(districtRep) as DistrictId[]).map(id => {
@@ -289,15 +264,70 @@ function DistrictActivity({ districtRep }: { districtRep: Record<DistrictId, num
   );
 }
 
+// ========== INTERSECTION TRAFFIC LIGHTS ==========
+function TrafficLights() {
+  return (
+    <g pointerEvents="none">
+      {/* Traffic lights at major intersections */}
+      {[
+        { x: 195, y: 185 }, // Iron Borough central
+        { x: 130, y: 88 },  // Port-Crown road
+        { x: 250, y: 130 }, // Crown-Iron junction
+        { x: 115, y: 200 }, // Low-Iron junction
+      ].map((pos, i) => (
+        <g key={`tl-${i}`}>
+          <rect x={pos.x - 0.5} y={pos.y - 3} width="1" height="3" fill="hsla(0, 0%, 20%, 0.5)" />
+          <motion.circle cx={pos.x} cy={pos.y - 3.5} r="1"
+            animate={{
+              fill: [
+                'hsla(120, 70%, 45%, 0.6)',
+                'hsla(120, 70%, 45%, 0.6)',
+                'hsla(45, 90%, 50%, 0.6)',
+                'hsla(0, 70%, 45%, 0.6)',
+                'hsla(0, 70%, 45%, 0.6)',
+              ]
+            }}
+            transition={{ duration: 6 + i * 2, repeat: Infinity, ease: 'linear' }}
+          />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+// ========== PARK DETAILS ==========
+function ParkDetails() {
+  return (
+    <g pointerEvents="none">
+      {/* Park benches in Crown Heights */}
+      {[
+        { x: 225, y: 105 },
+        { x: 233, y: 108 },
+      ].map((pos, i) => (
+        <g key={`bench-${i}`}>
+          <rect x={pos.x} y={pos.y} width="4" height="1.5" fill="hsla(25, 30%, 18%, 0.4)" rx="0.3" />
+          <rect x={pos.x + 0.3} y={pos.y - 0.8} width="0.5" height="0.8" fill="hsla(25, 20%, 15%, 0.4)" />
+          <rect x={pos.x + 3.2} y={pos.y - 0.8} width="0.5" height="0.8" fill="hsla(25, 20%, 15%, 0.4)" />
+        </g>
+      ))}
+
+      {/* Park path */}
+      <path d="M 220,102 Q 228,98 236,102 Q 240,106 235,110"
+        fill="none" stroke="hsla(30, 15%, 16%, 0.3)" strokeWidth="1" strokeDasharray="2 2" />
+    </g>
+  );
+}
+
 // ========== MAIN EXPORT ==========
 export function CityAmbience({ roads, smuggleRoutes, districtRep, ownedDistricts, districtMeta }: CityAmbienceProps) {
   return (
     <g>
       <CityGlow />
-      <RiverWaterway />
       <OwnedDistrictGlow ownedDistricts={ownedDistricts} />
       <DistrictActivity districtRep={districtRep} />
       <StreetLights roads={roads} />
+      <TrafficLights />
+      <ParkDetails />
       <Pedestrians roads={roads} />
       <HarborActivity />
       <SmuggleRouteLines routes={smuggleRoutes} districtMeta={districtMeta} />

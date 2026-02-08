@@ -5,6 +5,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { WeatherOverlay } from './map/WeatherOverlay';
 import { NemesisMarker } from './map/NemesisMarker';
 import { CityAmbience } from './map/CityAmbience';
+import { CityFabric } from './map/CityFabric';
+import { Coastline } from './map/Coastline';
+import { SkylineEffect, MapOverlayUI } from './map/SkylineEffect';
 
 interface CityMapProps {
   playerLocation: DistrictId;
@@ -27,28 +30,46 @@ interface CityMapProps {
 }
 
 // Road paths connecting districts
+// Main roads — expanded with organic curves and more connections
 const ROADS = [
-  'M 95,115 L 95,175 Q 95,185 105,185 L 185,185',
-  'M 130,88 L 240,88 Q 250,88 250,95 L 250,100',
-  'M 295,135 L 295,185 Q 295,195 305,195 L 310,195',
-  'M 230,200 L 310,200',
-  'M 115,245 L 185,220',
-  'M 85,225 L 85,120',
-  'M 210,175 L 250,130',
-  'M 130,250 Q 200,250 310,215',
+  // Original routes (some now curved)
+  'M 95,115 Q 95,150 105,175 Q 115,185 185,185',    // Port to Iron (curved)
+  'M 130,88 Q 180,82 240,88 Q 250,90 250,100',       // Port to Crown (boulevard, curved)
+  'M 295,135 Q 295,165 305,190 Q 308,195 315,198',   // Crown to Neon
+  'M 230,200 Q 270,195 310,200',                       // Iron to Neon
+  'M 115,245 Q 150,235 185,220',                       // Low to Iron
+  'M 85,225 Q 80,170 85,120',                          // Low to Port (vertical, curved)
+  'M 210,175 Q 230,155 250,130',                       // Iron to Crown
+  'M 130,250 Q 200,248 310,215',                       // Low to Neon (long curve)
+  // New connections
+  'M 55,197 Q 70,197 85,197',                          // Bridge road (Port-Low connector via bridge)
+  'M 195,155 Q 195,130 195,100 Q 200,80 220,70',     // Iron to Crown (north route)
+  'M 85,110 Q 120,110 160,115 Q 175,120 185,130',    // Port east bypass
+  'M 310,200 Q 340,220 360,230',                       // Neon south extension
+  'M 140,220 Q 160,210 185,200',                       // Low-Iron shortcut
 ];
 
+// Ambient background roads — denser urban grid
 const AMBIENT_ROADS = [
-  'M 50,150 L 170,150',
-  'M 200,60 L 200,280',
-  'M 40,200 L 160,200',
-  'M 260,70 L 360,70',
-  'M 330,100 L 330,260',
-  'M 160,130 L 280,130',
-  'M 120,170 L 120,260',
-  'M 250,160 L 370,160',
-  'M 60,100 L 160,100',
-  'M 270,220 L 370,220',
+  'M 50,150 Q 110,148 170,150',
+  'M 200,55 Q 198,170 200,280',
+  'M 48,200 L 140,200',
+  'M 260,65 Q 310,68 370,72',
+  'M 330,95 Q 328,180 330,260',
+  'M 160,128 Q 220,130 280,128',
+  'M 120,165 Q 118,215 120,260',
+  'M 250,158 Q 310,160 375,162',
+  'M 55,95 Q 110,98 160,100',
+  'M 270,218 Q 320,220 375,222',
+  // Additional grid streets
+  'M 70,140 Q 70,170 75,200',
+  'M 150,60 Q 148,90 150,120',
+  'M 300,80 Q 298,110 300,140',
+  'M 55,70 Q 100,72 140,70',
+  'M 180,240 Q 230,238 280,240',
+  'M 240,170 Q 238,200 240,230',
+  'M 350,130 Q 348,160 350,195',
+  'M 100,160 Q 140,158 180,160',
 ];
 
 // District label positions
@@ -784,7 +805,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
   
   return (
     <div className="relative w-full aspect-[10/7] rounded-lg overflow-hidden border border-border shadow-[inset_0_0_60px_rgba(0,0,0,0.9)]">
-      <svg viewBox="0 0 400 290" className="w-full h-full" style={{ background: 'hsl(0 0% 3%)' }}>
+      <svg viewBox="0 0 400 290" className="w-full h-full" style={{ background: 'hsl(220 12% 3%)' }}>
         <defs>
           <filter id="road-glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.5" result="blur" />
@@ -804,17 +825,13 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           </linearGradient>
         </defs>
 
-        {/* Grid pattern */}
-        <g opacity="0.05">
-          {Array.from({ length: 14 }).map((_, i) => (
-            <line key={`vg-${i}`} x1={i * 30} y1="0" x2={i * 30} y2="290" stroke="white" strokeWidth="0.5" />
-          ))}
-          {Array.from({ length: 10 }).map((_, i) => (
-            <line key={`hg-${i}`} x1="0" y1={i * 30} x2="400" y2={i * 30} stroke="white" strokeWidth="0.5" />
-          ))}
-        </g>
+        {/* === LAYER 1: Water / Coastline === */}
+        <Coastline />
 
-        {/* === CITY AMBIENCE LAYER (behind landmarks) === */}
+        {/* === LAYER 2: City Fabric (background blocks) === */}
+        <CityFabric />
+
+        {/* === LAYER 3: City Ambience (glows, activity, lights) === */}
         <CityAmbience
           roads={ROADS}
           smuggleRoutes={smuggleRoutes}
@@ -823,14 +840,14 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           districtMeta={DISTRICT_META}
         />
 
-        {/* Ambient roads */}
+        {/* Ambient roads (thin background streets) */}
         <g>
           {AMBIENT_ROADS.map((d, i) => (
-            <path key={`ar-${i}`} d={d} fill="none" stroke="hsl(0 0% 13%)" strokeWidth="3" strokeLinecap="round" />
+            <path key={`ar-${i}`} d={d} fill="none" stroke="hsla(0, 0%, 13%, 0.5)" strokeWidth="2.5" strokeLinecap="round" />
           ))}
         </g>
 
-        {/* Main roads */}
+        {/* Main roads with glow */}
         <g filter="url(#road-glow)">
           {ROADS.map((d, i) => (
             <path key={`road-${i}`} d={d} fill="none" stroke="hsl(45 30% 18%)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
@@ -1055,6 +1072,12 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         {/* === HEAT OVERLAY === */}
         <HeatOverlay heat={heat} vehicleHeat={vehicleHeat} personalHeat={personalHeat} />
 
+        {/* === SKYLINE & FOG (atmospheric depth) === */}
+        <SkylineEffect />
+
+        {/* === MAP OVERLAY UI (compass, scale) === */}
+        <MapOverlayUI />
+
         {/* === SCANLINE === */}
         <motion.rect x="0" width="400" height="2" fill="hsla(45, 93%, 40%, 0.04)" pointerEvents="none"
           animate={{ y: [-10, 300] }}
@@ -1066,7 +1089,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         Noxhaven City
       </div>
       <div className="absolute bottom-2 right-2 text-[0.45rem] text-muted-foreground font-mono opacity-30">
-        Tactical Overview v3.0
+        v4.0
       </div>
       {Math.max(vehicleHeat, personalHeat) > 70 && (
         <div className="absolute top-2 right-2 text-[0.5rem] font-mono font-bold opacity-60 animate-pulse flex items-center gap-1">
