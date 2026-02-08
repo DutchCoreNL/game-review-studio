@@ -67,7 +67,7 @@ export function ProfileView() {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
         {([
           { id: 'stats' as ProfileTab, label: 'STATS' },
           { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
@@ -77,7 +77,7 @@ export function ProfileView() {
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
-            className={`flex-1 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
+            className={`shrink-0 px-3 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
               profileTab === tab.id ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted border border-border text-muted-foreground'
             }`}>{tab.label}</button>
         ))}
