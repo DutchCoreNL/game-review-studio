@@ -4,7 +4,7 @@ import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES,
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
-import { calculateEndgamePhase, buildVictoryData, startFinalBoss, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage } from '../game/endgame';
+import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 
@@ -79,6 +79,7 @@ type GameAction =
   | { type: 'JACKPOT_ADD'; amount: number }
   | { type: 'JACKPOT_RESET' }
   | { type: 'START_FINAL_BOSS' }
+  | { type: 'START_BOSS_PHASE_2' }
   | { type: 'RESOLVE_FINAL_BOSS' }
   | { type: 'NEW_GAME_PLUS' }
   | { type: 'FREE_PLAY' }
@@ -200,12 +201,54 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.checkAchievements(s);
       const oldPhase = s.endgamePhase;
       s.endgamePhase = calculateEndgamePhase(s);
+
+      // Endgame phase change notifications
+      if (oldPhase !== s.endgamePhase) {
+        const msg = getPhaseUpMessage(oldPhase, s.endgamePhase);
+        if (msg) {
+          addPhoneMessage(s, 'system', msg, 'info');
+        }
+        // Special messages when reaching onderwerelds_koning
+        if (s.endgamePhase === 'onderwerelds_koning') {
+          addPhoneMessage(s, 'Commissaris Decker', 'Ik weet wie je bent. Ik weet wat je hebt gedaan. Geniet van je laatste dagen van vrijheid.', 'threat');
+          addPhoneMessage(s, 'anonymous', '⚠️ Operatie Gerechtigheid is geactiveerd. De NHPD mobiliseert al haar middelen.', 'warning');
+        }
+      }
+
       // Roll for street event
       const endTurnEvent = rollStreetEvent(s, 'end_turn');
       if (endTurnEvent) {
         s.pendingStreetEvent = endTurnEvent;
         s.streetEventResult = null;
       }
+
+      // Endgame events: random events when all factions conquered
+      if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
+        // Initialize seen events tracker
+        if (!(s as any).seenEndgameEvents) (s as any).seenEndgameEvents = [];
+        const egEvent = getEndgameEvent(s);
+        if (egEvent) {
+          (s as any).seenEndgameEvents.push(egEvent.id);
+          // Apply event effects
+          if (egEvent.reward.money) {
+            if (egEvent.reward.money > 0) {
+              s.money += egEvent.reward.money;
+              s.stats.totalEarned += egEvent.reward.money;
+            } else {
+              const cost = Math.abs(egEvent.reward.money);
+              if (s.money >= cost) {
+                s.money -= cost;
+                s.stats.totalSpent += cost;
+              }
+            }
+          }
+          if (egEvent.reward.rep) s.rep += egEvent.reward.rep;
+          if (egEvent.reward.xp) Engine.gainXp(s, egEvent.reward.xp);
+          if (egEvent.reward.heat) Engine.splitHeat(s, egEvent.reward.heat, 0.5);
+          addPhoneMessage(s, 'NHPD', `${egEvent.icon} ${egEvent.title}: ${egEvent.desc}`, egEvent.reward.heat ? 'threat' : 'opportunity');
+        }
+      }
+
       // Story arcs: check triggers and progression
       checkArcTriggers(s);
       if (!s.pendingStreetEvent) {
@@ -514,6 +557,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.combatAction(s, action.action);
       Engine.checkAchievements(s);
 
+      // Add boss dialogue if applicable
+      if (s.activeCombat && s.activeCombat.bossPhase) {
+        const dialogue = getDeckDialogue(s.activeCombat);
+        if (dialogue) {
+          s.activeCombat.logs.push(dialogue);
+        }
+      }
+
       // Trigger screen effects based on combat outcome
       if (s.activeCombat) {
         const playerTookDamage = s.activeCombat.playerHP < hpBefore;
@@ -532,8 +583,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Check if this was the final boss combat and it was won
-      if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.targetName === 'Commissaris Decker') {
+      // Check if this was the final boss phase 2 and it was won
+      if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.bossPhase === 2) {
         (s as any)._finalBossWon = true;
       }
       // Update endgame phase after combat
@@ -712,7 +763,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'START_FINAL_BOSS': {
       const finalCombat = startFinalBoss(s);
-      if (finalCombat) s.activeCombat = finalCombat;
+      if (finalCombat) {
+        s.activeCombat = finalCombat;
+        s.screenEffect = 'shake';
+      }
+      return s;
+    }
+
+    case 'START_BOSS_PHASE_2': {
+      const phase2 = createBossPhase(s, 2);
+      s.activeCombat = phase2;
+      s.screenEffect = 'blood-flash';
       return s;
     }
 

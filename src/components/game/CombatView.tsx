@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS } from '@/game/constants';
-import { canTriggerFinalBoss } from '@/game/endgame';
+import { BOSS_PHASES } from '@/game/endgame';
 import { FamilyId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -19,10 +19,33 @@ export function CombatView() {
   }
 
   const env = COMBAT_ENVIRONMENTS[state.loc];
+  const isBossFight = !!combat.bossPhase;
+  const phaseData = combat.bossPhase ? BOSS_PHASES[combat.bossPhase - 1] : null;
 
   return (
     <div>
-      <SectionHeader title="GEVECHT" icon={<Swords size={12} />} />
+      {/* Boss phase indicator */}
+      {isBossFight && phaseData && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-3 text-center"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-blood/10 border border-blood/30">
+            <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>
+              <AlertTriangle size={10} className="text-blood" />
+            </motion.div>
+            <span className="text-[0.55rem] font-bold text-blood tracking-wider uppercase">
+              {phaseData.title}
+            </span>
+            {combat.bossPhase === 1 && (
+              <span className="text-[0.45rem] text-muted-foreground">→ Fase 2 volgt</span>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      <SectionHeader title={isBossFight ? "EINDBAAS GEVECHT" : "GEVECHT"} icon={<Swords size={12} />} />
 
       {/* HP Bars with damage flash */}
       <div className="space-y-3 mb-5">
@@ -54,6 +77,8 @@ export function CombatView() {
                 ? 'text-gold font-bold'
                 : log.includes('mislukt') || log.includes('terug')
                 ? 'text-blood'
+                : log.startsWith('Decker:') || log.startsWith('Voss:')
+                ? 'text-ice font-semibold italic'
                 : 'text-muted-foreground'
             }`}
           >
@@ -81,33 +106,59 @@ export function CombatView() {
           transition={{ type: 'spring', stiffness: 200 }}
           className="text-center"
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-            className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}
-          >
-            {combat.won
-              ? combat.targetName === 'Commissaris Decker' ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
-              : '💀 VERSLAGEN'}
-          </motion.div>
-          {combat.won && combat.targetName === 'Commissaris Decker' && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-              className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</motion.p>
+          {/* Phase 1 victory → transition to phase 2 */}
+          {combat.won && combat.bossPhase === 1 ? (
+            <>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+                className="text-xl font-bold font-display mb-3 text-gold gold-text-glow"
+              >
+                ⚡ FASE 1 VOLTOOID
+              </motion.div>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                className="text-xs text-muted-foreground mb-2">
+                SWAT-Commandant Voss is uitgeschakeld.
+              </motion.p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                className="text-xs text-blood font-bold mb-4">
+                Maar Commissaris Decker verschijnt persoonlijk...
+              </motion.p>
+              <GameButton variant="blood" size="lg" fullWidth glow onClick={() => dispatch({ type: 'START_BOSS_PHASE_2' })}>
+                CONFRONTEER DECKER →
+              </GameButton>
+            </>
+          ) : (
+            <>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+                className={`text-2xl font-bold font-display mb-3 ${combat.won ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'}`}
+              >
+                {combat.won
+                  ? combat.bossPhase === 2 ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
+                  : '💀 VERSLAGEN'}
+              </motion.div>
+              {combat.won && combat.bossPhase === 2 && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                  className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</motion.p>
+              )}
+              {combat.won && !combat.bossPhase && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                  className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</motion.p>
+              )}
+              <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
+                DOORGAAN
+              </GameButton>
+            </>
           )}
-          {combat.won && combat.targetName !== 'Commissaris Decker' && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-              className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</motion.p>
-          )}
-          <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
-            DOORGAAN
-          </GameButton>
         </motion.div>
       )}
     </div>
   );
 }
-
 // ========== Animated HP Bar ==========
 
 function AnimatedHPBar({ label, current, max, color, flashColor }: {
@@ -234,35 +285,7 @@ function CombatMenu() {
         </div>
       )}
 
-      {/* Final Boss Trigger */}
-      {canTriggerFinalBoss(state) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 game-card border-2 border-blood pulse-glow"
-        >
-          <div className="text-center">
-            <AlertTriangle size={24} className="text-blood mx-auto mb-2" />
-            <h3 className="font-display font-bold text-sm text-blood blood-text-glow tracking-wider mb-1">
-              ⚠️ OPERATIE GERECHTIGHEID ⚠️
-            </h3>
-            <p className="text-[0.55rem] text-muted-foreground mb-3">
-              Je hebt alle facties veroverd en je rivaal verslagen. Commissaris Decker van de NHPD komt persoonlijk
-              afrekenen. Dit is je laatste gevecht — versla hem om Noxhaven definitief te claimen.
-            </p>
-            <GameButton
-              variant="blood"
-              size="lg"
-              fullWidth
-              glow
-              icon={<Swords size={14} />}
-              onClick={() => dispatch({ type: 'START_FINAL_BOSS' })}
-            >
-              CONFRONTEER COMMISSARIS DECKER
-            </GameButton>
-          </div>
-        </motion.div>
-      )}
+      {/* Final Boss - now handled by FinalBossAlert overlay */}
 
       {/* Free Play indicator */}
       {state.freePlayMode && (
