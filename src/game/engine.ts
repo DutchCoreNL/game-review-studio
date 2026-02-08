@@ -2,6 +2,7 @@ import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, Combat
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
+import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -401,12 +402,14 @@ export function endTurn(state: GameState): NightReportData {
     if (v.rekatCooldown > 0) v.rekatCooldown--;
   });
 
-  // === PERSONAL HEAT DECAY ===
+   // === PERSONAL HEAT DECAY ===
   let pDecay = 2;
   if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
   if (state.ownedDistricts.includes('crown')) pDecay += 1;
   if (state.hqUpgrades.includes('server')) pDecay += 3;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
+  // Karma: Eerbaar extra heat decay
+  pDecay += getKarmaHeatDecayBonus(state);
   // Safehouse heat reduction
   if (state.safehouses) {
     state.safehouses.forEach(sh => {
@@ -432,7 +435,8 @@ export function endTurn(state: GameState): NightReportData {
 
   // Police heat check (uses personalHeat, modified by corruption protection)
   const raidProtection = getCorruptionRaidProtection(state);
-  const raidChance = 0.3 * (1 - raidProtection / 100);
+  const karmaRaidReduction = getKarmaRaidReduction(state);
+  const raidChance = 0.3 * (1 - raidProtection / 100) * (1 - karmaRaidReduction);
   if ((state.personalHeat || 0) > 60 && Math.random() < raidChance && state.policeRel < 50) {
     let fine = Math.floor(state.money * 0.1);
     // Armor upgrade reduces police fine
@@ -471,11 +475,14 @@ export function endTurn(state: GameState): NightReportData {
   let totalHealing = 0;
   const hasMedbay = state.safehouses?.some(sh => sh.upgrades.includes('medbay') && sh.district === state.loc);
   const hasLevel3Safehouse = state.safehouses?.some(sh => sh.level >= 3 && sh.district === state.loc);
+  const karmaHealBonus = getKarmaCrewHealingBonus(state);
   state.crew.forEach(c => {
     if (c.hp < 100 && c.hp > 0) {
       let heal = Math.floor(Math.random() * 5) + 3; // 3-7 HP per night
       if (hasMedbay) heal *= 2; // medbay doubles healing
       if (hasLevel3Safehouse) heal += 3; // level 3 safehouse bonus
+      // Karma: Eerbaar crew healing bonus
+      if (karmaHealBonus > 0) heal = Math.floor(heal * (1 + karmaHealBonus));
       const oldHp = c.hp;
       c.hp = Math.min(100, c.hp + heal);
       totalHealing += c.hp - oldHp;
@@ -582,14 +589,17 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     if (owned <= 0) return { success: false, message: "Niet op voorraad." };
 
     const actualQty = Math.min(quantity, owned);
-    const sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus));
+    const karmaSellBonus = getKarmaTradeSellBonus(state);
+    const sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus + karmaSellBonus));
     const totalRevenue = sellPrice * actualQty;
 
     state.money += totalRevenue;
     state.stats.totalEarned += totalRevenue;
     state.inventory[gid] = owned - actualQty;
     if (state.inventory[gid]! <= 0) state.inventoryCosts[gid] = 0;
-    state.rep += 2 * actualQty;
+    // Karma: Meedogenloos rep multiplier
+    const repGain = Math.floor(2 * actualQty * getKarmaRepMultiplier(state));
+    state.rep += repGain;
     gainXp(state, 2 * actualQty);
     state.stats.tradesCompleted += actualQty;
 
@@ -622,7 +632,9 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   if (Math.random() * 100 < chance) {
     state.dirtyMoney += op.reward;
     splitHeat(state, op.heat, 0.4);
-    state.rep += 10;
+    // Karma: Meedogenloos rep multiplier
+    const repGain = Math.floor(10 * getKarmaRepMultiplier(state));
+    state.rep += repGain;
     state.stats.totalEarned += op.reward;
     state.stats.missionsCompleted++;
     gainXp(state, 15);
@@ -675,8 +687,10 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
   if (success) {
     state.dirtyMoney += contract.reward;
     splitHeat(state, contract.heat, contract.type === 'delivery' ? 0.8 : 0.3);
-    state.rep += 15;
-    repChange = 15;
+    // Karma: Meedogenloos rep multiplier
+    const contractRepGain = Math.floor(15 * getKarmaRepMultiplier(state));
+    state.rep += contractRepGain;
+    repChange = contractRepGain;
     state.stats.totalEarned += contract.reward;
     state.stats.missionsCompleted++;
     gainXp(state, contract.xp);
@@ -696,7 +710,11 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
     }
   } else {
     splitHeat(state, Math.floor(contract.heat * 1.5), 0.3);
-    crewDamage = Math.floor(Math.random() * 30) + 15;
+    let baseDamage = Math.floor(Math.random() * 30) + 15;
+    // Karma: Eerbaar crew damage reduction
+    const crewProtection = getKarmaCrewProtection(state);
+    if (crewProtection > 0) baseDamage = Math.floor(baseDamage * (1 - crewProtection));
+    crewDamage = baseDamage;
     member.hp = Math.max(0, member.hp - crewDamage);
     state.stats.missionsFailed++;
 
@@ -1026,7 +1044,8 @@ export function performFactionAction(
 
   switch (actionType) {
     case 'negotiate': {
-      const cost = Math.max(500, actionDef.baseCost - (charm * 100));
+      const diplomacyDiscount = getKarmaDiplomacyDiscount(state);
+      const cost = Math.max(500, Math.floor((actionDef.baseCost - (charm * 100)) * (1 - diplomacyDiscount)));
       if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
       moneyChange = -cost;
       relChange = 8 + Math.floor(Math.random() * 8) + Math.floor(charm * 0.5);
@@ -1034,7 +1053,8 @@ export function performFactionAction(
       break;
     }
     case 'bribe': {
-      const cost = actionDef.baseCost + Math.floor(Math.abs(rel) * 30);
+      const diplomacyDiscount = getKarmaDiplomacyDiscount(state);
+      const cost = Math.floor((actionDef.baseCost + Math.floor(Math.abs(rel) * 30)) * (1 - diplomacyDiscount));
       if (state.money < cost) return { success: false, message: `Niet genoeg geld (€${cost} nodig).` };
       moneyChange = -cost;
       relChange = 20;
@@ -1043,12 +1063,16 @@ export function performFactionAction(
       break;
     }
     case 'intimidate': {
-      const successChance = 0.5 + (muscle * 0.05);
+      const karmaIntimBonus = getKarmaIntimidationBonus(state);
+      const successChance = 0.5 + (muscle * 0.05) + karmaIntimBonus;
       if (Math.random() < successChance) {
         relChange = -15;
-        repChange = 15;
+        // Karma: Meedogenloos rep & money multiplier
+        const karmaMoneyMult = getKarmaIntimidationMoneyBonus(state);
+        const karmaRepMult = getKarmaRepMultiplier(state);
+        repChange = Math.floor(15 * karmaRepMult);
         heatChange = 10;
-        const extortion = Math.floor(1000 + Math.random() * 2000);
+        const extortion = Math.floor((1000 + Math.random() * 2000) * karmaMoneyMult);
         moneyChange = extortion;
         message = `Je intimideert ${fam.contact}. +€${extortion}, +${repChange} REP, -${Math.abs(relChange)} relatie.`;
       } else {
@@ -1120,11 +1144,14 @@ export function performFactionAction(
 }
 
 function applyFactionWar(state: GameState): void {
+  const fearReduction = getKarmaFearReduction(state);
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
     const rel = state.familyRel[fid] || 0;
     const isConquered = state.conqueredFactions?.includes(fid);
     if (rel < -50 && !isConquered) {
-      if (Math.random() < 0.4) {
+      // Karma: Meedogenloos fear factor reduces faction attacks
+      const stealChance = 0.4 * (1 - fearReduction);
+      if (Math.random() < stealChance) {
         const goods = Object.keys(state.inventory) as GoodId[];
         const target = goods.find(g => (state.inventory[g] || 0) > 0);
         if (target) {
@@ -1132,7 +1159,8 @@ function applyFactionWar(state: GameState): void {
           state.inventory[target] = Math.max(0, (state.inventory[target] || 0) - stolen);
         }
       }
-      if (Math.random() < 0.3) {
+      const attackChance = 0.3 * (1 - fearReduction);
+      if (Math.random() < attackChance) {
         state.crew.forEach(c => {
           if (c.hp > 0 && Math.random() < 0.4) {
             c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 15 + 5));
