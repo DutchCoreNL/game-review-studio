@@ -165,6 +165,36 @@ export interface CorruptionEvent {
   effect: string;
 }
 
+// ========== DAILY CHALLENGES TYPES ==========
+
+export type ChallengeCategory = 'trade' | 'combat' | 'empire' | 'social' | 'stealth' | 'wealth';
+
+export interface DailyChallengeTemplate {
+  id: string;
+  name: string;
+  desc: string;
+  category: ChallengeCategory;
+  icon: string;
+  /** Function name to check progress — resolved at runtime */
+  checkType: string;
+  target: number;
+  rewardMoney: number;
+  rewardXp: number;
+  rewardRep: number;
+  bonusReward?: string; // special bonus description
+  minDay: number; // minimum day to appear
+  minLevel: number; // minimum player level
+}
+
+export interface ActiveChallenge {
+  templateId: string;
+  progress: number;
+  target: number;
+  completed: boolean;
+  claimed: boolean;
+  generatedDay: number;
+}
+
 // ========== STORY & PERSONALITY TYPES ==========
 
 export type PersonalityTrait = 'loyaal' | 'hebzuchtig' | 'rustig' | 'impulsief' | 'slim' | 'brutaal' | 'charmant' | 'paranoid';
@@ -376,6 +406,20 @@ export interface GameStats {
   highLowMaxRound: number;
 }
 
+export interface DailyProgressCounters {
+  trades: number;
+  earned: number;
+  washed: number;
+  solo_ops: number;
+  contracts: number;
+  travels: number;
+  bribes: number;
+  faction_actions: number;
+  recruits: number;
+  cars_stolen: number;
+  casino_won: number;
+}
+
 // ========== MISSION ENCOUNTER SYSTEM ==========
 
 export interface MissionChoice {
@@ -531,4 +575,10 @@ export interface GameState {
   // ========== CORRUPTION NETWORK STATE ==========
   corruptContacts: CorruptContact[];
   pendingCorruptionEvent: CorruptionEvent | null;
+
+  // ========== DAILY CHALLENGES STATE ==========
+  dailyChallenges: ActiveChallenge[];
+  challengeDay: number; // day when challenges were last generated
+  challengesCompleted: number; // total challenges ever completed
+  dailyProgress: DailyProgressCounters;
 }

@@ -9,16 +9,17 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp } from 'lucide-react';
+import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target } from 'lucide-react';
 import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
+import { DailyChallengesView } from './DailyChallengesView';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'challenges';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -62,14 +63,15 @@ export function OperationsView() {
       {/* Sub-tabs */}
       <div className="flex gap-1.5 mb-4 mt-1">
         {([
-          { id: 'solo' as OpsSubTab, label: 'SOLO OPS', icon: <Crosshair size={12} /> },
-          { id: 'contracts' as OpsSubTab, label: 'CONTRACTEN', icon: <Swords size={12} />, badge: state.activeContracts.length },
+          { id: 'solo' as OpsSubTab, label: 'SOLO', icon: <Crosshair size={12} /> },
+          { id: 'contracts' as OpsSubTab, label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
           { id: 'crew' as OpsSubTab, label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
+          { id: 'challenges' as OpsSubTab, label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
         ]).map(tab => (
           <button
             key={tab.id}
             onClick={() => setSubTab(tab.id)}
-            className={`flex-1 py-2 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative ${
+            className={`flex-1 py-2 rounded text-[0.5rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative ${
               subTab === tab.id
                 ? 'bg-gold/15 border border-gold text-gold'
                 : 'bg-muted border border-border text-muted-foreground'
@@ -260,6 +262,8 @@ export function OperationsView() {
           </GameButton>
         </>
       )}
+
+      {subTab === 'challenges' && <DailyChallengesView />}
 
       <ConfirmDialog
         open={fireConfirm !== null}

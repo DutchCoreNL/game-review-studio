@@ -7,6 +7,7 @@ import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
+import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
 
 interface GameContextType {
   state: GameState;
@@ -108,9 +109,17 @@ type GameAction =
   | { type: 'RECRUIT_CONTACT'; contactDefId: string }
   | { type: 'FIRE_CONTACT'; contactId: string }
   | { type: 'DISMISS_CORRUPTION_EVENT' }
+  // Daily challenges actions
+  | { type: 'CLAIM_CHALLENGE_REWARD'; templateId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
+
+/** Helper: update challenge progress after an action */
+function syncChallenges(s: GameState): void {
+  if (!s.dailyChallenges || s.dailyChallenges.length === 0) return;
+  s.dailyChallenges = updateChallengeProgress(s.dailyChallenges, s.dailyProgress, s.heat);
+}
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   const s = JSON.parse(JSON.stringify(state)) as GameState;
@@ -136,6 +145,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.lastRewardAmount = earned;
         }
       }
+      // Daily challenge tracking
+      if (s.dailyProgress) {
+        s.dailyProgress.trades += action.quantity || 1;
+        if (action.mode === 'sell') {
+          const tradeEarned = s.money - moneyBefore;
+          if (tradeEarned > 0) s.dailyProgress.earned += tradeEarned;
+        }
+      }
+      syncChallenges(s);
       return s;
     }
 
@@ -189,6 +207,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
         }
       }
+      // Daily challenge tracking
+      if (s.dailyProgress) {
+        s.dailyProgress.travels++;
+      }
+      syncChallenges(s);
       return s;
     }
 
@@ -286,6 +309,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.stolenCars.forEach(car => {
         if (!car.omgekat) car.condition = Math.max(20, car.condition - 1);
       });
+      // Daily challenges: generate new ones if day changed, reset daily progress
+      if (s.challengeDay !== s.day) {
+        s.dailyChallenges = generateDailyChallenges(s);
+        s.challengeDay = s.day;
+        s.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 };
+      }
+      // Check low_heat challenge at end of turn
+      syncChallenges(s);
       return s;
     }
 
@@ -296,6 +327,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RECRUIT': {
       Engine.recruit(s);
+      if (s.dailyProgress) { s.dailyProgress.recruits++; }
+      syncChallenges(s);
       return s;
     }
 
@@ -404,6 +437,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Heat 2.0: bribe only reduces personal heat, and less effectively
       Engine.addPersonalHeat(s, -10);
       Engine.recomputeHeat(s);
+      if (s.dailyProgress) { s.dailyProgress.bribes++; }
+      syncChallenges(s);
       return s;
     }
 
@@ -442,6 +477,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.addPersonalHeat(s, Math.max(1, Math.floor(washAmt / 500)));
       Engine.recomputeHeat(s);
       Engine.gainXp(s, Math.max(1, Math.floor(washAmt / 200)));
+      if (s.dailyProgress) { s.dailyProgress.washed += washAmt; }
+      syncChallenges(s);
       return s;
     }
 
@@ -456,17 +493,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SOLO_OP': {
-      if ((s.hidingDays || 0) > 0) return s; // Can't do ops while hiding
+      if ((s.hidingDays || 0) > 0) return s;
       Engine.performSoloOp(s, action.opId);
       Engine.recomputeHeat(s);
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
-      // Roll for street event
       const soloEvent = rollStreetEvent(s, 'solo_op');
       if (soloEvent) {
         s.pendingStreetEvent = soloEvent;
         s.streetEventResult = null;
       }
+      if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
+      syncChallenges(s);
       return s;
     }
 
@@ -521,6 +559,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CASINO_WIN': {
       s.money += action.amount;
       s.stats.casinoWon += action.amount;
+      if (s.dailyProgress) { s.dailyProgress.casino_won += action.amount; }
+      syncChallenges(s);
       return s;
     }
 
@@ -629,6 +669,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const result = Engine.performFactionAction(s, action.familyId, action.actionType);
       (s as any)._lastFactionResult = result;
       Engine.checkAchievements(s);
+      if (s.dailyProgress) { s.dailyProgress.faction_actions++; }
+      syncChallenges(s);
       return s;
     }
 
@@ -986,6 +1028,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 3);
         s.screenEffect = 'gold-flash';
         s.lastRewardAmount = carDef.baseValue;
+        if (s.dailyProgress) { s.dailyProgress.cars_stolen++; }
       } else {
         // Failed — heat and possible damage
         Engine.addPersonalHeat(s, carDef.heatGain + 10);
@@ -998,6 +1041,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.screenEffect = 'blood-flash';
       }
       s.pendingCarTheft = null;
+      syncChallenges(s);
       return s;
     }
 
@@ -1171,6 +1215,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.pendingCorruptionEvent = null;
       return s;
     }
+    // ========== DAILY CHALLENGES ACTIONS ==========
+
+    case 'CLAIM_CHALLENGE_REWARD': {
+      const challenge = s.dailyChallenges.find(c => c.templateId === action.templateId);
+      if (!challenge || !challenge.completed || challenge.claimed) return s;
+      const template = getChallengeTemplate(action.templateId);
+      if (!template) return s;
+      challenge.claimed = true;
+      s.money += template.rewardMoney;
+      s.stats.totalEarned += template.rewardMoney;
+      s.rep += template.rewardRep;
+      Engine.gainXp(s, template.rewardXp);
+      s.challengesCompleted = (s.challengesCompleted || 0) + 1;
+      s.lastRewardAmount = template.rewardMoney;
+      s.screenEffect = 'gold-flash';
+      return s;
+    }
 
     case 'RESET': {
       const fresh = createInitialState();
@@ -1269,6 +1330,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // Corruption network migrations
       if (!saved.corruptContacts) saved.corruptContacts = [];
       if (saved.pendingCorruptionEvent === undefined) saved.pendingCorruptionEvent = null;
+      // Daily challenges migrations
+      if (!saved.dailyChallenges) saved.dailyChallenges = [];
+      if (saved.challengeDay === undefined) saved.challengeDay = 0;
+      if (saved.challengesCompleted === undefined) saved.challengesCompleted = 0;
+      if (!saved.dailyProgress) saved.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 };
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
