@@ -195,6 +195,24 @@ export interface ActiveChallenge {
   generatedDay: number;
 }
 
+// ========== NARRATIVE EXPANSION TYPES ==========
+
+export type BackstoryId = 'weduwnaar' | 'bankier' | 'straatkind';
+export type NpcId = 'rosa' | 'marco' | 'yilmaz' | 'luna' | 'krow';
+
+export interface NpcRelation {
+  value: number;
+  met: boolean;
+  lastInteractionDay: number;
+  flags: string[];
+}
+
+export interface FlashbackData {
+  title: string;
+  lines: string[];
+  icon: string;
+}
+
 // ========== STORY & PERSONALITY TYPES ==========
 
 export type PersonalityTrait = 'loyaal' | 'hebzuchtig' | 'rustig' | 'impulsief' | 'slim' | 'brutaal' | 'charmant' | 'paranoid';
@@ -578,7 +596,14 @@ export interface GameState {
 
   // ========== DAILY CHALLENGES STATE ==========
   dailyChallenges: ActiveChallenge[];
-  challengeDay: number; // day when challenges were last generated
-  challengesCompleted: number; // total challenges ever completed
+  challengeDay: number;
+  challengesCompleted: number;
   dailyProgress: DailyProgressCounters;
+
+  // ========== NARRATIVE EXPANSION STATE ==========
+  backstory: BackstoryId | null;
+  karma: number; // -100 (meedogenloos) to +100 (eerbaar)
+  npcRelations: Record<string, NpcRelation>;
+  pendingFlashback: FlashbackData | null;
+  keyDecisions: string[];
 }

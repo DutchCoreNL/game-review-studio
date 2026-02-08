@@ -20,6 +20,8 @@ import { StoryArcEvent } from './StoryArcEvent';
 import { CarTheftPopup } from './CarTheftPopup';
 import { FinalBossAlert } from './FinalBossAlert';
 import { CorruptionEventPopup } from './CorruptionEventPopup';
+import { BackstorySelection } from './BackstorySelection';
+import { FlashbackOverlay } from './FlashbackOverlay';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -72,7 +74,11 @@ export function GameLayout() {
         {state.pendingArcEvent && <StoryArcEvent />}
         {state.pendingCarTheft && <CarTheftPopup />}
         {state.pendingCorruptionEvent && <CorruptionEventPopup />}
+        {state.pendingFlashback && <FlashbackOverlay />}
         <FinalBossAlert />
+        {state.backstory === null && state.tutorialDone && (
+          <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
+        )}
       </div>
     </ScreenEffects>
   );

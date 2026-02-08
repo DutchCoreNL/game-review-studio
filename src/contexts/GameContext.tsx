@@ -8,6 +8,8 @@ import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhas
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
+import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
+import { applyBackstory } from '../game/backstory';
 
 interface GameContextType {
   state: GameState;
@@ -111,6 +113,9 @@ type GameAction =
   | { type: 'DISMISS_CORRUPTION_EVENT' }
   // Daily challenges actions
   | { type: 'CLAIM_CHALLENGE_REWARD'; templateId: string }
+  // Narrative expansion actions
+  | { type: 'SELECT_BACKSTORY'; backstoryId: string }
+  | { type: 'DISMISS_FLASHBACK' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -317,6 +322,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       // Check low_heat challenge at end of turn
       syncChallenges(s);
+      // NPC encounters
+      if (!s.pendingStreetEvent && !s.pendingArcEvent) {
+        const npcEnc = rollNpcEncounter(s);
+        if (npcEnc) {
+          addPhoneMessage(s, npcEnc.npcId, npcEnc.message, 'info');
+        }
+      }
+      // NPC passive bonuses
+      const npcBonuses = applyNpcBonuses(s);
+      if (npcBonuses.extraHeatDecay > 0) {
+        Engine.addPersonalHeat(s, -npcBonuses.extraHeatDecay);
+        Engine.recomputeHeat(s);
+      }
+      if (npcBonuses.crewHealBonus > 0) {
+        s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
+      }
       return s;
     }
 
@@ -918,7 +939,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (arcResult.success) {
         s.money += arcResult.effects.money;
         s.dirtyMoney += arcResult.effects.dirtyMoney;
-        // Heat 2.0: arc events split heat
         Engine.splitHeat(s, arcResult.effects.heat, 0.4);
         Engine.recomputeHeat(s);
         s.rep += arcResult.effects.rep;
@@ -932,6 +952,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.screenEffect = 'gold-flash';
           s.lastRewardAmount = arcResult.effects.money + arcResult.effects.dirtyMoney;
         }
+        // Karma tracking
+        if (arcResult.effects.karma) {
+          s.karma = Math.max(-100, Math.min(100, (s.karma || 0) + arcResult.effects.karma));
+        }
+        // Track key decision
+        if (!s.keyDecisions) s.keyDecisions = [];
+        s.keyDecisions.push(`arc_${action.arcId}_${action.choiceId}`);
       } else {
         s.money += arcResult.effects.money;
         Engine.splitHeat(s, arcResult.effects.heat, 0.3);
@@ -946,12 +973,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
       s.arcEventResult = { success: arcResult.success, text: arcResult.text };
+
+      // Trigger flashback on arc completion
+      const completedArc = s.activeStoryArcs?.find(a => a.arcId === action.arcId && a.finished);
+      if (completedArc && s.keyDecisions && s.keyDecisions.length >= 3) {
+        const { STORY_ARCS: allArcs } = require('../game/storyArcs');
+        const arcTemplate = allArcs.find((a: any) => a.id === action.arcId);
+        s.pendingFlashback = {
+          title: 'Herinnering',
+          icon: '🎬',
+          lines: [
+            `De keuzes die je maakte in "${arcTemplate?.name || 'dit verhaal'}" hebben je gebracht tot dit punt.`,
+            s.karma > 20 ? 'Je eerlijkheid heeft deuren geopend die anderen gesloten achten.' :
+            s.karma < -20 ? 'Je meedogenloosheid heeft je ver gebracht. Maar tegen welke prijs?' :
+            'De straten van Noxhaven onthouden alles. Elke keuze telt.',
+          ],
+        };
+      }
+
       return s;
     }
 
     case 'DISMISS_ARC_EVENT': {
       s.pendingArcEvent = null;
       s.arcEventResult = null;
+      return s;
+    }
+
+    case 'SELECT_BACKSTORY': {
+      applyBackstory(s, action.backstoryId as any);
+      return s;
+    }
+
+    case 'DISMISS_FLASHBACK': {
+      s.pendingFlashback = null;
       return s;
     }
 
