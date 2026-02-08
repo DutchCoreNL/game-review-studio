@@ -2,13 +2,15 @@ import { useGame } from '@/contexts/GameContext';
 import { STORY_ARCS } from '@/game/storyArcs';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Zap, Brain, Heart } from 'lucide-react';
+import { BookOpen, Zap, Brain, Heart, Lock, Flame, Shield } from 'lucide-react';
 
 const STAT_ICONS: Record<string, React.ReactNode> = {
   muscle: <Zap size={10} className="text-blood" />,
   brains: <Brain size={10} className="text-ice" />,
   charm: <Heart size={10} className="text-gold" />,
 };
+
+const KARMA_THRESHOLD = 20;
 
 export function StoryArcEvent() {
   const { state, dispatch } = useGame();
@@ -23,6 +25,7 @@ export function StoryArcEvent() {
   if (!step) return null;
 
   const result = state.arcEventResult;
+  const karma = state.karma || 0;
 
   // District variant text
   const displayText = step.districtVariant?.[state.loc] || step.text;
@@ -31,6 +34,18 @@ export function StoryArcEvent() {
   const activeArc = state.activeStoryArcs?.find(a => a.arcId === arcId);
   const stepsTotal = template.steps.length;
   const currentStepNum = (activeArc?.currentStep ?? stepIndex) + 1;
+
+  // Check karma eligibility for a choice
+  const isChoiceLocked = (choice: typeof step.choices[0]) => {
+    if (!choice.requiredKarma) return false;
+    if (choice.requiredKarma === 'eerbaar' && karma < KARMA_THRESHOLD) return true;
+    if (choice.requiredKarma === 'meedogenloos' && karma > -KARMA_THRESHOLD) return true;
+    return false;
+  };
+
+  const getKarmaLabel = (req: 'eerbaar' | 'meedogenloos') => {
+    return req === 'eerbaar' ? 'Eerbaar' : 'Meedogenloos';
+  };
 
   const handleChoice = (choiceId: string) => {
     dispatch({ type: 'RESOLVE_ARC_EVENT', arcId, choiceId });
@@ -120,34 +135,84 @@ export function StoryArcEvent() {
             {/* Choices */}
             {!result && (
               <div className="space-y-2">
-                {step.choices.map((choice, idx) => (
-                  <motion.button
-                    key={choice.id}
-                    initial={{ opacity: 0, x: -15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.8 + idx * 0.15 }}
-                    onClick={() => handleChoice(choice.id)}
-                    className="w-full text-left p-2.5 rounded border border-border bg-muted/20 hover:border-game-purple hover:bg-game-purple/5 transition-all active:scale-[0.98] group"
-                  >
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[0.6rem] font-bold text-foreground group-hover:text-game-purple transition-colors">
-                        {choice.label}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {STAT_ICONS[choice.stat]}
-                        <span className="text-[0.45rem] text-muted-foreground capitalize">{choice.stat}</span>
+                {step.choices.map((choice, idx) => {
+                  const locked = isChoiceLocked(choice);
+                  const hasKarmaReq = !!choice.requiredKarma;
+
+                  return (
+                    <motion.button
+                      key={choice.id}
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.8 + idx * 0.15 }}
+                      onClick={() => !locked && handleChoice(choice.id)}
+                      disabled={locked}
+                      className={`w-full text-left p-2.5 rounded border transition-all active:scale-[0.98] group ${
+                        locked
+                          ? 'border-muted/40 bg-muted/10 opacity-60 cursor-not-allowed'
+                          : hasKarmaReq
+                            ? choice.requiredKarma === 'eerbaar'
+                              ? 'border-gold/30 bg-gold/5 hover:border-gold/60 hover:bg-gold/10'
+                              : 'border-blood/30 bg-blood/5 hover:border-blood/60 hover:bg-blood/10'
+                            : 'border-border bg-muted/20 hover:border-game-purple hover:bg-game-purple/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1.5">
+                          {locked && <Lock size={10} className="text-muted-foreground" />}
+                          {!locked && hasKarmaReq && (
+                            choice.requiredKarma === 'eerbaar'
+                              ? <Shield size={10} className="text-gold" />
+                              : <Flame size={10} className="text-blood" />
+                          )}
+                          <span className={`text-[0.6rem] font-bold transition-colors ${
+                            locked
+                              ? 'text-muted-foreground'
+                              : hasKarmaReq
+                                ? choice.requiredKarma === 'eerbaar'
+                                  ? 'text-gold group-hover:text-gold'
+                                  : 'text-blood group-hover:text-blood'
+                                : 'text-foreground group-hover:text-game-purple'
+                          }`}>
+                            {choice.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {STAT_ICONS[choice.stat]}
+                          <span className="text-[0.45rem] text-muted-foreground capitalize">{choice.stat}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-[0.45rem] text-muted-foreground">
-                      <span>Moeilijkheid: {choice.difficulty}%</span>
-                      {choice.effects.money > 0 && <span className="text-emerald">+€{choice.effects.money.toLocaleString()}</span>}
-                      {choice.effects.money < 0 && <span className="text-blood">€{choice.effects.money.toLocaleString()}</span>}
-                      {choice.effects.dirtyMoney > 0 && <span className="text-dirty">+€{choice.effects.dirtyMoney.toLocaleString()} zwart</span>}
-                      {choice.effects.heat > 0 && <span className="text-blood">+{choice.effects.heat} heat</span>}
-                      {choice.effects.heat < 0 && <span className="text-emerald">{choice.effects.heat} heat</span>}
-                    </div>
-                  </motion.button>
-                ))}
+
+                      {/* Karma requirement badge */}
+                      {hasKarmaReq && (
+                        <div className="flex items-center gap-1 mb-0.5">
+                          {locked ? (
+                            <span className="text-[0.4rem] text-muted-foreground italic">
+                              Vereist: {getKarmaLabel(choice.requiredKarma!)} alignment (karma {choice.requiredKarma === 'eerbaar' ? `> ${KARMA_THRESHOLD}` : `< -${KARMA_THRESHOLD}`})
+                            </span>
+                          ) : (
+                            <span className={`text-[0.4rem] italic ${
+                              choice.requiredKarma === 'eerbaar' ? 'text-gold/70' : 'text-blood/70'
+                            }`}>
+                              ✦ {getKarmaLabel(choice.requiredKarma!)} pad
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 text-[0.45rem] text-muted-foreground">
+                        <span>Moeilijkheid: {choice.difficulty}%</span>
+                        {choice.effects.money > 0 && <span className="text-emerald">+€{choice.effects.money.toLocaleString()}</span>}
+                        {choice.effects.money < 0 && <span className="text-blood">€{choice.effects.money.toLocaleString()}</span>}
+                        {choice.effects.dirtyMoney > 0 && <span className="text-dirty">+€{choice.effects.dirtyMoney.toLocaleString()} zwart</span>}
+                        {choice.effects.heat > 0 && <span className="text-blood">+{choice.effects.heat} heat</span>}
+                        {choice.effects.heat < 0 && <span className="text-emerald">{choice.effects.heat} heat</span>}
+                        {choice.effects.karma && choice.effects.karma > 0 && <span className="text-gold">+{choice.effects.karma} karma</span>}
+                        {choice.effects.karma && choice.effects.karma < 0 && <span className="text-blood">{choice.effects.karma} karma</span>}
+                      </div>
+                    </motion.button>
+                  );
+                })}
               </div>
             )}
           </div>
