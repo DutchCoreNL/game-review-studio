@@ -15,6 +15,25 @@ export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage
 
 export type WeatherType = 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm';
 
+// ========== SAFEHOUSE TYPES ==========
+
+export type SafehouseUpgradeId = 'reinforced' | 'medbay' | 'vault' | 'garage' | 'comms';
+
+export interface SafehouseUpgradeDef {
+  id: SafehouseUpgradeId;
+  name: string;
+  cost: number;
+  desc: string;
+  icon: string;
+}
+
+export interface Safehouse {
+  district: DistrictId;
+  level: number; // 1-3
+  upgrades: SafehouseUpgradeId[];
+  purchaseDay: number;
+}
+
 // ========== CAR THEFT TYPES ==========
 
 export type StolenCarRarity = 'common' | 'uncommon' | 'rare' | 'exotic';
@@ -444,6 +463,9 @@ export interface GameState {
   newGamePlusLevel: number;
   finalBossDefeated: boolean;
   freePlayMode: boolean;
+
+  // ========== SAFEHOUSE STATE ==========
+  safehouses: Safehouse[];
 
   // ========== CAR THEFT STATE ==========
   stolenCars: StolenCar[];

@@ -1,4 +1,4 @@
-import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute } from '@/game/types';
+import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute, Safehouse } from '@/game/types';
 import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
@@ -22,6 +22,8 @@ interface CityMapProps {
   smuggleRoutes?: SmuggleRoute[];
   districtRep?: Record<DistrictId, number>;
   onChopShopClick?: () => void;
+  safehouses?: Safehouse[];
+  onSafehouseClick?: () => void;
 }
 
 // Road paths connecting districts
@@ -777,7 +779,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -844,6 +846,41 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         <IronBoroughLandmarks isOwned={ownedDistricts.includes('iron')} isSelected={selectedDistrict === 'iron'} onChopShopClick={onChopShopClick} />
         <LowriseLandmarks isOwned={ownedDistricts.includes('low')} isSelected={selectedDistrict === 'low'} />
         <NeonStripLandmarks isOwned={ownedDistricts.includes('neon')} isSelected={selectedDistrict === 'neon'} />
+
+        {/* === SAFEHOUSE MARKERS === */}
+        {safehouses.map(sh => {
+          const meta = DISTRICT_META[sh.district];
+          if (!meta) return null;
+          // Position safehouse icon slightly offset from district center
+          const sx = meta.cx + 18;
+          const sy = meta.cy + 6;
+          return (
+            <g key={`sh-${sh.district}`}
+              onClick={(e) => { e.stopPropagation(); onSafehouseClick?.(); }}
+              style={{ cursor: onSafehouseClick ? 'pointer' : 'default' }}
+            >
+              <rect x={sx - 6} y={sy - 6} width="12" height="12" fill="transparent" />
+              <motion.circle cx={sx} cy={sy} r="5"
+                fill="hsla(145, 60%, 30%, 0.3)"
+                animate={{ r: [5, 7, 5], opacity: [0.3, 0.15, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <circle cx={sx} cy={sy} r="4" fill="hsla(145, 50%, 15%, 0.8)" stroke="hsla(145, 60%, 40%, 0.5)" strokeWidth="0.5" />
+              <text x={sx} y={sy + 2.5} textAnchor="middle" fontSize="5" fill="hsla(145, 60%, 55%, 0.9)">🏠</text>
+              {sh.level >= 2 && (
+                <motion.circle cx={sx + 4} cy={sy - 4} r="2" fill="hsla(45, 90%, 50%, 0.8)"
+                  animate={{ opacity: [0.8, 0.5, 0.8] }}
+                  transition={{ duration: 2, repeat: Infinity }}>
+                </motion.circle>
+              )}
+              {sh.level >= 2 && (
+                <text x={sx + 4} y={sy - 2.5} textAnchor="middle" fontSize="3" fill="hsl(0 0% 5%)" fontWeight="bold">
+                  {sh.level}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
         {/* === DISTRICT HITBOXES === */}
         {(Object.keys(DISTRICT_ZONES) as DistrictId[]).map(id => {
