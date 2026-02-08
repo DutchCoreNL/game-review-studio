@@ -10,6 +10,7 @@ import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game
 import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
 import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
 import { applyBackstory } from '../game/backstory';
+import { generateArcFlashback } from '../game/flashbacks';
 
 interface GameContextType {
   state: GameState;
@@ -959,6 +960,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Track key decision
         if (!s.keyDecisions) s.keyDecisions = [];
         s.keyDecisions.push(`arc_${action.arcId}_${action.choiceId}`);
+        // Track key decision (also on failure, with fail marker)
+        if (!s.keyDecisions) s.keyDecisions = [];
+        s.keyDecisions.push(`arc_${action.arcId}_${action.choiceId}`);
+        s.keyDecisions.push(`arc_${action.arcId}_fail_${action.choiceId}`);
       } else {
         s.money += arcResult.effects.money;
         Engine.splitHeat(s, arcResult.effects.heat, 0.3);
@@ -974,27 +979,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       s.arcEventResult = { success: arcResult.success, text: arcResult.text };
 
-      // Trigger flashback on arc completion
+      // Mark completed arc for flashback (triggered on DISMISS_ARC_EVENT)
       const completedArc = s.activeStoryArcs?.find(a => a.arcId === action.arcId && a.finished);
-      if (completedArc && s.keyDecisions && s.keyDecisions.length >= 3) {
-        const { STORY_ARCS: allArcs } = require('../game/storyArcs');
-        const arcTemplate = allArcs.find((a: any) => a.id === action.arcId);
-        s.pendingFlashback = {
-          title: 'Herinnering',
-          icon: '🎬',
-          lines: [
-            `De keuzes die je maakte in "${arcTemplate?.name || 'dit verhaal'}" hebben je gebracht tot dit punt.`,
-            s.karma > 20 ? 'Je eerlijkheid heeft deuren geopend die anderen gesloten achten.' :
-            s.karma < -20 ? 'Je meedogenloosheid heeft je ver gebracht. Maar tegen welke prijs?' :
-            'De straten van Noxhaven onthouden alles. Elke keuze telt.',
-          ],
-        };
+      if (completedArc) {
+        (s as any)._completedArcFlashbackId = action.arcId;
       }
 
       return s;
     }
 
     case 'DISMISS_ARC_EVENT': {
+      // Generate consequence flashback if an arc just completed
+      const flashbackArcId = (s as any)._completedArcFlashbackId;
+      if (flashbackArcId) {
+        const flashback = generateArcFlashback(s, flashbackArcId);
+        if (flashback) {
+          s.pendingFlashback = flashback;
+        }
+        delete (s as any)._completedArcFlashbackId;
+      }
       s.pendingArcEvent = null;
       s.arcEventResult = null;
       return s;
