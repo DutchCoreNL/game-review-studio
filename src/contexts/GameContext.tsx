@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -11,6 +11,7 @@ import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate 
 import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
+import { generateHitContracts, executeHit } from '../game/hitman';
 
 interface GameContextType {
   state: GameState;
@@ -117,6 +118,9 @@ type GameAction =
   // Narrative expansion actions
   | { type: 'SELECT_BACKSTORY'; backstoryId: string }
   | { type: 'DISMISS_FLASHBACK' }
+  // Hitman & Ammo actions
+  | { type: 'BUY_AMMO'; packId: string }
+  | { type: 'EXECUTE_HIT'; hitId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -319,7 +323,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.challengeDay !== s.day) {
         s.dailyChallenges = generateDailyChallenges(s);
         s.challengeDay = s.day;
-        s.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 };
+        s.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0, hits_completed: 0 };
       }
       // Check low_heat challenge at end of turn
       syncChallenges(s);
@@ -338,6 +342,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       if (npcBonuses.crewHealBonus > 0) {
         s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
+      }
+      // Generate hit contracts
+      s.hitContracts = generateHitContracts(s);
+      // Small chance to find ammo after successful missions/operations
+      if (Math.random() < 0.2) {
+        const foundAmmo = 2 + Math.floor(Math.random() * 4);
+        s.ammo = Math.min(99, (s.ammo || 0) + foundAmmo);
       }
       return s;
     }
@@ -1291,6 +1302,32 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== HITMAN & AMMO ACTIONS ==========
+
+    case 'BUY_AMMO': {
+      const pack = AMMO_PACKS.find(p => p.id === action.packId);
+      if (!pack || s.money < pack.cost) return s;
+      s.money -= pack.cost;
+      s.stats.totalSpent += pack.cost;
+      s.ammo = Math.min(99, (s.ammo || 0) + pack.amount);
+      return s;
+    }
+
+    case 'EXECUTE_HIT': {
+      if ((s.hidingDays || 0) > 0) return s;
+      const hitResult = executeHit(s, action.hitId);
+      if (hitResult.success) {
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = hitResult.reward;
+        if (s.dailyProgress) { s.dailyProgress.hits_completed++; }
+        syncChallenges(s);
+      } else if (hitResult.heatGain > 0) {
+        s.screenEffect = 'blood-flash';
+      }
+      Engine.checkAchievements(s);
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -1392,7 +1429,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.dailyChallenges) saved.dailyChallenges = [];
       if (saved.challengeDay === undefined) saved.challengeDay = 0;
       if (saved.challengesCompleted === undefined) saved.challengesCompleted = 0;
-      if (!saved.dailyProgress) saved.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 };
+      if (!saved.dailyProgress) saved.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0, hits_completed: 0 };
+      // Hitman & Ammo migrations
+      if (saved.ammo === undefined) saved.ammo = 12;
+      if (!saved.hitContracts) saved.hitContracts = [];
+      if (saved.dailyProgress && saved.dailyProgress.hits_completed === undefined) saved.dailyProgress.hits_completed = 0;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

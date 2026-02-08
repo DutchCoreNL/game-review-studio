@@ -1,4 +1,12 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types';
+
+// ========== AMMO PACKS ==========
+
+export const AMMO_PACKS: AmmoPack[] = [
+  { id: 'ammo_small', name: '6 Kogels', amount: 6, cost: 500, icon: '🔫' },
+  { id: 'ammo_medium', name: '12 Kogels', amount: 12, cost: 900, icon: '🔫' },
+  { id: 'ammo_large', name: '30 Kogels', amount: 30, cost: 2000, icon: '💣' },
+];
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -454,7 +462,7 @@ export function createInitialState(): import('./types').GameState {
     dailyChallenges: [],
     challengeDay: 0,
     challengesCompleted: 0,
-    dailyProgress: { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0 },
+    dailyProgress: { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0, hits_completed: 0 },
     // Story & animation state
     pendingStreetEvent: null,
     streetEventResult: null,
@@ -478,6 +486,9 @@ export function createInitialState(): import('./types').GameState {
     },
     pendingFlashback: null,
     keyDecisions: [],
+    // Hitman & Ammo state
+    ammo: 12,
+    hitContracts: [],
   };
 }
 

@@ -89,16 +89,22 @@ export function CombatView() {
 
       {/* Actions */}
       {!combat.finished ? (
-        <div className="grid grid-cols-2 gap-2">
-          <CombatAction icon={<Swords size={14} />} label="AANVAL" sub="Betrouwbaar"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'attack' })} variant="blood" />
-          <CombatAction icon={<Zap size={14} />} label="ZWARE KLAP" sub="Krachtig, kan missen"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'heavy' })} variant="gold" />
-          <CombatAction icon={<Shield size={14} />} label="VERDEDIG" sub="Block + Heal"
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'defend' })} variant="muted" />
-          <CombatAction icon={<MapPin size={14} />} label={env?.actionName || 'OMGEVING'} sub={env?.desc || 'Stun kans'}
-            onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })} variant="purple" />
-        </div>
+        <>
+          {/* Ammo indicator */}
+          <div className={`text-center mb-2 text-[0.55rem] font-bold ${(state.ammo || 0) <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
+            🔫 Munitie: {state.ammo || 0} {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <CombatAction icon={<Swords size={14} />} label="AANVAL" sub={`Betrouwbaar${(state.ammo || 0) > 0 ? ' (-1 🔫)' : ' (melee)'}`}
+              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'attack' })} variant="blood" />
+            <CombatAction icon={<Zap size={14} />} label="ZWARE KLAP" sub={`Krachtig${(state.ammo || 0) >= 2 ? ' (-2 🔫)' : (state.ammo || 0) >= 1 ? ' (-1 🔫)' : ' (melee)'}`}
+              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'heavy' })} variant="gold" />
+            <CombatAction icon={<Shield size={14} />} label="VERDEDIG" sub="Block + Heal"
+              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'defend' })} variant="muted" />
+            <CombatAction icon={<MapPin size={14} />} label={env?.actionName || 'OMGEVING'} sub={env?.desc || 'Stun kans'}
+              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })} variant="purple" />
+          </div>
+        </>
       ) : (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}

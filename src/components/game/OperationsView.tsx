@@ -9,17 +9,18 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target } from 'lucide-react';
+import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target, Skull } from 'lucide-react';
 import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
+import { HitsView } from './HitsView';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'challenges';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'challenges';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -65,6 +66,7 @@ export function OperationsView() {
         {([
           { id: 'solo' as OpsSubTab, label: 'SOLO', icon: <Crosshair size={12} /> },
           { id: 'contracts' as OpsSubTab, label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
+          { id: 'hits' as OpsSubTab, label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
           { id: 'crew' as OpsSubTab, label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
           { id: 'challenges' as OpsSubTab, label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
         ]).map(tab => (
@@ -262,6 +264,8 @@ export function OperationsView() {
           </GameButton>
         </>
       )}
+
+      {subTab === 'hits' && <HitsView />}
 
       {subTab === 'challenges' && <DailyChallengesView />}
 
