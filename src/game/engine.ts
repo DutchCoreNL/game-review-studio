@@ -1,6 +1,7 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
+import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -429,13 +430,20 @@ export function endTurn(state: GameState): NightReportData {
   // Recompute effective heat
   recomputeHeat(state);
 
-  // Police heat check (uses personalHeat)
-  if ((state.personalHeat || 0) > 60 && Math.random() < 0.3 && state.policeRel < 50) {
+  // Police heat check (uses personalHeat, modified by corruption protection)
+  const raidProtection = getCorruptionRaidProtection(state);
+  const raidChance = 0.3 * (1 - raidProtection / 100);
+  if ((state.personalHeat || 0) > 60 && Math.random() < raidChance && state.policeRel < 50) {
     let fine = Math.floor(state.money * 0.1);
     // Armor upgrade reduces police fine
     const armorBonus = getVehicleUpgradeBonus(state, 'armor');
     if (armorBonus > 0) {
       fine = Math.floor(fine * (1 - armorBonus * 0.06));
+    }
+    // Corruption fine reduction
+    const fineReduction = getCorruptionFineReduction(state);
+    if (fineReduction > 0) {
+      fine = Math.floor(fine * (1 - fineReduction / 100));
     }
     state.money -= fine;
     addPersonalHeat(state, -20);
@@ -527,6 +535,9 @@ export function endTurn(state: GameState): NightReportData {
 
   // Apply all new feature logic (weather, district rep, nemesis, defense, smuggling, phone)
   applyNewFeatures(state, report);
+
+  // Process corruption network (payments, betrayals, passive effects)
+  processCorruptionNetwork(state, report);
 
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;

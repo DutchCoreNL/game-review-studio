@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -104,6 +104,10 @@ type GameAction =
   | { type: 'BUY_SAFEHOUSE'; district: DistrictId }
   | { type: 'UPGRADE_SAFEHOUSE'; district: DistrictId }
   | { type: 'INSTALL_SAFEHOUSE_UPGRADE'; district: DistrictId; upgradeId: SafehouseUpgradeId }
+  // Corruption network actions
+  | { type: 'RECRUIT_CONTACT'; contactDefId: string }
+  | { type: 'FIRE_CONTACT'; contactId: string }
+  | { type: 'DISMISS_CORRUPTION_EVENT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1125,6 +1129,49 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== CORRUPTION NETWORK ACTIONS ==========
+
+    case 'RECRUIT_CONTACT': {
+      const contactDef = CORRUPT_CONTACTS.find(c => c.id === action.contactDefId);
+      if (!contactDef) return s;
+      if (s.money < contactDef.recruitCost) return s;
+      if (s.corruptContacts.some(c => c.contactDefId === action.contactDefId && c.active)) return s;
+      if (s.rep < (contactDef.reqRep || 0)) return s;
+      if (contactDef.reqPoliceRel && s.policeRel < contactDef.reqPoliceRel) return s;
+      s.money -= contactDef.recruitCost;
+      s.stats.totalSpent += contactDef.recruitCost;
+      s.corruptContacts.push({
+        id: `contact_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        contactDefId: action.contactDefId,
+        recruitedDay: s.day,
+        loyalty: 50,
+        lastPaidDay: s.day,
+        compromised: false,
+        active: true,
+      });
+      addPhoneMessage(s, contactDef.name, `We hebben een deal. Ik verwacht maandelijks €${contactDef.monthlyCost.toLocaleString()}. Teleur me niet.`, 'info');
+      return s;
+    }
+
+    case 'FIRE_CONTACT': {
+      const contact = s.corruptContacts.find(c => c.id === action.contactId);
+      if (!contact || !contact.active) return s;
+      contact.active = false;
+      const contactDef = CORRUPT_CONTACTS.find(c => c.id === contact.contactDefId);
+      // Firing a contact has a chance to increase heat (they know too much)
+      if (contactDef && Math.random() < 0.3) {
+        Engine.addPersonalHeat(s, 10);
+        Engine.recomputeHeat(s);
+        addPhoneMessage(s, 'anonymous', `${contactDef.name} is niet blij met het beëindigen van jullie samenwerking. Wees voorzichtig.`, 'warning');
+      }
+      return s;
+    }
+
+    case 'DISMISS_CORRUPTION_EVENT': {
+      s.pendingCorruptionEvent = null;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -1219,6 +1266,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.pendingCarTheft === undefined) saved.pendingCarTheft = null;
       // Safehouse migrations
       if (!saved.safehouses) saved.safehouses = [];
+      // Corruption network migrations
+      if (!saved.corruptContacts) saved.corruptContacts = [];
+      if (saved.pendingCorruptionEvent === undefined) saved.pendingCorruptionEvent = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

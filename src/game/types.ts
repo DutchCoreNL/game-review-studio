@@ -122,6 +122,49 @@ export interface PhoneMessage {
   type: 'info' | 'warning' | 'opportunity' | 'threat';
 }
 
+// ========== CORRUPTION NETWORK TYPES ==========
+
+export type CorruptContactType = 'agent' | 'detective' | 'judge' | 'politician' | 'customs';
+
+export interface CorruptContactDef {
+  id: string;
+  type: CorruptContactType;
+  name: string;
+  title: string;
+  monthlyCost: number;
+  recruitCost: number;
+  betrayalRisk: number; // 0-100 base chance per month
+  effects: {
+    heatReduction?: number;
+    raidProtection?: number; // percentage
+    fineReduction?: number; // percentage
+    tradeBonus?: number; // percentage
+    intelBonus?: boolean;
+    smuggleProtection?: number; // percentage
+  };
+  desc: string;
+  icon: string;
+  reqRep?: number;
+  reqPoliceRel?: number;
+}
+
+export interface CorruptContact {
+  id: string;
+  contactDefId: string;
+  recruitedDay: number;
+  loyalty: number; // 0-100, higher = less likely to betray
+  lastPaidDay: number;
+  compromised: boolean; // true if they've been exposed
+  active: boolean;
+}
+
+export interface CorruptionEvent {
+  type: 'betrayal' | 'exposure' | 'demand' | 'bonus';
+  contactId: string;
+  text: string;
+  effect: string;
+}
+
 // ========== STORY & PERSONALITY TYPES ==========
 
 export type PersonalityTrait = 'loyaal' | 'hebzuchtig' | 'rustig' | 'impulsief' | 'slim' | 'brutaal' | 'charmant' | 'paranoid';
@@ -484,4 +527,8 @@ export interface GameState {
   completedArcs: string[];
   pendingArcEvent: { arcId: string; stepIndex: number } | null;
   arcEventResult: { success: boolean; text: string } | null;
+
+  // ========== CORRUPTION NETWORK STATE ==========
+  corruptContacts: CorruptContact[];
+  pendingCorruptionEvent: CorruptionEvent | null;
 }

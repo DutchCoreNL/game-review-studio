@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -447,6 +447,9 @@ export function createInitialState(): import('./types').GameState {
     stolenCars: [],
     carOrders: [],
     pendingCarTheft: null,
+    // Corruption network state
+    corruptContacts: [],
+    pendingCorruptionEvent: null,
     // Story & animation state
     pendingStreetEvent: null,
     streetEventResult: null,
@@ -524,3 +527,58 @@ export const CAR_ORDER_CLIENTS = [
 
 export const OMKAT_COST = 2500;
 export const OMKAT_DAYS = 1; // days before car is "clean"
+
+// ========== CORRUPTION NETWORK CONSTANTS ==========
+
+export const CORRUPT_CONTACTS: CorruptContactDef[] = [
+  {
+    id: 'beat_cop', type: 'agent', name: 'Agent Brouwer', title: 'Wijkagent',
+    monthlyCost: 1500, recruitCost: 5000, betrayalRisk: 5,
+    effects: { heatReduction: 3, raidProtection: 15 },
+    desc: 'Kijkt de andere kant op bij kleine overtredingen.',
+    icon: '👮', reqRep: 50,
+  },
+  {
+    id: 'vice_detective', type: 'detective', name: 'Inspecteur De Vries', title: 'Rechercheur Zeden',
+    monthlyCost: 4000, recruitCost: 15000, betrayalRisk: 10,
+    effects: { heatReduction: 5, raidProtection: 25, intelBonus: true },
+    desc: 'Lekt informatie over geplande invallen en onderzoeken.',
+    icon: '🕵️', reqRep: 150, reqPoliceRel: 30,
+  },
+  {
+    id: 'customs_officer', type: 'customs', name: 'Douanier Bakker', title: 'Hoofd Douane',
+    monthlyCost: 3000, recruitCost: 12000, betrayalRisk: 8,
+    effects: { smuggleProtection: 40, tradeBonus: 10 },
+    desc: 'Faciliteert smokkelroutes en kijkt niet in containers.',
+    icon: '🛃', reqRep: 100,
+  },
+  {
+    id: 'district_judge', type: 'judge', name: 'Rechter Van Dijk', title: 'Strafrechter',
+    monthlyCost: 6000, recruitCost: 25000, betrayalRisk: 15,
+    effects: { fineReduction: 50, raidProtection: 10 },
+    desc: 'Verlaagt straffen en laat zaken seponeren.',
+    icon: '⚖️', reqRep: 200, reqPoliceRel: 40,
+  },
+  {
+    id: 'city_councilor', type: 'politician', name: 'Wethouder Jansen', title: 'Wethouder Veiligheid',
+    monthlyCost: 8000, recruitCost: 40000, betrayalRisk: 20,
+    effects: { heatReduction: 8, raidProtection: 35, fineReduction: 30, tradeBonus: 5 },
+    desc: 'De machtigste pion. Beïnvloedt politiebeleid en wetgeving.',
+    icon: '🏛️', reqRep: 350, reqPoliceRel: 50,
+  },
+  {
+    id: 'harbor_master', type: 'customs', name: 'Havenmeester Krol', title: 'Directeur Havenbeheer',
+    monthlyCost: 5000, recruitCost: 20000, betrayalRisk: 12,
+    effects: { smuggleProtection: 60, tradeBonus: 15 },
+    desc: 'Controleert alles wat de haven in en uit gaat.',
+    icon: '⚓', reqRep: 250,
+  },
+];
+
+export const CORRUPTION_BETRAYAL_EVENTS = [
+  'heeft anoniem bewijs overgedragen aan Interne Zaken.',
+  'is gearresteerd en heeft een deal gemaakt met de officier van justitie.',
+  'is geflipped door een rivaliserende organisatie.',
+  'heeft een opname gemaakt van jullie laatste ontmoeting.',
+  'is benaderd door een undercoveragent en heeft meegewerkt.',
+];
