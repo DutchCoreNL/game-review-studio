@@ -466,6 +466,18 @@ export function createInitialState(): import('./types').GameState {
     completedArcs: [],
     pendingArcEvent: null,
     arcEventResult: null,
+    // Narrative expansion state
+    backstory: null,
+    karma: 0,
+    npcRelations: {
+      rosa: { value: 0, met: false, lastInteractionDay: 0, flags: [] },
+      marco: { value: 0, met: false, lastInteractionDay: 0, flags: [] },
+      yilmaz: { value: 0, met: false, lastInteractionDay: 0, flags: [] },
+      luna: { value: 0, met: false, lastInteractionDay: 0, flags: [] },
+      krow: { value: 0, met: false, lastInteractionDay: 0, flags: [] },
+    },
+    pendingFlashback: null,
+    keyDecisions: [],
   };
 }
 

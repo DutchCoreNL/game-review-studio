@@ -23,6 +23,7 @@ export interface StoryArcChoice {
     dirtyMoney: number;
     crewDamage: number;
     relChange?: Partial<Record<string, number>>;
+    karma?: number; // positive = eerbaar, negative = meedogenloos
   };
   /** Optional: which step to jump to on success (for branching) */
   nextStepOverride?: number;
@@ -406,6 +407,10 @@ export const STORY_ARCS: StoryArcTemplate[] = [
     ],
   },
 ];
+
+// Merge district-specific story arcs
+import { DISTRICT_STORY_ARCS } from './districtStories';
+STORY_ARCS.push(...DISTRICT_STORY_ARCS);
 
 // ========== ARC LOGIC ==========
 
