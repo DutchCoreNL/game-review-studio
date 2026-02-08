@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
+import { KarmaPanel } from './profile/KarmaPanel';
 import { useState } from 'react';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
@@ -102,6 +103,9 @@ export function ProfileView() {
               );
             })}
           </div>
+
+          {/* Karma */}
+          <KarmaPanel />
 
           {/* Statistics */}
           <SectionHeader title="Statistieken" icon={<BarChart3 size={12} />} />
