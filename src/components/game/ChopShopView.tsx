@@ -34,7 +34,7 @@ function getCarValue(car: StolenCar): number {
   return value;
 }
 
-function CarCard({ car, onSelect }: { car: StolenCar; onSelect: () => void }) {
+function CarCard({ car, onSelect, isNew }: { car: StolenCar; onSelect: () => void; isNew: boolean }) {
   const carDef = STEALABLE_CARS.find(c => c.id === car.carTypeId);
   if (!carDef) return null;
 
@@ -44,13 +44,45 @@ function CarCard({ car, onSelect }: { car: StolenCar; onSelect: () => void }) {
   return (
     <motion.button
       onClick={onSelect}
-      className={`w-full text-left game-card ${rarity.bg} p-3 border ${rarity.border} hover:brightness-110 transition-all`}
+      className={`w-full text-left game-card ${rarity.bg} p-3 border ${rarity.border} hover:brightness-110 transition-all relative overflow-hidden`}
+      initial={isNew ? { opacity: 0, scale: 0.85, y: 20 } : { opacity: 0, x: -10 }}
+      animate={isNew
+        ? { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 20 } }
+        : { opacity: 1, x: 0 }
+      }
       whileTap={{ scale: 0.98 }}
     >
+      {/* New car glow effect */}
+      {isNew && (
+        <motion.div
+          className="absolute inset-0 rounded pointer-events-none"
+          initial={{ opacity: 0.6 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 2, ease: 'easeOut' }}
+          style={{
+            background: 'radial-gradient(ellipse at center, hsl(var(--gold) / 0.3), transparent 70%)',
+          }}
+        />
+      )}
+      {/* New badge */}
+      {isNew && (
+        <motion.span
+          className="absolute top-1.5 right-1.5 text-[0.4rem] font-bold uppercase tracking-wider bg-gold/20 text-gold border border-gold/30 px-1.5 py-0.5 rounded"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, type: 'spring', stiffness: 400 }}
+        >
+          ✦ Nieuw
+        </motion.span>
+      )}
       <div className="flex items-center gap-2.5">
-        <div className={`w-9 h-9 rounded ${rarity.bg} border ${rarity.border} flex items-center justify-center text-lg`}>
+        <motion.div
+          className={`w-9 h-9 rounded ${rarity.bg} border ${rarity.border} flex items-center justify-center text-lg`}
+          animate={isNew ? { rotate: [0, -8, 8, -4, 0] } : {}}
+          transition={isNew ? { delay: 0.2, duration: 0.5 } : {}}
+        >
           🚗
-        </div>
+        </motion.div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold truncate">{carDef.name}</span>
@@ -379,7 +411,7 @@ export function ChopShopView() {
               ) : (
                 <div className="space-y-2">
                   {state.stolenCars.map(car => (
-                    <CarCard key={car.id} car={car} onSelect={() => setSelectedCar(car.id)} />
+                    <CarCard key={car.id} car={car} onSelect={() => setSelectedCar(car.id)} isNew={car.stolenDay === state.day} />
                   ))}
                 </div>
               )
