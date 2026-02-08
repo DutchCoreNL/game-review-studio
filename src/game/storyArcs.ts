@@ -51,6 +51,7 @@ export interface StoryArcTemplate {
     minRep?: number;
     minDistricts?: number;
     requiredDistrict?: DistrictId;
+    requiredBackstory?: string;
     maxActiveArcs?: number;
   };
   /** Final reward when completing the arc */
@@ -412,6 +413,10 @@ export const STORY_ARCS: StoryArcTemplate[] = [
 import { DISTRICT_STORY_ARCS } from './districtStories';
 STORY_ARCS.push(...DISTRICT_STORY_ARCS);
 
+// Merge backstory-exclusive arcs
+import { BACKSTORY_ARCS } from './backstoryArcs';
+STORY_ARCS.push(...BACKSTORY_ARCS);
+
 // ========== ARC LOGIC ==========
 
 /** Check if any new arcs should trigger */
@@ -434,6 +439,7 @@ export function checkArcTriggers(state: GameState): void {
     if (c.minRep && state.rep < c.minRep) continue;
     if (c.minDistricts && state.ownedDistricts.length < c.minDistricts) continue;
     if (c.requiredDistrict && !state.ownedDistricts.includes(c.requiredDistrict)) continue;
+    if (c.requiredBackstory && state.backstory !== c.requiredBackstory) continue;
     
     // Random chance to trigger (30% per eligible day)
     if (Math.random() > 0.3) continue;
