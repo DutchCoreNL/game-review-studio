@@ -10,8 +10,9 @@ import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { AnimatedXPBar } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { useState } from 'react';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
@@ -26,7 +27,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'trophies' | 'districts';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'trophies';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -68,6 +69,7 @@ export function ProfileView() {
         {([
           { id: 'stats' as ProfileTab, label: 'STATS' },
           { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
+          { id: 'contacts' as ProfileTab, label: 'NPC\'S' },
           { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
         ]).map(tab => (
@@ -194,6 +196,8 @@ export function ProfileView() {
           </div>
         </>
       )}
+
+      {profileTab === 'contacts' && <NpcRelationsPanel />}
 
       {profileTab === 'districts' && (
         <>
