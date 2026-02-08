@@ -27,6 +27,8 @@ export interface StoryArcChoice {
   };
   /** Optional: which step to jump to on success (for branching) */
   nextStepOverride?: number;
+  /** Karma gate: 'eerbaar' = requires karma > 20, 'meedogenloos' = requires karma < -20 */
+  requiredKarma?: 'eerbaar' | 'meedogenloos';
 }
 
 export interface StoryArcStep {
@@ -129,7 +131,21 @@ export const STORY_ARCS: StoryArcTemplate[] = [
             id: 'inf_2b', label: 'DREIG DE INFORMANT', stat: 'muscle', difficulty: 35,
             successText: '"Je geeft me die info gratis of ik vertel De Vries wie je bent." De man verbleekt en overhandigt alles.',
             failText: 'De informant lacht nerveus. "Dan hou ik het voor mezelf." Hij verdwijnt in de menigte.',
-            effects: { money: 0, heat: 5, rep: -10, dirtyMoney: 0, crewDamage: 0 },
+            effects: { money: 0, heat: 5, rep: -10, dirtyMoney: 0, crewDamage: 0, karma: -10 },
+          },
+          {
+            id: 'inf_2c', label: 'BESCHERM HEM PERSOONLIJK', stat: 'charm', difficulty: 40,
+            requiredKarma: 'eerbaar',
+            successText: 'Je biedt hem onderdak en bescherming. De informant is ontroerd. "Niemand heeft ooit..." Hij geeft je álles — meer dan je vroeg. Een bondgenoot voor het leven.',
+            failText: 'Je pogingen om hem te beschermen trekken aandacht. De Vries wordt gewaarschuwd.',
+            effects: { money: -2000, heat: 3, rep: 30, dirtyMoney: 0, crewDamage: 0, karma: 15 },
+          },
+          {
+            id: 'inf_2d', label: 'MARTÉL DE LOCATIE ERUIT', stat: 'muscle', difficulty: 30,
+            requiredKarma: 'meedogenloos',
+            successText: 'In een donker steegje laat je hem praten. Het duurt niet lang. Je hebt nu alles — de dossiers, zijn contacten, zelfs zijn noodplan. Angst is de beste motivator.',
+            failText: 'De informant bijt op zijn lip en zwijgt. Taai. Maar nu weet hij dat je gevaarlijk bent.',
+            effects: { money: 0, heat: 8, rep: 5, dirtyMoney: 3000, crewDamage: 0, karma: -15 },
           },
         ],
       },
@@ -260,6 +276,20 @@ export const STORY_ARCS: StoryArcTemplate[] = [
             successText: 'Je laat de concurrent het werk doen en grijpt in op het perfecte moment. De kluis is van jou.',
             failText: 'De val mislukt. De concurrent is slimmer dan je dacht. Maar de kluis is nog dicht.',
             effects: { money: 0, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'erf_3c', label: 'WAARSCHUW DE CONCURRENT', stat: 'charm', difficulty: 35,
+            requiredKarma: 'eerbaar',
+            successText: '"Dit fortuin brengt alleen ongeluk. Laten we het delen." De concurrent is verbaasd, maar stemt toe. Jullie openen de kluis samen — en delen eerlijk. Respect wordt verdiend.',
+            failText: 'De concurrent lacht je uit. "Delen? Ben je gek?" Hij rent naar de kluis.',
+            effects: { money: 5000, heat: -5, rep: 30, dirtyMoney: 0, crewDamage: 0, karma: 20 },
+          },
+          {
+            id: 'erf_3d', label: 'ELIMINEER DE CONCURRENT', stat: 'muscle', difficulty: 40,
+            requiredKarma: 'meedogenloos',
+            successText: 'Eén kogel. De concurrent zakt in elkaar. Niemand zal ooit weten dat hij hier was. De kluis — en het fortuin — is alleen van jou. Zonder getuigen.',
+            failText: 'De concurrent is gewapend. Een vuurgevecht in de tunnels. Je wint, maar niet zonder kleerscheuren.',
+            effects: { money: 0, heat: 15, rep: 20, dirtyMoney: 5000, crewDamage: 10, karma: -20 },
           },
         ],
       },
@@ -401,7 +431,21 @@ export const STORY_ARCS: StoryArcTemplate[] = [
             id: 'riv_4c', label: 'BIED HEM EEN PARTNERSCHAP', stat: 'charm', difficulty: 50,
             successText: '"Waarom vechten als we samen de stad kunnen runnen?" Krow overweegt... en accepteert. Samen zijn jullie onaantastbaar.',
             failText: '"Partners? Met jou?" Krow lacht. "Nooit." Het wordt oorlog.',
-            effects: { money: 5000, heat: -10, rep: 80, dirtyMoney: 0, crewDamage: 0 },
+            effects: { money: 5000, heat: -10, rep: 80, dirtyMoney: 0, crewDamage: 0, karma: 10 },
+          },
+          {
+            id: 'riv_4d', label: 'GEEF HEM EEN EERVOLLE AFTOCHT', stat: 'charm', difficulty: 40,
+            requiredKarma: 'eerbaar',
+            successText: '"Je hebt verloren, Krow. Maar ik respecteer een vechter. Neem je geld en vertrek met waardigheid." Krow is verbijsterd. "Je bent de eerste die me zo behandelt." Hij vertrekt — en laat een bondgenootschap achter.',
+            failText: 'Krow ziet het als zwakte. "Medelijden? Van jou?" Hij valt aan.',
+            effects: { money: 0, heat: -15, rep: 90, dirtyMoney: 0, crewDamage: 0, karma: 25 },
+          },
+          {
+            id: 'riv_4e', label: 'MAAK EEN VOORBEELD VAN HEM', stat: 'muscle', difficulty: 35,
+            requiredKarma: 'meedogenloos',
+            successText: 'Je verslaat Krow publiekelijk. Op zijn knieën, voor heel Noxhaven. "Kijk goed," zeg je tegen de menigte. "Dit is wat er gebeurt." Niemand zal je ooit meer uitdagen. De stad is van jou — door angst.',
+            failText: 'Krow vecht als een beest. Het publieke schouwspel slaat in je nadeel om als hij bijna wint.',
+            effects: { money: 20000, heat: 20, rep: 120, dirtyMoney: 15000, crewDamage: 15, karma: -25 },
           },
         ],
       },
