@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { GEAR, FAMILIES } from '@/game/constants';
+import { GEAR, FAMILIES, AMMO_PACKS } from '@/game/constants';
 import { GearSlot } from '@/game/types';
 import { getDailyDeal } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
@@ -7,7 +7,7 @@ import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Swords, Shield, Cpu, Zap, Lock, Sparkles } from 'lucide-react';
+import { ShieldCheck, Swords, Shield, Cpu, Zap, Lock, Sparkles, Crosshair } from 'lucide-react';
 import { useState } from 'react';
 
 type GearFilter = 'all' | 'weapon' | 'armor' | 'gadget';
@@ -53,6 +53,41 @@ export function GearPanel() {
 
   return (
     <div>
+      {/* Ammo Purchase Section */}
+      <SectionHeader title="Munitie" icon={<Crosshair size={12} />} />
+      <div className="flex gap-2 mb-4">
+        {AMMO_PACKS.map(pack => (
+          <motion.button
+            key={pack.id}
+            onClick={() => {
+              if (state.money >= pack.cost && (state.ammo || 0) < 99) {
+                dispatch({ type: 'BUY_AMMO', packId: pack.id });
+                showToast(`+${pack.amount} kogels gekocht!`);
+              } else if ((state.ammo || 0) >= 99) {
+                showToast('Munitie is vol (max 99)', true);
+              } else {
+                showToast('Niet genoeg geld', true);
+              }
+            }}
+            disabled={state.money < pack.cost || (state.ammo || 0) >= 99}
+            className={`flex-1 game-card p-2.5 text-center transition-all ${
+              state.money >= pack.cost && (state.ammo || 0) < 99
+                ? 'border-gold/30 hover:border-gold cursor-pointer'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-lg mb-0.5">{pack.icon}</div>
+            <div className="text-[0.55rem] font-bold text-foreground">{pack.name}</div>
+            <div className="text-[0.5rem] text-gold font-bold">€{pack.cost.toLocaleString()}</div>
+          </motion.button>
+        ))}
+      </div>
+      <div className="text-[0.5rem] text-muted-foreground text-center mb-4">
+        🔫 Munitie: <span className={(state.ammo || 0) <= 3 ? 'text-blood font-bold' : 'text-foreground font-bold'}>{state.ammo || 0}/99</span>
+        {' '}— Nodig voor gevechten en huurmoorden
+      </div>
+
       <SectionHeader title="Zwarte Markt" icon={<ShieldCheck size={12} />} />
 
       {/* Daily Deal */}

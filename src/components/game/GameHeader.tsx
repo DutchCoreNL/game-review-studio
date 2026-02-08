@@ -7,7 +7,7 @@ import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
-import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff, Shield, Zap } from 'lucide-react';
+import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff, Shield, Zap, Crosshair } from 'lucide-react';
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={11} />,
@@ -97,6 +97,14 @@ export function GameHeader() {
       {/* Bottom row: compact resource strip */}
       <div className="flex items-center gap-2.5 text-[0.6rem]">
         <ResourceChip label="REP" value={state.rep} color="text-gold" />
+
+        {/* Ammo indicator */}
+        <div className="flex items-center gap-1" title={`Munitie: ${state.ammo || 0}/99`}>
+          <Crosshair size={9} className={(state.ammo || 0) <= 3 ? 'text-blood' : 'text-muted-foreground'} />
+          <span className={`font-bold ${(state.ammo || 0) <= 3 ? 'text-blood animate-pulse' : (state.ammo || 0) <= 10 ? 'text-gold' : 'text-foreground'}`}>
+            {state.ammo || 0}
+          </span>
+        </div>
 
         {/* Dual Heat Display */}
         <div className="flex items-center gap-1">

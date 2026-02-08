@@ -814,6 +814,10 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const muscle = getPlayerStat(state, 'muscle');
   const brains = getPlayerStat(state, 'brains');
 
+  // Ammo system: check if player has ammo for attack actions
+  const hasAmmo = (state.ammo || 0) > 0;
+  const hasHeavyAmmo = (state.ammo || 0) >= 2;
+
   // Player action
   let playerDamage = 0;
   let playerDefenseBonus = 0;
@@ -821,15 +825,39 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
 
   switch (action) {
     case 'attack':
-      playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
-      combat.logs.push(`Je slaat toe voor ${playerDamage} schade!`);
+      if (hasAmmo) {
+        state.ammo = Math.max(0, (state.ammo || 0) - 1);
+        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+        combat.logs.push(`Je slaat toe voor ${playerDamage} schade! 🔫 (-1 kogel)`);
+      } else {
+        // Melee fallback: 50% damage
+        playerDamage = Math.floor((8 + muscle * 2.5 + Math.random() * 6) * 0.5);
+        combat.logs.push(`⚠️ Geen kogels! Melee aanval voor ${playerDamage} schade (50%).`);
+      }
       break;
     case 'heavy':
-      if (Math.random() < 0.6 + (muscle * 0.03)) {
-        playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
-        combat.logs.push(`ZWARE KLAP! ${playerDamage} schade!`);
+      if (hasHeavyAmmo) {
+        state.ammo = Math.max(0, (state.ammo || 0) - 2);
+        if (Math.random() < 0.6 + (muscle * 0.03)) {
+          playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
+          combat.logs.push(`ZWARE KLAP! ${playerDamage} schade! 🔫🔫 (-2 kogels)`);
+        } else {
+          combat.logs.push('Je zware aanval mist! 🔫🔫 (-2 kogels)');
+        }
+      } else if (hasAmmo) {
+        // Only 1 ammo: regular attack strength with heavy miss chance
+        state.ammo = Math.max(0, (state.ammo || 0) - 1);
+        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+        combat.logs.push(`⚠️ Te weinig kogels voor zware klap. Normale aanval: ${playerDamage} schade.`);
       } else {
-        combat.logs.push('Je zware aanval mist!');
+        // Melee fallback: 50% damage
+        playerDamage = Math.floor((15 + muscle * 3.5 + Math.random() * 10) * 0.5);
+        if (Math.random() < 0.6 + (muscle * 0.03)) {
+          combat.logs.push(`⚠️ Geen kogels! Zware melee voor ${playerDamage} schade (50%).`);
+        } else {
+          combat.logs.push('⚠️ Geen kogels! Je zware melee mist!');
+          playerDamage = 0;
+        }
       }
       break;
     case 'defend':

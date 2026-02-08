@@ -11,6 +11,35 @@ export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
 export interface PlayingCard { rank: string; suit: CardSuit; }
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
 
+// ========== HITMAN SYSTEM TYPES ==========
+
+export type HitTargetType = 'luitenant' | 'ambtenaar' | 'zakenman' | 'verrader' | 'vip';
+
+export interface HitContract {
+  id: string;
+  targetName: string;
+  targetType: HitTargetType;
+  difficulty: number; // 0-100
+  reward: number;
+  repReward: number;
+  heatGain: number;
+  ammoCost: number; // 3-8
+  factionEffect: { familyId: FamilyId; change: number } | null;
+  district: DistrictId;
+  desc: string;
+  karmaEffect: number; // -5 to -15
+  deadline: number; // day number when it expires
+  xpReward: number;
+}
+
+export interface AmmoPack {
+  id: string;
+  name: string;
+  amount: number;
+  cost: number;
+  icon: string;
+}
+
 // ========== NEW FEATURE TYPES ==========
 
 export type WeatherType = 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm';
@@ -436,6 +465,7 @@ export interface DailyProgressCounters {
   recruits: number;
   cars_stolen: number;
   casino_won: number;
+  hits_completed: number;
 }
 
 // ========== MISSION ENCOUNTER SYSTEM ==========
@@ -606,4 +636,8 @@ export interface GameState {
   npcRelations: Record<string, NpcRelation>;
   pendingFlashback: FlashbackData | null;
   keyDecisions: string[];
+
+  // ========== HITMAN & AMMO STATE ==========
+  ammo: number;
+  hitContracts: HitContract[];
 }
