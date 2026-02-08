@@ -14,6 +14,7 @@ import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Targe
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
+import { StoryArcsPanel } from './profile/StoryArcsPanel';
 import { useState } from 'react';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
@@ -28,7 +29,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'trophies';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -72,6 +73,7 @@ export function ProfileView() {
           { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
           { id: 'contacts' as ProfileTab, label: 'NPC\'S' },
           { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
+          { id: 'arcs' as ProfileTab, label: 'BOGEN' },
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
@@ -202,6 +204,8 @@ export function ProfileView() {
       )}
 
       {profileTab === 'contacts' && <NpcRelationsPanel />}
+
+      {profileTab === 'arcs' && <StoryArcsPanel />}
 
       {profileTab === 'districts' && (
         <>
