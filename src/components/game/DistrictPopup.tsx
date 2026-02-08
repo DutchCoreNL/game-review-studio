@@ -71,9 +71,9 @@ export function DistrictPopup() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="fixed left-4 right-4 top-[120px] z-[9001] max-w-[560px] mx-auto"
+        className="fixed left-4 right-4 top-[100px] bottom-4 z-[9001] max-w-[560px] mx-auto flex flex-col"
       >
-        <div className="game-card border-t-[3px] border-t-blood p-4 shadow-xl">
+        <div className="game-card border-t-[3px] border-t-blood p-4 shadow-xl overflow-y-auto max-h-full game-scroll">
           <button
             onClick={() => selectDistrict(null as any)}
             className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
