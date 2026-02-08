@@ -1,97 +1,89 @@
 
+# Verhaal Verdieping voor Noxhaven: Blood & Empire
 
-# Visuele Upgrade: Levende Stadskaart van Noxhaven
-
-## Overzicht
-
-De huidige kaart heeft al een solide basis met district-landmarks, wegen, verkeer en overlays. Deze upgrade transformeert het naar een echte levende stad met meer diepte, sfeer en dynamische elementen die reageren op de game state.
-
-## Wat er verandert
-
-### 1. Terrein & Omgeving per District
-Elk district krijgt een uniek grondpatroon dat het karakter versterkt:
-- **Port Nero**: Waterreflecties langs de haven, drijvende boeien, golvend wateroppervlak met subtiele animatie
-- **Crown Heights**: Parkgebied met bomen (donkere silhouetten), een helipad-markering op het hoogste gebouw
-- **Iron Borough**: Roestige grondtextuur, spoorlijnen met een langzaam rijdende goederenwagon
-- **Lowrise**: Gebroken bestrating-patroon, afvalbakken, flikkerende straatverlichting
-- **Neon Strip**: Gloeiende neon-reflecties op de weg, bewegende reclameborden
-
-### 2. Verbeterde Gebouwen & Details
-De bestaande landmark-renderers worden uitgebreid:
-- Meer gebouwvariatie (verschillende hoogtes, vormen)
-- Rook/stoom-effecten bij fabrieken en restaurantjes
-- Verlichte ramen die willekeurig aan/uit gaan (geanimeerd)
-- Antennes en waterreservoirs op daken
-- Port Nero: Bewegende kraan, lichtbaken op de pier
-- Crown Heights: Helipad met draaiend licht, penthouse-verlichting
-- Neon Strip: Verticale neon-teksten langs gebouwen, disco-licht reflecties
-
-### 3. Dynamische Stadselementen
-Nieuwe geanimeerde elementen die leven toevoegen:
-- **Straatverlichting**: Lichtcirkels langs wegen die 's nachts gloeien
-- **Meer verkeer**: Extra voertuig-variaties (bussen, motoren) met verschillende snelheden en kleuren
-- **Voetgangers**: Kleine stippen die langs wegen bewegen (subtiel)
-- **Bruggen**: Visuele brug-constructies waar wegen water/spoor kruisen
-- **Boten in de haven**: Langzaam bewegende silhouetten bij Port Nero
-
-### 4. Sfeer-verbeteringen op de Achtergrond
-- **Sterrenhemel / Stadsgloed**: Subtiele achtergrondgradienten die de nachtelijke sfeer versterken
-- **Stadsgrenzen**: Zachte glow aan de randen van de kaart die de stad afbakent
-- **Rivierverloop**: Een waterweg die van Port Nero naar het zuiden loopt
-- **Weer-integratie**: Gebouwen reageren visueel op weer (nat dak bij regen, extra stoom bij hittegolf)
-
-### 5. Game State Integratie
-De kaart reageert visueel op de huidige staat:
-- **Bezit-indicator**: Bezeten districten krijgen een subtiele kleur-tint in hun grondgebied (rode gloed)
-- **Actieve smokkelroutes**: Stippellijnen tussen districten als routes actief zijn
-- **District reputatie**: Meer of minder activiteit/verlichting op basis van reputatie
-- **Dag/nacht sfeer**: Window-verlichting intensiteit past aan
+Het spel heeft al een solide basis met 3 verhaalbogen (De Informant, Het Erfenis-mysterie, De Rivaal), 20+ straatgebeurtenissen, en een Nemesis-systeem. Hier zijn concrete voorstellen om het narratieve aspect significant te versterken.
 
 ---
 
-## Technisch Plan
+## 1. Persoonlijk Verleden & Herkomst (Proloog Keuze-systeem)
 
-### Bestanden die worden gewijzigd:
+Bij het starten van een nieuw spel kiest de speler een achtergrondverhaal. Dit beinvloedt startbonussen, unieke dialoogopties en welke verhaalbogen eerder beschikbaar worden.
 
-**`src/components/game/CityMap.tsx`** (hoofdbestand)
-- Nieuwe achtergrondlagen toevoegen: stadsgloed-gradient, rivier/waterweg
-- Straatverlichting-component langs ROADS
-- Verbeterde verkeer-animaties met meer variatie
-- Voetganger-animaties als subtiele stippen
-- Smokkelroute-visualisatie op basis van `state.smuggleRoutes` (nieuwe prop)
-- Verbeterd grid-patroon met meer organisch stratenpatroon
+**Drie achtergronden:**
+- **De Weduwnaar** -- Je partner is vermoord door de politie. Je wilt wraak. Start met +3 Kracht, lagere politierelatie, en unieke wraak-verhaalboog.
+- **De Gevallen Bankier** -- Je verloor alles door een corrupte deal. Start met +3 Vernuft, extra startgeld, en een unieke schuld-verhaalboog.
+- **Het Straatkind** -- Opgegroeid in Lowrise, niks te verliezen. Start met +3 Charisma, extra reputatie, en een unieke loyaliteits-verhaalboog.
 
-**`src/components/game/CityMap.tsx` - Landmark functies**
-- `PortNeroLandmarks`: Wateranimaties uitbreiden, bewegende kraan, lichtbaken, drijvende boten
-- `CrownHeightsLandmarks`: Helipad, meer ramen met flicker-animatie, parkgebied met bomen
-- `IronBoroughLandmarks`: Spoorlijn met wagon, extra fabrieksdetails, roest-accenten  
-- `LowriseLandmarks`: Meer gebroken straatmeubilair, flikkerende lichten, vuilnisbakken
-- `NeonStripLandmarks`: Verticale neon-teksten, meer kleur-variatie, disco-vloer reflecties
+Elke achtergrond ontgrendelt 1 exclusieve verhaalboog (4-5 stappen) die verweven is met de hoofdverhaallijn.
 
-**`src/components/game/map/CityAmbience.tsx`** (nieuw bestand)
-- `StreetLights` component: Lichtcirkels langs wegen
-- `Pedestrians` component: Kleine bewegende stippen
-- `HarborActivity` component: Boten en waterbewegingen bij Port Nero
-- `SmuggleRouteLines` component: Stippellijnen voor actieve routes
-- `CityGlow` component: Achtergrondgloed en stadsranden
+---
 
-**`src/components/game/map/WeatherOverlay.tsx`**
-- Verbeterde regen: reflecties op daken
-- Mist: meer lagen, organischer
-- Storm: natte gebouw-effecten
+## 2. NPC Relatie-systeem met Terugkerende Personages
 
-### Props die worden toegevoegd aan CityMap:
-- `smuggleRoutes` (actieve smokkelroutes voor visualisatie)
-- `districtRep` (reputatie per district voor activiteitsniveau)
+In plaats van eenmalige ontmoetingen, introduceren we terugkerende NPC's die een relatie met de speler opbouwen.
 
-### Wijziging in `src/components/game/MapView.tsx`:
-- De nieuwe props `smuggleRoutes` en `districtRep` doorgeven aan `CityMap`
+**5 Kernpersonages:**
+- **Rosa** (Barvrouw in Neon Strip) -- Geeft tips, wordt romantische interesse of zakenpartner afhankelijk van keuzes.
+- **Oude Marco** (Gepensioneerde mafioso in Lowrise) -- Mentor-figuur. Deelt wijsheid en soms wapens.
+- **Inspecteur Yilmaz** (Eerlijke politieagent) -- Tegenstander die je kunt corrumperen of respecteren. Beinvloedt het eindgevecht.
+- **Luna** (Straatkind/informant) -- Groeit op naarmate het spel vordert. Wordt uiteindelijk een potentieel crewlid.
+- **Viktor Krow** (Uit de bestaande Rivaal-boog) -- Wordt uitgebreid tot een terugkerend personage, ook na de boog.
 
-### Geschatte complexiteit:
-- CityMap.tsx: Uitbreiding van ~820 regels naar ~1100 regels
-- Nieuw bestand CityAmbience.tsx: ~250 regels
-- WeatherOverlay.tsx: Kleine aanpassingen
-- MapView.tsx: 2 extra props doorgeven
+Elke NPC heeft een relatiewaarde (0-100) die stijgt/daalt op basis van keuzes, en verandert dialogen en beschikbare opties.
 
-Alle bestaande functionaliteit (hitboxen, events, nemesis, weer, heat, verkeer, travel-animatie) blijft volledig intact. De visuele verbeteringen worden als extra lagen bovenop of tussen de bestaande elementen toegevoegd.
+---
 
+## 3. Morele Keuzes met Gevolgen (Karma-systeem)
+
+Een verborgen karma-meter die de toon van het spel beinvloedt.
+
+**Hoe het werkt:**
+- Keuzes in events en verhaalbogen verschuiven je karma richting "Meedogenloos" of "Eerbaar".
+- Karma beinvloedt: welke crew je kunt rekruteren, factie-reacties, NPC-dialogen, en het einde van het spel.
+- Geen "goed" of "fout" -- beide paden hebben unieke voordelen en verhaallijnen.
+
+**Voorbeelden:**
+- Meedogenloos: hogere fear-rep, goedkopere intimidatie, maar verraad-risico van crew stijgt.
+- Eerbaar: loyalere crew, betere politierelatie, maar minder inkomen van illegale activiteiten.
+
+---
+
+## 4. District-specifieke Verhaallijnen
+
+Elk van de 5 districten krijgt een eigen korte verhaallijn (3 stappen) die activeert wanneer je het district koopt. Dit geeft elk district meer persoonlijkheid.
+
+**Voorbeelden:**
+- **Port Nero: "De Verdwenen Lading"** -- Een mysterieuze container verschijnt in de haven. Wat zit erin? Drugs, wapens, of iets veel ergers?
+- **Crown Heights: "De Gouden Gijzeling"** -- Een bankiersdochter is ontvoerd. Red je haar, of eis je een deel van het losgeld?
+- **Iron Borough: "De Fabrieksbrand"** -- Een explosie onthult een ondergronds tunnelnetwerk. Wie heeft het gebouwd?
+- **Lowrise: "Het Kind van de Straat"** -- Een weeskind steelt van je. Straf je hem, of neem je hem onder je hoede?
+- **Neon Strip: "De Valse Jackpot"** -- Het casino wordt gebruikt voor geldwitwassen door een onbekende organisatie. Neem je het over?
+
+---
+
+## 5. Consequentie-Flashbacks
+
+Na grote beslissingen (verhaalboog-afronding, factie-verovering, nemesis-gevecht) verschijnt een korte "flashback" scene die laat zien hoe je eerdere keuzes tot dit moment hebben geleid. Dit versterkt het gevoel dat keuzes ertoe doen.
+
+**Implementatie:**
+- Een FlashbackOverlay component die 2-3 regels toont als een filmische herinnering.
+- Getriggerd door milestone-momenten.
+- Verwijst naar specifieke keuzes die de speler eerder maakte.
+
+---
+
+## Aanbevolen Implementatievolgorde
+
+1. **District-verhaallijnen** -- Meest directe impact, bouwt voort op het bestaande story-arc systeem.
+2. **Terugkerende NPC's** -- Voegt diepte toe aan de wereld en maakt events persoonlijker.
+3. **Persoonlijk Verleden** -- Verandert het begin van het spel en voegt herhaalspeelwaarde toe.
+4. **Morele Keuzes** -- Subtiel systeem dat geleidelijk impact heeft.
+5. **Consequentie-Flashbacks** -- Polijstlaag die alles samenvoegt.
+
+---
+
+## Technisch Overzicht
+
+- **Nieuwe bestanden:** `src/game/backstory.ts`, `src/game/npcs.ts`, `src/game/districtStories.ts`, `src/components/game/BackstorySelection.tsx`, `src/components/game/FlashbackOverlay.tsx`
+- **Bestaande wijzigingen:** `types.ts` (nieuwe state velden), `storyArcs.ts` (nieuwe bogen), `constants.ts` (NPC definities), `GameContext.tsx` (nieuwe actions), `engine.ts` (karma/relatie processing)
+- Het story-arc systeem (`StoryArcTemplate`, `StoryArcStep`, `StoryArcChoice`) wordt hergebruikt voor alle nieuwe verhaallijnen, waardoor de bestaande popup-UI en logica direct werken.
