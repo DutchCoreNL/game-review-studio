@@ -262,14 +262,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const randomCar = STEALABLE_CARS[Math.floor(Math.random() * STEALABLE_CARS.length)];
         const client = CAR_ORDER_CLIENTS[Math.floor(Math.random() * CAR_ORDER_CLIENTS.length)];
         const bonusPercent = 20 + Math.floor(Math.random() * 60); // 20-80% bonus
+        const newOrderClient = `${client.emoji} ${client.name}`;
         s.carOrders.push({
           id: `order_${s.day}_${Math.floor(Math.random() * 1000)}`,
           carTypeId: randomCar.id,
-          clientName: `${client.emoji} ${client.name}`,
+          clientName: newOrderClient,
           bonusPercent,
           deadline: s.day + 5 + Math.floor(Math.random() * 5),
           desc: `Zoekt een ${randomCar.name}. Betaalt ${bonusPercent}% extra.`,
         });
+        // Send phone notification about the new order
+        addPhoneMessage(s, newOrderClient, `Ik zoek een ${randomCar.name}. Ik betaal ${bonusPercent}% extra boven marktwaarde. Lever binnen ${5 + Math.floor(Math.random() * 5)} dagen.`, 'opportunity');
       }
       // Decay stolen car condition slightly
       s.stolenCars.forEach(car => {
