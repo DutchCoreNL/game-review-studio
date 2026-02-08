@@ -1,6 +1,6 @@
 import { MissionEncounter, MissionChoice, ActiveMission, GameState, DistrictId, StatId, WeatherType } from './types';
 import { SOLO_OPERATIONS, DISTRICTS } from './constants';
-import { getPlayerStat } from './engine';
+import { getPlayerStat, splitHeat } from './engine';
 
 // ========== ENCOUNTER DATABASE — SOLO ==========
 
@@ -982,8 +982,7 @@ export function completeMission(state: GameState, mission: ActiveMission): { mes
   }
 
   // Split mission heat between vehicle and personal
-  const { splitHeat: splitH } = require('./engine');
-  splitH(state, finalHeat, mission.type === 'contract' ? 0.5 : 0.4);
+  splitHeat(state, finalHeat, mission.type === 'contract' ? 0.5 : 0.4);
 
   // Apply crew damage
   if (mission.crewIndex !== undefined && mission.totalCrewDamage > 0) {
