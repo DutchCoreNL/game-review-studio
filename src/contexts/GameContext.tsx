@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -100,6 +100,10 @@ type GameAction =
   | { type: 'UPGRADE_STOLEN_CAR'; carId: string; upgradeId: ChopShopUpgradeId }
   | { type: 'SELL_STOLEN_CAR'; carId: string; orderId: string | null }
   | { type: 'USE_STOLEN_CAR'; carId: string }
+  // Safehouse actions
+  | { type: 'BUY_SAFEHOUSE'; district: DistrictId }
+  | { type: 'UPGRADE_SAFEHOUSE'; district: DistrictId }
+  | { type: 'INSTALL_SAFEHOUSE_UPGRADE'; district: DistrictId; upgradeId: SafehouseUpgradeId }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1077,6 +1081,50 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== SAFEHOUSE ACTIONS ==========
+
+    case 'BUY_SAFEHOUSE': {
+      const cost = SAFEHOUSE_COSTS[action.district];
+      if (!cost || s.money < cost) return s;
+      if (s.safehouses.some(sh => sh.district === action.district)) return s;
+      if (!s.ownedDistricts.includes(action.district)) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      s.safehouses.push({
+        district: action.district,
+        level: 1,
+        upgrades: [],
+        purchaseDay: s.day,
+      });
+      s.maxInv = Engine.recalcMaxInv(s);
+      addPhoneMessage(s, 'anonymous', `Nieuw safehouse in ${DISTRICTS[action.district].name}. Een veilige haven in de storm.`, 'opportunity');
+      return s;
+    }
+
+    case 'UPGRADE_SAFEHOUSE': {
+      const sh = s.safehouses.find(h => h.district === action.district);
+      if (!sh || sh.level >= 3) return s;
+      const cost = SAFEHOUSE_UPGRADE_COSTS[sh.level + 1];
+      if (!cost || s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      sh.level++;
+      s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
+    case 'INSTALL_SAFEHOUSE_UPGRADE': {
+      const sh = s.safehouses.find(h => h.district === action.district);
+      if (!sh) return s;
+      if (sh.upgrades.includes(action.upgradeId)) return s;
+      const upg = SAFEHOUSE_UPGRADES.find(u => u.id === action.upgradeId);
+      if (!upg || s.money < upg.cost) return s;
+      s.money -= upg.cost;
+      s.stats.totalSpent += upg.cost;
+      sh.upgrades.push(action.upgradeId);
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -1169,6 +1217,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!saved.stolenCars) saved.stolenCars = [];
       if (!saved.carOrders) saved.carOrders = [];
       if (saved.pendingCarTheft === undefined) saved.pendingCarTheft = null;
+      // Safehouse migrations
+      if (!saved.safehouses) saved.safehouses = [];
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

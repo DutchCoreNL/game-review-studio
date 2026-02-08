@@ -68,6 +68,13 @@ export function recalcMaxInv(state: GameState): number {
   if (state.hqUpgrades.includes('garage')) inv += 10;
   if (state.ownedDistricts.includes('port')) inv = Math.floor(inv * 1.1);
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
+  // Safehouse storage bonuses (level 2: +5, level 3: +10)
+  if (state.safehouses) {
+    state.safehouses.forEach(sh => {
+      if (sh.level >= 2) inv += 5;
+      if (sh.level >= 3) inv += 5; // total +10 at level 3
+    });
+  }
   return inv;
 }
 
@@ -399,6 +406,24 @@ export function endTurn(state: GameState): NightReportData {
   if (state.ownedDistricts.includes('crown')) pDecay += 1;
   if (state.hqUpgrades.includes('server')) pDecay += 3;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
+  // Safehouse heat reduction
+  if (state.safehouses) {
+    state.safehouses.forEach(sh => {
+      if (sh.district === state.loc) {
+        // Being in the same district as safehouse gives extra bonus
+        pDecay += sh.level <= 1 ? 3 : sh.level === 2 ? 5 : 8;
+      } else {
+        // Remote safehouses give small passive bonus
+        pDecay += sh.level >= 2 ? 1 : 0;
+      }
+      // Garage upgrade: vehicle heat reduction
+      if (sh.upgrades.includes('garage') && sh.district === state.loc) {
+        state.ownedVehicles.forEach(v => {
+          v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - 5);
+        });
+      }
+    });
+  }
   addPersonalHeat(state, -pDecay);
 
   // Recompute effective heat
@@ -436,9 +461,13 @@ export function endTurn(state: GameState): NightReportData {
 
   // Crew natural healing (small amount)
   let totalHealing = 0;
+  const hasMedbay = state.safehouses?.some(sh => sh.upgrades.includes('medbay') && sh.district === state.loc);
+  const hasLevel3Safehouse = state.safehouses?.some(sh => sh.level >= 3 && sh.district === state.loc);
   state.crew.forEach(c => {
     if (c.hp < 100 && c.hp > 0) {
-      const heal = Math.floor(Math.random() * 5) + 3; // 3-7 HP per night
+      let heal = Math.floor(Math.random() * 5) + 3; // 3-7 HP per night
+      if (hasMedbay) heal *= 2; // medbay doubles healing
+      if (hasLevel3Safehouse) heal += 3; // level 3 safehouse bonus
       const oldHp = c.hp;
       c.hp = Math.min(100, c.hp + heal);
       totalHealing += c.hp - oldHp;

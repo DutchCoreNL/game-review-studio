@@ -6,9 +6,10 @@ import { DistrictPopup } from './DistrictPopup';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
 import { ChopShopView } from './ChopShopView';
+import { SafehouseView } from './SafehouseView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices, Wrench } from 'lucide-react';
+import { Moon, Dices, Wrench, Home } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { HidingOverlay } from './HidingOverlay';
 
@@ -17,6 +18,7 @@ export function MapView() {
   const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
+  const [showSafehouse, setShowSafehouse] = useState(false);
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
@@ -52,6 +54,20 @@ export function MapView() {
         <ChopShopView />
         <button
           onClick={() => setShowChopShop(false)}
+          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
+        >
+          ← TERUG NAAR KAART
+        </button>
+      </div>
+    );
+  }
+
+  if (showSafehouse) {
+    return (
+      <div>
+        <SafehouseView />
+        <button
+          onClick={() => setShowSafehouse(false)}
           className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
         >
           ← TERUG NAAR KAART
@@ -111,6 +127,8 @@ export function MapView() {
           smuggleRoutes={state.smuggleRoutes || []}
           districtRep={state.districtRep}
           onChopShopClick={!isHiding && state.loc === 'iron' ? () => setShowChopShop(true) : undefined}
+          safehouses={state.safehouses}
+          onSafehouseClick={!isHiding ? () => setShowSafehouse(true) : undefined}
         />
       </div>
 
@@ -150,7 +168,18 @@ export function MapView() {
             onClick={() => setShowChopShop(true)}
             className="px-4"
           >
-            CHOP SHOP
+            CHOP
+          </GameButton>
+        )}
+        {!isHiding && state.safehouses.some(sh => sh.district === state.loc) && (
+          <GameButton
+            variant="emerald"
+            size="lg"
+            icon={<Home size={14} />}
+            onClick={() => setShowSafehouse(true)}
+            className="px-4"
+          >
+            SAFE
           </GameButton>
         )}
       </div>

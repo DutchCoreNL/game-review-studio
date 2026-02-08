@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId } from './types';
 
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 1.0, weapons: 0.6, tech: 1.2, luxury: 1.3, meds: 0.9 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
@@ -441,6 +441,8 @@ export function createInitialState(): import('./types').GameState {
     newGamePlusLevel: 0,
     finalBossDefeated: false,
     freePlayMode: false,
+    // Safehouse state
+    safehouses: [],
     // Car theft state
     stolenCars: [],
     carOrders: [],
@@ -458,6 +460,35 @@ export function createInitialState(): import('./types').GameState {
     arcEventResult: null,
   };
 }
+
+// ========== SAFEHOUSE CONSTANTS ==========
+
+export const SAFEHOUSE_COSTS: Record<DistrictId, number> = {
+  low: 8000,
+  port: 15000,
+  iron: 18000,
+  neon: 35000,
+  crown: 50000,
+};
+
+export const SAFEHOUSE_UPGRADE_COSTS: Record<number, number> = {
+  2: 12000, // upgrade to level 2
+  3: 30000, // upgrade to level 3
+};
+
+export const SAFEHOUSE_UPGRADES: SafehouseUpgradeDef[] = [
+  { id: 'reinforced', name: 'Versterkte Muren', cost: 5000, desc: '-15% kans op politie-inval voor dit district.', icon: '🛡️' },
+  { id: 'medbay', name: 'Medische Post', cost: 8000, desc: 'Crew geneest 2x sneller per nacht.', icon: '🏥' },
+  { id: 'vault', name: 'Kluis', cost: 10000, desc: 'Beschermt €20.000 bij politie-invallen.', icon: '🔐' },
+  { id: 'garage', name: 'Ondergrondse Garage', cost: 12000, desc: '-5 voertuig heat/nacht in dit district.', icon: '🅿️' },
+  { id: 'comms', name: 'Communicatie Hub', cost: 7000, desc: 'Extra intel over marktprijzen en events.', icon: '📡' },
+];
+
+export const SAFEHOUSE_PERKS: Record<number, string> = {
+  1: '-3 persoonlijke heat/nacht',
+  2: '-5 persoonlijke heat/nacht, +5 opslag',
+  3: '-8 persoonlijke heat/nacht, +10 opslag, crew herstel bonus',
+};
 
 // ========== CAR THEFT CONSTANTS ==========
 
