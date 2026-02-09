@@ -742,4 +742,7 @@ export interface GameState {
 
   // ========== VILLA STATE ==========
   villa: VillaState | null;
+
+  // ========== ACHIEVEMENT POPUP STATE ==========
+  pendingAchievements: string[];
 }
