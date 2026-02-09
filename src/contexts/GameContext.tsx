@@ -1582,6 +1582,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
       Engine.generateContracts(fresh);
+      fresh.dailyNews = generateDailyNews(fresh);
       return fresh;
     }
 
@@ -1718,6 +1719,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const fresh = createInitialState();
     Engine.generatePrices(fresh);
     Engine.generateContracts(fresh);
+    fresh.dailyNews = generateDailyNews(fresh);
     return fresh;
   });
 

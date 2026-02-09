@@ -16,7 +16,7 @@ export interface NewsItem {
   detail?: string;
 }
 
-// ========== FLAVOR POOL (30+ berichten) ==========
+// ========== FLAVOR POOL (32 berichten) ==========
 
 const FLAVOR_NEWS: { text: string; icon: string; detail?: string }[] = [
   { text: 'Burgemeester ontkent banden met onderwereld — "Absurd en ongefundeerd"', icon: '🏛️', detail: 'Burgemeester Van Dijk reageerde furieus op beschuldigingen tijdens een persconferentie.' },
@@ -53,10 +53,15 @@ const FLAVOR_NEWS: { text: string; icon: string; detail?: string }[] = [
   { text: 'Anonieme tip leidt tot vondst van wapenarsenaal in kelder', icon: '🔫', detail: 'Politie trof tientallen vuurwapens aan in een woning in Lowrise.' },
 ];
 
-// ========== GENERATOR FUNCTIONS ==========
+// ========== HELPERS ==========
 
 function pick<T>(arr: T[]): T {
+  if (arr.length === 0) throw new Error('pick() called on empty array');
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function safePick<T>(arr: T[], fallback: T): T {
+  return arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : fallback;
 }
 
 function pickDistrict(): string {
@@ -64,13 +69,25 @@ function pickDistrict(): string {
   return DISTRICTS[pick(ids)].name;
 }
 
+// Pick at most one item per category to avoid repetition within a category
+function deduplicateByCategory(items: NewsItem[]): NewsItem[] {
+  const seen = new Set<NewsCategory>();
+  return items.filter(item => {
+    if (seen.has(item.category)) return false;
+    seen.add(item.category);
+    return true;
+  });
+}
+
+// ========== GENERATOR FUNCTIONS ==========
+
 function playerActionNews(state: GameState): NewsItem[] {
   const items: NewsItem[] = [];
 
   // High money
   if (state.money > 200000) {
     items.push({
-      text: `Mysterieuze miljonair investeert massaal in vastgoed — "Iemand koopt de stad op"`,
+      text: 'Mysterieuze miljonair investeert massaal in vastgoed — "Iemand koopt de stad op"',
       category: 'player', urgency: 'medium', icon: '💰',
       detail: `Een onbekende investeerder met een geschat vermogen van meer dan €${Math.floor(state.money / 1000)}k is actief in Noxhaven.`,
     });
@@ -85,7 +102,7 @@ function playerActionNews(state: GameState): NewsItem[] {
     });
   }
 
-  // Recent district purchase (high rep in a district)
+  // High rep in owned district
   for (const d of state.ownedDistricts) {
     if ((state.districtRep[d] || 0) > 80) {
       items.push({
@@ -93,27 +110,25 @@ function playerActionNews(state: GameState): NewsItem[] {
         category: 'player', urgency: 'low', icon: '🏘️',
         detail: `De invloed van een onbekende figuur in ${DISTRICTS[d].name} groeit snel. Lokale ondernemers voelen de druk.`,
       });
-      break;
+      break; // max 1
     }
   }
 
   // High level
   if (state.player.level >= 8) {
     items.push({
-      text: `NHPD waarschuwt voor "nieuwe speler" in de georganiseerde misdaad`,
+      text: 'NHPD waarschuwt voor "nieuwe speler" in de georganiseerde misdaad',
       category: 'player', urgency: 'high', icon: '⚠️',
       detail: 'Commissaris Decker: "We zien een nieuw netwerk opkomen dat sneller groeit dan alles wat we eerder hebben gezien."',
     });
   }
 
-  // Active heist cooldowns (completed heists)
-  const completedHeists = Object.keys(state.heistCooldowns || {});
-  if (completedHeists.length > 0) {
-    const district = pick(Object.keys(DISTRICTS) as DistrictId[]);
+  // Completed heists
+  if (Object.keys(state.heistCooldowns || {}).length > 0) {
     items.push({
-      text: `BREAKING: Politie onderzoekt reeks overvallen — "Professioneel werk"`,
+      text: 'BREAKING: Politie onderzoekt reeks overvallen — "Professioneel werk"',
       category: 'player', urgency: 'high', icon: '🚨',
-      detail: `De NHPD ziet een verband tussen recente overvallen in ${DISTRICTS[district].name}. Forensisch bewijs is schaars.`,
+      detail: `De NHPD ziet een verband tussen recente overvallen in ${pickDistrict()}. Forensisch bewijs is schaars.`,
     });
   }
 
@@ -123,31 +138,43 @@ function playerActionNews(state: GameState): NewsItem[] {
 function factionNews(state: GameState): NewsItem[] {
   const items: NewsItem[] = [];
 
-  for (const [fid, fam] of Object.entries(FAMILIES)) {
+  // Pick the most extreme faction relationship for news
+  let mostHostile: { fid: string; rel: number } | null = null;
+  let mostFriendly: { fid: string; rel: number } | null = null;
+
+  for (const [fid] of Object.entries(FAMILIES)) {
     const rel = state.familyRel[fid as FamilyId] || 0;
+    if (rel < -30 && (!mostHostile || rel < mostHostile.rel)) mostHostile = { fid, rel };
+    if (rel > 50 && (!mostFriendly || rel > mostFriendly.rel)) mostFriendly = { fid, rel };
+  }
 
-    if (rel < -30) {
-      items.push({
-        text: `${fam.name} mobiliseert troepen — "Er komt een afrekening"`,
-        category: 'faction', urgency: 'high', icon: '⚔️',
-        detail: `Bronnen melden dat ${fam.contact} bevel heeft gegeven tot vergelding na "onacceptabele provocaties".`,
-      });
-    } else if (rel > 50) {
-      items.push({
-        text: `${fam.name} breidt invloed uit met steun van onbekende partner`,
-        category: 'faction', urgency: 'medium', icon: '🤝',
-        detail: `${fam.contact} is recent gezien met een mysterieuze bondgenoot. De samenwerking baart rivalen zorgen.`,
-      });
-    }
+  if (mostHostile) {
+    const fam = FAMILIES[mostHostile.fid];
+    items.push({
+      text: `${fam.name} mobiliseert troepen — "Er komt een afrekening"`,
+      category: 'faction', urgency: 'high', icon: '⚔️',
+      detail: `Bronnen melden dat ${fam.contact} bevel heeft gegeven tot vergelding na "onacceptabele provocaties".`,
+    });
+  }
 
-    // War state (pendingWarEvent)
-    if (state.pendingWarEvent) {
-      items.push({
-        text: `OORLOG: Schietpartij in ${DISTRICTS[fam.home].name} — ${fam.name} en rivalen clashen`,
-        category: 'faction', urgency: 'high', icon: '💥',
-        detail: `De spanningen met ${fam.name} escaleren. Bewoners worden geadviseerd binnen te blijven.`,
-      });
-    }
+  if (mostFriendly) {
+    const fam = FAMILIES[mostFriendly.fid];
+    items.push({
+      text: `${fam.name} breidt invloed uit met steun van onbekende partner`,
+      category: 'faction', urgency: 'medium', icon: '🤝',
+      detail: `${fam.contact} is recent gezien met een mysterieuze bondgenoot. De samenwerking baart rivalen zorgen.`,
+    });
+  }
+
+  // War event — only one war item
+  if (state.pendingWarEvent) {
+    // Find which faction is most likely at war
+    const warFaction = mostHostile ? FAMILIES[mostHostile.fid] : Object.values(FAMILIES)[0];
+    items.push({
+      text: `OORLOG: Schietpartij in ${DISTRICTS[warFaction.home].name} — ${warFaction.name} en rivalen clashen`,
+      category: 'faction', urgency: 'high', icon: '💥',
+      detail: `De spanningen met ${warFaction.name} escaleren. Bewoners worden geadviseerd binnen te blijven.`,
+    });
   }
 
   // Conquered factions
@@ -169,31 +196,48 @@ function factionNews(state: GameState): NewsItem[] {
 function marketNews(state: GameState): NewsItem[] {
   const items: NewsItem[] = [];
 
-  // Check demand shifts
+  // Check demand shifts — find the highest demand spike
+  let bestSpike: { goodName: string; distName: string; demand: number } | null = null;
+
   for (const distId of Object.keys(state.districtDemands || {})) {
     const demands = (state.districtDemands as any)?.[distId];
     if (!demands) continue;
     for (const [goodId, demand] of Object.entries(demands)) {
-      if ((demand as number) > 1.5) {
+      const d = demand as number;
+      if (d > 1.5) {
         const good = GOODS.find(g => g.id === goodId);
-        if (good) {
-          items.push({
-            text: `${good.name}-prijzen stijgen explosief in ${DISTRICTS[distId as DistrictId]?.name || distId}`,
-            category: 'market', urgency: 'medium', icon: '📈',
-            detail: `De vraag naar ${good.name} is meer dan verdubbeld. Handelaren zien hun winsten exploderen.`,
-          });
-          break;
+        const dist = DISTRICTS[distId as DistrictId];
+        if (good && dist && (!bestSpike || d > bestSpike.demand)) {
+          bestSpike = { goodName: good.name, distName: dist.name, demand: d };
         }
       }
     }
   }
 
+  if (bestSpike) {
+    const pctRise = Math.round((bestSpike.demand - 1) * 100);
+    items.push({
+      text: `${bestSpike.goodName}-prijzen stijgen ${pctRise}% in ${bestSpike.distName} door hoge vraag`,
+      category: 'market', urgency: 'medium', icon: '📈',
+      detail: `De vraag naar ${bestSpike.goodName} is explosief gestegen. Handelaren zien hun winsten exploderen.`,
+    });
+  }
+
   // Debt news
   if (state.debt > 100000) {
     items.push({
-      text: `Woekeraars actief in Noxhaven — "Schulden worden niet vergeten"`,
+      text: 'Woekeraars actief in Noxhaven — "Schulden worden niet vergeten"',
       category: 'market', urgency: 'high', icon: '💸',
-      detail: `Er gaan geruchten dat een grote schuldenaar op de vlucht is. De rente tikt door.`,
+      detail: `Een grote schuldenaar met een schuld van €${Math.floor(state.debt / 1000)}k wordt gezocht. De rente tikt door.`,
+    });
+  }
+
+  // Low on money
+  if (state.money < 1000 && state.day > 5) {
+    items.push({
+      text: 'Economische neergang treft kleine ondernemers in de stad',
+      category: 'market', urgency: 'low', icon: '📉',
+      detail: 'Meerdere winkels in Lowrise sluiten hun deuren. "Het geld stroomt de verkeerde kant op."',
     });
   }
 
@@ -267,7 +311,7 @@ function heatNews(state: GameState): NewsItem[] {
     });
   }
 
-  // Prison
+  // Prison — separate category to not conflict with heat
   if (state.prison) {
     items.push({
       text: 'Verdachte opgepakt en vastgezet — "Gerechtigheid is gediend"',
@@ -297,7 +341,7 @@ function crewNews(state: GameState): NewsItem[] {
     items.push({
       text: `Gewonden gemeld na vermoedelijk bendegeweld in ${pickDistrict()}`,
       category: 'crew', urgency: 'medium', icon: '🏥',
-      detail: `Ziekenhuizen behandelen meerdere patiënten met verwondingen die wijzen op crimineel geweld.`,
+      detail: 'Ziekenhuizen behandelen meerdere patiënten met verwondingen die wijzen op crimineel geweld.',
     });
   }
 
@@ -377,7 +421,6 @@ function vehicleNews(state: GameState): NewsItem[] {
   const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
   const vehicleHeat = activeVehicle?.vehicleHeat ?? 0;
 
-  // High vehicle heat
   if (vehicleHeat >= 60) {
     items.push({
       text: 'Politie geeft signalement vrij van "veelgezocht voertuig" — extra controles',
@@ -392,7 +435,6 @@ function vehicleNews(state: GameState): NewsItem[] {
     });
   }
 
-  // Stolen cars
   if ((state.stolenCars?.length || 0) >= 3) {
     items.push({
       text: `Autodiefstallen bereiken recordhoogte — ${state.stolenCars.length} voertuigen vermist`,
@@ -401,7 +443,6 @@ function vehicleNews(state: GameState): NewsItem[] {
     });
   }
 
-  // Luxury vehicle
   if (activeVehicle && ['lupoghini', 'royaleryce', 'meridiolux'].includes(activeVehicle.id)) {
     items.push({
       text: `Opvallend luxe voertuig gespot in ${DISTRICTS[state.loc].name} — "Wie rijdt daarin?"`,
@@ -410,7 +451,6 @@ function vehicleNews(state: GameState): NewsItem[] {
     });
   }
 
-  // Chop shop activity
   if ((state.stolenCars?.length || 0) > 0 && state.loc === 'iron') {
     items.push({
       text: 'Verdachte activiteit gemeld bij garages in Iron Borough — "Er wordt gesleuteld"',
@@ -427,16 +467,22 @@ function karmaNews(state: GameState): NewsItem[] {
   const karma = state.karma || 0;
 
   if (karma <= -60) {
-    items.push({
+    items.push(safePick([
+      {
+        text: 'Bewoners leven in angst: "Er heerst een schrikbewind in Noxhaven"',
+        category: 'karma' as NewsCategory, urgency: 'high' as NewsUrgency, icon: '😨',
+        detail: 'Een anonieme brief aan de krant beschrijft een stad gegijzeld door een meedogenloze crimineel.',
+      },
+      {
+        text: '"De Slager van Noxhaven" — bijnaam duikt op in onderwereldkringen',
+        category: 'karma' as NewsCategory, urgency: 'high' as NewsUrgency, icon: '🔪',
+        detail: 'Rivalen fluisteren over een figuur die geen genade kent. De reputatie groeit.',
+      },
+    ], {
       text: 'Bewoners leven in angst: "Er heerst een schrikbewind in Noxhaven"',
       category: 'karma', urgency: 'high', icon: '😨',
       detail: 'Een anonieme brief aan de krant beschrijft een stad gegijzeld door een meedogenloze crimineel.',
-    });
-    items.push({
-      text: '"De Slager van Noxhaven" — bijnaam duikt op in onderwereldkringen',
-      category: 'karma', urgency: 'medium', icon: '🔪',
-      detail: 'Rivalen fluisteren over een figuur die geen genade kent. De reputatie groeit.',
-    });
+    }));
   } else if (karma <= -30) {
     items.push({
       text: 'Criminaliteitsexpert: "Er is iemand die de regels niet respecteert"',
@@ -444,16 +490,22 @@ function karmaNews(state: GameState): NewsItem[] {
       detail: 'Analisten wijzen op een patroon van meedogenloos geweld dat steeds brutaler wordt.',
     });
   } else if (karma >= 60) {
-    items.push({
+    items.push(safePick([
+      {
+        text: 'Mysterieuze weldoener doneert aan goede doelen in Lowrise',
+        category: 'karma' as NewsCategory, urgency: 'low' as NewsUrgency, icon: '🕊️',
+        detail: 'Anonieme donaties stromen binnen bij opvanghuizen en voedselbanken.',
+      },
+      {
+        text: '"Robin Hood van de onderwereld" — verhalen over een crimineel met een hart',
+        category: 'karma' as NewsCategory, urgency: 'medium' as NewsUrgency, icon: '💚',
+        detail: 'Straatbewoners spreken lovend over een figuur die steelt van de rijken en geeft aan de armen.',
+      },
+    ], {
       text: 'Mysterieuze weldoener doneert aan goede doelen in Lowrise',
       category: 'karma', urgency: 'low', icon: '🕊️',
       detail: 'Anonieme donaties stromen binnen bij opvanghuizen en voedselbanken.',
-    });
-    items.push({
-      text: '"Robin Hood van de onderwereld" — verhalen over een crimineel met een hart',
-      category: 'karma', urgency: 'medium', icon: '💚',
-      detail: 'Straatbewoners spreken lovend over een figuur die steelt van de rijken en geeft aan de armen.',
-    });
+    }));
   } else if (karma >= 30) {
     items.push({
       text: 'Buurtcomité bedankt anonieme sponsor voor renovatie speeltuin Lowrise',
@@ -481,15 +533,20 @@ export function generateDailyNews(state: GameState): NewsItem[] {
     ...karmaNews(state),
   ];
 
-  // Shuffle and pick 1-2 contextual items
-  const shuffled = allContextual.sort(() => Math.random() - 0.5);
-  const contextCount = Math.min(shuffled.length, 1 + (Math.random() < 0.6 ? 1 : 0));
-  const selected: NewsItem[] = shuffled.slice(0, contextCount);
+  // Deduplicate: max 1 item per category
+  const deduplicated = deduplicateByCategory(
+    allContextual.sort(() => Math.random() - 0.5)
+  );
+
+  // Pick 2-3 contextual items (was 1-2, now more variety with 9 categories)
+  const contextCount = Math.min(deduplicated.length, 2 + (Math.random() < 0.5 ? 1 : 0));
+  const selected: NewsItem[] = deduplicated.slice(0, contextCount);
 
   // Always add 1 flavor item
   const usedTexts = new Set(selected.map(n => n.text));
   const availableFlavor = FLAVOR_NEWS.filter(f => !usedTexts.has(f.text));
-  const flavor = pick(availableFlavor.length > 0 ? availableFlavor : FLAVOR_NEWS);
+  const flavorPool = availableFlavor.length > 0 ? availableFlavor : FLAVOR_NEWS;
+  const flavor = flavorPool[Math.floor(Math.random() * flavorPool.length)];
   selected.push({
     text: flavor.text,
     category: 'flavor',
