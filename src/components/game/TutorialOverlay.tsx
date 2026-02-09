@@ -1,16 +1,59 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff } from 'lucide-react';
+import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff, Swords, Home, TrendingUp, Heart, Crown } from 'lucide-react';
 
 const STEPS = [
-  { title: "Welkom in Noxhaven", desc: "Jij bent een straatrat met een droom: de hele stad overnemen. Handel, vecht en verover je weg naar de top.", icon: <Map size={32} className="text-gold" /> },
-  { title: "Handel", desc: "Koop laag, verkoop hoog. Reis tussen districten voor de beste prijzen. Let op de vraag-indicatoren!", icon: <Package size={32} className="text-gold" /> },
-  { title: "Crew & Missies", desc: "Huur specialisten en neem contracten aan. Elke rol heeft unieke vaardigheden in gevechten.", icon: <Users size={32} className="text-gold" /> },
-  { title: "Voertuig Heat", desc: "Je auto bouwt heat op door handel en reizen. Hoge voertuig heat = checkpoints en onderschepping. Laat je auto omkatten bij de garage om heat te resetten.", icon: <Car size={32} className="text-ice" /> },
-  { title: "Persoonlijke Heat", desc: "Combat, sabotage en failed missies verhogen jouw persoonlijke heat. Dit trekt politie-invallen en de Nemesis aan. Veel moeilijker weg te krijgen!", icon: <Flame size={32} className="text-blood" /> },
-  { title: "Onderduiken", desc: "Te heet? Duik onder voor 1-3 dagen. Je heat daalt flink, maar je verliest inkomen en vijanden kunnen aanvallen. Een Safe House verdubbelt je natuurlijke heat decay.", icon: <EyeOff size={32} className="text-game-purple" /> },
-  { title: "Aan de slag!", desc: "Verover alle 5 districten, versla de 3 factieleiders en verzamel €5.000.000 om Kingpin te worden.", icon: <Dices size={32} className="text-gold" /> },
+  {
+    title: "Welkom in Noxhaven",
+    desc: "Jij bent een straatrat met een droom: de hele stad overnemen. Handel, vecht, bouw een imperium en versla de factieleiders op weg naar de top.",
+    icon: <Map size={32} className="text-gold" />,
+  },
+  {
+    title: "Handel & Markt",
+    desc: "Koop goederen laag en verkoop hoog in andere districten. Prijzen veranderen dynamisch — let op de vraag-indicatoren en weer-effecten voor maximale winst.",
+    icon: <Package size={32} className="text-gold" />,
+  },
+  {
+    title: "Crew & Missies",
+    desc: "Huur specialisten met unieke vaardigheden. Neem contracten aan die variëren van leveringen tot sabotage. Pas op: missies kunnen verrassende wendingen hebben.",
+    icon: <Users size={32} className="text-gold" />,
+  },
+  {
+    title: "Narratieve Gevechten",
+    desc: "Elk gevecht speelt zich af in de sfeer van het district. Kies uit 5 acties inclusief een unieke tactische optie per locatie. Baasgevechten hebben hun eigen verhaallijnen.",
+    icon: <Swords size={32} className="text-blood" />,
+  },
+  {
+    title: "Voertuig & Persoonlijke Heat",
+    desc: "Voertuig heat stijgt door handel en reizen — laat je auto omkatten om het te resetten. Persoonlijke heat stijgt door geweld en mislukte missies — veel lastiger weg te krijgen!",
+    icon: <Flame size={32} className="text-blood" />,
+  },
+  {
+    title: "Onderduiken",
+    desc: "Te heet? Duik onder voor 1-3 dagen. Je heat daalt flink, maar je verliest inkomen en vijanden kunnen aanvallen. Een Safe House verdubbelt je natuurlijke heat decay.",
+    icon: <EyeOff size={32} className="text-game-purple" />,
+  },
+  {
+    title: "Villa Noxhaven",
+    desc: "Bouw je eigen hoofdkwartier met productielabs, veilige opslag en verdedigingen. Geef feesten om factie-relaties te boosten. Upgrade je beveiliging tegen Nemesis-aanvallen.",
+    icon: <Home size={32} className="text-gold" />,
+  },
+  {
+    title: "Karma Systeem",
+    desc: "Jouw keuzes bepalen je pad. Meedogenloos? Meer intimidatie en reputatie. Eerbaar? Sneller crew-herstel en lagere heat. Je alignment ontgrendelt exclusieve verhaallijnen.",
+    icon: <Heart size={32} className="text-ice" />,
+  },
+  {
+    title: "Imperium & Operaties",
+    desc: "Verover districten, beheer smokkelroutes en verdedig je territorium. Solo-operaties leveren dynamische beloningen op basis van je dag, locatie en heat.",
+    icon: <TrendingUp size={32} className="text-gold" />,
+  },
+  {
+    title: "Word de Kingpin",
+    desc: "Verover alle 5 districten, versla de 3 factieleiders en verzamel €5.000.000. Daarna wacht het eindgevecht tegen SWAT-Commandant Voss en Commissaris Decker.",
+    icon: <Crown size={32} className="text-gold" />,
+  },
 ];
 
 export function TutorialOverlay() {
@@ -43,9 +86,9 @@ export function TutorialOverlay() {
           <h2 className="font-display text-xl text-gold uppercase tracking-widest mb-3">{current.title}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">{current.desc}</p>
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-1.5 mb-4">
             {STEPS.map((_, i) => (
-              <div key={i} className={`flex-1 h-1 rounded-full ${i <= step ? 'bg-gold' : 'bg-muted'}`} />
+              <div key={i} className={`flex-1 h-1 rounded-full transition-colors ${i <= step ? 'bg-gold' : 'bg-muted'}`} />
             ))}
           </div>
 
