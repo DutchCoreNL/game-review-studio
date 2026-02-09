@@ -707,6 +707,9 @@ export interface GameState {
 
   // ========== HEIST STATE ==========
   activeHeist: import('../game/heists').ActiveHeist | null;
-  heistCooldowns: Record<string, number>; // heistId -> last completed day
+  heistCooldowns: Record<string, number>;
   heistPlan: import('../game/heists').HeistPlan | null;
+
+  // ========== NEWS STATE ==========
+  dailyNews: import('../game/newsGenerator').NewsItem[];
 }
