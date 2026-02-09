@@ -362,6 +362,7 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
   report.prisonMoneyLost = moneyLost;
   report.prisonDirtyMoneyLost = dirtyMoneyLost;
   report.prisonGoodsLost = goodsLost;
+  if (protectedMoney > 0) report.villaVaultProtected = protectedMoney;
 }
 
 export function endTurn(state: GameState): NightReportData {
@@ -395,6 +396,10 @@ export function endTurn(state: GameState): NightReportData {
     if (villaProduction.heatGenerated > 0) {
       addPersonalHeat(state, villaProduction.heatGenerated);
     }
+    // Store in report
+    if (villaProduction.wietProduced > 0) report.villaWietProduced = villaProduction.wietProduced;
+    if (villaProduction.cokeProduced > 0) report.villaCokeProduced = villaProduction.cokeProduced;
+    if (villaProduction.labProduced > 0) report.villaLabProduced = villaProduction.labProduced;
     // Reset helipad daily
     state.villa.helipadUsedToday = false;
   }
