@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types'; // HQUpgrade kept for backwards compat
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack, StatId } from './types'; // HQUpgrade kept for backwards compat
 
 // ========== AMMO PACKS ==========
 
@@ -150,12 +150,241 @@ export const VEHICLE_UPGRADES: Record<VehicleUpgradeType, {
   },
 };
 
-export const COMBAT_ENVIRONMENTS: Record<string, { name: string; actionName: string; desc: string; log: string; type: string }> = {
-  port: { name: "Havenkade", actionName: "HINDERLAAG", desc: "Container val", log: "Je lokt de vijand tussen de containers...", type: "ambush" },
-  crown: { name: "Penthouse", actionName: "HACK SYSTEEM", desc: "Brains Stun", log: "Je hackt het beveiligingssysteem...", type: "tech" },
-  iron: { name: "Fabrieksvloer", actionName: "BRUTE FORCE", desc: "Muscle DMG", log: "Je gooit een stalen balk...", type: "brutal" },
-  low: { name: "Steegje", actionName: "VUIL SPEL", desc: "Charm Trick", log: "Je speelt een vies spelletje...", type: "dirty" },
-  neon: { name: "VIP Lounge", actionName: "VERDWIJN", desc: "Ontvlucht Kans", log: "Je duikt de menigte in...", type: "cover" }
+export interface CombatEnvAction {
+  label: string;
+  desc: string;
+  logs: string[];
+}
+
+export interface CombatEnvironment {
+  name: string;
+  scenePhrases: string[];
+  actions: {
+    attack: CombatEnvAction;
+    heavy: CombatEnvAction;
+    defend: CombatEnvAction;
+    environment: CombatEnvAction;
+    tactical: CombatEnvAction & { stat: StatId };
+  };
+  enemyAttackLogs: string[];
+}
+
+export const COMBAT_ENVIRONMENTS: Record<string, CombatEnvironment> = {
+  port: {
+    name: "Havenkade",
+    scenePhrases: [
+      "De zilte wind blaast over de verlaten kade. Containers torenen als stalen muren om je heen.",
+      "Een scheepshoorn loeit in de verte terwijl je vijand achter een vorkheftruck duikt.",
+      "Olie glanst op het natte beton. De geur van diesel en gevaar hangt in de lucht.",
+      "Meeuwen krijsen boven het slagveld. Golven klotsen tegen de kademuur.",
+      "Roest en zout. De containers trillen bij elke inslag.",
+    ],
+    actions: {
+      attack: { label: "VUUR VANUIT DEKKING", desc: "Schiet vanachter een container", logs: [
+        "Je vuurde vanuit dekking achter een roestige container — {dmg} schade!",
+        "Kogels ketsen af op staal terwijl jij raak schiet — {dmg} schade!",
+        "Je richt door een kier tussen containers en treft doel — {dmg} schade!",
+      ]},
+      heavy: { label: "KRAAN LATEN VALLEN", desc: "Riskant maar verwoestend", logs: [
+        "Je kapt het kraankabel door — de lading dondert neer! {dmg} schade!",
+        "Een containerhaak slingert als een moker naar je vijand — {dmg} schade!",
+        "Je trapt een stapel vaten om die je vijand verpletteren — {dmg} schade!",
+      ]},
+      defend: { label: "DEKKING ACHTER CONTAINERS", desc: "Gebruik de havenkade als schild", logs: [
+        "Je duit weg achter een zeecontainer en vangt adem. +{heal} HP.",
+        "Het staal van de container absorbeert de kogels. Je herstelt. +{heal} HP.",
+        "Je glijdt achter een vorkheftruck en likt je wonden. +{heal} HP.",
+      ]},
+      environment: { label: "HAAKKABEL SLINGEREN", desc: "Stun met havenwerktuigen", logs: [
+        "Je slingert een haakkabel naar je vijand — STUNNED!",
+        "Een zwaar anker slingert door de lucht en raakt doel — STUNNED!",
+        "Je activeert een loskraan die je vijand onder debris begraaft — STUNNED!",
+      ]},
+      tactical: { label: "VLUCHTHAVEN", desc: "Spring in het water voor reset", stat: "brains", logs: [
+        "Je sprint naar de kaderand en springt! Het ijskoude water wast het bloed weg...",
+        "Een duik in de haven — je vijand verliest je uit het oog. Je hergroepeert.",
+        "Het water sluit zich boven je hoofd. Even stilte. Dan klim je eruit, klaar voor meer.",
+      ]},
+    },
+    enemyAttackLogs: [
+      "{name} schiet vanuit een containerdeur! {dmg} schade!",
+      "{name} gooit een brandbom over de kade! {dmg} schade!",
+      "{name} vuurt blindelings door het staal! {dmg} schade!",
+      "{name} slingert een kettinghaak naar je hoofd! {dmg} schade!",
+    ],
+  },
+  crown: {
+    name: "Penthouse",
+    scenePhrases: [
+      "Glazen wanden reflecteren de skyline. De geur van dure whiskey en angst vult de penthouse.",
+      "Beveiligingscamera's zoemen. Ergens klinkt een alarm. De luxe verbergt dodelijk gevaar.",
+      "Marmer kraakt onder je voeten. Kogelgaten verschijnen in schilderijen van miljoenen.",
+      "De lift is geblokkeerd. De enige weg is erdoorheen. Of eruit — 40 verdiepingen naar beneden.",
+      "Kristallen kroonluchters trillen bij elke explosie. Dit penthouse wordt een slagveld.",
+    ],
+    actions: {
+      attack: { label: "PRECISIE SCHOT", desc: "Chirurgisch nauwkeurig", logs: [
+        "Je schiet door de glazen wand — glasscherven regenen neer. {dmg} schade!",
+        "Een enkel, precies schot weergalmt door de marmeren hal — {dmg} schade!",
+        "Je vijand duikt achter een bank, maar je kogel vindt zijn weg — {dmg} schade!",
+      ]},
+      heavy: { label: "KROONLUCHTER NEERHALEN", desc: "Laat het plafond instorten", logs: [
+        "De kristallen kroonluchter stort neer in een regen van glas! {dmg} schade!",
+        "Je schiet de draagkabels door — tonnen kristal verpletteren alles! {dmg} schade!",
+        "Een sculptuur ter waarde van miljoenen dient als projectiel — {dmg} schade!",
+      ]},
+      defend: { label: "VERSCHANS ACHTER BAR", desc: "Eiken bar als dekking", logs: [
+        "Je duikt achter de marmeren bar. Flessen exploderen om je heen. +{heal} HP.",
+        "De massief eiken bar houdt alles tegen. Je herstelt achter dure whiskey. +{heal} HP.",
+        "Kogelvrij glas beschermt je terwijl je adem haalt. +{heal} HP.",
+      ]},
+      environment: { label: "BEVEILIGINGSSYSTEEM", desc: "Activeer lockdown", logs: [
+        "Je hackt het security-paneel — stalen deuren sluiten je vijand in! STUNNED!",
+        "Het sprinklersysteem activeert — je vijand glijdt uit op de natte marmervloer! STUNNED!",
+        "Je triggert het alarmsysteem — oorverdovend lawaai desoriënteert je vijand! STUNNED!",
+      ]},
+      tactical: { label: "ALARM TRIGGEREN", desc: "Vijand raakt in paniek", stat: "brains", logs: [
+        "Je activeert het stille alarm. Paniek flitst over het gezicht van je vijand...",
+        "Beveiligingsprotocol OMEGA geactiveerd. Je vijand beseft dat de tijd dringt.",
+        "Het gebouw gaat in lockdown. Jij kent de uitweg — je vijand niet.",
+      ]},
+    },
+    enemyAttackLogs: [
+      "{name} vuurt vanachter een pilaar van marmer! {dmg} schade!",
+      "{name} smijt een glazen tafel naar je hoofd! {dmg} schade!",
+      "{name} schiet door de spiegelmuur — overal reflecties! {dmg} schade!",
+      "{name} activeert een verborgen wapen in het bureau! {dmg} schade!",
+    ],
+  },
+  iron: {
+    name: "Fabrieksvloer",
+    scenePhrases: [
+      "Gesmolten metaal sist in de goten. De hitte is ondraaglijk. Machines stampen onophoudelijk.",
+      "Vonken spatten van lasapparaten. De lucht trilt van industrieel geweld.",
+      "Stalen balken strekken zich uit als het skelet van een mechanisch monster.",
+      "De geur van verbrand metaal en machineolie. Hier wordt niet gepraat — hier wordt gevochten.",
+      "Transportbanden draaien door. De fabriek stopt voor niemand — ook niet voor een vuurgevecht.",
+    ],
+    actions: {
+      attack: { label: "STALEN VUIST", desc: "Brute kracht met gereedschap", logs: [
+        "Je grijpt een moersleutel en slaat toe als een smid — {dmg} schade!",
+        "Een stalen pijp wordt je wapen. Het geluid van metaal op vlees — {dmg} schade!",
+        "Je vuurt tussen de machines door — vonken en bloed! {dmg} schade!",
+      ]},
+      heavy: { label: "OVEN OPENGOOIEN", desc: "Gesmolten metaal als wapen", logs: [
+        "Je opent de smeltoven — een golf van hitte en vloeibaar staal! {dmg} schade!",
+        "Gesmolten metaal stroomt over de vloer naar je vijand! {dmg} schade!",
+        "Je kantelt een gieterijpan — een regen van vonken en vuur! {dmg} schade!",
+      ]},
+      defend: { label: "SCHILD VAN STAAL", desc: "Gebruik een stalen plaat", logs: [
+        "Je grijpt een stalen plaat als schild. Kogels ketsen af als regen. +{heal} HP.",
+        "Achter de lopende band vind je even rust. Het metaal beschermt je. +{heal} HP.",
+        "Je verschuilt je achter een stapel staalblokken. +{heal} HP.",
+      ]},
+      environment: { label: "MACHINE ACTIVEREN", desc: "Stuur machines op je vijand af", logs: [
+        "Je activeert de hydraulische pers — je vijand moet wegspringen! STUNNED!",
+        "De transportband sleurt je vijand mee tussen de tandwielen! STUNNED!",
+        "Je schakelt de lasrobot in — een blauwe vlam zwaait wild rond! STUNNED!",
+      ]},
+      tactical: { label: "OVEN OPENEN", desc: "Brand-schade in de hele hal", stat: "muscle", logs: [
+        "Je trapt de noodklep van de smeltoven open. De hele hal vult zich met verzengende hitte!",
+        "Vloeibaar staal stroomt vrij. De fabrieksvloer wordt een hel op aarde.",
+        "De temperatuur stijgt explosief. In deze hitte overleeft alleen de sterkste.",
+      ]},
+    },
+    enemyAttackLogs: [
+      "{name} slingert een kettingblok naar je ribben! {dmg} schade!",
+      "{name} vuurt vanachter een stapel staalplaten! {dmg} schade!",
+      "{name} duwt een kar vol metaal in je richting! {dmg} schade!",
+      "{name} slaat met een smidshamer! {dmg} schade!",
+    ],
+  },
+  low: {
+    name: "Steegje",
+    scenePhrases: [
+      "Gebroken straatlantaarns flikkeren. De steeg stinkt naar afval en angst.",
+      "Graffiti-muren sluiten je in. Ergens boven je kraakt een brandtrap.",
+      "Ratten vluchten voor het geluid van schoten. Dit is hun territorium — en het jouwe.",
+      "Waslijn boven je hoofd. Vuilnisbakken als dekking. Lowrise op z'n rauwst.",
+      "Een sirene in de verte. Hier komt geen hulp. Hier los je het zelf op.",
+    ],
+    actions: {
+      attack: { label: "STEEKPARTIJ", desc: "Snel en vuil", logs: [
+        "Je springt uit de schaduw met een mes — snel en dodelijk! {dmg} schade!",
+        "Een snelle steek tussen de ribben. Lowrise-stijl. {dmg} schade!",
+        "Je gooit een gebroken fles — het glas vindt z'n doel! {dmg} schade!",
+      ]},
+      heavy: { label: "VUILNISBAK RAMMEN", desc: "Volledige kracht", logs: [
+        "Je ramt een volle vuilnisbak tegen je vijand! {dmg} schade!",
+        "Een baksteen van de muur dient als projectiel — raak! {dmg} schade!",
+        "Je trapt een brandtrap los die op je vijand neerkomt! {dmg} schade!",
+      ]},
+      defend: { label: "VERDWIJN IN SCHADUWEN", desc: "De duisternis is je vriend", logs: [
+        "Je smeltt weg in de schaduwen van de steeg. Even ademen. +{heal} HP.",
+        "Achter een dumpster vind je een moment van rust. +{heal} HP.",
+        "De duisternis omhelst je. Je vijand schiet op schaduwen. +{heal} HP.",
+      ]},
+      environment: { label: "VAL ZETTEN", desc: "Gebruik de steeg tegen ze", logs: [
+        "Je trekt een waslijn strak — je vijand struikelt en valt! STUNNED!",
+        "Een vuilnisbak rolt de steeg in en blokkeert je vijand! STUNNED!",
+        "Je gooit een rat naar je vijand — pure paniek! STUNNED!",
+      ]},
+      tactical: { label: "VLUCHT VIA DAKEN", desc: "Ontsnap en herstel", stat: "charm", logs: [
+        "Je klimt razendsnel de brandtrap op. De daken van Lowrise zijn jouw domein.",
+        "Over de daken spring je van gebouw naar gebouw. Beneden hoer je gefrustreerd geschreeuw.",
+        "Je verdwijnt via een dakraam. Even later duik je op achter je vijand.",
+      ]},
+    },
+    enemyAttackLogs: [
+      "{name} springt uit een portiek met een mes! {dmg} schade!",
+      "{name} smijt een baksteen van het dak! {dmg} schade!",
+      "{name} vuurt vanuit een raamkozijn! {dmg} schade!",
+      "{name} schopt een brandende vuilnisbak naar je toe! {dmg} schade!",
+    ],
+  },
+  neon: {
+    name: "VIP Lounge",
+    scenePhrases: [
+      "Neonlicht pulseert in paars en roze. De bas dreunt door je borstkas. Chaos op de dansvloer.",
+      "Gebroken cocktailglazen knarsen onder je schoenen. De DJ draait door alsof er niets aan de hand is.",
+      "Stroboscooplicht maakt alles surreëel. Tussen de flitsen door zie je je vijand bewegen.",
+      "De geur van parfum, zweet en cordiet. De Neon Strip verandert elke club in een arena.",
+      "LED-schermen flikkeren. De menigte schreeuwt. Is het de muziek of het gevecht?",
+    ],
+    actions: {
+      attack: { label: "SCHOT DOOR DE MENIGTE", desc: "Precisie in de chaos", logs: [
+        "Je richt tussen de dansende lichamen door — een perfect schot! {dmg} schade!",
+        "De stroboscoop flitst. Je vuurt. Raak. {dmg} schade!",
+        "Door het neonlicht zie je je doel. Eén knal boven de muziek uit — {dmg} schade!",
+      ]},
+      heavy: { label: "SPEAKER LANCEREN", desc: "Geluidsgolven als wapen", logs: [
+        "Je trapt een speaker van het podium — bas en bloed! {dmg} schade!",
+        "De subwoofer wordt een projectiel van 50 kilo! {dmg} schade!",
+        "Je smijt een lichtbak van het plafond — neon en vlammen! {dmg} schade!",
+      ]},
+      defend: { label: "MENIGTE ALS SCHILD", desc: "Verdwijn in de massa", logs: [
+        "Je duikt de dansende menigte in. Even onzichtbaar. +{heal} HP.",
+        "Achter de DJ-booth vind je dekking en een moment rust. +{heal} HP.",
+        "Je glijdt achter de bar. Neonlicht verbergt je bewegingen. +{heal} HP.",
+      ]},
+      environment: { label: "ROOKMACHINE", desc: "Creëer chaos met rook en licht", logs: [
+        "Je activeert alle rookmachines tegelijk — totale chaos! STUNNED!",
+        "Stroboscoop op maximum. Je vijand is volledig gedesoriënteerd! STUNNED!",
+        "Je gooit een drankfles tegen het lichtpaneel — vonken en duisternis! STUNNED!",
+      ]},
+      tactical: { label: "BLACKOUT", desc: "Lichten uit, bonus stun", stat: "brains", logs: [
+        "Je vindt de stroomkast en trekt de hoofdschakelaar. Totale duisternis valt over de Strip.",
+        "Blackout. De bas stopt. In de stilte hoor je alleen je eigen hartslag — en die van je vijand.",
+        "Alle neon dooft tegelijk. In het donker ben jij de jager.",
+      ]},
+    },
+    enemyAttackLogs: [
+      "{name} vuurt door de rookwolken! {dmg} schade!",
+      "{name} smijt een cocktailshaker naar je gezicht! {dmg} schade!",
+      "{name} schiet vanachter de bar! {dmg} schade!",
+      "{name} springt van het podium met een mes! {dmg} schade!",
+    ],
+  },
 };
 
 export const BOSS_DATA: Record<string, { name: string; hp: number; attack: number; desc: string }> = {

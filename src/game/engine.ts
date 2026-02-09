@@ -1083,19 +1083,24 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
   };
 }
 
-export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'defend' | 'environment'): void {
+export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical'): void {
   const combat = state.activeCombat;
   if (!combat || combat.finished) return;
 
   combat.turn++;
   const muscle = getPlayerStat(state, 'muscle');
   const brains = getPlayerStat(state, 'brains');
+  const charm = getPlayerStat(state, 'charm');
+  const env = COMBAT_ENVIRONMENTS[state.loc];
 
-  // Ammo system: check if player has ammo for attack actions
+  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const fmt = (s: string, vars: Record<string, string | number>) =>
+    Object.entries(vars).reduce((r, [k, v]) => r.replace(`{${k}}`, String(v)), s);
+
+  // Ammo system
   const hasAmmo = (state.ammo || 0) > 0;
   const hasHeavyAmmo = (state.ammo || 0) >= 2;
 
-  // Player action
   let playerDamage = 0;
   let playerDefenseBonus = 0;
   let stunChance = 0;
@@ -1105,9 +1110,12 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       if (hasAmmo) {
         state.ammo = Math.max(0, (state.ammo || 0) - 1);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
-        combat.logs.push(`Je slaat toe voor ${playerDamage} schade! 🔫 (-1 kogel)`);
+        if (env) {
+          combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' 🔫');
+        } else {
+          combat.logs.push(`Je slaat toe voor ${playerDamage} schade! 🔫 (-1 kogel)`);
+        }
       } else {
-        // Melee fallback: 50% damage
         playerDamage = Math.floor((8 + muscle * 2.5 + Math.random() * 6) * 0.5);
         combat.logs.push(`⚠️ Geen kogels! Melee aanval voor ${playerDamage} schade (50%).`);
       }
@@ -1117,17 +1125,19 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         state.ammo = Math.max(0, (state.ammo || 0) - 2);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
           playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
-          combat.logs.push(`ZWARE KLAP! ${playerDamage} schade! 🔫🔫 (-2 kogels)`);
+          if (env) {
+            combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' 🔫🔫');
+          } else {
+            combat.logs.push(`ZWARE KLAP! ${playerDamage} schade! 🔫🔫 (-2 kogels)`);
+          }
         } else {
           combat.logs.push('Je zware aanval mist! 🔫🔫 (-2 kogels)');
         }
       } else if (hasAmmo) {
-        // Only 1 ammo: regular attack strength with heavy miss chance
         state.ammo = Math.max(0, (state.ammo || 0) - 1);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
         combat.logs.push(`⚠️ Te weinig kogels voor zware klap. Normale aanval: ${playerDamage} schade.`);
       } else {
-        // Melee fallback: 50% damage
         playerDamage = Math.floor((15 + muscle * 3.5 + Math.random() * 10) * 0.5);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
           combat.logs.push(`⚠️ Geen kogels! Zware melee voor ${playerDamage} schade (50%).`);
@@ -1137,22 +1147,46 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         }
       }
       break;
-    case 'defend':
+    case 'defend': {
       playerDefenseBonus = 0.6;
       const heal = Math.floor(5 + brains * 1.5);
       combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + heal);
-      combat.logs.push(`Je verdedigt en herstelt ${heal} HP.`);
+      if (env) {
+        combat.logs.push(fmt(pick(env.actions.defend.logs), { heal }));
+      } else {
+        combat.logs.push(`Je verdedigt en herstelt ${heal} HP.`);
+      }
       break;
+    }
     case 'environment': {
-      const env = COMBAT_ENVIRONMENTS[state.loc];
       if (env) {
         stunChance = 0.4 + (brains * 0.05);
         if (Math.random() < stunChance) {
           combat.stunned = true;
           playerDamage = Math.floor(5 + brains * 2);
-          combat.logs.push(`${env.log} STUNNED! +${playerDamage} schade.`);
+          combat.logs.push(fmt(pick(env.actions.environment.logs), { dmg: playerDamage }) + ` +${playerDamage} schade.`);
         } else {
-          combat.logs.push(`${env.log} ...maar het mislukt.`);
+          combat.logs.push(`${env.actions.environment.label}... maar het mislukt.`);
+        }
+      }
+      break;
+    }
+    case 'tactical': {
+      if (env) {
+        const statMap: Record<string, number> = { muscle, brains, charm };
+        const statVal = statMap[env.actions.tactical.stat] || brains;
+        const successChance = 0.35 + (statVal * 0.04);
+        if (Math.random() < successChance) {
+          // Tactical success: heal + stun + small damage
+          const tactHeal = Math.floor(10 + statVal * 2);
+          playerDamage = Math.floor(5 + statVal * 1.5);
+          combat.stunned = true;
+          combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + tactHeal);
+          combat.logs.push(pick(env.actions.tactical.logs));
+          combat.logs.push(`✓ Tactiek geslaagd! +${tactHeal} HP, vijand STUNNED, +${playerDamage} schade.`);
+        } else {
+          combat.logs.push(pick(env.actions.tactical.logs));
+          combat.logs.push(`✗ Tactiek mislukt! Je verliest een beurt.`);
         }
       }
       break;
@@ -1188,17 +1222,20 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
     }
-    // Armor upgrade reduces incoming damage
     const armorBonus = getVehicleUpgradeBonus(state, 'armor');
     if (armorBonus > 0) {
-      const armorReduction = armorBonus * 0.06; // 6%/12%/24% at level 1/2/3 (cumulative bonuses 1/3/7)
+      const armorReduction = armorBonus * 0.06;
       enemyDamage = Math.floor(enemyDamage * (1 - armorReduction));
       if (armorReduction >= 0.18) {
         combat.logs.push(`Pantser absorbeert ${Math.round(armorReduction * 100)}% schade.`);
       }
     }
     combat.playerHP = Math.max(0, combat.playerHP - enemyDamage);
-    combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDamage} schade!`);
+    if (env) {
+      combat.logs.push(fmt(pick(env.enemyAttackLogs), { name: combat.targetName, dmg: enemyDamage }));
+    } else {
+      combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDamage} schade!`);
+    }
   } else {
     combat.logs.push(`${combat.targetName} is verdoofd en kan niet aanvallen!`);
     combat.stunned = false;

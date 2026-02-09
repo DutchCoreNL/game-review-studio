@@ -63,7 +63,7 @@ type GameAction =
   | { type: 'CASINO_WIN'; amount: number }
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'START_NEMESIS_COMBAT' }
-  | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' }
+  | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
