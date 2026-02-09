@@ -22,6 +22,8 @@ export function PrisonOverlay() {
   let escapeChance = PRISON_ESCAPE_BASE_CHANCE;
   escapeChance += Engine.getPlayerStat(state, 'brains') * 0.03;
   if (state.crew.some(c => c.role === 'Hacker')) escapeChance += 0.10;
+  const hasTunnel = state.villa?.modules.includes('tunnel');
+  if (hasTunnel) escapeChance += 0.25;
   const escapePercent = Math.min(95, Math.round(escapeChance * 100));
 
   return (

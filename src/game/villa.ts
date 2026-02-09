@@ -32,6 +32,8 @@ export const VILLA_MODULES: VillaModuleDef[] = [
   { id: 'commandocentrum', name: 'Commandocentrum', cost: 40000, icon: '🎯', desc: '+10% missie-succes, spionage-bonus.', reqLevel: 2 },
   { id: 'helipad', name: 'Helipad', cost: 80000, icon: '🚁', desc: 'Snel reizen naar elk district (0 heat/kosten), 1x/dag.', reqLevel: 2 },
   { id: 'zwembad', name: 'Zwembad & Lounge', cost: 35000, icon: '🏊', desc: 'Crew-moraal bonus, +5 charm bij villa-deals.', reqLevel: 1 },
+  { id: 'camera', name: 'Bewakingscamera\'s', cost: 45000, icon: '📹', desc: '+25 verdediging, waarschuwing bij aanvallen, nemesis-aanvalkans -30%.', reqLevel: 2 },
+  { id: 'tunnel', name: 'Ondergrondse Tunnel', cost: 60000, icon: '🕳️', desc: 'Ontsnappingsroute: +25% gevangenis-ontsnapping, bij villa-aanval verlies gehalveerd.', reqLevel: 3 },
 ];
 
 // ========== VILLA STORAGE LIMITS ==========

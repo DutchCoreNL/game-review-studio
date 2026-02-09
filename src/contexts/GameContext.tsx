@@ -1461,13 +1461,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let chance = PRISON_ESCAPE_BASE_CHANCE;
       chance += Engine.getPlayerStat(s, 'brains') * 0.03;
       if (s.crew.some(c => c.role === 'Hacker')) chance += 0.10;
+      // Villa tunnel escape bonus
+      if (s.villa?.modules.includes('tunnel')) chance += 0.25;
       if (Math.random() < chance) {
         // Success
         Engine.addPersonalHeat(s, PRISON_ESCAPE_HEAT_PENALTY);
         Engine.recomputeHeat(s);
         s.prison = null;
         s.screenEffect = 'gold-flash';
-        addPhoneMessage(s, 'anonymous', 'Ontsnapping geslaagd! Maar je bent nu een voortvluchtige. +15 heat.', 'warning');
+        addPhoneMessage(s, 'anonymous', s.villa?.modules.includes('tunnel')
+          ? 'Je ontsnapte via de ondergrondse tunnel onder je villa. Slim. +15 heat.'
+          : 'Ontsnapping geslaagd! Maar je bent nu een voortvluchtige. +15 heat.', 'warning');
       } else {
         // Fail
         s.prison.daysRemaining += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
