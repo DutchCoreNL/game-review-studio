@@ -507,7 +507,7 @@ export interface NightReportData {
   villaCokeProduced?: number;
   villaLabProduced?: number;
   villaVaultProtected?: number; // shown only on arrest
-  villaAttack?: { won: boolean; nemesisName: string; damage: string; stolenMoney?: number; moduleDamaged?: string };
+  villaAttack?: { won: boolean; nemesisName: string; damage: string; stolenMoney?: number; moduleDamaged?: string; defenseScore?: number; attackPower?: number; defenseBreakdown?: { label: string; value: number; icon: string }[] };
 }
 
 export interface RandomEvent {

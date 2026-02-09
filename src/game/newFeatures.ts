@@ -110,14 +110,19 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   if (state.villa && Math.random() < villaAttackChance) {
     // Villa defense calculation
     const villa = state.villa;
-    let defenseScore = villa.level * 15; // base defense from level
-    if (villa.modules.includes('commandocentrum')) defenseScore += 20;
-    if (villa.modules.includes('wapenkamer')) defenseScore += 10;
-    if (villa.modules.includes('crew_kwartieren')) defenseScore += 10;
-    if (villa.modules.includes('camera')) defenseScore += 25; // cameras boost defense
+    const defenseBreakdown: { label: string; value: number; icon: string }[] = [];
+
+    const levelDef = villa.level * 15;
+    defenseBreakdown.push({ label: `Villa Level ${villa.level}`, value: levelDef, icon: '🏛️' });
+
+    let defenseScore = levelDef;
+    if (villa.modules.includes('commandocentrum')) { defenseScore += 20; defenseBreakdown.push({ label: 'Commandocentrum', value: 20, icon: '🎯' }); }
+    if (villa.modules.includes('wapenkamer')) { defenseScore += 10; defenseBreakdown.push({ label: 'Wapenkamer', value: 10, icon: '🔫' }); }
+    if (villa.modules.includes('crew_kwartieren')) { defenseScore += 10; defenseBreakdown.push({ label: 'Crew Kwartieren', value: 10, icon: '🏠' }); }
+    if (villa.modules.includes('camera')) { defenseScore += 25; defenseBreakdown.push({ label: 'Bewakingscamera\'s', value: 25, icon: '📹' }); }
     // Crew contributes
     const crewDefense = state.crew.filter(c => c.hp > 30).length * 5;
-    defenseScore += crewDefense;
+    if (crewDefense > 0) { defenseScore += crewDefense; defenseBreakdown.push({ label: 'Crew verdediging', value: crewDefense, icon: '👥' }); }
 
     const attackPower = nem.power + Math.floor(Math.random() * 20);
     const won = defenseScore >= attackPower;
@@ -130,6 +135,9 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
         won: true,
         nemesisName: nem.name,
         damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}${villa.modules.includes('camera') ? ' (📹 camera-bonus)' : ''}`,
+        defenseScore,
+        attackPower,
+        defenseBreakdown,
       };
       addPhoneMessage(state, 'anonymous', `${nem.name} heeft je villa aangevallen, maar je verdediging hield stand!`, 'info');
     } else {
@@ -176,6 +184,9 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
         damage: damages.join(', ') || 'Schade aan je villa',
         stolenMoney: stolenMoney > 0 ? stolenMoney : undefined,
         moduleDamaged,
+        defenseScore,
+        attackPower,
+        defenseBreakdown,
       };
       addPhoneMessage(state, 'nemesis', `Je villa is niet zo veilig als je denkt. - ${nem.name}`, 'threat');
     }

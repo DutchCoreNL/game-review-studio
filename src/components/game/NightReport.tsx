@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical } from 'lucide-react';
+import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
 import { DramaticEventReveal } from './night-report/DramaticEventReveal';
@@ -326,41 +327,19 @@ export function NightReport() {
               </motion.div>
             )}
 
-            {/* Villa attack by nemesis */}
+            {/* Villa attack by nemesis — animated battle popup */}
             {report.villaAttack && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: villaAttackDelay, type: 'spring', stiffness: 350 }}
-                className={`border-2 rounded-lg p-3 ${
-                  report.villaAttack.won
-                    ? 'bg-[hsl(var(--gold)/0.1)] border-gold glow-gold'
-                    : 'bg-[hsl(var(--blood)/0.15)] border-blood glow-blood'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Skull size={16} className={report.villaAttack.won ? 'text-gold' : 'text-blood'} />
-                  <p className={`text-xs font-bold uppercase ${report.villaAttack.won ? 'text-gold' : 'text-blood'}`}>
-                    {report.villaAttack.won ? '🏛️ VILLA VERDEDIGD!' : '🏛️ VILLA AANGEVALLEN!'}
-                  </p>
-                </div>
-                <div className="space-y-0.5 text-[0.6rem] text-muted-foreground">
-                  <p>{report.villaAttack.nemesisName} viel je villa aan.</p>
-                  {report.villaAttack.won ? (
-                    <p className="text-emerald">Je verdediging hield stand. {report.villaAttack.damage}</p>
-                  ) : (
-                    <>
-                      {report.villaAttack.stolenMoney && report.villaAttack.stolenMoney > 0 && (
-                        <p className="text-blood font-bold">💰 €{report.villaAttack.stolenMoney.toLocaleString()} gestolen uit kluis</p>
-                      )}
-                      {report.villaAttack.moduleDamaged && (
-                        <p className="text-blood font-bold">🔧 {report.villaAttack.moduleDamaged} vernietigd!</p>
-                      )}
-                      <p className="text-blood">{report.villaAttack.damage}</p>
-                    </>
-                  )}
-                </div>
-              </motion.div>
+              <VillaAttackPopup
+                won={report.villaAttack.won}
+                nemesisName={report.villaAttack.nemesisName}
+                damage={report.villaAttack.damage}
+                stolenMoney={report.villaAttack.stolenMoney}
+                moduleDamaged={report.villaAttack.moduleDamaged}
+                defenseScore={report.villaAttack.defenseScore}
+                attackPower={report.villaAttack.attackPower}
+                defenseBreakdown={report.villaAttack.defenseBreakdown}
+                delay={villaAttackDelay}
+              />
             )}
 
             {/* Weather change */}
