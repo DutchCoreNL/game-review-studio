@@ -1,107 +1,141 @@
 
-
-# Auto Crusher & Kogelfabriek
+# Gevangenis Systeem
 
 ## Overzicht
-Twee nieuwe manieren om aan kogels te komen:
-1. **Auto Crusher**: Sloop gestolen auto's in de Chop Shop voor munitie (in plaats van verkopen)
-2. **Kogelfabriek**: Een koopbaar gebouw dat dagelijks automatisch kogels produceert
+Een gevangenissysteem waarbij je daadwerkelijk opgepakt kunt worden bij politie-invallen en mislukte missies. De straf is variabel op basis van je heat-niveau, en je verliest geld en goederen. Na vrijlating krijg je een schone lei, maar je kunt ook proberen te ontsnappen of jezelf vrij te kopen.
 
 ---
 
-## 1. Auto Crusher
+## Wanneer word je opgepakt?
 
-### Concept
-Een nieuwe optie in de Chop Shop (CarDetail view) waarmee je een gestolen auto kunt slopen voor kogels. De auto hoeft **niet** omgekat te zijn (je verwerkt het hele ding tot schroot en metaal). De opbrengst in kogels hangt af van de zeldzaamheid en conditie van de auto.
+### 1. Tijdens politie-invallen (Night Report)
+- De bestaande raid-logica controleert of personalHeat > 60
+- Als een raid plaatsvindt: **30% kans op arrestatie** (bovenop de boete)
+- Corrupte contacten (agent/detective) verlagen arrestatiekans met hun beschermingspercentage
+- Een advocaat-contact (nieuw corrupt contact type) kan arrestatiekans halveren
 
-### Kogels per auto
-- **Common**: 3-5 kogels
-- **Uncommon**: 5-8 kogels
-- **Rare**: 8-12 kogels
-- **Exotic**: 12-18 kogels
-- Conditie-bonus: bij 80%+ conditie krijg je +2 extra kogels
-- Upgrades op de auto geven elk +1 extra kogel
-
-### Gameplay overwegingen
-- Geen omkat-vereiste: je kunt een "hot" auto direct slopen (handig als je geen geld hebt voor omkatten)
-- Trade-off: slopen levert minder waarde op dan verkopen, maar je krijgt schaarse munitie
-- Kleine XP-beloning (10 XP) voor het slopen
-
-### UI
-- Nieuwe "CRUSHER" knop in de CarDetail view (naast Verkopen/Zelf Gebruiken)
-- Crusher is altijd beschikbaar (ook zonder omkatten)
-- Icoon: een hamer of zaag
-- Toont het verwachte aantal kogels voor je bevestigt
-- Toast: "BMW X5 gesloopt! +8 kogels verkregen"
+### 2. Bij mislukte missies
+- Als een solo-operatie of contract faalt: **15% kans op arrestatie**
+- Bij missies met hoge risk (>70): kans stijgt naar **25%**
+- Charm-stat verlaagt de kans met 2% per punt
 
 ---
 
-## 2. Kogelfabriek
+## Straf Duur (variabel op basis van heat)
 
-### Concept
-Een nieuw koopbaar gebouw ("Kogelfabriek") in de BEDRIJVEN-tab van het Imperium scherm. Na aankoop produceert het dagelijks automatisch een aantal kogels tijdens het Night Report.
+| Personal Heat | Straf duur |
+|---|---|
+| 0-30 | 1 dag |
+| 31-50 | 2 dagen |
+| 51-70 | 3 dagen |
+| 71-85 | 5 dagen |
+| 86-100 | 7 dagen |
 
-### Specificaties
-- **Naam**: Kogelfabriek
-- **Kosten**: 35.000 euro
-- **Dagelijkse productie**: 3 kogels/dag (basis)
-- **Locatie**: Iron Borough thema (industrieel)
-- **Night Report**: Toont "Kogelfabriek productie: +X kogels" als apart regelitem
-- **Max ammo cap**: Blijft op 99 (productie stopt niet, maar ammo wordt gecapped)
+---
 
-### Balans
-- De prijs (35.000 euro) is significant maar haalbaar in mid-game
-- 3 kogels/dag is genoeg om basis-gevechten te ondersteunen maar niet genoeg voor dagelijkse huurmoorden
-- Combineert goed met de crusher als extra bron van kogels
+## Gevolgen van arrestatie
+
+### Verlies bij opsluiting
+- **Geld**: 20% van je clean money wordt in beslag genomen
+- **Dirty money**: 100% van dirty money wordt in beslag genomen
+- **Inventaris**: Alle illegale goederen (drugs, weapons) worden geconfisqueerd; tech/luxury/meds blijven
+- **Heat**: Wordt volledig gereset naar 0 (zowel personal als vehicle) bij vrijlating
+
+### Tijdens opsluiting (vergelijkbaar met "onderduiken")
+- Geen handel, reizen, missies, of acties mogelijk
+- Business-inkomsten lopen door (crew runt het)
+- Kogelfabriek produceert nog steeds
+- Vijanden kunnen districten aanvallen (net als bij onderduiken)
+- Elke dag telt automatisch af
+
+---
+
+## Ontsnappingsopties
+
+Terwijl je vastzit, kun je twee dingen proberen:
+
+### 1. Omkoping (altijd beschikbaar)
+- Kost: 5.000 euro per resterende dag
+- Directe vrijlating
+- Heat wordt NIET gereset (je hebt je straf niet uitgezeten)
+- Vereist voldoende geld
+
+### 2. Ontsnapping (eenmalige poging)
+- Kans: 20% + (brains * 3%) + (crew bonus: +10% als je een Hacker hebt)
+- Bij succes: directe vrijlating, +15 personal heat (je bent nu een voortvluchtige)
+- Bij falen: +2 extra dagen straf, geen tweede poging
+
+---
+
+## UI: Gevangenis Overlay
+
+Een fullscreen overlay vergelijkbaar met de bestaande `HidingOverlay`, maar met een gevangenisthema:
+
+```text
++------------------------------------------+
+|  [Handcuffs icon] GEVANGENIS             |
+|                                          |
+|     [ 3 ]  dagen resterend              |
+|                                          |
+|  Geld in beslag genomen: -€12.400       |
+|  Dirty money verloren: -€8.000          |
+|  Goederen geconfisqueerd: drugs, weapons |
+|                                          |
+|  [OMKOPEN - €15.000]                     |
+|  [ONTSNAPPEN - 35% kans]                |
+|  (of wacht je straf uit)                |
++------------------------------------------+
+```
+
+---
+
+## Night Report integratie
+
+Als je opgepakt wordt tijdens een raid, toont het Night Report:
+
+- "Je bent gearresteerd! Straf: X dagen"
+- Overzicht van verloren geld en goederen
+- Na het sluiten van het report verschijnt de Prison Overlay
 
 ---
 
 ## Technische Aanpak
 
-### Bestanden die worden aangepast:
-
-**`src/game/constants.ts`**:
-- Toevoegen van `CRUSHER_AMMO_REWARDS` tabel (ammo-opbrengst per rarity)
-- Toevoegen van `AMMO_FACTORY` definitie aan de `BUSINESSES` array (id: 'ammo_factory', name: 'Kogelfabriek', cost: 35000, income: 0, clean: 0, desc: 'Produceert dagelijks 3 kogels.')
+### Nieuwe/aangepaste bestanden:
 
 **`src/game/types.ts`**:
-- Toevoegen van `ammoFactoryProduction` veld aan `NightReportData` interface (optioneel number)
+- Nieuw type `PrisonState` met velden: `daysRemaining`, `totalSentence`, `moneyLost`, `dirtyMoneyLost`, `goodsLost`, `escapeAttempted`
+- Toevoegen van `prison: PrisonState | null` aan `GameState`
+- Toevoegen van `imprisoned: boolean` aan `NightReportData`
+
+**`src/game/constants.ts`**:
+- `PRISON_SENTENCE_TABLE`: heat-ranges naar dagen mapping
+- `PRISON_BRIBE_COST_PER_DAY`: 5000
+- `PRISON_ESCAPE_BASE_CHANCE`: 0.20
+- `PRISON_MONEY_CONFISCATION`: 0.20 (20%)
+- Toevoegen van `prison: null` aan `createInitialState`
 
 **`src/game/engine.ts`**:
-- In `endTurn`: Na business income, check of speler 'ammo_factory' bezit. Zo ja, voeg 3 kogels toe (capped op 99) en noteer in report
-- Het `NightReportData` veld `ammoFactoryProduction` vullen
+- Helper functie `calculateSentence(personalHeat)` op basis van de tabel
+- Helper functie `arrestPlayer(state, report)` die geld/goederen confisqueert en `state.prison` instelt
+- In `endTurn`: na raid-check, kans op arrestatie toevoegen
+- In `endTurn`: als `state.prison` actief is, dagen aftellen en bij 0 heat resetten en prison clearen
+- Prison blokkeert dezelfde acties als hiding
 
 **`src/contexts/GameContext.tsx`**:
-- Nieuwe action: `CRUSH_CAR` met `carId: string`
-- Reducer-logica: auto verwijderen uit `stolenCars`, kogels berekenen op basis van rarity/conditie/upgrades, toevoegen aan `state.ammo` (max 99), XP geven, toast-info retourneren
+- Nieuwe actions: `BRIBE_PRISON`, `ATTEMPT_ESCAPE`, `DISMISS_PRISON`
+- `BRIBE_PRISON`: betaal kosten, `prison = null`, heat blijft
+- `ATTEMPT_ESCAPE`: rol de kans, bij succes vrijlaten + heat toevoegen, bij falen extra dagen
+- Bij mislukte missies (bestaande SOLO_OP / END_MISSION logic): arrestatiekans toevoegen
 
-**`src/components/game/ChopShopView.tsx`**:
-- In `CarDetail`: Nieuwe "CRUSHER" sectie toevoegen onder de bestaande acties
-- Crusher-knop met hamer-icoon, toont verwacht aantal kogels
-- Beschikbaar ongeacht omkat-status (geen omkat nodig)
-- Bevestigingstoast na het slopen
+**`src/components/game/PrisonOverlay.tsx`** (nieuw):
+- Fullscreen overlay met gevangenis-thema (donker, handcuffs icoon)
+- Toont: dagen resterend, verloren geld/goederen, omkoop- en ontsnappingsknoppen
+- Animatie: aftellende dagen met pulsing effect
+- ConfirmDialog voor omkoping en ontsnapping
 
-**`src/components/game/ImperiumView.tsx`**:
-- De Kogelfabriek verschijnt automatisch in de BusinessPanel omdat deze aan de `BUSINESSES` array wordt toegevoegd
-- Eventueel een extra icoon/badge voor "produceert kogels" i.p.v. geld
+**`src/components/game/GameLayout.tsx`**:
+- Import en render `PrisonOverlay` wanneer `state.prison !== null`
 
 **`src/components/game/NightReport.tsx`**:
-- Nieuwe regel tonen als `ammoFactoryProduction > 0`: "Kogelfabriek: +X kogels"
-
-### Rendering in Chop Shop (CarDetail)
-De crusher-sectie komt onder de bestaande "Sell/Use" acties en is altijd zichtbaar:
-
-```text
-+------------------------------------------+
-|  CRUSHER                                 |
-|  Sloop deze auto voor munitie            |
-|  Verwacht: ~8 kogels                     |
-|  [SLOPEN - Hammer icon]                  |
-+------------------------------------------+
-```
-
-### Balans samenvatting
-- Crusher geeft minder totale waarde dan verkopen, maar biedt een alternatieve resource
-- Kogelfabriek is een late early-game / mid-game investering
-- Samen zorgen crusher + fabriek + ammo shop voor drie verschillende manieren om aan kogels te komen, elk met eigen trade-offs
-
+- Nieuwe sectie tonen als `report.imprisoned`: "GEARRESTEERD" met details over confiscatie
