@@ -104,6 +104,7 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   // === VILLA ATTACK (special action, higher chance when player is powerful) ===
   const villaAttackChance = state.villa
     ? Math.min(0.25, 0.05 + (state.villa.level * 0.03) + (state.villa.modules.length * 0.01) + (state.ownedDistricts.length * 0.02))
+      * (state.villa.modules.includes('camera') ? 0.7 : 1) // cameras reduce attack chance by 30%
     : 0;
 
   if (state.villa && Math.random() < villaAttackChance) {
@@ -113,6 +114,7 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
     if (villa.modules.includes('commandocentrum')) defenseScore += 20;
     if (villa.modules.includes('wapenkamer')) defenseScore += 10;
     if (villa.modules.includes('crew_kwartieren')) defenseScore += 10;
+    if (villa.modules.includes('camera')) defenseScore += 25; // cameras boost defense
     // Crew contributes
     const crewDefense = state.crew.filter(c => c.hp > 30).length * 5;
     defenseScore += crewDefense;
@@ -127,7 +129,7 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
       report.villaAttack = {
         won: true,
         nemesisName: nem.name,
-        damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}`,
+        damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}${villa.modules.includes('camera') ? ' (📹 camera-bonus)' : ''}`,
       };
       addPhoneMessage(state, 'anonymous', `${nem.name} heeft je villa aangevallen, maar je verdediging hield stand!`, 'info');
     } else {
@@ -136,17 +138,22 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
       let stolenMoney = 0;
       let moduleDamaged: string | undefined;
 
-      // Steal from vault (25-40% of vault)
+      // Tunnel halves losses
+      const hasTunnel = villa.modules.includes('tunnel');
+
+      // Steal from vault (25-40% of vault, halved with tunnel)
       if (villa.modules.includes('kluis') && villa.vaultMoney > 0) {
-        const stealPct = 0.25 + Math.random() * 0.15;
+        let stealPct = 0.25 + Math.random() * 0.15;
+        if (hasTunnel) stealPct *= 0.5; // tunnel halves theft
         stolenMoney = Math.floor(villa.vaultMoney * stealPct);
         villa.vaultMoney -= stolenMoney;
-        damages.push(`€${stolenMoney.toLocaleString()} gestolen uit kluis`);
+        damages.push(`€${stolenMoney.toLocaleString()} gestolen uit kluis${hasTunnel ? ' (tunnel beperkt verlies)' : ''}`);
       }
 
-      // Damage a random module (disable it temporarily by removing — player needs to reinstall)
-      const damageable = villa.modules.filter(m => m !== 'kluis' && m !== 'opslagkelder');
-      if (damageable.length > 0 && Math.random() < 0.4) {
+      // Damage a random module (tunnel & camera can't be destroyed in attack)
+      const damageable = villa.modules.filter(m => m !== 'kluis' && m !== 'opslagkelder' && m !== 'tunnel' && m !== 'camera');
+      const destroyChance = hasTunnel ? 0.2 : 0.4; // tunnel reduces module destruction chance
+      if (damageable.length > 0 && Math.random() < destroyChance) {
         const targetMod = damageable[Math.floor(Math.random() * damageable.length)];
         villa.modules = villa.modules.filter(m => m !== targetMod);
         const modName = targetMod.replace('_', ' ');
