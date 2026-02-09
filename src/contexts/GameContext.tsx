@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, SOLO_OPERATIONS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
-import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
+import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage } from '../game/newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
@@ -71,9 +71,12 @@ type GameAction =
   // New feature actions
   | { type: 'CREATE_ROUTE'; route: SmuggleRoute }
   | { type: 'DELETE_ROUTE'; routeId: string }
-  | { type: 'STATION_CREW'; districtId: DistrictId; crewIndex: number }
-  | { type: 'UNSTATION_CREW'; districtId: DistrictId; crewIndex: number }
-  | { type: 'UPGRADE_DEFENSE'; districtId: DistrictId; upgradeType: 'wall' | 'turret' }
+  | { type: 'BUY_DISTRICT_UPGRADE'; districtId: DistrictId; upgradeId: DistrictHQUpgradeId }
+  | { type: 'RESOLVE_WAR_EVENT'; tactic: WarTactic }
+  | { type: 'DISMISS_WAR_EVENT' }
+  | { type: 'PERFORM_SPIONAGE'; districtId: DistrictId }
+  | { type: 'PERFORM_SABOTAGE'; districtId: DistrictId }
+  | { type: 'REQUEST_ALLIANCE_HELP'; familyId: FamilyId; districtId: DistrictId }
   | { type: 'SET_SPECIALIZATION'; crewIndex: number; specId: string }
   | { type: 'DISMISS_SPEC_CHOICE' }
   | { type: 'TOGGLE_PHONE' }
@@ -375,12 +378,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'FIRE_CREW': {
-      // Remove from any stationed positions
-      Object.values(s.districtDefenses).forEach(def => {
-        def.stationedCrew = def.stationedCrew.filter(ci => ci !== action.crewIndex);
-        // Adjust indices for crew after the fired one
-        def.stationedCrew = def.stationedCrew.map(ci => ci > action.crewIndex ? ci - 1 : ci);
-      });
+      // Remove crew from game
       Engine.fireCrew(s, action.crewIndex);
       return s;
     }
@@ -806,34 +804,71 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'STATION_CREW': {
+    case 'BUY_DISTRICT_UPGRADE': {
       const def = s.districtDefenses[action.districtId];
-      if (!def || def.stationedCrew.includes(action.crewIndex)) return s;
-      if (!s.ownedDistricts.includes(action.districtId)) return s;
-      def.stationedCrew.push(action.crewIndex);
-      def.level = Math.min(100, def.level + 20);
+      if (!def || !s.ownedDistricts.includes(action.districtId)) return s;
+      if (def.upgrades.includes(action.upgradeId)) return s;
+      const upgDef = DISTRICT_HQ_UPGRADES.find(u => u.id === action.upgradeId);
+      if (!upgDef || s.money < upgDef.cost) return s;
+      s.money -= upgDef.cost;
+      s.stats.totalSpent += upgDef.cost;
+      def.upgrades.push(action.upgradeId);
+      def.fortLevel += upgDef.defense;
       return s;
     }
 
-    case 'UNSTATION_CREW': {
-      const defU = s.districtDefenses[action.districtId];
-      if (!defU) return s;
-      defU.stationedCrew = defU.stationedCrew.filter(ci => ci !== action.crewIndex);
-      defU.level = Math.max(0, defU.level - 20);
+    case 'RESOLVE_WAR_EVENT': {
+      if (!s.pendingWarEvent) return s;
+      const result = resolveWarEvent(s, action.tactic);
+      if (result.won) {
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = result.loot;
+      } else {
+        s.screenEffect = 'blood-flash';
+      }
       return s;
     }
 
-    case 'UPGRADE_DEFENSE': {
-      const defD = s.districtDefenses[action.districtId];
-      if (!defD || !s.ownedDistricts.includes(action.districtId)) return s;
-      const cost = action.upgradeType === 'wall' ? 8000 : 12000;
-      if (s.money < cost) return s;
-      if (action.upgradeType === 'wall' && defD.wallUpgrade) return s;
-      if (action.upgradeType === 'turret' && defD.turretUpgrade) return s;
-      s.money -= cost;
-      s.stats.totalSpent += cost;
-      if (action.upgradeType === 'wall') { defD.wallUpgrade = true; defD.level += 30; }
-      else { defD.turretUpgrade = true; defD.level += 20; }
+    case 'DISMISS_WAR_EVENT': {
+      s.pendingWarEvent = null;
+      return s;
+    }
+
+    case 'PERFORM_SPIONAGE': {
+      // Requires command center in any owned district
+      const hasCommand = s.ownedDistricts.some(d => s.districtDefenses[d]?.upgrades.includes('command'));
+      if (!hasCommand) return s;
+      if (s.money < 2000) return s;
+      // Check cooldown: can't spy on same district within 1 day
+      if (s.spionageIntel.some(i => i.district === action.districtId)) return s;
+      s.money -= 2000;
+      s.stats.totalSpent += 2000;
+      performSpionage(s, action.districtId);
+      return s;
+    }
+
+    case 'PERFORM_SABOTAGE': {
+      const hasCmd = s.ownedDistricts.some(d => s.districtDefenses[d]?.upgrades.includes('command'));
+      if (!hasCmd) return s;
+      if (s.money < 5000) return s;
+      if ((s.sabotageEffects || []).some(e => e.district === action.districtId)) return s;
+      s.money -= 5000;
+      s.stats.totalSpent += 5000;
+      performSabotage(s, action.districtId);
+      return s;
+    }
+
+    case 'REQUEST_ALLIANCE_HELP': {
+      const rel = s.familyRel[action.familyId] || 0;
+      if (rel < 60) return s;
+      const cooldown = s.allianceCooldowns?.[action.familyId] || 0;
+      if (cooldown > s.day) return s;
+      s.familyRel[action.familyId] = rel - 10;
+      if (!s.allianceCooldowns) s.allianceCooldowns = { cartel: 0, syndicate: 0, bikers: 0 };
+      s.allianceCooldowns[action.familyId] = s.day + 3;
+      // Boost defense for the district
+      const defB = s.districtDefenses[action.districtId];
+      if (defB) defB.fortLevel += 25;
       return s;
     }
 
@@ -1459,13 +1494,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
       if (!saved.districtDefenses) {
         saved.districtDefenses = {
-          port: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
-          crown: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
-          iron: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
-          low: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
-          neon: { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false },
+          port: { upgrades: [], fortLevel: 0 },
+          crown: { upgrades: [], fortLevel: 0 },
+          iron: { upgrades: [], fortLevel: 0 },
+          low: { upgrades: [], fortLevel: 0 },
+          neon: { upgrades: [], fortLevel: 0 },
         };
+      } else {
+        // Migrate old format
+        Object.keys(saved.districtDefenses).forEach((k: string) => {
+          const d = saved.districtDefenses[k];
+          if ('stationedCrew' in d) {
+            saved.districtDefenses[k] = { upgrades: [], fortLevel: d.level || 0 };
+          }
+          if (!d.upgrades) d.upgrades = [];
+          if (d.fortLevel === undefined) d.fortLevel = 0;
+        });
       }
+      if (!saved.pendingWarEvent) saved.pendingWarEvent = null;
+      if (!saved.spionageIntel) saved.spionageIntel = [];
+      if (!saved.sabotageEffects) saved.sabotageEffects = [];
+      if (!saved.allianceCooldowns) saved.allianceCooldowns = { cartel: 0, syndicate: 0, bikers: 0 };
       if (!saved.smuggleRoutes) saved.smuggleRoutes = [];
       if (!saved.phone) saved.phone = { messages: [], unread: 0 };
       if (saved.showPhone === undefined) saved.showPhone = false;

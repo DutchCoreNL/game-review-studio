@@ -125,11 +125,51 @@ export interface NemesisState {
   lastAction: string;
 }
 
+export type DistrictHQUpgradeId = 'patrol' | 'walls' | 'surveillance' | 'turret' | 'command';
+
+export interface DistrictHQUpgradeDef {
+  id: DistrictHQUpgradeId;
+  name: string;
+  cost: number;
+  defense: number;
+  attackReduction: number; // percentage reduction of attack chance
+  enablesSpionage: boolean;
+  icon: string;
+  desc: string;
+}
+
 export interface DistrictDefense {
-  level: number;
-  stationedCrew: number[];
-  wallUpgrade: boolean;
-  turretUpgrade: boolean;
+  upgrades: DistrictHQUpgradeId[];
+  fortLevel: number;
+}
+
+export type WarTactic = 'defend' | 'ambush' | 'negotiate';
+
+export interface WarEvent {
+  district: DistrictId;
+  attackStrength: number;
+  defenseLevel: number;
+  attackerName: string;
+}
+
+export interface WarEventResult {
+  won: boolean;
+  tactic: WarTactic;
+  loot: number;
+  goodsLoot: { good: GoodId; amount: number } | null;
+  details: string;
+}
+
+export interface SpionageIntel {
+  district: DistrictId;
+  attackChance: number; // predicted
+  expiresDay: number;
+}
+
+export interface SabotageEffect {
+  district: DistrictId;
+  reductionPercent: number;
+  expiresDay: number;
 }
 
 export interface SmuggleRoute {
@@ -444,7 +484,7 @@ export interface NightReportData {
   // New feature fields
   weatherChange?: WeatherType;
   smuggleResults?: { routeId: string; good: GoodId; income: number; intercepted: boolean }[];
-  defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string }[];
+  defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string; loot?: number; goodsLoot?: { good: GoodId; amount: number } | null }[];
   nemesisAction?: string;
   ammoFactoryProduction?: number;
 }
@@ -603,6 +643,10 @@ export interface GameState {
   districtRep: Record<DistrictId, number>;
   nemesis: NemesisState;
   districtDefenses: Record<DistrictId, DistrictDefense>;
+  pendingWarEvent: WarEvent | null;
+  spionageIntel: SpionageIntel[];
+  sabotageEffects: SabotageEffect[];
+  allianceCooldowns: Record<FamilyId, number>; // day when usable again
   smuggleRoutes: SmuggleRoute[];
   phone: { messages: PhoneMessage[]; unread: number };
   showPhone: boolean;

@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_REP_PERKS } from '@/game/constants';
+import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES } from '@/game/constants';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
@@ -157,7 +157,11 @@ export function DistrictPopup() {
           {isOwned && (() => {
             const def = state.districtDefenses?.[selectedDistrict];
             if (!def) return null;
-            const defLevel = def.level + def.stationedCrew.length * 20 + (def.wallUpgrade ? 30 : 0) + (def.turretUpgrade ? 20 : 0);
+            let defLevel = def.fortLevel;
+            def.upgrades.forEach(uid => {
+              const u = DISTRICT_HQ_UPGRADES.find(u => u.id === uid);
+              if (u) defLevel += u.defense;
+            });
             return (
               <div className="mb-3 game-card bg-muted/30 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -165,60 +169,13 @@ export function DistrictPopup() {
                   <span className="text-[0.55rem] font-bold text-muted-foreground uppercase tracking-wider">Verdediging</span>
                   <span className="text-[0.55rem] font-bold text-ice">{defLevel}</span>
                 </div>
-                <StatBar value={Math.min(defLevel, 100)} max={100} color="ice" height="sm" />
+                <StatBar value={Math.min(defLevel, 120)} max={120} color="ice" height="sm" />
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {def.wallUpgrade && <GameBadge variant="muted" size="xs">🧱 Muur</GameBadge>}
-                  {def.turretUpgrade && <GameBadge variant="muted" size="xs">🔫 Geschut</GameBadge>}
-                  {def.stationedCrew.length > 0 && (
-                    <GameBadge variant="muted" size="xs">
-                      <Users size={8} className="inline mr-0.5" />{def.stationedCrew.length} Crew
-                    </GameBadge>
-                  )}
+                  {def.upgrades.map(uid => {
+                    const u = DISTRICT_HQ_UPGRADES.find(u => u.id === uid);
+                    return u ? <GameBadge key={uid} variant="muted" size="xs">{u.icon} {u.name}</GameBadge> : null;
+                  })}
                 </div>
-                <div className="flex gap-1.5 mt-2">
-                  {!def.wallUpgrade && (
-                    <GameButton variant="muted" size="sm" disabled={state.money < 8000}
-                      onClick={() => { dispatch({ type: 'UPGRADE_DEFENSE', districtId: selectedDistrict, upgradeType: 'wall' }); showToast('Muur geplaatst!'); }}>
-                      🧱 €8k
-                    </GameButton>
-                  )}
-                  {!def.turretUpgrade && (
-                    <GameButton variant="muted" size="sm" disabled={state.money < 12000}
-                      onClick={() => { dispatch({ type: 'UPGRADE_DEFENSE', districtId: selectedDistrict, upgradeType: 'turret' }); showToast('Geschut geplaatst!'); }}>
-                      🔫 €12k
-                    </GameButton>
-                  )}
-                </div>
-                {state.crew.length > 0 && (
-                  <div className="mt-2 border-t border-border pt-2">
-                    <p className="text-[0.45rem] text-muted-foreground font-bold mb-1 uppercase tracking-wider">Stationeer Crew:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {state.crew.map((c, i) => {
-                        const isStationed = def.stationedCrew.includes(i);
-                        return (
-                          <button key={i}
-                            onClick={() => {
-                              if (isStationed) {
-                                dispatch({ type: 'UNSTATION_CREW', districtId: selectedDistrict, crewIndex: i });
-                                showToast(`${c.name} teruggetrokken`);
-                              } else {
-                                dispatch({ type: 'STATION_CREW', districtId: selectedDistrict, crewIndex: i });
-                                showToast(`${c.name} gestationeerd`);
-                              }
-                            }}
-                            className={`text-[0.45rem] font-bold px-2 py-1 rounded border transition-all ${
-                              isStationed
-                                ? 'bg-ice/15 border-ice text-ice'
-                                : 'bg-muted border-border text-muted-foreground hover:border-ice/50'
-                            }`}
-                          >
-                            {c.name} {isStationed ? '✓' : '+'}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })()}
