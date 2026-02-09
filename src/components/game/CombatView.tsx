@@ -9,10 +9,20 @@ import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound, playNegativeSound } from '@/game/sounds';
 
 export function CombatView() {
   const { state, dispatch, showToast } = useGame();
   const combat = state.activeCombat;
+  const prevFinished = useRef(false);
+
+  // Play victory/defeat sound when combat ends
+  useEffect(() => {
+    if (combat?.finished && !prevFinished.current) {
+      if (combat.won) playVictorySound(); else playDefeatSound();
+    }
+    prevFinished.current = combat?.finished ?? false;
+  }, [combat?.finished, combat?.won]);
 
   if (!combat) {
     return <CombatMenu />;
@@ -96,13 +106,13 @@ export function CombatView() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <CombatAction icon={<Swords size={14} />} label="AANVAL" sub={`Betrouwbaar${(state.ammo || 0) > 0 ? ' (-1 🔫)' : ' (melee)'}`}
-              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'attack' })} variant="blood" />
+              onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }} variant="blood" />
             <CombatAction icon={<Zap size={14} />} label="ZWARE KLAP" sub={`Krachtig${(state.ammo || 0) >= 2 ? ' (-2 🔫)' : (state.ammo || 0) >= 1 ? ' (-1 🔫)' : ' (melee)'}`}
-              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'heavy' })} variant="gold" />
+              onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'heavy' }); }} variant="gold" />
             <CombatAction icon={<Shield size={14} />} label="VERDEDIG" sub="Block + Heal"
-              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'defend' })} variant="muted" />
+              onClick={() => { playDefendSound(); dispatch({ type: 'COMBAT_ACTION', action: 'defend' }); }} variant="muted" />
             <CombatAction icon={<MapPin size={14} />} label={env?.actionName || 'OMGEVING'} sub={env?.desc || 'Stun kans'}
-              onClick={() => dispatch({ type: 'COMBAT_ACTION', action: 'environment' })} variant="purple" />
+              onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'environment' }); }} variant="purple" />
           </div>
         </>
       ) : (

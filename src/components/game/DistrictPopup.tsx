@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES } from '@/game/constants';
+import { playPurchaseSound, playCoinSound } from '@/game/sounds';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
@@ -22,6 +23,7 @@ export function DistrictPopup() {
 
   const handleAction = () => {
     if (isHere && !isOwned) {
+      playCoinSound();
       dispatch({ type: 'BUY_DISTRICT', id: selectedDistrict });
       showToast(`${sel.name} overgenomen!`);
     } else if (!isHere) {

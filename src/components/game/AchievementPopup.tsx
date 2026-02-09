@@ -2,12 +2,22 @@ import { useGame } from '@/contexts/GameContext';
 import { ACHIEVEMENTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { playAchievementSound } from '@/game/sounds';
 
 export function AchievementPopup() {
   const { state, dispatch } = useGame();
   const pending = state.pendingAchievements || [];
   const currentId = pending[0];
   const achievement = currentId ? ACHIEVEMENTS.find(a => a.id === currentId) : null;
+  const lastPlayedId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (currentId && currentId !== lastPlayedId.current) {
+      lastPlayedId.current = currentId;
+      playAchievementSound();
+    }
+  }, [currentId]);
 
   const dismiss = () => {
     dispatch({ type: 'DISMISS_ACHIEVEMENT' });
