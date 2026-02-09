@@ -14,7 +14,7 @@ import { ResourcePopup } from './ResourcePopup';
 import { motion } from 'framer-motion';
 import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair } from 'lucide-react';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | null;
+type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,
@@ -133,12 +133,13 @@ export function GameHeader() {
           color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
           icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
           pulse={ammo <= 3}
-          tooltip="Kogels zijn nodig voor gevechten en huurmoorden. Koop ze in de markt, sloop auto's in de crusher, of bouw een Kogelfabriek."
+          tooltip="Kogels zijn nodig voor gevechten en huurmoorden."
+          onTap={() => setPopup('ammo')}
         />
 
         <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
 
-        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} />
+        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} onTap={() => setPopup('karma')} />
 
         {state.debt > 0 && (
           <ResourceTile
