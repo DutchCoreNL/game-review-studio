@@ -1,6 +1,7 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
+import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
 import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction } from './villa';
@@ -236,6 +237,18 @@ export function generateMapEvents(state: GameState): void {
 function rollRandomEvent(state: GameState): RandomEvent | null {
   if (Math.random() > 0.35) return null; // 35% chance of event
 
+  // 50% chance for a district-specific event when in a district
+  if (Math.random() < 0.5) {
+    const districtEvents = DISTRICT_EVENTS.filter(
+      e => e.district === state.loc && state.heat >= e.minHeat
+    );
+    if (districtEvents.length > 0) {
+      const de = districtEvents[Math.floor(Math.random() * districtEvents.length)];
+      return { id: de.id, title: de.title, description: de.description, type: de.type, effect: de.effect };
+    }
+  }
+
+  // Fallback to generic events
   const eligible = RANDOM_EVENTS.filter(e => state.heat >= e.minHeat);
   if (eligible.length === 0) return null;
 
@@ -302,13 +315,160 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
     case 'price_shift':
       // Prices already regenerated — no extra action needed
       break;
-    case 'faction_war': {
-      const factions = Object.keys(FAMILIES) as FamilyId[];
-      const f1 = factions[Math.floor(Math.random() * factions.length)];
-      let f2 = factions[Math.floor(Math.random() * factions.length)];
-      while (f2 === f1) f2 = factions[Math.floor(Math.random() * factions.length)];
-      state.familyRel[f1] = Math.max(-100, (state.familyRel[f1] || 0) - 10);
-      state.familyRel[f2] = Math.max(-100, (state.familyRel[f2] || 0) - 10);
+    // === DISTRICT-SPECIFIC EVENT EFFECTS ===
+
+    // Port Nero
+    case 'port_free_goods': {
+      const portGoods: GoodId[] = ['tech', 'luxury', 'meds'];
+      const pick = portGoods[Math.floor(Math.random() * portGoods.length)];
+      const amount = Math.floor(Math.random() * 3) + 2;
+      const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+      const space = state.maxInv - currentInv;
+      const added = Math.min(amount, space);
+      if (added > 0) state.inventory[pick] = (state.inventory[pick] || 0) + added;
+      break;
+    }
+    case 'port_lose_smuggle': {
+      const smuggleGoods: GoodId[] = ['drugs', 'weapons'];
+      smuggleGoods.forEach(g => {
+        const qty = state.inventory[g] || 0;
+        if (qty > 0) {
+          const lost = Math.ceil(qty * 0.25);
+          state.inventory[g] = Math.max(0, qty - lost);
+        }
+      });
+      break;
+    }
+    case 'port_heat_reduction': {
+      addPersonalHeat(state, -12);
+      addVehicleHeat(state, -10);
+      break;
+    }
+    case 'port_price_spike': {
+      // Goods from port become more expensive (less available)
+      addPersonalHeat(state, 3);
+      break;
+    }
+    case 'port_bonus_money': {
+      const portBonus = Math.floor(800 + state.day * 150);
+      state.dirtyMoney += portBonus;
+      state.stats.totalEarned += portBonus;
+      break;
+    }
+
+    // Crown Heights
+    case 'crown_trade_bonus': {
+      const tradeBonus = Math.floor(1500 + state.day * 200);
+      state.money += tradeBonus;
+      state.stats.totalEarned += tradeBonus;
+      break;
+    }
+    case 'crown_money_freeze': {
+      const frozen = Math.floor(state.money * 0.1);
+      state.money = Math.max(0, state.money - frozen);
+      break;
+    }
+    case 'crown_rep_boost': {
+      state.rep += 15;
+      state.districtRep.crown = Math.min(100, (state.districtRep.crown || 0) + 5);
+      break;
+    }
+    case 'crown_tech_spike': {
+      // Tech goods temporarily worth more - give some free tech
+      const currentInvT = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+      const spaceT = state.maxInv - currentInvT;
+      if (spaceT > 0) state.inventory.tech = (state.inventory.tech || 0) + Math.min(2, spaceT);
+      break;
+    }
+    case 'crown_heat_spike': {
+      addPersonalHeat(state, 15);
+      break;
+    }
+
+    // Iron Borough
+    case 'iron_cheap_weapons': {
+      const currentInvW = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+      const spaceW = state.maxInv - currentInvW;
+      if (spaceW > 0) state.inventory.weapons = (state.inventory.weapons || 0) + Math.min(2, spaceW);
+      break;
+    }
+    case 'iron_free_chemicals': {
+      state.lab.chemicals += Math.floor(Math.random() * 10) + 5;
+      break;
+    }
+    case 'iron_crew_damage': {
+      state.crew.forEach(c => {
+        if (c.hp > 0) c.hp = Math.max(1, c.hp - Math.floor(Math.random() * 15 + 8));
+      });
+      break;
+    }
+    case 'iron_vehicle_repair': {
+      const veh = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+      if (veh) veh.condition = Math.min(100, veh.condition + 20);
+      break;
+    }
+    case 'iron_crew_heal': {
+      state.crew.forEach(c => { c.hp = Math.min(100, c.hp + 30); });
+      break;
+    }
+
+    // Lowrise
+    case 'low_quick_cash': {
+      const quickCash = Math.floor(300 + state.day * 50);
+      state.dirtyMoney += quickCash;
+      state.stats.totalEarned += quickCash;
+      break;
+    }
+    case 'low_lose_cash': {
+      const lost = Math.floor(Math.random() * 500 + 200);
+      state.money = Math.max(0, state.money - lost);
+      break;
+    }
+    case 'low_heat_increase': {
+      addPersonalHeat(state, 12);
+      break;
+    }
+    case 'low_free_drugs': {
+      const currentInvD = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
+      const spaceD = state.maxInv - currentInvD;
+      if (spaceD > 0) state.inventory.drugs = (state.inventory.drugs || 0) + Math.min(4, spaceD);
+      break;
+    }
+    case 'low_community_cover': {
+      addPersonalHeat(state, -18);
+      break;
+    }
+
+    // Neon Strip
+    case 'neon_bonus_money': {
+      const neonBonus = Math.floor(2000 + state.day * 250);
+      state.money += neonBonus;
+      state.stats.totalEarned += neonBonus;
+      break;
+    }
+    case 'neon_lose_drugs': {
+      const drugsHeld = state.inventory.drugs || 0;
+      if (drugsHeld > 0) {
+        state.inventory.drugs = Math.max(0, Math.floor(drugsHeld * 0.5));
+      }
+      addPersonalHeat(state, 10);
+      break;
+    }
+    case 'neon_rep_boost': {
+      state.rep += 20;
+      state.districtRep.neon = Math.min(100, (state.districtRep.neon || 0) + 8);
+      break;
+    }
+    case 'neon_casino_bonus': {
+      const casinoComp = Math.floor(1000 + state.day * 100);
+      state.money += casinoComp;
+      state.stats.totalEarned += casinoComp;
+      state.stats.casinoWon += casinoComp;
+      break;
+    }
+    case 'neon_chaos_loss': {
+      const chaosLoss = Math.floor(state.money * 0.05);
+      state.money = Math.max(0, state.money - chaosLoss);
       break;
     }
   }
