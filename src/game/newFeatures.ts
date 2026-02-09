@@ -101,41 +101,115 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   const actions: string[] = [];
   const actionCount = 1 + (Math.random() < 0.3 ? 1 : 0);
 
-  for (let i = 0; i < actionCount; i++) {
-    const roll = Math.random();
-    if (roll < 0.3) {
-      // Market manipulation
-      const district = districts[Math.floor(Math.random() * districts.length)];
-      if (state.prices[district]) {
-        const goods = Object.keys(state.prices[district]);
-        const good = goods[Math.floor(Math.random() * goods.length)];
-        const shift = Math.random() < 0.5 ? 0.7 : 1.4;
-        state.prices[district][good] = Math.floor(state.prices[district][good] * shift);
-      }
-      actions.push('manipuleert de markt');
-    } else if (roll < 0.5) {
-      // Sabotage (steal goods)
-      if (Math.random() < 0.2 + nem.power / 200) {
-        const goods = Object.keys(state.inventory) as GoodId[];
-        const target = goods.find(g => (state.inventory[g] || 0) > 0);
-        if (target) {
-          const stolen = Math.min(state.inventory[target] || 0, Math.ceil(Math.random() * 2));
-          state.inventory[target] = Math.max(0, (state.inventory[target] || 0) - stolen);
-          actions.push(`steelt ${stolen}x voorraad`);
-          addPhoneMessage(state, 'anonymous', `Iemand heeft je goederen gestolen. ${nem.name} wordt verdacht.`, 'warning');
-        }
-      }
-    } else if (roll < 0.7) {
-      // Faction influence
-      const factions = Object.keys(FAMILIES) as FamilyId[];
-      const fid = factions[Math.floor(Math.random() * factions.length)];
-      state.familyRel[fid] = Math.max(-100, (state.familyRel[fid] || 0) - 3);
-      actions.push(`beïnvloedt ${FAMILIES[fid].name} tegen je`);
+  // === VILLA ATTACK (special action, higher chance when player is powerful) ===
+  const villaAttackChance = state.villa
+    ? Math.min(0.25, 0.05 + (state.villa.level * 0.03) + (state.villa.modules.length * 0.01) + (state.ownedDistricts.length * 0.02))
+    : 0;
+
+  if (state.villa && Math.random() < villaAttackChance) {
+    // Villa defense calculation
+    const villa = state.villa;
+    let defenseScore = villa.level * 15; // base defense from level
+    if (villa.modules.includes('commandocentrum')) defenseScore += 20;
+    if (villa.modules.includes('wapenkamer')) defenseScore += 10;
+    if (villa.modules.includes('crew_kwartieren')) defenseScore += 10;
+    // Crew contributes
+    const crewDefense = state.crew.filter(c => c.hp > 30).length * 5;
+    defenseScore += crewDefense;
+
+    const attackPower = nem.power + Math.floor(Math.random() * 20);
+    const won = defenseScore >= attackPower;
+
+    if (won) {
+      // Defender wins — nemesis takes damage
+      nem.hp = Math.max(0, nem.hp - 15);
+      actions.push('villa-aanval afgeslagen!');
+      report.villaAttack = {
+        won: true,
+        nemesisName: nem.name,
+        damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}`,
+      };
+      addPhoneMessage(state, 'anonymous', `${nem.name} heeft je villa aangevallen, maar je verdediging hield stand!`, 'info');
     } else {
-      // Territory claim attempt on unowned district
-      const unowned = districts.filter(d => !state.ownedDistricts.includes(d));
-      if (unowned.length > 0) {
-        actions.push('breidt invloed uit');
+      // Attacker wins — damage to villa
+      const damages: string[] = [];
+      let stolenMoney = 0;
+      let moduleDamaged: string | undefined;
+
+      // Steal from vault (25-40% of vault)
+      if (villa.modules.includes('kluis') && villa.vaultMoney > 0) {
+        const stealPct = 0.25 + Math.random() * 0.15;
+        stolenMoney = Math.floor(villa.vaultMoney * stealPct);
+        villa.vaultMoney -= stolenMoney;
+        damages.push(`€${stolenMoney.toLocaleString()} gestolen uit kluis`);
+      }
+
+      // Damage a random module (disable it temporarily by removing — player needs to reinstall)
+      const damageable = villa.modules.filter(m => m !== 'kluis' && m !== 'opslagkelder');
+      if (damageable.length > 0 && Math.random() < 0.4) {
+        const targetMod = damageable[Math.floor(Math.random() * damageable.length)];
+        villa.modules = villa.modules.filter(m => m !== targetMod);
+        const modName = targetMod.replace('_', ' ');
+        moduleDamaged = modName;
+        damages.push(`${modName} vernietigd`);
+      }
+
+      // Crew damage
+      state.crew.forEach(c => {
+        if (c.hp > 0 && Math.random() < 0.5) {
+          const dmg = 10 + Math.floor(Math.random() * 15);
+          c.hp = Math.max(1, c.hp - dmg);
+        }
+      });
+
+      actions.push('valt je villa aan!');
+      report.villaAttack = {
+        won: false,
+        nemesisName: nem.name,
+        damage: damages.join(', ') || 'Schade aan je villa',
+        stolenMoney: stolenMoney > 0 ? stolenMoney : undefined,
+        moduleDamaged,
+      };
+      addPhoneMessage(state, 'nemesis', `Je villa is niet zo veilig als je denkt. - ${nem.name}`, 'threat');
+    }
+  } else {
+    // Normal nemesis actions
+    for (let i = 0; i < actionCount; i++) {
+      const roll = Math.random();
+      if (roll < 0.3) {
+        // Market manipulation
+        const district = districts[Math.floor(Math.random() * districts.length)];
+        if (state.prices[district]) {
+          const goods = Object.keys(state.prices[district]);
+          const good = goods[Math.floor(Math.random() * goods.length)];
+          const shift = Math.random() < 0.5 ? 0.7 : 1.4;
+          state.prices[district][good] = Math.floor(state.prices[district][good] * shift);
+        }
+        actions.push('manipuleert de markt');
+      } else if (roll < 0.5) {
+        // Sabotage (steal goods)
+        if (Math.random() < 0.2 + nem.power / 200) {
+          const goods = Object.keys(state.inventory) as GoodId[];
+          const target = goods.find(g => (state.inventory[g] || 0) > 0);
+          if (target) {
+            const stolen = Math.min(state.inventory[target] || 0, Math.ceil(Math.random() * 2));
+            state.inventory[target] = Math.max(0, (state.inventory[target] || 0) - stolen);
+            actions.push(`steelt ${stolen}x voorraad`);
+            addPhoneMessage(state, 'anonymous', `Iemand heeft je goederen gestolen. ${nem.name} wordt verdacht.`, 'warning');
+          }
+        }
+      } else if (roll < 0.7) {
+        // Faction influence
+        const factions = Object.keys(FAMILIES) as FamilyId[];
+        const fid = factions[Math.floor(Math.random() * factions.length)];
+        state.familyRel[fid] = Math.max(-100, (state.familyRel[fid] || 0) - 3);
+        actions.push(`beïnvloedt ${FAMILIES[fid].name} tegen je`);
+      } else {
+        // Territory claim attempt on unowned district
+        const unowned = districts.filter(d => !state.ownedDistricts.includes(d));
+        if (unowned.length > 0) {
+          actions.push('breidt invloed uit');
+        }
       }
     }
   }
