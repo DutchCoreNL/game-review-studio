@@ -102,11 +102,19 @@ export function VillaView() {
 }
 
 function OverviewTab() {
-  const { state } = useGame();
+  const { state, dispatch, showToast } = useGame();
   const villa = state.villa!;
   const vaultMax = getVaultMax(villa.level);
   const storageMax = getStorageMax(villa.level);
   const storedCount = Object.values(villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
+
+  const partyCost = [0, 15000, 25000, 40000][villa.level] || 15000;
+  const cooldownDays = 5;
+  const daysSinceParty = state.day - (villa.lastPartyDay || 0);
+  const canParty = villa.modules.includes('zwembad') && state.money >= partyCost && daysSinceParty >= cooldownDays;
+  const partyCooldownLeft = Math.max(0, cooldownDays - daysSinceParty);
+  const relBoost = [0, 8, 12, 18][villa.level] || 8;
+  const repBoost = [0, 15, 25, 40][villa.level] || 15;
 
   return (
     <div className="game-card p-3 space-y-3">
@@ -123,6 +131,31 @@ function OverviewTab() {
       {/* Helipad quick travel */}
       {villa.modules.includes('helipad') && !villa.helipadUsedToday && (
         <HelipadTravel />
+      )}
+
+      {/* Party section */}
+      {villa.modules.includes('zwembad') && (
+        <div className="bg-gold/5 border border-gold/20 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎉</span>
+            <div>
+              <p className="text-xs font-bold text-gold">Feest Geven</p>
+              <p className="text-[0.55rem] text-muted-foreground">
+                Nodig alle facties uit. +{relBoost} relaties, +{repBoost} rep, +10 crew HP.
+              </p>
+            </div>
+          </div>
+          {partyCooldownLeft > 0 && (
+            <p className="text-[0.55rem] text-muted-foreground">⏳ Cooldown: nog {partyCooldownLeft} {partyCooldownLeft === 1 ? 'dag' : 'dagen'}</p>
+          )}
+          <GameButton variant="gold" size="sm" fullWidth glow disabled={!canParty}
+            onClick={() => {
+              dispatch({ type: 'VILLA_THROW_PARTY' });
+              showToast(`🎉 Legendarisch feest! +${relBoost} factie-relaties, +${repBoost} rep!`);
+            }}>
+            🎉 FEEST GEVEN — €{partyCost.toLocaleString()}
+          </GameButton>
+        </div>
       )}
     </div>
   );
