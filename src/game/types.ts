@@ -645,6 +645,7 @@ export interface GameState {
   familyRel: Record<string, number>;
   policeRel: number;
   leadersDefeated: FamilyId[];
+  leaderDefeatedDay: Partial<Record<FamilyId, number>>; // day when leader was defeated
   prices: Record<string, Record<string, number>>;
   priceTrends: Record<string, string>;
   districtDemands: Record<string, GoodId | null>;
