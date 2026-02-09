@@ -6,11 +6,12 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
 import { ChopShopView } from './ChopShopView';
 import { SafehouseView } from './SafehouseView';
+import { VillaView } from './villa/VillaView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { NewsTicker } from './map/NewsTicker';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices, Wrench, Home } from 'lucide-react';
+import { Moon, Dices, Wrench, Home, Building2 } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
@@ -21,6 +22,7 @@ export function MapView() {
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
   const [showSafehouse, setShowSafehouse] = useState(false);
+  const [showVilla, setShowVilla] = useState(false);
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
@@ -51,14 +53,24 @@ export function MapView() {
     dispatch({ type: 'END_TURN' });
   };
 
+  if (showVilla) {
+    return (
+      <div>
+        <VillaView />
+        <button onClick={() => setShowVilla(false)}
+          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
+          ← TERUG NAAR KAART
+        </button>
+      </div>
+    );
+  }
+
   if (showChopShop) {
     return (
       <div>
         <ChopShopView />
-        <button
-          onClick={() => setShowChopShop(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
-        >
+        <button onClick={() => setShowChopShop(false)}
+          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
           ← TERUG NAAR KAART
         </button>
       </div>
@@ -126,6 +138,8 @@ export function MapView() {
           onChopShopClick={!isHiding && state.loc === 'iron' ? () => setShowChopShop(true) : undefined}
           safehouses={state.safehouses}
           onSafehouseClick={!isHiding ? () => setShowSafehouse(true) : undefined}
+          villa={state.villa}
+          onVillaClick={!isHiding ? () => setShowVilla(true) : undefined}
         />
       </div>
 
@@ -177,6 +191,17 @@ export function MapView() {
             className="px-4"
           >
             SAFE
+          </GameButton>
+        )}
+        {!isHiding && (state.villa || (state.player.level >= 8 && state.rep >= 300)) && (
+          <GameButton
+            variant="gold"
+            size="lg"
+            icon={<Building2 size={14} />}
+            onClick={() => setShowVilla(true)}
+            className="px-4"
+          >
+            VILLA
           </GameButton>
         )}
       </div>

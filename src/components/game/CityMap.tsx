@@ -1,4 +1,4 @@
-import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute, Safehouse } from '@/game/types';
+import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute, Safehouse, VillaState } from '@/game/types';
 import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
@@ -27,6 +27,8 @@ interface CityMapProps {
   onChopShopClick?: () => void;
   safehouses?: Safehouse[];
   onSafehouseClick?: () => void;
+  villa?: VillaState | null;
+  onVillaClick?: () => void;
 }
 
 // Road paths connecting districts
@@ -800,7 +802,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -868,7 +870,6 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         {safehouses.map(sh => {
           const meta = DISTRICT_META[sh.district];
           if (!meta) return null;
-          // Position safehouse icon slightly offset from district center
           const sx = meta.cx + 18;
           const sy = meta.cy + 6;
           return (
@@ -898,6 +899,84 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
             </g>
           );
         })}
+
+        {/* === VILLA NOXHAVEN LANDMARK === */}
+        {/* Roads to villa */}
+        <path d="M 130,88 Q 155,65 175,50" fill="none" stroke="hsl(45 30% 18%)" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+        <path d="M 175,50 Q 200,65 240,88" fill="none" stroke="hsl(45 30% 18%)" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+        <path d="M 130,88 Q 155,65 175,50" fill="none" stroke="hsl(45 50% 30%)" strokeWidth="0.4" strokeDasharray="3 5" strokeLinecap="round" opacity="0.5" />
+        <path d="M 175,50 Q 200,65 240,88" fill="none" stroke="hsl(45 50% 30%)" strokeWidth="0.4" strokeDasharray="3 5" strokeLinecap="round" opacity="0.5" />
+
+        {/* Villa compound */}
+        <g onClick={(e) => { e.stopPropagation(); onVillaClick?.(); }}
+          style={{ cursor: onVillaClick ? 'pointer' : 'default' }}>
+          {/* Hitbox */}
+          <rect x="155" y="25" width="40" height="35" fill="transparent" />
+
+          {/* Hill/ground */}
+          <ellipse cx="175" cy="55" rx="22" ry="6" fill="hsla(120, 15%, 10%, 0.5)" />
+
+          {/* Villa owned glow */}
+          {villa && (
+            <motion.circle cx="175" cy="45" r="18"
+              fill="none" stroke="hsla(45, 90%, 50%, 0.15)" strokeWidth="1"
+              animate={{ r: [18, 22, 18], opacity: [0.15, 0.05, 0.15] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+
+          {/* Main villa building */}
+          <rect x="162" y="33" width="26" height="18" fill={villa ? 'hsla(45, 20%, 14%, 0.9)' : 'hsla(0, 0%, 12%, 0.6)'} rx="1" />
+          <rect x="162" y="33" width="26" height="1.5" fill={villa ? 'hsla(45, 60%, 40%, 0.4)' : 'hsla(0, 0%, 20%, 0.3)'} />
+
+          {/* Villa columns */}
+          <rect x="164" y="37" width="1.5" height="12" fill={villa ? 'hsla(45, 30%, 30%, 0.6)' : 'hsla(0, 0%, 20%, 0.4)'} />
+          <rect x="168" y="37" width="1.5" height="12" fill={villa ? 'hsla(45, 30%, 30%, 0.6)' : 'hsla(0, 0%, 20%, 0.4)'} />
+          <rect x="181" y="37" width="1.5" height="12" fill={villa ? 'hsla(45, 30%, 30%, 0.6)' : 'hsla(0, 0%, 20%, 0.4)'} />
+          <rect x="185" y="37" width="1.5" height="12" fill={villa ? 'hsla(45, 30%, 30%, 0.6)' : 'hsla(0, 0%, 20%, 0.4)'} />
+
+          {/* Windows */}
+          {villa && [[166, 39], [172, 39], [178, 39], [184, 39], [166, 44], [178, 44]].map(([x, y], i) => (
+            <rect key={`vw-${i}`} x={x} y={y} width="2.5" height="2" rx="0.2"
+              fill={`hsla(45, 80%, 50%, ${0.08 + Math.random() * 0.1})`}>
+              {i % 2 === 0 && <animate attributeName="opacity" values="0.08;0.2;0.06;0.15" dur={`${3 + i}s`} repeatCount="indefinite" />}
+            </rect>
+          ))}
+
+          {/* Pool */}
+          {villa && (
+            <>
+              <rect x="190" y="42" width="8" height="5" fill="hsla(210, 60%, 30%, 0.5)" rx="1" />
+              <motion.rect x="190" y="42" width="8" height="5" rx="1"
+                fill="hsla(210, 60%, 45%, 0.15)"
+                animate={{ opacity: [0.1, 0.2, 0.1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
+            </>
+          )}
+
+          {/* Garden trees */}
+          {villa && [[158, 48], [195, 38], [157, 38]].map(([x, y], i) => (
+            <g key={`vt-${i}`}>
+              <rect x={x - 0.3} y={y} width="0.6" height="3" fill="hsla(120, 20%, 15%, 0.5)" />
+              <circle cx={x} cy={y - 0.5} r="2" fill="hsla(120, 30%, 15%, 0.4)" />
+            </g>
+          ))}
+
+          {/* Driveway */}
+          <path d="M 175,51 Q 175,56 168,60" fill="none" stroke="hsla(30, 15%, 20%, 0.4)" strokeWidth="2" strokeLinecap="round" />
+
+          {/* Label */}
+          <rect x="161" y="23" width="28" height="9" rx="2"
+            fill={villa ? 'hsla(45, 30%, 8%, 0.9)' : 'hsla(0, 0%, 5%, 0.7)'}
+            stroke={villa ? 'hsl(45 60% 40%)' : 'hsl(0 0% 20%)'}
+            strokeWidth={villa ? '1' : '0.5'} />
+          <text x="175" y="30" textAnchor="middle"
+            fill={villa ? 'hsl(45 80% 55%)' : 'hsl(0 0% 40%)'}
+            fontSize="5" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif"
+            style={{ textTransform: 'uppercase' }}>
+            {villa ? 'VILLA' : '🔒 VILLA'}
+          </text>
+        </g>
 
         {/* === DISTRICT HITBOXES === */}
         {(Object.keys(DISTRICT_ZONES) as DistrictId[]).map(id => {

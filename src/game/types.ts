@@ -6,6 +6,20 @@ export type StatId = 'muscle' | 'brains' | 'charm';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
+
+// ========== VILLA TYPES ==========
+
+export type VillaModuleId = 'kluis' | 'opslagkelder' | 'synthetica_lab' | 'wietplantage' | 'coke_lab' | 'crew_kwartieren' | 'wapenkamer' | 'commandocentrum' | 'helipad' | 'zwembad';
+
+export interface VillaState {
+  level: number; // 1-3
+  modules: VillaModuleId[];
+  vaultMoney: number; // money stored safely
+  storedGoods: Partial<Record<GoodId, number>>; // goods stored safely
+  storedAmmo: number;
+  helipadUsedToday: boolean;
+  purchaseDay: number;
+}
 export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | null;
 export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
 export interface PlayingCard { rank: string; suit: CardSuit; }
@@ -712,4 +726,7 @@ export interface GameState {
 
   // ========== NEWS STATE ==========
   dailyNews: import('../game/newsGenerator').NewsItem[];
+
+  // ========== VILLA STATE ==========
+  villa: VillaState | null;
 }

@@ -525,6 +525,8 @@ export function createInitialState(): import('./types').GameState {
     heistPlan: null,
     // News state
     dailyNews: [],
+    // Villa state
+    villa: null,
   };
 }
 
