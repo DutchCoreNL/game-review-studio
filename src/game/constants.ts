@@ -636,6 +636,13 @@ export const CORRUPT_CONTACTS: CorruptContactDef[] = [
     desc: 'Controleert alles wat de haven in en uit gaat.',
     icon: '⚓', reqRep: 250,
   },
+  {
+    id: 'defense_lawyer', type: 'lawyer', name: 'Mr. Vermeer', title: 'Strafpleiter',
+    monthlyCost: 5000, recruitCost: 18000, betrayalRisk: 8,
+    effects: { fineReduction: 30, raidProtection: 5 },
+    desc: 'Halveert je kans op arrestatie. De beste advocaat van Noxhaven.',
+    icon: '👔', reqRep: 120,
+  },
 ];
 
 export const CORRUPTION_BETRAYAL_EVENTS = [
