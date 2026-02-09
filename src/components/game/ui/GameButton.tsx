@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 
 type ButtonVariant = 'blood' | 'gold' | 'muted' | 'emerald' | 'purple' | 'ghost';
@@ -36,35 +37,28 @@ const GLOW_STYLES: Record<string, string> = {
   emerald: 'glow-emerald',
 };
 
-export function GameButton({
-  children,
-  variant = 'gold',
-  size = 'md',
-  icon,
-  disabled,
-  fullWidth,
-  glow,
-  onClick,
-  className = '',
-}: GameButtonProps) {
-  return (
-    <motion.button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        rounded border font-bold uppercase tracking-wider transition-all
-        flex items-center justify-center gap-1.5
-        disabled:opacity-30 disabled:cursor-not-allowed
-        ${VARIANT_STYLES[variant]}
-        ${SIZE_STYLES[size]}
-        ${fullWidth ? 'w-full' : ''}
-        ${glow && GLOW_STYLES[variant] ? GLOW_STYLES[variant] : ''}
-        ${className}
-      `}
-      whileTap={!disabled ? { scale: 0.97 } : undefined}
-    >
-      {icon}
-      {children}
-    </motion.button>
-  );
-}
+export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
+  function GameButton({ children, variant = 'gold', size = 'md', icon, disabled, fullWidth, glow, onClick, className = '' }, ref) {
+    return (
+      <motion.button
+        ref={ref}
+        onClick={onClick}
+        disabled={disabled}
+        className={`
+          rounded border font-bold uppercase tracking-wider transition-all
+          flex items-center justify-center gap-1.5
+          disabled:opacity-30 disabled:cursor-not-allowed
+          ${VARIANT_STYLES[variant]}
+          ${SIZE_STYLES[size]}
+          ${fullWidth ? 'w-full' : ''}
+          ${glow && GLOW_STYLES[variant] ? GLOW_STYLES[variant] : ''}
+          ${className}
+        `}
+        whileTap={!disabled ? { scale: 0.97 } : undefined}
+      >
+        {icon}
+        {children}
+      </motion.button>
+    );
+  }
+);
