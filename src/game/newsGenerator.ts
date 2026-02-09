@@ -6,7 +6,7 @@ import { GameState, DistrictId, FamilyId } from './types';
 import { DISTRICTS, FAMILIES, GOODS } from './constants';
 
 export type NewsUrgency = 'low' | 'medium' | 'high';
-export type NewsCategory = 'player' | 'faction' | 'market' | 'weather' | 'heat' | 'crew' | 'flavor';
+export type NewsCategory = 'player' | 'faction' | 'market' | 'weather' | 'heat' | 'crew' | 'corruption' | 'vehicle' | 'karma' | 'flavor';
 
 export interface NewsItem {
   text: string;
@@ -331,6 +331,140 @@ function crewNews(state: GameState): NewsItem[] {
   return items;
 }
 
+function corruptionNews(state: GameState): NewsItem[] {
+  const items: NewsItem[] = [];
+  const contacts = (state as any).corruptContacts || [];
+  const activeContacts = contacts.filter((c: any) => c.recruited);
+
+  if (activeContacts.length >= 3) {
+    items.push({
+      text: 'Interne Zaken opent onderzoek naar "systematische corruptie" bij NHPD',
+      category: 'corruption', urgency: 'high', icon: '🕵️',
+      detail: 'Anonieme bronnen spreken van een netwerk dat tot in de hoogste regionen reikt.',
+    });
+  } else if (activeContacts.length >= 1) {
+    const names = ['agent', 'wethouder', 'douanier', 'ambtenaar'];
+    items.push({
+      text: `Corruptie-schandaal: ${pick(names)} verdacht van banden met onderwereld`,
+      category: 'corruption', urgency: 'medium', icon: '💼',
+      detail: 'Een hoge ambtenaar wordt beschuldigd van het lekken van informatie aan criminelen.',
+    });
+  }
+
+  // Mr. Vermeer / advocate
+  if (contacts.some((c: any) => c.recruited && c.id === 'advocate')) {
+    items.push({
+      text: 'Strafpleiter "Mr. Vermeer" wint opnieuw spraakmakende zaak',
+      category: 'corruption', urgency: 'low', icon: '⚖️',
+      detail: 'Critici noemen hem "de advocaat van de duivel". Vermeer zelf: "Iedereen verdient verdediging."',
+    });
+  }
+
+  // Betrayal risk (high heat + contacts)
+  if (state.heat >= 70 && activeContacts.length > 0) {
+    items.push({
+      text: 'Geruchten over "klokkenluider" binnen crimineel netwerk — contacten nerveus',
+      category: 'corruption', urgency: 'high', icon: '🐀',
+      detail: 'Bij toenemende politiedruk groeit de angst voor verraad binnen het corruptienetwerk.',
+    });
+  }
+
+  return items;
+}
+
+function vehicleNews(state: GameState): NewsItem[] {
+  const items: NewsItem[] = [];
+  const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  const vehicleHeat = activeVehicle?.vehicleHeat ?? 0;
+
+  // High vehicle heat
+  if (vehicleHeat >= 60) {
+    items.push({
+      text: 'Politie geeft signalement vrij van "veelgezocht voertuig" — extra controles',
+      category: 'vehicle', urgency: 'high', icon: '🚗',
+      detail: 'Het voertuig is meermaals gespot bij verdachte activiteiten. Wegblokkades worden opgesteld.',
+    });
+  } else if (vehicleHeat >= 30) {
+    items.push({
+      text: 'Verkeerscontroles opgevoerd: NHPD zoekt naar verdacht voertuig',
+      category: 'vehicle', urgency: 'medium', icon: '🚔',
+      detail: 'Automobilisten klagen over lange wachttijden bij checkpoints door de stad.',
+    });
+  }
+
+  // Stolen cars
+  if ((state.stolenCars?.length || 0) >= 3) {
+    items.push({
+      text: `Autodiefstallen bereiken recordhoogte — ${state.stolenCars.length} voertuigen vermist`,
+      category: 'vehicle', urgency: 'medium', icon: '🔑',
+      detail: 'De politie vermoedt een georganiseerd netwerk achter de golf van autodiefstallen.',
+    });
+  }
+
+  // Luxury vehicle
+  if (activeVehicle && ['lupoghini', 'royaleryce', 'meridiolux'].includes(activeVehicle.id)) {
+    items.push({
+      text: `Opvallend luxe voertuig gespot in ${DISTRICTS[state.loc].name} — "Wie rijdt daarin?"`,
+      category: 'vehicle', urgency: 'low', icon: '🏎️',
+      detail: 'Buurtbewoners fotograferen het voertuig en plaatsen het op social media.',
+    });
+  }
+
+  // Chop shop activity
+  if ((state.stolenCars?.length || 0) > 0 && state.loc === 'iron') {
+    items.push({
+      text: 'Verdachte activiteit gemeld bij garages in Iron Borough — "Er wordt gesleuteld"',
+      category: 'vehicle', urgency: 'low', icon: '🔧',
+      detail: "Bewoners horen 's nachts geluiden van metaalbewerking uit verlaten panden.",
+    });
+  }
+
+  return items;
+}
+
+function karmaNews(state: GameState): NewsItem[] {
+  const items: NewsItem[] = [];
+  const karma = state.karma || 0;
+
+  if (karma <= -60) {
+    items.push({
+      text: 'Bewoners leven in angst: "Er heerst een schrikbewind in Noxhaven"',
+      category: 'karma', urgency: 'high', icon: '😨',
+      detail: 'Een anonieme brief aan de krant beschrijft een stad gegijzeld door een meedogenloze crimineel.',
+    });
+    items.push({
+      text: '"De Slager van Noxhaven" — bijnaam duikt op in onderwereldkringen',
+      category: 'karma', urgency: 'medium', icon: '🔪',
+      detail: 'Rivalen fluisteren over een figuur die geen genade kent. De reputatie groeit.',
+    });
+  } else if (karma <= -30) {
+    items.push({
+      text: 'Criminaliteitsexpert: "Er is iemand die de regels niet respecteert"',
+      category: 'karma', urgency: 'medium', icon: '⚠️',
+      detail: 'Analisten wijzen op een patroon van meedogenloos geweld dat steeds brutaler wordt.',
+    });
+  } else if (karma >= 60) {
+    items.push({
+      text: 'Mysterieuze weldoener doneert aan goede doelen in Lowrise',
+      category: 'karma', urgency: 'low', icon: '🕊️',
+      detail: 'Anonieme donaties stromen binnen bij opvanghuizen en voedselbanken.',
+    });
+    items.push({
+      text: '"Robin Hood van de onderwereld" — verhalen over een crimineel met een hart',
+      category: 'karma', urgency: 'medium', icon: '💚',
+      detail: 'Straatbewoners spreken lovend over een figuur die steelt van de rijken en geeft aan de armen.',
+    });
+  } else if (karma >= 30) {
+    items.push({
+      text: 'Buurtcomité bedankt anonieme sponsor voor renovatie speeltuin Lowrise',
+      category: 'karma', urgency: 'low', icon: '🌱',
+      detail: 'De nieuwe speeltuin is gefinancierd door een onbekende gulle gever uit de "zakenwereld".',
+    });
+  }
+
+  return items;
+}
+
 // ========== MAIN GENERATOR ==========
 
 export function generateDailyNews(state: GameState): NewsItem[] {
@@ -342,6 +476,9 @@ export function generateDailyNews(state: GameState): NewsItem[] {
     ...weatherNews(state),
     ...heatNews(state),
     ...crewNews(state),
+    ...corruptionNews(state),
+    ...vehicleNews(state),
+    ...karmaNews(state),
   ];
 
   // Shuffle and pick 1-2 contextual items
