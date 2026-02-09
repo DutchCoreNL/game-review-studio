@@ -1,133 +1,84 @@
 
-# Noxhaven Spelreview: Verbeterpunten & Vernieuwingen
 
-Na het doorlopen van alle systemen, bestanden en logica heb ik de volgende aandachtsgebieden geidentificeerd, gegroepeerd op prioriteit.
+# Gevechtsysteem Verbetering: Verhalende District-Gevechten
 
----
+## Overzicht
 
-## A. BUGS & INCONSISTENTIES (Hoge Prioriteit)
+Het huidige gevecht bestaat uit 4 generieke knoppen (Aanval, Zware Klap, Verdedig, Omgeving) met korte logberichten. De verbetering maakt elk gevecht tot een mini-verhaal met district-specifieke keuzes, narratieve beschrijvingen en tactische opties die passen bij de locatie.
 
-### 1. Dubbele Reward bij Nemesis Defeat
-In `engine.ts` (regel 1010-1012) wordt `resolveNemesisDefeat()` aangeroepen, die al geld en rep toevoegt. Maar daarna berekent de combat log opnieuw dezelfde reward. De speler krijgt de beloning maar 1x (correct), maar de log kan verwarrend zijn omdat het bedrag al in `resolveNemesisDefeat` wordt verwerkt.
+## Wat verandert er voor de speler?
 
-### 2. Legacy HQ-Upgrade Checks Nog Actief
-Hoewel HQ_UPGRADES leeg is gemaakt, staan er nog actieve checks op `state.hqUpgrades` in:
-- `engine.ts` regel 71: `state.hqUpgrades.includes('garage')` (naast de villa-check)
-- `engine.ts` regel 410: `state.hqUpgrades.includes('lab')` 
-- `engine.ts` regel 435: `state.hqUpgrades.includes('safehouse')`
-- `engine.ts` regel 475-476: `state.hqUpgrades.includes('server')` (naast villa-check)
-- `engine.ts` regel 484: `state.hqUpgrades.includes('safehouse')` (personal heat decay)
+- **Elke beurt toont een korte verhaaltekst** die beschrijft wat er in het gevecht gebeurt, passend bij het district (bijv. "Je duikt weg achter een roestige container terwijl kogels over de havenkade fluiten...")
+- **Acties hebben narratieve labels per district** in plaats van generieke "AANVAL" / "VERDEDIG" (bijv. in Port Nero: "Schieten vanuit dekking" / "Verschuil achter containers")
+- **Een 5e tactische actie** verschijnt context-afhankelijk (bijv. in Neon Strip: "Lichten uitschakelen" voor een bonus stun)
+- **Gevechtslog wordt een verhaallijn** met sfeervolle beschrijvingen per district
 
-Deze code doet functioneel niets meer (lege array), maar maakt de code onnodig complex. Opruimen maakt het geheel schoner.
+## Technisch Plan
 
-### 3. Deep Clone Performance
-`GameContext.tsx` regel 167: `JSON.parse(JSON.stringify(state))` wordt bij **elke** action aangeroepen. Bij een complexe state met 50+ velden, arrays van objecten, en geneste data is dit traag. Een structurele immutable-update (of immer.js) zou de performance verbeteren.
+### 1. Uitbreiding `COMBAT_ENVIRONMENTS` in `src/game/constants.ts`
 
-### 4. Mutaties op Geclonede State
-Functies zoals `addVehicleHeat`, `addPersonalHeat`, `splitHeat` muteren de state direct. Dit werkt alleen omdat de reducer een deep-clone maakt, maar het is fragiel en kan subtiele bugs veroorzaken als de clone incompleet is.
+De huidige structuur per district krijgt rijkere data:
 
----
+```typescript
+export const COMBAT_ENVIRONMENTS = {
+  port: {
+    name: "Havenkade",
+    scenePhrases: [
+      "De zilte wind blaast over de verlaten kade. Containers torenen als stalen muren om je heen.",
+      "Een scheepshoorn loeIt in de verte terwijl je vijand achter een vorkheftruck duikt.",
+      "Olie glanst op het natte beton. De geur van diesel en gevaar hangt in de lucht.",
+    ],
+    actions: {
+      attack: { label: "VUUR VANUIT DEKKING", desc: "Schiet vanachter een container", logs: [...] },
+      heavy: { label: "KRAAN LATEN VALLEN", desc: "Riskant maar verwoestend", logs: [...] },
+      defend: { label: "DEKKING ACHTER CONTAINERS", desc: "Gebruik de havenkade als schild", logs: [...] },
+      environment: { label: "HAAKKABEL SLINGEREN", desc: "Stun met havenwerktuigen", logs: [...] },
+      tactical: { label: "VLUCHTHAVEN", desc: "Spring in het water voor reset", stat: "brains", logs: [...] },
+    },
+    enemyAttackLogs: [
+      "{name} schiet vanuit een containerdeur!",
+      "{name} gooit een brandbom over de kade!",
+    ],
+  },
+  // crown, iron, low, neon...
+};
+```
 
-## B. GAMEPLAY BALANS (Medium Prioriteit)
+### 2. Update `CombatView.tsx`
 
-### 5. Schuld Cap Te Hoog
-De schuld-cap staat op `€250.000` (engine.ts regel 283). Met 3% rente per dag is dat `€7.500/dag` aan rente. Op dit niveau is het vrijwel onmogelijk om eruit te komen. Een lager plafond (bijv. `€100.000`) of afnemende rente zou eerlijker zijn.
+- Toon een **scene-beschrijving** bovenaan het gevecht die wisselt per beurt (uit `scenePhrases`)
+- Vervang generieke knoplabels door district-specifieke labels uit de nieuwe data
+- Voeg een **5e tactische knop** toe die per district uniek is (bijv. stat-check met bonus effect)
+- Combat log entries gebruiken de narratieve logs in plaats van droge "X schade" berichten
+- Typewriter-effect op de scene-beschrijving voor immersie
 
-### 6. Casino is Te Toegankelijk
-Het casino is altijd beschikbaar (behalve bij storm), ongeacht level of locatie. Het zou logischer zijn als het casino alleen in Neon Strip beschikbaar is (het district heeft al een casino-perk).
+### 3. Update `combatAction()` in `src/game/engine.ts`
 
-### 7. Solo Operaties Schalen Niet
-De 5 solo operaties hebben vaste beloningen (`€300 - €12.000`). Na dag 20+ zijn de eerste 3 nutteloos. Beloningen zouden mee moeten schalen met level/dag.
+- Nieuwe actie `'tactical'` toevoegen aan de switch-case
+- Log-berichten selecteren uit de district-specifieke arrays
+- Tactical actie: stat-check met uniek effect per district (extra schade, heal, stun, heat-reductie)
+- Vijand-aanval logs ook narratief per district
 
-### 8. Contract Beloningen Schalen Oneindig
-Contractbeloningen groeien met `1 + day * 0.05` tot max 4x. Maar op dag 60+ zijn dit al `€24.000+` per contract, wat de economie breekt. Een strengere cap of plateau zou beter zijn.
+### 4. Type-update in `src/game/types.ts`
 
-### 9. Crew Limiet Te Laag
-Max 6 crew (8 met villa crew kwartieren). Met 4 rollen en specialisaties is dit vrij krap. Een geleidelijke verhoging per endgame-fase zou meer strategische diepte bieden.
+- Combat action type uitbreiden: `'attack' | 'heavy' | 'defend' | 'environment' | 'tactical'`
 
-### 10. Geen Onderhoudskosten
-Districten, voertuigen en bedrijven hebben geen lopende kosten. Eenmaal gekocht is het pure winst. Onderhoudskosten (bijv. 5% van de aankoopprijs per "week") zouden de economie realistischer maken.
+## Bestanden die worden aangepast
 
----
+| Bestand | Wijziging |
+|---|---|
+| `src/game/constants.ts` | `COMBAT_ENVIRONMENTS` volledig herschreven met narratieve data per district (5 districts x ~25 tekstregels) |
+| `src/game/types.ts` | Combat action type uitbreiden met `'tactical'` |
+| `src/game/engine.ts` | `combatAction()` updaten: narratieve logs, tactical actie, vijand-logs per district |
+| `src/components/game/CombatView.tsx` | Scene-beschrijving tonen, district-specifieke knoplabels, 5e tactical knop, typewriter-effect |
 
-## C. ONTBREKENDE FEATURES (Medium Prioriteit)
+## District-specifieke sfeer (voorbeelden)
 
-### 11. Geen Statistieken/Overzicht Pagina
-Er is geen plek waar de speler een totaaloverzicht kan zien van: totale inkomsten per bron, heat breakdown, actieve bonussen, etc. Dit zou het profiel-tab veel waardevoller maken.
+| District | Sfeer | Tactical Actie | Stat |
+|---|---|---|---|
+| Port Nero | Containers, kranen, olievlekken, scheepshoorns | "Vluchthaven" - spring in het water | Brains |
+| Crown Heights | Penthouse, beveiligingssystemen, glazen wanden | "Alarm Triggeren" - vijand raakt in paniek | Brains |
+| Iron Borough | Fabriekshallen, gesmolten metaal, zware machines | "Oven Openen" - brand-AOE schade | Muscle |
+| Lowrise | Steegjes, graffiti, brandtrappen, ratten | "Vlucht via Daken" - ontsnap + heal | Charm |
+| Neon Strip | Neonlicht, speakers, menigte, flitsende borden | "Blackout" - lichten uit voor bonus stun | Brains |
 
-### 12. Geen Save Slots
-Er is maar 1 save slot. Spelers kunnen niet meerdere runs bewaren of experimenteren.
-
-### 13. Geen Geluid/Muziek Integratie
-`src/game/sounds.ts` bestaat maar wordt nergens actief gebruikt in de UI. Geluidseffecten bij combat, handel, en events zouden de immersie sterk verbeteren.
-
-### 14. Geen District-Specifieke Events
-De random events zijn generiek en niet district-specifiek. Port Nero zou havengebonden events moeten hebben, Crown Heights financiele events, etc.
-
-### 15. Achievement Notificaties Ontbreken
-Achievements worden gecheckt (`checkAchievements`), maar er is geen visuele notificatie/popup wanneer een achievement wordt ontgrendeld.
-
----
-
-## D. UX/UI VERBETERINGEN (Medium Prioriteit)
-
-### 16. Kaart Knoppen Overload
-De MapView heeft tot 5 knoppen onderaan (Dag Afsluiten, Casino, Chop Shop, Safehouse, Villa). Op een 320px breed scherm is dit krap. Een "meer..." dropdown of contextmenu zou schoner zijn.
-
-### 17. Geen Bevestiging bij Dure Aankopen
-Bij het kopen van een district (€85.000 voor Crown Heights) of villa (€150.000) is er geen bevestigingsdialoog. Een misclick kan desastreus zijn.
-
-### 18. Night Report is Overweldigend
-Het nachtrapport toont soms 10+ items (district income, business income, washing, lab, villa productie, defense, nemesis, smuggling, weather, ammo, etc.). Een samenvatting met uitklap-details zou leesbaarder zijn.
-
----
-
-## E. CODE KWALITEIT (Lage Prioriteit, Hoge Impact)
-
-### 19. GameContext.tsx is 2000 Regels
-De reducer alleen is al 1500+ regels. Opsplitsen in sub-reducers (tradeReducer, combatReducer, villaReducer, etc.) zou de onderhoudbaarheid drastisch verbeteren.
-
-### 20. Type `any` Gebruik
-Er zijn meerdere `any` casts in de codebase:
-- `(s as any).seenEndgameEvents` (GameContext regel 311-312)
-- `pendingStreetEvent: any | null` in types.ts
-- Deze zouden getypt moeten worden.
-
-### 21. Circulaire Import Risico
-`engine.ts` importeert uit `newFeatures.ts`, die weer uit `engine.ts` importeert. Dit werkt nu, maar is fragiel.
-
----
-
-## Aanbevolen Actieplan (Top 5)
-
-1. **HQ legacy code opruimen** -- Verwijder alle `hqUpgrades.includes()` checks uit engine.ts (puur opruimwerk, geen gameplay-impact)
-2. **Solo operaties laten schalen** -- Beloningen mee laten groeien met speler-level
-3. **Achievement popup toevoegen** -- Visuele feedback wanneer een achievement wordt ontgrendeld
-4. **Casino locatiegebonden maken** -- Alleen beschikbaar in Neon Strip
-5. **Statistieken-overzicht in profiel** -- Heat breakdown, inkomensbronnen, actieve bonussen
-
----
-
-## Technische Details per Verbetering
-
-### HQ Legacy Opruimen (punt 1 & 2)
-- **engine.ts**: Verwijder alle `state.hqUpgrades.includes(...)` checks (regels 71, 410, 435, 475, 484)
-- Behoud alleen de villa-module checks die er al staan
-
-### Solo Ops Scaling (punt 7)
-- **constants.ts**: Voeg een `rewardScale` factor toe aan `SoloOperation`
-- **engine.ts** `performSoloOp()`: `reward = op.reward * (1 + state.player.level * 0.1)`
-- Cap op 3x basis voor balans
-
-### Achievement Popup (punt 15)
-- Nieuw component `AchievementPopup.tsx`
-- In `GameLayout.tsx`: state voor `pendingAchievement`
-- In de END_TURN action: check voor nieuwe achievements en toon popup
-
-### Casino Locatiegebonden (punt 6)
-- **MapView.tsx**: Casino-knop alleen tonen als `state.loc === 'neon'`
-- VIP Casino perk (Crown Heights rep 50) geeft ook toegang
-
-### Statistieken Overzicht (punt 11)
-- Nieuw component `StatsOverviewPanel.tsx` in profiel
-- Toont: inkomsten per bron, heat breakdown, actieve bonussen, handelsstatistieken
