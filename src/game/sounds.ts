@@ -173,3 +173,104 @@ export function playPositiveSound() {
   playTone(880, 0.12, 'sine', 0, 0.2);
   playTone(1320, 0.18, 'sine', 0.08, 0.2);
 }
+
+// ── Combat hit — sharp impact ───────────────────────────────────
+
+export function playHitSound() {
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.25, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+  osc.connect(gain);
+  gain.connect(getMaster());
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.2);
+
+  // Add noise burst for impact
+  const noise = ctx.createOscillator();
+  const noiseGain = ctx.createGain();
+  noise.type = 'square';
+  noise.frequency.setValueAtTime(80, ctx.currentTime);
+  noiseGain.gain.setValueAtTime(0.12, ctx.currentTime);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+  noise.connect(noiseGain);
+  noiseGain.connect(getMaster());
+  noise.start(ctx.currentTime);
+  noise.stop(ctx.currentTime + 0.1);
+}
+
+// ── Heavy hit — bigger impact ───────────────────────────────────
+
+export function playHeavyHitSound() {
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.25);
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+  osc.connect(gain);
+  gain.connect(getMaster());
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.35);
+
+  // Sub boom
+  const sub = ctx.createOscillator();
+  const subGain = ctx.createGain();
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(60, ctx.currentTime);
+  subGain.gain.setValueAtTime(0.18, ctx.currentTime);
+  subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+  sub.connect(subGain);
+  subGain.connect(getMaster());
+  sub.start(ctx.currentTime);
+  sub.stop(ctx.currentTime + 0.25);
+}
+
+// ── Shield / defend sound ───────────────────────────────────────
+
+export function playDefendSound() {
+  playTone(330, 0.15, 'triangle', 0, 0.15);
+  playTone(440, 0.12, 'triangle', 0.06, 0.12);
+}
+
+// ── Victory fanfare ─────────────────────────────────────────────
+
+export function playVictorySound() {
+  const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+  notes.forEach((freq, i) => {
+    playTone(freq, 0.2, 'sine', i * 0.12, 0.2);
+  });
+}
+
+// ── Defeat sound ────────────────────────────────────────────────
+
+export function playDefeatSound() {
+  const notes = [440, 370, 311, 261]; // A4 descending
+  notes.forEach((freq, i) => {
+    playTone(freq, 0.25, 'triangle', i * 0.15, 0.18);
+  });
+}
+
+// ── Purchase / buy sound ────────────────────────────────────────
+
+export function playPurchaseSound() {
+  playTone(660, 0.08, 'sine', 0, 0.15);
+  playTone(880, 0.1, 'sine', 0.06, 0.15);
+}
+
+// ── Achievement unlock ──────────────────────────────────────────
+
+export function playAchievementSound() {
+  const notes = [659, 784, 988, 1319]; // E5 G5 B5 E6
+  notes.forEach((freq, i) => {
+    playTone(freq, 0.18, 'sine', i * 0.1, 0.2);
+  });
+  // Shimmer
+  playTone(1568, 0.3, 'sine', 0.4, 0.08);
+}

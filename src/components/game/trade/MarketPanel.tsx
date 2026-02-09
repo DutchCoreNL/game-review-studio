@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS, GOOD_CATEGORIES } from '@/game/constants';
+import { playCoinSound, playPurchaseSound, playNegativeSound } from '@/game/sounds';
 import { GoodId, TradeMode } from '@/game/types';
 import { getPlayerStat, getBestTradeRoute } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
@@ -42,12 +43,14 @@ export function MarketPanel() {
       : quantity;
 
     if (actualQty <= 0) {
+      playNegativeSound();
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
     const moneyBefore = state.money;
     dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
     const good = GOODS.find(g => g.id === gid);
+    if (tradeMode === 'sell') playCoinSound(); else playPurchaseSound();
     showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
 
     // Calculate trade amount for floater

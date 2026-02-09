@@ -6,7 +6,8 @@ import { TypewriterText } from './animations/TypewriterText';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Brain, Star, Flame, AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { playDramaticReveal } from '@/game/sounds';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={11} />,
@@ -31,6 +32,10 @@ export function StoryEventPopup() {
   const event = state.pendingStreetEvent;
   const [result, setResult] = useState<{ success: boolean; text: string } | null>(null);
   const [textDone, setTextDone] = useState(false);
+
+  useEffect(() => {
+    if (event) playDramaticReveal();
+  }, [event?.id]);
 
   if (!event) return null;
 
