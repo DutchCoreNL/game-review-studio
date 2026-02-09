@@ -13,6 +13,7 @@ import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
 import { generateHitContracts, executeHit } from '../game/hitman';
+import { generateDailyNews } from '../game/newsGenerator';
 
 interface GameContextType {
   state: GameState;
@@ -363,6 +364,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       // Generate hit contracts
       s.hitContracts = generateHitContracts(s);
+      // Generate daily news
+      (s as any).dailyNews = generateDailyNews(s);
       // Small chance to find ammo after successful missions/operations
       if (Math.random() < 0.2) {
         const foundAmmo = 2 + Math.floor(Math.random() * 4);
@@ -1701,6 +1704,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.activeHeist === undefined) saved.activeHeist = null;
       if (!saved.heistCooldowns) saved.heistCooldowns = {};
       if (saved.heistPlan === undefined) saved.heistPlan = null;
+      // News migration
+      if (!saved.dailyNews) saved.dailyNews = [];
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

@@ -1,5 +1,4 @@
 import { useGame } from '@/contexts/GameContext';
-import { NEWS_ITEMS } from '@/game/constants';
 import { GameButton } from './ui/GameButton';
 import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
@@ -8,9 +7,12 @@ import { CasinoView } from './CasinoView';
 import { ChopShopView } from './ChopShopView';
 import { SafehouseView } from './SafehouseView';
 import { NemesisInfo } from './map/NemesisInfo';
+import { NewsTicker } from './map/NewsTicker';
+import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Moon, Dices, Wrench, Home } from 'lucide-react';
 import { DistrictId } from '@/game/types';
+import { NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 
 export function MapView() {
@@ -22,6 +24,7 @@ export function MapView() {
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
 
   // Detect location changes and trigger travel animation
   useEffect(() => {
@@ -33,7 +36,7 @@ export function MapView() {
     }
   }, [state.loc]);
 
-  const newsText = NEWS_ITEMS[state.day % NEWS_ITEMS.length];
+  const newsItems: NewsItem[] = (state as any).dailyNews || [];
 
   const handleEndTurn = () => {
     if (state.debt > 250000) {
@@ -98,16 +101,10 @@ export function MapView() {
       <HidingOverlay />
 
       {/* News ticker */}
-      <div className="bg-background border border-border rounded overflow-hidden mb-3 flex items-center font-mono">
-        <span className="text-blood font-bold text-[0.6rem] uppercase border-r border-border px-2 py-1.5 flex-shrink-0 bg-background z-10 relative">
-          NEWS
-        </span>
-        <div className="flex-1 overflow-hidden ml-2">
-          <span className="text-muted-foreground text-[0.65rem] whitespace-nowrap ticker-scroll inline-block">
-            {newsText}
-          </span>
-        </div>
-      </div>
+      <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
+
+      {/* News detail popup */}
+      <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
 
       {/* City Map */}
       <div className="mb-3">

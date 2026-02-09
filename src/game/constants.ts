@@ -523,6 +523,8 @@ export function createInitialState(): import('./types').GameState {
     activeHeist: null,
     heistCooldowns: {},
     heistPlan: null,
+    // News state
+    dailyNews: [],
   };
 }
 
