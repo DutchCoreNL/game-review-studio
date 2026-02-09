@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { NewsItem } from '@/game/newsGenerator';
@@ -22,14 +23,13 @@ const CATEGORY_LABELS: Record<string, { label: string; variant: 'blood' | 'gold'
 };
 
 export function NewsDetailPopup({ item, onClose }: NewsDetailPopupProps) {
-  if (!item) return null;
-
-  const cat = CATEGORY_LABELS[item.category] || CATEGORY_LABELS.flavor;
+  const cat = item ? (CATEGORY_LABELS[item.category] || CATEGORY_LABELS.flavor) : CATEGORY_LABELS.flavor;
 
   return (
     <AnimatePresence>
       {item && (
         <motion.div
+          key={item.text}
           initial={{ opacity: 0, y: 8, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 8, scale: 0.97 }}

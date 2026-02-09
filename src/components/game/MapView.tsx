@@ -12,7 +12,7 @@ import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Moon, Dices, Wrench, Home } from 'lucide-react';
 import { DistrictId } from '@/game/types';
-import { NewsItem } from '@/game/newsGenerator';
+import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 
 export function MapView() {
@@ -36,7 +36,7 @@ export function MapView() {
     }
   }, [state.loc]);
 
-  const newsItems: NewsItem[] = (state as any).dailyNews || [];
+  const newsItems = state.dailyNews;
 
   const handleEndTurn = () => {
     if (state.debt > 250000) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NewsItem } from '@/game/newsGenerator';
 
@@ -15,27 +15,40 @@ const URGENCY_STYLES: Record<string, string> = {
 
 export function NewsTicker({ items, onClickItem }: NewsTickerProps) {
   const [index, setIndex] = useState(0);
+  // Stabilize items reference — only reset when content actually changes
+  const itemsRef = useRef(items);
+  const prevTexts = useRef('');
+
+  const currentTexts = items.map(i => i.text).join('|');
+  if (currentTexts !== prevTexts.current) {
+    prevTexts.current = currentTexts;
+    itemsRef.current = items;
+  }
+
+  const stableItems = itemsRef.current;
 
   const advance = useCallback(() => {
-    if (items.length > 1) {
-      setIndex(prev => (prev + 1) % items.length);
+    if (stableItems.length > 1) {
+      setIndex(prev => (prev + 1) % stableItems.length);
     }
-  }, [items.length]);
+  }, [stableItems.length]);
 
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (stableItems.length <= 1) return;
     const interval = setInterval(advance, 6000);
     return () => clearInterval(interval);
-  }, [advance, items.length]);
+  }, [advance, stableItems.length]);
 
-  // Reset index when items change (new day)
+  // Reset index when items actually change (new day)
   useEffect(() => {
-    setIndex(0);
-  }, [items]);
+    if (currentTexts !== prevTexts.current) {
+      setIndex(0);
+    }
+  }, [currentTexts]);
 
-  if (items.length === 0) return null;
+  if (stableItems.length === 0) return null;
 
-  const current = items[index % items.length];
+  const current = stableItems[index % stableItems.length];
 
   return (
     <div className="bg-background border border-border rounded overflow-hidden mb-3 flex items-center font-mono">
@@ -67,13 +80,13 @@ export function NewsTicker({ items, onClickItem }: NewsTickerProps) {
       </div>
 
       {/* Dot indicators */}
-      {items.length > 1 && (
+      {stableItems.length > 1 && (
         <div className="flex gap-0.5 px-2 flex-shrink-0">
-          {items.map((_, i) => (
+          {stableItems.map((_, i) => (
             <div
               key={i}
               className={`w-1 h-1 rounded-full transition-colors ${
-                i === index % items.length ? 'bg-blood' : 'bg-border'
+                i === index % stableItems.length ? 'bg-blood' : 'bg-border'
               }`}
             />
           ))}
