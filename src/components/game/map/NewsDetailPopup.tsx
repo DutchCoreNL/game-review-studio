@@ -15,6 +15,9 @@ const CATEGORY_LABELS: Record<string, { label: string; variant: 'blood' | 'gold'
   weather: { label: 'WEER', variant: 'ice' },
   heat: { label: 'POLITIE', variant: 'blood' },
   crew: { label: 'CREW', variant: 'purple' },
+  corruption: { label: 'CORRUPTIE', variant: 'purple' },
+  vehicle: { label: 'VERKEER', variant: 'gold' },
+  karma: { label: 'REPUTATIE', variant: 'emerald' },
   flavor: { label: 'NOXHAVEN', variant: 'muted' },
 };
 
