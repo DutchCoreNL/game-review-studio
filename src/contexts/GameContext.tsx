@@ -1882,6 +1882,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (saved.villa.storedAmmo === undefined) saved.villa.storedAmmo = 0;
         if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = false;
         if (!saved.villa.storedGoods) saved.villa.storedGoods = {};
+        if (saved.villa.lastPartyDay === undefined) saved.villa.lastPartyDay = 0;
       }
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
