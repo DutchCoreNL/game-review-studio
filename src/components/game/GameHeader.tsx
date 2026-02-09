@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle, getActiveVehicleHeat } from '@/game/engine';
 import { WEATHER_EFFECTS } from '@/game/constants';
@@ -9,8 +10,11 @@ import { RewardPopup } from './animations/RewardPopup';
 import { ResourceTile } from './header/ResourceTile';
 import { HeatTile } from './header/HeatTile';
 import { KarmaChip } from './header/KarmaChip';
+import { ResourcePopup } from './ResourcePopup';
 import { motion } from 'framer-motion';
 import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair } from 'lucide-react';
+
+type PopupType = 'rep' | 'heat' | 'debt' | 'level' | null;
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,
@@ -30,6 +34,7 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
 
 export function GameHeader() {
   const { state, dispatch } = useGame();
+  const [popup, setPopup] = useState<PopupType>(null);
   const rank = getRankTitle(state.rep);
   const weatherDef = WEATHER_EFFECTS[state.weather];
   const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
@@ -99,7 +104,8 @@ export function GameHeader() {
           label="REP"
           value={state.rep}
           color="text-gold"
-          tooltip="Reputatie bepaalt je rang in de onderwereld. Verdien REP door missies, operaties en gevechten te voltooien."
+          tooltip="Reputatie bepaalt je rang in de onderwereld."
+          onTap={() => setPopup('rep')}
         />
 
         <div className="relative">
@@ -107,7 +113,8 @@ export function GameHeader() {
             label="LVL"
             value={state.player.level}
             color="text-gold"
-            tooltip="Je level stijgt door XP te verdienen. Bij elk level krijg je skillpunten om je stats te verbeteren."
+            tooltip="Je level stijgt door XP te verdienen."
+            onTap={() => setPopup('level')}
           />
           {state.player.skillPoints > 0 && (
             <motion.span
@@ -129,7 +136,7 @@ export function GameHeader() {
           tooltip="Kogels zijn nodig voor gevechten en huurmoorden. Koop ze in de markt, sloop auto's in de crusher, of bouw een Kogelfabriek."
         />
 
-        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} />
+        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
 
         <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} />
 
@@ -139,7 +146,8 @@ export function GameHeader() {
             value={`€${(state.debt / 1000).toFixed(0)}k`}
             color={state.debt > 100000 ? 'text-blood' : 'text-muted-foreground'}
             icon={state.debt > 100000 ? <Skull size={8} className="text-blood" /> : undefined}
-            tooltip="Je openstaande schuld. Betaal het af voordat het te hoog oploopt, anders komen de incasseerders langs."
+            tooltip="Je openstaande schuld."
+            onTap={() => setPopup('debt')}
           />
         )}
 
@@ -153,6 +161,9 @@ export function GameHeader() {
           />
         )}
       </div>
+
+      {/* Resource detail popup */}
+      <ResourcePopup type={popup} onClose={() => setPopup(null)} />
     </header>
   );
 }
