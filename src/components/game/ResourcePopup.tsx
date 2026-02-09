@@ -2,10 +2,12 @@ import { useGame } from '@/contexts/GameContext';
 import { getRankTitle, getPlayerStat, getActiveVehicleHeat } from '@/game/engine';
 import { REKAT_COSTS, VEHICLES } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench } from 'lucide-react';
+import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench, Crosshair, Heart, Zap } from 'lucide-react';
+import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
+import { AMMO_PACKS } from '@/game/constants';
 import { StatId } from '@/game/types';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | null;
+type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
 
 interface ResourcePopupProps {
   type: PopupType;
@@ -42,6 +44,8 @@ export function ResourcePopup({ type, onClose }: ResourcePopupProps) {
               {type === 'heat' && <HeatPanel onClose={onClose} />}
               {type === 'debt' && <DebtPanel onClose={onClose} />}
               {type === 'level' && <LevelPanel />}
+              {type === 'ammo' && <AmmoPanel />}
+              {type === 'karma' && <KarmaPanel />}
             </div>
           </motion.div>
         </>
@@ -471,6 +475,131 @@ function LevelPanel() {
       <p className="text-[0.6rem] text-muted-foreground mt-4 italic">
         Verdien XP door te handelen, missies te voltooien en districten te veroveren. Elke level-up geeft 2 skill points.
       </p>
+    </div>
+  );
+}
+
+// ========== AMMO PANEL ==========
+function AmmoPanel() {
+  const { state, dispatch, showToast } = useGame();
+  const ammo = state.ammo || 0;
+  const hasFactory = state.hqUpgrades.includes('ammofactory');
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Crosshair size={18} className="text-gold" />
+        <h3 className="font-bold text-sm uppercase tracking-wider">Kogels</h3>
+      </div>
+
+      <div className="text-center mb-4">
+        <span className={`text-3xl font-bold ${ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}`}>
+          {ammo}
+        </span>
+        <p className="text-xs text-muted-foreground mt-1">kogels op voorraad</p>
+      </div>
+
+      {ammo <= 3 && (
+        <div className="bg-[hsl(var(--blood)/0.1)] border border-blood rounded-lg p-2.5 mb-4 text-center">
+          <p className="text-xs text-blood font-bold">⚠️ Bijna geen munitie!</p>
+          <p className="text-[0.6rem] text-muted-foreground">Koop kogels of je kunt niet vechten.</p>
+        </div>
+      )}
+
+      <div className="space-y-2 mb-4">
+        {AMMO_PACKS.map(pack => (
+          <button
+            key={pack.id}
+            onClick={() => {
+              if (state.money < pack.cost) {
+                showToast('Niet genoeg geld!', true);
+                return;
+              }
+              dispatch({ type: 'BUY_AMMO', packId: pack.id });
+              showToast(`${pack.name} gekocht! +${pack.amount} kogels`);
+            }}
+            disabled={state.money < pack.cost}
+            className="w-full flex items-center justify-between py-2.5 px-3 rounded text-xs font-bold bg-muted/50 border border-border hover:border-gold disabled:opacity-30 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span>{pack.icon}</span>
+              <span>{pack.name}</span>
+            </span>
+            <span className="text-gold">€{pack.cost.toLocaleString()}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-1.5 text-[0.6rem] text-muted-foreground">
+        <p>🔫 Kogels worden gebruikt bij gevechten en huurmoorden.</p>
+        <p>🏭 Kogelfabriek: {hasFactory ? <span className="text-emerald font-bold">Actief — produceert automatisch kogels</span> : 'Nog niet gebouwd (HQ upgrade)'}</p>
+        <p>🚗 Sloop auto's in de Crusher voor extra kogels.</p>
+      </div>
+    </div>
+  );
+}
+
+// ========== KARMA PANEL ==========
+function KarmaPanel() {
+  const { state } = useGame();
+  const karma = state.karma || 0;
+  const alignment = getKarmaAlignment(karma);
+  const label = getKarmaLabel(karma);
+  const barPos = Math.round(((karma + 100) / 200) * 100);
+
+  const isMeedogenloos = alignment === 'meedogenloos';
+  const isEerbaar = alignment === 'eerbaar';
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        {isMeedogenloos ? <Zap size={18} className="text-blood" /> : isEerbaar ? <Shield size={18} className="text-gold" /> : <Heart size={18} className="text-muted-foreground" />}
+        <h3 className="font-bold text-sm uppercase tracking-wider">Karma</h3>
+      </div>
+
+      <div className="text-center mb-4">
+        <span className={`text-xl font-display tracking-widest ${isMeedogenloos ? 'text-blood' : isEerbaar ? 'text-gold' : 'text-muted-foreground'}`}>
+          {label}
+        </span>
+        <p className="text-2xl font-bold mt-1">{karma}</p>
+      </div>
+
+      {/* Karma bar */}
+      <div className="mb-4">
+        <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
+          <span className="text-blood">Meedogenloos</span>
+          <span>Neutraal</span>
+          <span className="text-gold">Eerbaar</span>
+        </div>
+        <div className="relative h-3 rounded-full overflow-hidden"
+          style={{ background: 'linear-gradient(90deg, hsl(0 72% 51% / 0.3), transparent 40%, transparent 60%, hsl(45 93% 47% / 0.3))' }}
+        >
+          <div className="absolute inset-0 bg-muted/30 rounded-full" />
+          <motion.div
+            className={`absolute top-0 h-full w-2 rounded-full ${isMeedogenloos ? 'bg-blood' : isEerbaar ? 'bg-gold' : 'bg-muted-foreground'}`}
+            animate={{ left: `${Math.max(0, Math.min(95, barPos) - 2)}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        <div className="flex justify-between text-[0.5rem] text-muted-foreground mt-0.5">
+          <span>-100</span>
+          <span>0</span>
+          <span>+100</span>
+        </div>
+      </div>
+
+      {/* Effects */}
+      <div className="space-y-1.5 mb-3">
+        <InfoRow label="Alignment" value={label} valueClass={isMeedogenloos ? 'text-blood' : isEerbaar ? 'text-gold' : undefined} />
+        <InfoRow label="Karma score" value={String(karma)} />
+      </div>
+
+      <div className="space-y-1.5 text-[0.6rem] text-muted-foreground">
+        <p className="font-semibold text-foreground text-xs mb-1">Wat beïnvloedt karma?</p>
+        <p>⬆️ <span className="text-gold">Eerbaar:</span> Hulp bieden, vijanden sparen, eerlijk handelen</p>
+        <p>⬇️ <span className="text-blood">Meedogenloos:</span> Huurmoorden, verraad, geweld tegen onschuldigen</p>
+        <p className="mt-2 italic">Je alignment beïnvloedt NPC-relaties, beschikbare missies en speciale verhaallijnen.</p>
+      </div>
     </div>
   );
 }
