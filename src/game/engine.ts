@@ -1,6 +1,7 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
+import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
@@ -1097,9 +1098,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const brains = getPlayerStat(state, 'brains');
   const charm = getPlayerStat(state, 'charm');
   const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
-  const bossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId] : null;
+  const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId] : null;
+  const finalBossOverride = combat.bossPhase ? FINAL_BOSS_COMBAT_OVERRIDES[combat.bossPhase] : null;
+  const override = finalBossOverride || factionBossOverride;
   // Boss override: use boss-specific actions/logs, fallback to district env
-  const env = bossOverride ? { ...baseEnv, actions: bossOverride.actions, enemyAttackLogs: bossOverride.enemyAttackLogs } : baseEnv;
+  const env = override ? { ...baseEnv, actions: override.actions, enemyAttackLogs: override.enemyAttackLogs } : baseEnv;
 
   const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   const fmt = (s: string, vars: Record<string, string | number>) =>
