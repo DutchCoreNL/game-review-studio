@@ -3,9 +3,9 @@
  * Weather, District Rep, Crew Specs, Smuggle Routes, Territory Defense, Nemesis, Phone
  */
 
-import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, SmuggleRoute, PhoneMessage, NightReportData } from './types';
-import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus } from './engine';
-import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
+import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat } from './engine';
+import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
 
@@ -183,62 +183,135 @@ export function resolveNemesisDefeat(state: GameState): void {
 
 // ========== 4. TERRITORY DEFENSE ==========
 
+/** Calculate total defense for a district based on HQ upgrades */
+export function getDistrictDefenseLevel(state: GameState, distId: DistrictId): number {
+  const def = state.districtDefenses[distId];
+  if (!def) return 0;
+  let total = def.fortLevel;
+  def.upgrades.forEach(uid => {
+    const upgDef = DISTRICT_HQ_UPGRADES.find(u => u.id === uid);
+    if (upgDef) total += upgDef.defense;
+  });
+  // Faction alliance bonus
+  const localFaction = Object.values(FAMILIES).find(f => f.home === distId);
+  if (localFaction && (state.familyRel[localFaction.id] || 0) >= 50) {
+    total += 15;
+  }
+  return total;
+}
+
+/** Calculate attack chance reduction from surveillance upgrades */
+function getAttackReduction(state: GameState, distId: DistrictId): number {
+  const def = state.districtDefenses[distId];
+  if (!def) return 0;
+  let reduction = 0;
+  def.upgrades.forEach(uid => {
+    const upgDef = DISTRICT_HQ_UPGRADES.find(u => u.id === uid);
+    if (upgDef) reduction += upgDef.attackReduction;
+  });
+  return reduction;
+}
+
+/** Check if district has command center for spionage */
+export function hasCommandCenter(state: GameState, distId: DistrictId): boolean {
+  const def = state.districtDefenses[distId];
+  return def?.upgrades.includes('command') || false;
+}
+
+/** Get random attacker name */
+function getAttackerName(): string {
+  const names = ['De Schaduw Bende', 'Los Diablos', 'Het Syndikaat', 'Zwarte Hand', 'De Wolven', 'Neon Vipers', 'Bloedbroederschap'];
+  return names[Math.floor(Math.random() * names.length)];
+}
+
+/** Generate war loot based on attack strength */
+function generateWarLoot(attackStrength: number, defenseLevel: number): { money: number; goodsLoot: { good: GoodId; amount: number } | null } {
+  const baseLoot = Math.min(5000, Math.max(500, Math.floor(attackStrength * 50)));
+  const overkill = defenseLevel - attackStrength;
+  const bonusMult = overkill > 30 ? 1.5 : overkill > 15 ? 1.2 : 1.0;
+  const money = Math.floor(baseLoot * bonusMult);
+
+  let goodsLoot: { good: GoodId; amount: number } | null = null;
+  if (Math.random() < 0.2) {
+    const goods: GoodId[] = ['drugs', 'weapons', 'tech', 'luxury', 'meds'];
+    goodsLoot = { good: goods[Math.floor(Math.random() * goods.length)], amount: 1 + Math.floor(Math.random() * 3) };
+  }
+
+  return { money, goodsLoot };
+}
+
 export function resolveDistrictAttacks(state: GameState, report: NightReportData): void {
   if (!report.defenseResults) report.defenseResults = [];
 
+  // Clean up expired sabotage effects
+  state.sabotageEffects = (state.sabotageEffects || []).filter(s => s.expiresDay > state.day);
+  // Clean up expired intel
+  state.spionageIntel = (state.spionageIntel || []).filter(s => s.expiresDay > state.day);
+
   state.ownedDistricts.forEach(distId => {
-    // Base attack chance: 15% + day/200 + personalHeat/200
-    // While hiding: +25% extra attack chance (enemies exploit your absence)
+    const attackReduction = getAttackReduction(state, distId);
     const hidingBonus = (state.hidingDays || 0) > 0 ? 0.25 : 0;
-    const attackChance = 0.15 + state.day / 200 + (state.personalHeat || 0) / 200 + hidingBonus;
-    if (Math.random() > attackChance) {
-      return; // No attack tonight
+    let attackChance = 0.15 + state.day / 200 + (state.personalHeat || 0) / 200 + hidingBonus;
+    attackChance *= (1 - attackReduction / 100); // surveillance reduces chance
+
+    if (Math.random() > attackChance) return;
+
+    const defenseLevel = getDistrictDefenseLevel(state, distId);
+
+    // Attack strength, reduced by sabotage
+    let attackStrength = 20 + Math.floor(Math.random() * 40) + Math.floor(state.day * 0.5);
+    const sabotage = (state.sabotageEffects || []).find(s => s.district === distId);
+    if (sabotage) {
+      attackStrength = Math.floor(attackStrength * (1 - sabotage.reductionPercent / 100));
     }
 
-    const def = state.districtDefenses[distId];
-    if (!def) return;
-
-    // Calculate defense level
-    let defenseLevel = def.level;
-    defenseLevel += def.stationedCrew.length * 20;
-    if (def.wallUpgrade) defenseLevel += 30;
-    if (def.turretUpgrade) defenseLevel += 20;
-
-    // Faction alliance bonus
-    const localFaction = Object.values(FAMILIES).find(f => f.home === distId);
-    if (localFaction && (state.familyRel[localFaction.id] || 0) >= 50) {
-      defenseLevel += 15;
+    // Check if this is a major attack that requires intervention
+    if (attackStrength > defenseLevel * 0.6 && !state.pendingWarEvent) {
+      state.pendingWarEvent = {
+        district: distId,
+        attackStrength,
+        defenseLevel,
+        attackerName: getAttackerName(),
+      };
+      addPhoneMessage(state, 'anonymous', `⚠️ Grote aanval op ${DISTRICTS[distId].name}! Interventie vereist!`, 'threat');
+      report.defenseResults.push({
+        district: distId,
+        attacked: true,
+        won: false,
+        details: `${DISTRICTS[distId].name}: Grote aanval! Interventie vereist.`,
+      });
+      return;
     }
 
-    // Attack strength scales with day
-    const attackStrength = 20 + Math.floor(Math.random() * 40) + Math.floor(state.day * 0.5);
-
+    // Auto-resolve smaller attacks
     const won = defenseLevel >= attackStrength;
 
     if (won) {
+      const loot = generateWarLoot(attackStrength, defenseLevel);
+      state.money += loot.money;
+      state.stats.totalEarned += loot.money;
       state.rep += 10;
       state.districtRep[distId] = Math.min(100, (state.districtRep[distId] || 0) + 5);
-      // Stationed crew gain XP
-      def.stationedCrew.forEach(ci => {
-        if (state.crew[ci]) {
-          state.crew[ci].xp += 5;
-        }
-      });
+      if (loot.goodsLoot) {
+        state.inventory[loot.goodsLoot.good] = (state.inventory[loot.goodsLoot.good] || 0) + loot.goodsLoot.amount;
+      }
+      const overkill = defenseLevel - attackStrength;
+      if (overkill > 30) state.rep += 15;
       report.defenseResults.push({
         district: distId,
         attacked: true,
         won: true,
-        details: `${DISTRICTS[distId].name} verdedigd! (${defenseLevel} vs ${attackStrength})`,
+        details: `${DISTRICTS[distId].name} verdedigd! (${defenseLevel} vs ${attackStrength}) +€${loot.money.toLocaleString()}`,
+        loot: loot.money,
+        goodsLoot: loot.goodsLoot,
       });
     } else {
-      // Lost district
       state.ownedDistricts = state.ownedDistricts.filter(d => d !== distId);
       state.rep = Math.max(0, state.rep - 30);
       const moneyLoss = Math.floor(state.money * 0.05);
       state.money = Math.max(0, state.money - moneyLoss);
-      // Clear defense
-      def.stationedCrew = [];
-      def.level = 0;
+      const def = state.districtDefenses[distId];
+      if (def) { def.upgrades = []; def.fortLevel = 0; }
       report.defenseResults.push({
         district: distId,
         attacked: true,
@@ -248,6 +321,101 @@ export function resolveDistrictAttacks(state: GameState, report: NightReportData
       addPhoneMessage(state, 'anonymous', `Je bent ${DISTRICTS[distId].name} kwijtgeraakt na een aanval!`, 'threat');
     }
   });
+}
+
+/** Resolve a war event with player tactic choice */
+export function resolveWarEvent(state: GameState, tactic: WarTactic): WarEventResult {
+  const war = state.pendingWarEvent!;
+  let defenseLevel = war.defenseLevel;
+  let won = false;
+  let details = '';
+
+  const muscle = getPlayerStat(state, 'muscle');
+  const brains = getPlayerStat(state, 'brains');
+  const charm = getPlayerStat(state, 'charm');
+
+  switch (tactic) {
+    case 'defend': {
+      // Standard defense with muscle bonus
+      defenseLevel += muscle * 3;
+      won = defenseLevel >= war.attackStrength;
+      details = won ? `Verdediging geslaagd met brute kracht! (${defenseLevel} vs ${war.attackStrength})` : `Verdediging gefaald. (${defenseLevel} vs ${war.attackStrength})`;
+      break;
+    }
+    case 'ambush': {
+      // Higher win chance but risky — brains check
+      const roll = Math.random() * 100;
+      const threshold = 50 - brains * 5;
+      if (roll > threshold) {
+        // Ambush success — massive defense boost
+        defenseLevel += 40 + brains * 5;
+        won = true;
+        details = `Hinderlaag succesvol! De vijand liep in de val. (${defenseLevel} vs ${war.attackStrength})`;
+      } else {
+        // Ambush failed — defense weakened
+        defenseLevel = Math.floor(defenseLevel * 0.5);
+        won = defenseLevel >= war.attackStrength;
+        details = won ? `Hinderlaag mislukt maar toch verdedigd. (${defenseLevel} vs ${war.attackStrength})` : `Hinderlaag mislukt! Verdediging gebroken. (${defenseLevel} vs ${war.attackStrength})`;
+      }
+      break;
+    }
+    case 'negotiate': {
+      // Pay money to buy off the attack — charm check
+      const bribeCost = Math.max(3000, Math.floor(war.attackStrength * 100) - charm * 500);
+      if (state.money >= bribeCost) {
+        state.money -= bribeCost;
+        state.stats.totalSpent += bribeCost;
+        won = true;
+        details = `Aanval afgekocht voor €${bribeCost.toLocaleString()}. Diplomatie wint.`;
+      } else {
+        won = false;
+        details = `Niet genoeg geld om te onderhandelen (€${bribeCost.toLocaleString()} nodig). Aanval niet gestopt.`;
+      }
+      break;
+    }
+  }
+
+  let loot = 0;
+  let goodsLoot: { good: GoodId; amount: number } | null = null;
+
+  if (won) {
+    const warLoot = generateWarLoot(war.attackStrength, defenseLevel);
+    loot = warLoot.money;
+    goodsLoot = warLoot.goodsLoot;
+    // Bonus loot for ambush
+    if (tactic === 'ambush') loot = Math.floor(loot * 1.5);
+    state.money += loot;
+    state.stats.totalEarned += loot;
+    state.rep += 20;
+    state.districtRep[war.district] = Math.min(100, (state.districtRep[war.district] || 0) + 10);
+    if (goodsLoot) {
+      state.inventory[goodsLoot.good] = (state.inventory[goodsLoot.good] || 0) + goodsLoot.amount;
+    }
+  } else {
+    state.ownedDistricts = state.ownedDistricts.filter(d => d !== war.district);
+    state.rep = Math.max(0, state.rep - 30);
+    const moneyLoss = Math.floor(state.money * 0.05);
+    state.money = Math.max(0, state.money - moneyLoss);
+    const def = state.districtDefenses[war.district];
+    if (def) { def.upgrades = []; def.fortLevel = 0; }
+  }
+
+  state.pendingWarEvent = null;
+
+  return { won, tactic, loot, goodsLoot, details };
+}
+
+/** Perform spionage on a district */
+export function performSpionage(state: GameState, distId: DistrictId): { attackChance: number } {
+  const hidingBonus = (state.hidingDays || 0) > 0 ? 0.25 : 0;
+  const attackChance = Math.min(95, Math.floor((0.15 + state.day / 200 + (state.personalHeat || 0) / 200 + hidingBonus) * 100));
+  state.spionageIntel.push({ district: distId, attackChance, expiresDay: state.day + 3 });
+  return { attackChance };
+}
+
+/** Perform sabotage on a district */
+export function performSabotage(state: GameState, distId: DistrictId): void {
+  state.sabotageEffects.push({ district: distId, reductionPercent: 30, expiresDay: state.day + 2 });
 }
 
 // ========== 5. SMUGGLE ROUTES ==========
@@ -500,13 +668,11 @@ export function generateDailyMessages(state: GameState): void {
 
   // ======= DEFENSE — vulnerability warnings =======
   state.ownedDistricts.forEach(d => {
-    const def = state.districtDefenses[d];
-    if (!def) return;
-    const defLevel = def.level + def.stationedCrew.length * 20 + (def.wallUpgrade ? 30 : 0) + (def.turretUpgrade ? 20 : 0);
+    const defLevel = getDistrictDefenseLevel(state, d);
     if (defLevel < 30 && chance(0.3)) {
       addPhoneMessage(state, 'anonymous', pick([
         `${DISTRICTS[d].name} is nauwelijks verdedigd (${defLevel}). Een aanval is een kwestie van tijd.`,
-        `Waarschuwing: ${DISTRICTS[d].name} staat wijd open. Stationeer crew of upgrade je muren.`,
+        `Waarschuwing: ${DISTRICTS[d].name} staat wijd open. Upgrade je HQ verdediging.`,
         `Bronnen melden dat ${DISTRICTS[d].name} een doelwit is vannacht. Verdediging: ${defLevel}.`,
       ]), 'warning');
     }

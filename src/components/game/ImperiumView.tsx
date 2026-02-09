@@ -8,12 +8,13 @@ import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { FactionCard } from './faction/FactionCard';
 import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
+import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
 import { motion } from 'framer-motion';
-import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Crown, Users, Skull, Handshake } from 'lucide-react';
+import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Crown, Users, Skull, Handshake, Swords } from 'lucide-react';
 import { useState } from 'react';
 
-type SubTab = 'assets' | 'business' | 'families' | 'corruption';
+type SubTab = 'assets' | 'business' | 'families' | 'corruption' | 'war';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
@@ -22,17 +23,18 @@ export function ImperiumView() {
   return (
     <div>
       {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4 mt-1">
+      <div className="flex gap-1 mb-4 mt-1 flex-wrap">
         {([
           { id: 'assets' as SubTab, label: 'BEZIT', icon: <Car size={12} /> },
           { id: 'business' as SubTab, label: 'BEDRIJVEN', icon: <Store size={12} /> },
+          { id: 'war' as SubTab, label: 'OORLOG', icon: <Swords size={12} /> },
           { id: 'families' as SubTab, label: 'FACTIES', icon: <Users size={12} /> },
           { id: 'corruption' as SubTab, label: 'CORRUPTIE', icon: <Handshake size={12} /> },
         ]).map(tab => (
           <button
             key={tab.id}
             onClick={() => setSubTab(tab.id)}
-            className={`flex-1 py-2 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 py-2 rounded text-[0.5rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
               subTab === tab.id
                 ? 'bg-gold/15 border border-gold text-gold'
                 : 'bg-muted border border-border text-muted-foreground'
@@ -45,6 +47,7 @@ export function ImperiumView() {
 
       {subTab === 'assets' && <AssetsPanel />}
       {subTab === 'business' && <BusinessPanel />}
+      {subTab === 'war' && <DistrictDefensePanel />}
       {subTab === 'families' && <FamiliesPanel />}
       {subTab === 'corruption' && <CorruptionView />}
     </div>

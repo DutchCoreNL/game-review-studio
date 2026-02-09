@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types';
 
 // ========== AMMO PACKS ==========
 
@@ -376,11 +376,21 @@ function createInitialNemesis(): NemesisState {
   };
 }
 
+// ========== DISTRICT HQ UPGRADES ==========
+
+export const DISTRICT_HQ_UPGRADES: DistrictHQUpgradeDef[] = [
+  { id: 'patrol', name: 'Straatpatrouille', cost: 3000, defense: 15, attackReduction: 0, enablesSpionage: false, icon: '🚶', desc: '+15 verdediging' },
+  { id: 'walls', name: 'Versterkte Muren', cost: 8000, defense: 25, attackReduction: 0, enablesSpionage: false, icon: '🧱', desc: '+25 verdediging' },
+  { id: 'surveillance', name: 'Bewakingsnetwerk', cost: 12000, defense: 20, attackReduction: 10, enablesSpionage: false, icon: '📡', desc: '+20 verdediging, -10% aanvalskans' },
+  { id: 'turret', name: 'Geschutstoren', cost: 20000, defense: 30, attackReduction: 0, enablesSpionage: false, icon: '🔫', desc: '+30 verdediging' },
+  { id: 'command', name: 'Commandocentrum', cost: 35000, defense: 20, attackReduction: 0, enablesSpionage: true, icon: '🏛️', desc: '+20 verdediging, spionage' },
+];
+
 function createInitialDefenses(): Record<DistrictId, DistrictDefense> {
   const ids: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
   const defenses: Record<string, DistrictDefense> = {};
   ids.forEach(id => {
-    defenses[id] = { level: 0, stationedCrew: [], wallUpgrade: false, turretUpgrade: false };
+    defenses[id] = { upgrades: [], fortLevel: 0 };
   });
   return defenses as Record<DistrictId, DistrictDefense>;
 }
@@ -452,6 +462,10 @@ export function createInitialState(): import('./types').GameState {
     districtRep: { port: 0, crown: 0, iron: 0, low: 0, neon: 0 },
     nemesis: createInitialNemesis(),
     districtDefenses: createInitialDefenses(),
+    pendingWarEvent: null,
+    spionageIntel: [],
+    sabotageEffects: [],
+    allianceCooldowns: { cartel: 0, syndicate: 0, bikers: 0 },
     smuggleRoutes: [],
     phone: { messages: [], unread: 0 },
     showPhone: false,

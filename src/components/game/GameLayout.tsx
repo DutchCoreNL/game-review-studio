@@ -20,6 +20,7 @@ import { StoryArcEvent } from './StoryArcEvent';
 import { CarTheftPopup } from './CarTheftPopup';
 import { FinalBossAlert } from './FinalBossAlert';
 import { CorruptionEventPopup } from './CorruptionEventPopup';
+import { WarEventPopup } from './WarEventPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
 import { PrisonOverlay } from './PrisonOverlay';
@@ -77,6 +78,7 @@ export function GameLayout() {
         {state.pendingCorruptionEvent && <CorruptionEventPopup />}
         {state.pendingFlashback && <FlashbackOverlay />}
         {state.prison && <PrisonOverlay />}
+        {state.pendingWarEvent && <WarEventPopup />}
         <FinalBossAlert />
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
