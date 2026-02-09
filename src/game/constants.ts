@@ -1,4 +1,4 @@
-import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types';
+import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack } from './types'; // HQUpgrade kept for backwards compat
 
 // ========== AMMO PACKS ==========
 
@@ -81,13 +81,8 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
   { name: "Server Hack", risk: 60, heat: 15, rewardBase: 7000, type: 'tech' },
 ];
 
-export const HQ_UPGRADES: HQUpgrade[] = [
-  { id: 'security', name: 'Versterkte Deuren', cost: 5000, desc: 'Vermindert kans op aanvallen met 20%.' },
-  { id: 'garage', name: 'Grotere Garage', cost: 8000, desc: '+10 Bagage ruimte.' },
-  { id: 'server', name: 'Encrypted Server', cost: 12000, desc: 'Sneller Heat verlies.' },
-  { id: 'lab', name: 'Synthetica Lab', cost: 15000, desc: 'Produceer je eigen drugs.' },
-  { id: 'safehouse', name: 'Safe House', cost: 20000, desc: 'Verdubbelt persoonlijke heat decay & bonus bij onderduiken.' }
-];
+/** @deprecated HQ upgrades migrated to villa modules — kept empty for backwards compat */
+export const HQ_UPGRADES: HQUpgrade[] = [];
 
 export const GEAR: GearItem[] = [
   { id: 'glock', type: 'weapon', name: 'Glock 17', cost: 1500, stats: { muscle: 2 }, desc: '+2 Kracht. Betrouwbaar.', reqRep: null },
@@ -207,7 +202,7 @@ export const RANDOM_EVENTS = [
 
 export const ACHIEVEMENTS: Achievement[] = [
   { id: 'first_blood', name: 'First Blood', desc: 'Voltooi een solo operatie', icon: 'Swords', condition: (s) => s.rep >= 10 && s.player.level >= 1 },
-  { id: 'drug_lord', name: 'Drug Lord', desc: 'Bezit het Synthetica Lab', icon: 'Pipette', condition: (s) => s.hqUpgrades.includes('lab') },
+  { id: 'drug_lord', name: 'Drug Lord', desc: 'Bezit het Synthetica Lab (villa)', icon: 'Pipette', condition: (s) => s.villa?.modules.includes('synthetica_lab') || s.hqUpgrades.includes('lab') },
   { id: 'landlord', name: 'Vastgoed Baron', desc: 'Bezit 3 districten', icon: 'Building2', condition: (s) => s.ownedDistricts.length >= 3 },
   { id: 'millionaire', name: 'Miljonair', desc: 'Bezit €1.000.000', icon: 'BadgeDollarSign', condition: (s) => s.money >= 1000000 },
   { id: 'crew_boss', name: 'Crew Boss', desc: 'Huur 4 crewleden', icon: 'Users', condition: (s) => s.crew.length >= 4 },

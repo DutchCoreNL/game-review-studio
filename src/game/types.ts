@@ -378,6 +378,7 @@ export interface ContractTemplate {
   type: string;
 }
 
+/** @deprecated HQ upgrades migrated to villa modules */
 export interface HQUpgrade {
   id: string;
   name: string;
