@@ -1,84 +1,126 @@
 
-# Dynamisch Nieuwssysteem — Levende Wereld van Noxhaven
+# Villa Noxhaven — Jouw Hoofdkwartier
 
-## Probleem
-Het huidige nieuwssysteem is een statische lijst van 9 berichten die op basis van dagnummer rouleren. Ze hebben geen relatie met wat er daadwerkelijk in het spel gebeurt en voegen niets toe aan de immersie.
+## Concept
+Een Tony Montana-achtige villa als centraal hoofdkwartier, los van de 5 districten. Het verschijnt als een aparte locatie op de kaart, tussen Port Nero en Crown Heights (rond cx: 175, cy: 50). Je moet het eerst kopen voordat je het kunt gebruiken. Eenmaal gekocht wordt het je persoonlijke machtsbasis met productie, opslag, crew-beheer en bescherming.
 
-## Oplossing
-Een **dynamische nieuwsgenerator** die berichten genereert op basis van de echte gamestate. Elke dag krijg je 2-3 nieuwsberichten die reageren op jouw acties, factie-activiteit, marktbewegingen en wereldgebeurtenissen.
+## Locatie op de Kaart
+De villa komt op een heuvel boven de stad, tussen Port Nero en Crown Heights. Een nieuwe weg verbindt het met beide districten. Op de kaart verschijnt het als een herkenbaar villa-silhouet met tuinen, een zwembad en een oprit.
 
-## Nieuwscategorieen
+```text
+   [VILLA]  ←── heuvel, apart van districts
+    /    \
+ PORT    CROWN
+```
 
-| Categorie | Trigger | Voorbeeld |
-|-----------|---------|-----------|
-| **Speler-acties** | Heist voltooid, district gekocht, combat gewonnen | "BREAKING: Gewapende overval op Havenpakhuis — politie staat voor raadsel" |
-| **Factie-activiteit** | Relatie hoog/laag, oorlog, leider verslagen | "Blue Lotus trekt zich terug uit Crown Heights na mysterieuze nederlaag" |
-| **Markt & Economie** | Prijsveranderingen, demand shifts | "Synthetica-prijzen stijgen met 40% door tekorten in Port Nero" |
-| **Weer & Omgeving** | Storm, mist, hitte | "Zware storm legt havenactiviteit plat — smokkelroutes verstoord" |
-| **Heat & Politie** | Heat-niveau, politie-invallen | "Politie verhoogt patrouilles in Lowrise na reeks incidenten" |
-| **Crew & Imperium** | Crew gewond, safehouse, upgrades | "Mysterieuze bouwactiviteit gespot in Iron Borough" |
-| **Wereld-kleur** | Random flavor, altijd beschikbaar | "Burgemeester ontkent banden met onderwereld — 'absurd'" |
+## Villa Systeem
 
-## Nieuwsticker Redesign
+### Aankoop & Levels
+- **Koop de villa**: €150.000 (vereist Level 8, Rep 300)
+- **Level 1** (basis): Toegang tot de villa, basisopslag
+- **Level 2** (€100.000): Uitgebreide faciliteiten, meer opslag
+- **Level 3** (€250.000): Volledig uitgebouwd fort, maximale bescherming
 
-De enkele scrollende regel wordt vervangen door een ticker die door meerdere berichten roteert:
+### Villa Faciliteiten (Modules)
 
-- 2-3 berichten per dag, automatisch wisselend (elke 6 seconden)
-- Urgentie-kleuring: rood voor gevaarlijk, goud voor kansen, wit voor neutraal
-- Kleine pulse-animatie bij dag-overgang om aandacht te trekken
-- Klikbaar: toon een kort popup met meer detail
+| Module | Kosten | Effect |
+|--------|--------|--------|
+| **Kluis** | €25.000 | Sla geld veilig op (niet verloren bij arrestatie). Max: €50k/100k/200k per level |
+| **Opslagkelder** | €20.000 | Sla goederen veilig op (niet verloren bij arrestatie). Max: 20/40/60 items per level |
+| **Synthetica Lab** (verplaatst) | €15.000 | Produceert Synthetica uit chemicalien — nu vanuit de villa |
+| **Wietplantage** | €30.000 | Passieve productie: 5-10 drugs/nacht zonder chemicalien nodig |
+| **Coke Laboratorium** | €50.000 | Premium productie: 3-5 "Puur Wit" (nieuw goed, hoge waarde) per nacht, vereist chemicalien |
+| **Crew Kwartieren** | €20.000 | +2 max crew slots, versneld herstel (2x) |
+| **Wapenkamer** | €15.000 | Sla ammo veilig op, +5 ammo opslag |
+| **Commandocentrum** | €40.000 | Overzicht van alle operaties, +10% missie-succes, spionage-bonus |
+| **Helipad** | €80.000 | Snel reizen naar elk district (geen reiskosten/heat), 1x per dag |
+| **Zwembad & Lounge** | €35.000 | Passieve crew-moraal bonus, +5 charm bij onderhandelingen vanuit villa |
+
+### Veilige Opslag (Anti-Gevangenis)
+Het kernidee: spullen in de villa zijn **beschermd tegen arrestatie**.
+- Geld in de **Kluis**: niet geconfisqueerd
+- Goederen in de **Opslagkelder**: niet verloren
+- Ammo in de **Wapenkamer**: niet verloren
+- Speler moet actief items naar de villa verplaatsen (niet automatisch)
+
+### Crew Beheer vanuit de Villa
+- Bekijk alle crewleden met stats, gezondheid, rol
+- Wijs crew toe aan productie (lab/plantage/coke)
+- Train crew (investeer geld voor XP)
+- Crew in de villa herstelt 2x sneller
+
+### Productie-Uitbreiding
+
+**Wietplantage:**
+- Passieve productie: 5-10 drugs per nacht (geen input nodig)
+- Kwaliteit verbetert met upgrades (hogere verkoopprijs)
+- Heat-risico: politie-invallen als heat hoog is
+
+**Coke Laboratorium:**
+- Vereist chemicalien als input (net als Synthetica Lab)
+- Produceert premium product met hogere waarde
+- Hogere heat-generatie dan wiet
+
+### Safehouse Integratie
+- De villa functioneert als **ultieme safehouse**
+- Alle safehouse-bonussen (heat reductie, opslag, crew herstel) zijn inbegrepen
+- Onderduiken in de villa geeft de beste heat-reductie (-10/nacht i.p.v. -5)
+- De villa vervangt NIET de district-safehouses, maar is een tier erboven
 
 ## Technische Aanpak
 
-### Nieuw bestand: `src/game/newsGenerator.ts`
-- Functie `generateDailyNews(state: GameState): NewsItem[]`
-- Controleert 15+ gamestate-condities en genereert relevante berichten
-- Elke `NewsItem` bevat: `text`, `category`, `urgency` (low/medium/high), `icon`
-- Fallback: altijd minimaal 1 flavor-bericht zodat er nooit lege nieuws is
-- Pool van 30+ flavor-berichten voor variatie
+### Nieuwe Types (`src/game/types.ts`)
+- `VillaModuleId`: enum van alle villa-modules
+- `VillaState`: eigendom, level, modules, kluis-inhoud, opslagkelder, productie-state
+- `VillaStorage`: veilige opslag voor geld en goederen
+- Toevoegen aan `GameState`: `villa: VillaState | null`
 
-### Aanpassing: `src/game/types.ts`
-- Nieuw type `NewsItem` met `text`, `category`, `urgency`, `icon`
-- `GameState` krijgt `dailyNews: NewsItem[]`
+### Nieuwe Constants (`src/game/constants.ts`)
+- `VILLA_COST`, `VILLA_UPGRADE_COSTS`
+- `VILLA_MODULES`: definities van alle modules met kosten en effecten
+- Aanpassing initial state
 
-### Aanpassing: `src/game/constants.ts`
-- Verwijder oude `NEWS_ITEMS` array
-- Voeg `dailyNews: []` toe aan initial state
+### Nieuw Bestand: `src/game/villa.ts`
+- Villa engine logica: productie per nacht, opslag-management, bescherming bij arrestatie
+- `processVillaProduction(state)`: wiet + coke + synthetica productie
+- `getVillaProtection(state)`: wat is beschermd bij arrestatie
+- `canUseHelipad(state)`: check voor snelreizen
+
+### Aanpassing: `src/game/engine.ts`
+- `endTurn`: villa-productie toevoegen (na lab-productie)
+- `recalcMaxInv`: villa-opslag bonus meerekenen
+- Arrestatie-logica: villa-kluis en opslagkelder uitsluiten van verlies
 
 ### Aanpassing: `src/contexts/GameContext.tsx`
-- Bij `END_TURN`: genereer nieuws via `generateDailyNews()` en sla op in state
-- Migratie: `dailyNews` default `[]`
+- Nieuwe acties: `BUY_VILLA`, `UPGRADE_VILLA`, `INSTALL_VILLA_MODULE`, `DEPOSIT_VILLA`, `WITHDRAW_VILLA`, `VILLA_HELIPAD_TRAVEL`
+- Migratie voor bestaande saves
 
-### Aanpassing: `src/components/game/MapView.tsx`
-- Vervang statische tekstregel door dynamische ticker-component
-- Roteer door `state.dailyNews` items met interval
-- Urgentie-kleuring (high = `text-blood`, medium = `text-gold`, low = `text-muted-foreground`)
-- Klikbaar voor detail-popup
+### Kaart Aanpassing: `src/components/game/CityMap.tsx`
+- Nieuwe villa-landmark renderer (villa-silhouet met zwembad, tuin, oprit)
+- Positie: cx=175, cy=50 (tussen Port Nero en Crown Heights)
+- Nieuwe weg: `M 130,88 Q 155,65 175,55` (Port naar Villa) en `M 175,55 Q 200,65 240,88` (Villa naar Crown)
+- Villa hitbox en label
+- Glow-effect als de villa bezit is
 
-### Nieuw component: `src/components/game/map/NewsTicker.tsx`
-- Accepteert `items: NewsItem[]`
-- Auto-roteert met fade-animatie (framer-motion)
-- Toont categorie-icoon + urgentie-kleur
-- Optionele klik-handler voor detail
+### Nieuw Component: `src/components/game/villa/VillaView.tsx`
+- Hoofdscherm met sub-tabs: Overzicht, Productie, Opslag, Crew, Modules
+- **Overzicht**: villa-level, actieve modules, dagelijkse productie-samenvatting
+- **Productie**: status van lab, wietplantage, coke lab
+- **Opslag**: kluis (geld) en opslagkelder (goederen) met deposit/withdraw
+- **Crew**: crew toewijzen aan productie, training
+- **Modules**: koop en upgrade modules
 
-### Voorbeelden van dynamische berichten
+### Integratie: `src/components/game/MapView.tsx`
+- Villa-knop naast Casino/Chop Shop/Safehouse knoppen
+- Alleen zichtbaar als villa gekocht is OF speler genoeg level/geld heeft
+- Klikbaar op de kaart
 
-**Na een heist:**
-> "BREAKING: Onbekende criminelen slaan toe bij [locatie] — buit geschat op €XX.XXX"
+### Night Report Uitbreiding
+- Villa-productie resultaten tonen in het nachtrapport
+- Wietplantage opbrengst, coke-productie, kluis-bescherming
 
-**Bij hoge heat:**
-> "MANHUNT: Politie zet extra eenheden in — 'We zitten ze op de hielen'"
-
-**Na district kopen:**
-> "Vastgoedtransactie in [district] — geruchten over nieuwe machtsstructuur"
-
-**Bij factie-oorlog:**
-> "Schietpartij in [district]: [factie] en rivalen clashen over territorium"
-
-**Bij storm:**
-> "Code Oranje: Zware storm trekt over Noxhaven — havens gesloten"
-
-**Flavor (random):**
-> "Burgemeester belooft 'schonere straten' in verkiezingstoespraak"
-> "Restaurant 'La Notte' in Crown Heights uitgeroepen tot beste van het jaar"
-> "Mysterieuze graffiti verschijnt op muren in Lowrise: 'WIJ ZIEN ALLES'"
+### Extra Ideeen (binnen het universum)
+- **Bewakingscameras**: verhoogde verdediging, waarschuwing bij aanvallen
+- **Ondergrondse Tunnel**: ontsnappingsroute als de villa wordt aangevallen (alternatief voor helipad)
+- **Feest geven**: investeer geld om relaties met alle facties te verbeteren (+rep)
+- **Villa kan aangevallen worden** door de Nemesis als je te machtig wordt — verdedig je basis!
