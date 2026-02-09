@@ -1,126 +1,66 @@
 
-# Villa Noxhaven — Jouw Hoofdkwartier
+# HQ Upgrades Opruimen & Integreren in Villa
 
-## Concept
-Een Tony Montana-achtige villa als centraal hoofdkwartier, los van de 5 districten. Het verschijnt als een aparte locatie op de kaart, tussen Port Nero en Crown Heights (rond cx: 175, cy: 50). Je moet het eerst kopen voordat je het kunt gebruiken. Eenmaal gekocht wordt het je persoonlijke machtsbasis met productie, opslag, crew-beheer en bescherming.
+## Het Probleem
+De oude "HQ Upgrades" (5 items in Imperium > Bezit) overlappen sterk met het nieuwere, uitgebreidere villa-systeem. Dit is verwarrend voor spelers en maakt balancing lastig.
 
-## Locatie op de Kaart
-De villa komt op een heuvel boven de stad, tussen Port Nero en Crown Heights. Een nieuwe weg verbindt het met beide districten. Op de kaart verschijnt het als een herkenbaar villa-silhouet met tuinen, een zwembad en een oprit.
+## Aanbevolen Aanpak: Migreren naar Villa + Unieke Upgrades Behouden
 
-```text
-   [VILLA]  ←── heuvel, apart van districts
-    /    \
- PORT    CROWN
-```
+### Stap 1: Verwijder overlappende HQ Upgrades
+De volgende HQ upgrades worden verwijderd omdat de villa ze beter dekt:
+- **Synthetica Lab** (€15k) — villa heeft al een synthetica_lab module
+- **Versterkte Deuren** (€5k) — villa camera's doen hetzelfde maar beter
+- **Safe House** (€20k) — er is al een apart safehouse-systeem + villa hiding
 
-## Villa Systeem
+### Stap 2: Verplaats unieke HQ Upgrades naar de villa als modules
+- **Grotere Garage** (€8k, +10 bagage) — wordt een villa-module "Garage Uitbreiding" (Level 1, ~€15k)
+- **Encrypted Server** (€12k, sneller heat verlies) — wordt een villa-module "Server Room" (Level 2, ~€25k, -5 extra heat/nacht)
 
-### Aankoop & Levels
-- **Koop de villa**: €150.000 (vereist Level 8, Rep 300)
-- **Level 1** (basis): Toegang tot de villa, basisopslag
-- **Level 2** (€100.000): Uitgebreide faciliteiten, meer opslag
-- **Level 3** (€250.000): Volledig uitgebouwd fort, maximale bescherming
+### Stap 3: Verwijder HQ Upgrades sectie uit Imperium > Bezit
+De hele "HQ Upgrades" sectie in `AssetsPanel` binnen `ImperiumView.tsx` wordt verwijderd, omdat alles nu via de villa loopt.
 
-### Villa Faciliteiten (Modules)
+### Stap 4: Backwards Compatibility
+Spelers die al HQ upgrades bezitten behouden hun effecten via een migratie in de reducer:
+- `hqUpgrades` met 'garage' -> automatisch villa-module 'garage_uitbreiding' erbij
+- `hqUpgrades` met 'server' -> automatisch villa-module 'server_room' erbij
+- `hqUpgrades` met 'lab' -> effect blijft werken tot speler villa lab koopt
 
-| Module | Kosten | Effect |
-|--------|--------|--------|
-| **Kluis** | €25.000 | Sla geld veilig op (niet verloren bij arrestatie). Max: €50k/100k/200k per level |
-| **Opslagkelder** | €20.000 | Sla goederen veilig op (niet verloren bij arrestatie). Max: 20/40/60 items per level |
-| **Synthetica Lab** (verplaatst) | €15.000 | Produceert Synthetica uit chemicalien — nu vanuit de villa |
-| **Wietplantage** | €30.000 | Passieve productie: 5-10 drugs/nacht zonder chemicalien nodig |
-| **Coke Laboratorium** | €50.000 | Premium productie: 3-5 "Puur Wit" (nieuw goed, hoge waarde) per nacht, vereist chemicalien |
-| **Crew Kwartieren** | €20.000 | +2 max crew slots, versneld herstel (2x) |
-| **Wapenkamer** | €15.000 | Sla ammo veilig op, +5 ammo opslag |
-| **Commandocentrum** | €40.000 | Overzicht van alle operaties, +10% missie-succes, spionage-bonus |
-| **Helipad** | €80.000 | Snel reizen naar elk district (geen reiskosten/heat), 1x per dag |
-| **Zwembad & Lounge** | €35.000 | Passieve crew-moraal bonus, +5 charm bij onderhandelingen vanuit villa |
+## Technische Details
 
-### Veilige Opslag (Anti-Gevangenis)
-Het kernidee: spullen in de villa zijn **beschermd tegen arrestatie**.
-- Geld in de **Kluis**: niet geconfisqueerd
-- Goederen in de **Opslagkelder**: niet verloren
-- Ammo in de **Wapenkamer**: niet verloren
-- Speler moet actief items naar de villa verplaatsen (niet automatisch)
+### Bestanden die worden aangepast:
 
-### Crew Beheer vanuit de Villa
-- Bekijk alle crewleden met stats, gezondheid, rol
-- Wijs crew toe aan productie (lab/plantage/coke)
-- Train crew (investeer geld voor XP)
-- Crew in de villa herstelt 2x sneller
+1. **`src/game/villa.ts`**
+   - Twee nieuwe modules toevoegen aan `VILLA_MODULES`:
+     - `garage_uitbreiding`: +10 max inventory, Level 1, €15.000
+     - `server_room`: -5 extra heat decay per nacht, Level 2, €25.000
 
-### Productie-Uitbreiding
+2. **`src/game/types.ts`**
+   - `garage_uitbreiding` en `server_room` toevoegen aan `VillaModuleId`
 
-**Wietplantage:**
-- Passieve productie: 5-10 drugs per nacht (geen input nodig)
-- Kwaliteit verbetert met upgrades (hogere verkoopprijs)
-- Heat-risico: politie-invallen als heat hoog is
+3. **`src/game/constants.ts`**
+   - `HQ_UPGRADES` array inkorten tot leeg of volledig verwijderen
+   - `HQUpgrade` type eventueel verwijderen
 
-**Coke Laboratorium:**
-- Vereist chemicalien als input (net als Synthetica Lab)
-- Produceert premium product met hogere waarde
-- Hogere heat-generatie dan wiet
+4. **`src/components/game/ImperiumView.tsx`**
+   - HQ Upgrades sectie verwijderen uit `AssetsPanel`
+   - Import van `HQ_UPGRADES` opruimen
 
-### Safehouse Integratie
-- De villa functioneert als **ultieme safehouse**
-- Alle safehouse-bonussen (heat reductie, opslag, crew herstel) zijn inbegrepen
-- Onderduiken in de villa geeft de beste heat-reductie (-10/nacht i.p.v. -5)
-- De villa vervangt NIET de district-safehouses, maar is een tier erboven
+5. **`src/game/engine.ts`**
+   - `recalcMaxInv` aanpassen: garage bonus checken via villa-module i.p.v. hqUpgrades
+   - Heat decay logica aanpassen voor server_room villa-module
 
-## Technische Aanpak
+6. **`src/contexts/GameContext.tsx`**
+   - Migratiestap toevoegen: bestaande hqUpgrades omzetten naar villa-modules
+   - `BUY_UPGRADE` action kan worden vereenvoudigd of verwijderd
+   - Villa productie/bonussen aanpassen voor nieuwe modules
 
-### Nieuwe Types (`src/game/types.ts`)
-- `VillaModuleId`: enum van alle villa-modules
-- `VillaState`: eigendom, level, modules, kluis-inhoud, opslagkelder, productie-state
-- `VillaStorage`: veilige opslag voor geld en goederen
-- Toevoegen aan `GameState`: `villa: VillaState | null`
+7. **`src/components/game/AssetsView.tsx`** en **`src/components/game/FamiliesView.tsx`**
+   - Verwijzingen naar `HQ_UPGRADES` opruimen (deze componenten lijken oudere/alternatieve views te zijn)
 
-### Nieuwe Constants (`src/game/constants.ts`)
-- `VILLA_COST`, `VILLA_UPGRADE_COSTS`
-- `VILLA_MODULES`: definities van alle modules met kosten en effecten
-- Aanpassing initial state
+8. **`src/components/game/profile/VillaSummaryPanel.tsx`**
+   - Nieuwe modules worden automatisch zichtbaar door bestaande logica
 
-### Nieuw Bestand: `src/game/villa.ts`
-- Villa engine logica: productie per nacht, opslag-management, bescherming bij arrestatie
-- `processVillaProduction(state)`: wiet + coke + synthetica productie
-- `getVillaProtection(state)`: wat is beschermd bij arrestatie
-- `canUseHelipad(state)`: check voor snelreizen
-
-### Aanpassing: `src/game/engine.ts`
-- `endTurn`: villa-productie toevoegen (na lab-productie)
-- `recalcMaxInv`: villa-opslag bonus meerekenen
-- Arrestatie-logica: villa-kluis en opslagkelder uitsluiten van verlies
-
-### Aanpassing: `src/contexts/GameContext.tsx`
-- Nieuwe acties: `BUY_VILLA`, `UPGRADE_VILLA`, `INSTALL_VILLA_MODULE`, `DEPOSIT_VILLA`, `WITHDRAW_VILLA`, `VILLA_HELIPAD_TRAVEL`
-- Migratie voor bestaande saves
-
-### Kaart Aanpassing: `src/components/game/CityMap.tsx`
-- Nieuwe villa-landmark renderer (villa-silhouet met zwembad, tuin, oprit)
-- Positie: cx=175, cy=50 (tussen Port Nero en Crown Heights)
-- Nieuwe weg: `M 130,88 Q 155,65 175,55` (Port naar Villa) en `M 175,55 Q 200,65 240,88` (Villa naar Crown)
-- Villa hitbox en label
-- Glow-effect als de villa bezit is
-
-### Nieuw Component: `src/components/game/villa/VillaView.tsx`
-- Hoofdscherm met sub-tabs: Overzicht, Productie, Opslag, Crew, Modules
-- **Overzicht**: villa-level, actieve modules, dagelijkse productie-samenvatting
-- **Productie**: status van lab, wietplantage, coke lab
-- **Opslag**: kluis (geld) en opslagkelder (goederen) met deposit/withdraw
-- **Crew**: crew toewijzen aan productie, training
-- **Modules**: koop en upgrade modules
-
-### Integratie: `src/components/game/MapView.tsx`
-- Villa-knop naast Casino/Chop Shop/Safehouse knoppen
-- Alleen zichtbaar als villa gekocht is OF speler genoeg level/geld heeft
-- Klikbaar op de kaart
-
-### Night Report Uitbreiding
-- Villa-productie resultaten tonen in het nachtrapport
-- Wietplantage opbrengst, coke-productie, kluis-bescherming
-
-### Extra Ideeen (binnen het universum)
-- **Bewakingscameras**: verhoogde verdediging, waarschuwing bij aanvallen
-- **Ondergrondse Tunnel**: ontsnappingsroute als de villa wordt aangevallen (alternatief voor helipad)
-- **Feest geven**: investeer geld om relaties met alle facties te verbeteren (+rep)
-- **Villa kan aangevallen worden** door de Nemesis als je te machtig wordt — verdedig je basis!
+### Resultaat
+- Een schoner systeem: alle "basis-upgrades" zitten nu in de villa
+- Geen verwarring meer over HQ vs villa
+- De Imperium > Bezit tab focust puur op voertuigen, chop shop en smokkelroutes
