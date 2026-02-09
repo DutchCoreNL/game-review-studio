@@ -116,6 +116,20 @@ function OverviewTab() {
   const relBoost = [0, 8, 12, 18][villa.level] || 8;
   const repBoost = [0, 15, 25, 40][villa.level] || 15;
 
+  // Defense score calculation
+  const baseDefense = villa.level * 10;
+  const moduleDefense = (villa.modules.includes('camera') ? 25 : 0)
+    + (villa.modules.includes('wapenkamer') ? 10 : 0)
+    + (villa.modules.includes('commandocentrum') ? 15 : 0);
+  const tunnelBonus = villa.modules.includes('tunnel');
+  const cameraBonus = villa.modules.includes('camera');
+  const totalDefense = baseDefense + moduleDefense;
+  const maxDefense = 30 + 25 + 10 + 15; // max level (30) + camera (25) + wapenkamer (10) + commando (15)
+  const defensePct = Math.min(100, Math.round((totalDefense / maxDefense) * 100));
+
+  const defenseRating = totalDefense >= 60 ? 'FORT KNOX' : totalDefense >= 40 ? 'GOED BEWAAKT' : totalDefense >= 20 ? 'REDELIJK' : 'KWETSBAAR';
+  const defenseColor = totalDefense >= 60 ? 'text-emerald' : totalDefense >= 40 ? 'text-gold' : totalDefense >= 20 ? 'text-orange-400' : 'text-blood';
+
   return (
     <div className="game-card p-3 space-y-3">
       <SectionHeader title="Status" />
@@ -126,6 +140,62 @@ function OverviewTab() {
         {villa.modules.includes('opslagkelder') && <InfoBox icon="📦" label="Opslag" value={`${storedCount} / ${storageMax}`} />}
         {villa.modules.includes('wapenkamer') && <InfoBox icon="🔫" label="Ammo Opslag" value={`${villa.storedAmmo}`} />}
         {villa.modules.includes('helipad') && <InfoBox icon="🚁" label="Helipad" value={villa.helipadUsedToday ? 'Gebruikt' : 'Beschikbaar'} />}
+      </div>
+
+      {/* Defense Score */}
+      <div className="bg-muted/30 border border-border rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield size={14} className={defenseColor} />
+            <span className="text-xs font-bold">Verdedigingsscore</span>
+          </div>
+          <span className={`text-xs font-bold ${defenseColor}`}>{defenseRating}</span>
+        </div>
+        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+          <motion.div
+            className={`h-full rounded-full ${totalDefense >= 60 ? 'bg-emerald' : totalDefense >= 40 ? 'bg-gold' : totalDefense >= 20 ? 'bg-orange-400' : 'bg-blood'}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${defensePct}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          />
+        </div>
+        <div className="flex justify-between text-[0.55rem] text-muted-foreground">
+          <span>{totalDefense} / {maxDefense} punten</span>
+          <span>{defensePct}%</span>
+        </div>
+        <div className="space-y-1 mt-1">
+          <div className="flex items-center justify-between text-[0.5rem]">
+            <span className="text-muted-foreground">🏛️ Villa Level {villa.level}</span>
+            <span className="text-foreground font-bold">+{baseDefense}</span>
+          </div>
+          {cameraBonus && (
+            <div className="flex items-center justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">📹 Camera's (-30% aanvalkans)</span>
+              <span className="text-emerald font-bold">+25</span>
+            </div>
+          )}
+          {villa.modules.includes('wapenkamer') && (
+            <div className="flex items-center justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">🔫 Wapenkamer</span>
+              <span className="text-emerald font-bold">+10</span>
+            </div>
+          )}
+          {villa.modules.includes('commandocentrum') && (
+            <div className="flex items-center justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">🎯 Commandocentrum</span>
+              <span className="text-emerald font-bold">+15</span>
+            </div>
+          )}
+          {tunnelBonus && (
+            <div className="flex items-center justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">🕳️ Tunnel (verlies gehalveerd)</span>
+              <span className="text-gold font-bold">✓</span>
+            </div>
+          )}
+          {!cameraBonus && !tunnelBonus && !villa.modules.includes('wapenkamer') && !villa.modules.includes('commandocentrum') && (
+            <p className="text-[0.5rem] text-muted-foreground italic">Installeer verdedigingsmodules om je score te verhogen.</p>
+          )}
+        </div>
       </div>
 
       {/* Helipad quick travel */}
