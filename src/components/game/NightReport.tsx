@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
 import { DramaticEventReveal } from './night-report/DramaticEventReveal';
@@ -52,6 +52,16 @@ export function NightReport() {
   // Ammo factory
   const ammoFactoryDelay = report.ammoFactoryProduction && report.ammoFactoryProduction > 0 ? next() : d;
   if (report.ammoFactoryProduction && report.ammoFactoryProduction > 0) scheduleSound(ammoFactoryDelay, playPositiveSound);
+
+  // Villa production
+  const villaWietDelay = report.villaWietProduced && report.villaWietProduced > 0 ? next() : d;
+  if (report.villaWietProduced && report.villaWietProduced > 0) scheduleSound(villaWietDelay, playPositiveSound);
+
+  const villaCokeDelay = report.villaCokeProduced && report.villaCokeProduced > 0 ? next() : d;
+  if (report.villaCokeProduced && report.villaCokeProduced > 0) scheduleSound(villaCokeDelay, playPositiveSound);
+
+  const villaLabDelay = report.villaLabProduced && report.villaLabProduced > 0 ? next() : d;
+  if (report.villaLabProduced && report.villaLabProduced > 0) scheduleSound(villaLabDelay, playPositiveSound);
 
   // Costs
   const debtDelay = report.debtInterest > 0 ? next() : d;
@@ -174,7 +184,16 @@ export function NightReport() {
               <AnimatedReportRow icon={<Crosshair size={14} />} label="Kogelfabriek" value={report.ammoFactoryProduction} prefix="+" suffix=" kogels" positive color="text-blood" delay={ammoFactoryDelay} />
             )}
 
-            {/* Costs */}
+            {/* Villa production */}
+            {report.villaWietProduced && report.villaWietProduced > 0 && (
+              <AnimatedReportRow icon={<Leaf size={14} />} label="Wietplantage" value={report.villaWietProduced} prefix="+" suffix=" drugs" positive color="text-emerald" delay={villaWietDelay} />
+            )}
+            {report.villaCokeProduced && report.villaCokeProduced > 0 && (
+              <AnimatedReportRow icon={<Diamond size={14} />} label="Coke Lab" value={report.villaCokeProduced} prefix="+" suffix=" Puur Wit" positive color="text-game-purple" delay={villaCokeDelay} />
+            )}
+            {report.villaLabProduced && report.villaLabProduced > 0 && (
+              <AnimatedReportRow icon={<FlaskConical size={14} />} label="Villa Lab" value={report.villaLabProduced} prefix="+" suffix=" Synthetica" positive color="text-blood" delay={villaLabDelay} />
+            )}
             {report.debtInterest > 0 && (
               <AnimatedReportRow icon={<TrendingDown size={14} />} label="Schuld Rente" value={report.debtInterest} prefix="€" positive color="text-blood" delay={debtDelay} />
             )}
@@ -255,6 +274,9 @@ export function NightReport() {
                   )}
                   {report.prisonGoodsLost && report.prisonGoodsLost.length > 0 && (
                     <p>Geconfisqueerd: <span className="text-blood font-bold">{report.prisonGoodsLost.join(', ')}</span></p>
+                  )}
+                  {(report.villaVaultProtected || 0) > 0 && (
+                    <p className="text-emerald">🔐 Kluis beschermd: <span className="font-bold">€{report.villaVaultProtected?.toLocaleString()}</span></p>
                   )}
                 </div>
               </motion.div>

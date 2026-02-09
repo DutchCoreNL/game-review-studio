@@ -501,6 +501,11 @@ export interface NightReportData {
   defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string; loot?: number; goodsLoot?: { good: GoodId; amount: number } | null }[];
   nemesisAction?: string;
   ammoFactoryProduction?: number;
+  // Villa production
+  villaWietProduced?: number;
+  villaCokeProduced?: number;
+  villaLabProduced?: number;
+  villaVaultProtected?: number; // shown only on arrest
 }
 
 export interface RandomEvent {
