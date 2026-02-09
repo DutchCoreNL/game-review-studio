@@ -154,7 +154,7 @@ export function MapView() {
         <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
           DAG AFSLUITEN
         </GameButton>
-        {!isHiding && (
+        {!isHiding && (state.loc === 'neon' || (state.districtRep?.crown >= 50)) && (
           <GameButton
             variant="purple"
             size="lg"

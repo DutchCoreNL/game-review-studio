@@ -153,6 +153,7 @@ type GameAction =
   | { type: 'WITHDRAW_VILLA_AMMO'; amount: number }
   | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
   | { type: 'VILLA_THROW_PARTY' }
+  | { type: 'DISMISS_ACHIEVEMENT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -178,6 +179,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           loaded.villa.modules.push('server_room');
         }
       }
+      // Migrate: add pendingAchievements if missing
+      if (!loaded.pendingAchievements) loaded.pendingAchievements = [];
       return loaded;
     }
 
@@ -1506,6 +1509,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.stats.totalSpent += 2000;
       s.heistPlan.reconDone = true;
       s.heistPlan.reconIntel = performRecon(s, s.heistPlan);
+      return s;
+    }
+
+    case 'DISMISS_ACHIEVEMENT': {
+      if (s.pendingAchievements && s.pendingAchievements.length > 0) {
+        s.pendingAchievements = s.pendingAchievements.slice(1);
+      }
       return s;
     }
 

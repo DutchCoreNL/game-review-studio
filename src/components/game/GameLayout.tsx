@@ -24,6 +24,7 @@ import { WarEventPopup } from './WarEventPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
 import { PrisonOverlay } from './PrisonOverlay';
+import { AchievementPopup } from './AchievementPopup';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -80,6 +81,7 @@ export function GameLayout() {
         {state.prison && <PrisonOverlay />}
         {state.pendingWarEvent && <WarEventPopup />}
         <FinalBossAlert />
+        <AchievementPopup />
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
         )}

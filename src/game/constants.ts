@@ -526,6 +526,8 @@ export function createInitialState(): import('./types').GameState {
     dailyNews: [],
     // Villa state
     villa: null,
+    // Achievement popup state
+    pendingAchievements: [],
   };
 }
 

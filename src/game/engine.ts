@@ -68,7 +68,6 @@ export function recalcMaxInv(state: GameState): number {
     const totalBonus = storageUpgrades.slice(0, activeObj.upgrades.storage).reduce((a, b) => a + b, 0);
     inv += totalBonus;
   }
-  if (state.hqUpgrades.includes('garage')) inv += 10;
   if (state.villa?.modules.includes('garage_uitbreiding')) inv += 10;
   if (state.ownedDistricts.includes('port')) inv = Math.floor(inv * 1.1);
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
@@ -407,7 +406,7 @@ export function endTurn(state: GameState): NightReportData {
 
   // Only run old HQ lab if villa doesn't have synthetica_lab
   const villaHasLab = state.villa?.modules.includes('synthetica_lab');
-  if (!villaHasLab && state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
+  if (!villaHasLab && state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
     if (space > 0) {
@@ -432,7 +431,7 @@ export function endTurn(state: GameState): NightReportData {
   const isHiding = (state.hidingDays || 0) > 0;
   if (isHiding) {
     state.hidingDays = Math.max(0, state.hidingDays - 1);
-    const safeHouseBonus = state.hqUpgrades.includes('safehouse') ? 5 : 0;
+    const safeHouseBonus = 0;
     const villaHideBonus = state.villa ? getVillaHeatReduction(state) : 0;
     addPersonalHeat(state, -(15 + safeHouseBonus + villaHideBonus));
 
@@ -472,7 +471,6 @@ export function endTurn(state: GameState): NightReportData {
   state.ownedVehicles.forEach(v => {
     let vDecay = 8;
     if (state.ownedDistricts.includes('crown')) vDecay += 2;
-    if (state.hqUpgrades.includes('server')) vDecay += 3;
     if (state.villa?.modules.includes('server_room')) vDecay += 5;
     v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
     // Rekat cooldown countdown
@@ -481,9 +479,7 @@ export function endTurn(state: GameState): NightReportData {
 
    // === PERSONAL HEAT DECAY ===
   let pDecay = 2;
-  if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
   if (state.ownedDistricts.includes('crown')) pDecay += 1;
-  if (state.hqUpgrades.includes('server')) pDecay += 3;
   if (state.villa?.modules.includes('server_room')) pDecay += 5;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   // Karma: Eerbaar extra heat decay
@@ -746,16 +742,19 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   const effectiveRisk = isLowrise ? Math.floor(op.risk * 0.7) : op.risk;
   const chance = Math.min(95, 100 - effectiveRisk + (statVal * 5));
 
+  // Scale reward with player level (cap at 3x base)
+  const scaledReward = Math.floor(op.reward * Math.min(3, 1 + state.player.level * 0.1));
+
   if (Math.random() * 100 < chance) {
-    state.dirtyMoney += op.reward;
+    state.dirtyMoney += scaledReward;
     splitHeat(state, op.heat, 0.4);
     // Karma: Meedogenloos rep multiplier
     const repGain = Math.floor(10 * getKarmaRepMultiplier(state));
     state.rep += repGain;
-    state.stats.totalEarned += op.reward;
+    state.stats.totalEarned += scaledReward;
     state.stats.missionsCompleted++;
     gainXp(state, 15);
-    return { success: true, message: `${op.name} geslaagd! +€${op.reward} zwart geld.` };
+    return { success: true, message: `${op.name} geslaagd! +€${scaledReward.toLocaleString()} zwart geld.` };
   } else {
     splitHeat(state, Math.floor(op.heat * 1.5), 0.3);
     state.stats.missionsFailed++;
@@ -1064,6 +1063,11 @@ export function checkAchievements(state: GameState): string[] {
       newAchievements.push(a.id);
     }
   });
+  // Store pending achievements for popup display
+  if (newAchievements.length > 0) {
+    if (!state.pendingAchievements) state.pendingAchievements = [];
+    state.pendingAchievements.push(...newAchievements);
+  }
   return newAchievements;
 }
 

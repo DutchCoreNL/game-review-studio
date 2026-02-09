@@ -15,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
 import { StoryArcsPanel } from './profile/StoryArcsPanel';
+import { StatsOverviewPanel } from './profile/StatsOverviewPanel';
 import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
 import { useState } from 'react';
 
@@ -111,7 +112,10 @@ export function ProfileView() {
           {/* Karma */}
           <KarmaPanel />
 
-          {/* Statistics */}
+          {/* Statistics Overview */}
+          <StatsOverviewPanel />
+
+          {/* Legacy Statistics */}
           <SectionHeader title="Statistieken" icon={<BarChart3 size={12} />} />
           <div className="game-card mb-4">
             <div className="grid grid-cols-2 gap-2">
