@@ -812,6 +812,7 @@ export function createInitialState(): import('./types').GameState {
     familyRel: { cartel: 0, syndicate: 0, bikers: 0 },
     policeRel: 20,
     leadersDefeated: [],
+    leaderDefeatedDay: {},
     prices: {},
     priceTrends: {},
     districtDemands: {},

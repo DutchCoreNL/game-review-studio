@@ -9,6 +9,15 @@ import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultipl
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
+// ========== FACTION ACTIVE HELPER ==========
+
+/** Returns false if the faction leader is defeated (chaos) or faction is conquered (vassal). */
+export function isFactionActive(state: GameState, familyId: FamilyId): boolean {
+  if (state.conqueredFactions?.includes(familyId)) return false;
+  if (state.leadersDefeated.includes(familyId)) return false;
+  return true;
+}
+
 export function saveGame(state: GameState): void {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -138,7 +147,8 @@ export function generatePrices(state: GameState): void {
     GOODS.forEach(g => {
       const volatility = 0.6 + (Math.random() * 0.8);
       let demandMod = (state.districtDemands[id] === g.id) ? 1.6 : 1.0;
-      if (g.faction === 'cartel' && id === 'port' && (state.familyRel['cartel'] || 0) > 60) {
+      // Only apply cartel discount if cartel is still active (leader alive & not conquered)
+      if (g.faction === 'cartel' && id === 'port' && isFactionActive(state, 'cartel') && (state.familyRel['cartel'] || 0) > 60) {
         demandMod = 0.6;
       }
       state.prices[id][g.id] = Math.floor(g.base * volatility * DISTRICTS[id].mods[g.id as GoodId] * demandMod);
@@ -149,12 +159,31 @@ export function generatePrices(state: GameState): void {
 
 export function generateContracts(state: GameState): void {
   state.activeContracts = [];
+  const factionKeys = (Object.keys(FAMILIES) as FamilyId[]);
+  const activeFactions = factionKeys.filter(fid => isFactionActive(state, fid));
+
   for (let i = 0; i < 3; i++) {
     const template = CONTRACT_TEMPLATES[Math.floor(Math.random() * CONTRACT_TEMPLATES.length)];
-    const factionKeys = Object.keys(FAMILIES) as FamilyId[];
-    const employer = factionKeys[Math.floor(Math.random() * factionKeys.length)];
-    let target = factionKeys[Math.floor(Math.random() * factionKeys.length)];
-    while (target === employer) target = factionKeys[Math.floor(Math.random() * factionKeys.length)];
+
+    if (activeFactions.length < 2) {
+      // Not enough active factions — generate "solo" contracts without faction ties
+      state.activeContracts.push({
+        id: Date.now() + i,
+        name: template.name,
+        type: template.type,
+        employer: activeFactions[0] || factionKeys[0],
+        target: activeFactions[0] || factionKeys[0],
+        risk: Math.min(90, Math.floor(template.risk + (state.day / 2))),
+        heat: template.heat,
+        reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0))),
+        xp: 35 + (state.day * 2)
+      });
+      continue;
+    }
+
+    const employer = activeFactions[Math.floor(Math.random() * activeFactions.length)];
+    let target = activeFactions[Math.floor(Math.random() * activeFactions.length)];
+    while (target === employer) target = activeFactions[Math.floor(Math.random() * activeFactions.length)];
     
     state.activeContracts.push({
       id: Date.now() + i,
@@ -192,7 +221,7 @@ export function generateMapEvents(state: GameState): void {
       type = 'drone';
     } else if (vHeat > 40 && roll < (0.5 - checkpointReduction)) {
       type = 'police_checkpoint';
-    } else if (Object.values(state.familyRel).some(r => (r || 0) < -30) && roll < 0.6) {
+  } else if ((Object.keys(FAMILIES) as FamilyId[]).some(fid => isFactionActive(state, fid) && (state.familyRel[fid] || 0) < -30) && roll < 0.6) {
       type = 'street_fight';
     } else if (roll < 0.7) {
       type = 'black_market';
@@ -787,15 +816,40 @@ export function endTurn(state: GameState): NightReportData {
   // Apply faction war effects for hostile factions
   applyFactionWar(state);
 
-  // Faction alliance passive income (both high-rel and conquered)
+  // Faction alliance passive income (only conquered factions or active alliances with living leader)
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
     const rel = state.familyRel[fid] || 0;
     const isConquered = state.conqueredFactions?.includes(fid);
-    if (rel >= 80 || isConquered) {
-      const income = isConquered ? 1000 : 500;
-      state.money += income;
-      state.stats.totalEarned += income;
-      report.businessIncome += income;
+    const leaderAlive = !state.leadersDefeated.includes(fid);
+    // Conquered = vassal income; Active alliance (rel>=80 + leader alive) = alliance income
+    if (isConquered) {
+      state.money += 1000;
+      state.stats.totalEarned += 1000;
+      report.businessIncome += 1000;
+    } else if (rel >= 80 && leaderAlive) {
+      state.money += 500;
+      state.stats.totalEarned += 500;
+      report.businessIncome += 500;
+    }
+  });
+
+  // === POWER DECAY: defeated-but-not-conquered factions lose influence ===
+  if (!state.leaderDefeatedDay) state.leaderDefeatedDay = {};
+  (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
+    const isDefeated = state.leadersDefeated.includes(fid);
+    const isConquered = state.conqueredFactions?.includes(fid);
+    if (isDefeated && !isConquered) {
+      // Track the day the leader was defeated
+      if (!state.leaderDefeatedDay[fid]) state.leaderDefeatedDay[fid] = state.day;
+      // Daily relation decay
+      state.familyRel[fid] = Math.max(-100, (state.familyRel[fid] || 0) - 2);
+      // After 10 days: send threatening phone message (once)
+      const defeatedDay = state.leaderDefeatedDay[fid]!;
+      const daysSince = state.day - defeatedDay;
+      if (daysSince === 10) {
+        const fam = FAMILIES[fid];
+        addPhoneMessage(state, fam.contact, `De straat vergeet niet, ${fam.name} laat je dit niet zomaar doen. Neem ons over of betaal de prijs.`, 'threat');
+      }
     }
   });
 
@@ -972,8 +1026,13 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
     state.stats.missionsCompleted++;
     gainXp(state, contract.xp);
 
-    state.familyRel[contract.employer] = Math.min(100, (state.familyRel[contract.employer] || 0) + 8);
-    state.familyRel[contract.target] = Math.max(-100, (state.familyRel[contract.target] || 0) - 5);
+    // Only change relations with active factions (leader alive & not conquered)
+    if (isFactionActive(state, contract.employer)) {
+      state.familyRel[contract.employer] = Math.min(100, (state.familyRel[contract.employer] || 0) + 8);
+    }
+    if (isFactionActive(state, contract.target)) {
+      state.familyRel[contract.target] = Math.max(-100, (state.familyRel[contract.target] || 0) - 5);
+    }
 
     member.xp += 10;
     if (member.xp >= 30 * member.level) {
@@ -995,7 +1054,9 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
     member.hp = Math.max(0, member.hp - crewDamage);
     state.stats.missionsFailed++;
 
-    state.familyRel[contract.employer] = Math.max(-100, (state.familyRel[contract.employer] || 0) - 3);
+    if (isFactionActive(state, contract.employer)) {
+      state.familyRel[contract.employer] = Math.max(-100, (state.familyRel[contract.employer] || 0) - 3);
+    }
     state.rep = Math.max(0, state.rep - 5);
     repChange = -5;
   }
@@ -1217,6 +1278,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       combat.logs.push(`+€${nemReward.toLocaleString()} | +${100 + state.nemesis.generation * 50} REP | ${state.nemesis.name} is permanent uitgeschakeld!`);
     } else if (combat.familyId) {
       state.leadersDefeated.push(combat.familyId);
+      if (!state.leaderDefeatedDay) state.leaderDefeatedDay = {};
+      state.leaderDefeatedDay[combat.familyId] = state.day;
       state.rep += 200;
       state.money += 25000;
       state.stats.totalEarned += 25000;
@@ -1506,8 +1569,9 @@ function applyFactionWar(state: GameState): void {
   const fearReduction = getKarmaFearReduction(state);
   (Object.keys(FAMILIES) as FamilyId[]).forEach(fid => {
     const rel = state.familyRel[fid] || 0;
-    const isConquered = state.conqueredFactions?.includes(fid);
-    if (rel < -50 && !isConquered) {
+    // Defeated or conquered factions cannot wage organized war
+    if (!isFactionActive(state, fid)) return;
+    if (rel < -50) {
       // Karma: Meedogenloos fear factor reduces faction attacks
       const stealChance = 0.4 * (1 - fearReduction);
       if (Math.random() < stealChance) {
