@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS } from '@/game/constants';
+import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES } from '@/game/constants';
 import { BOSS_PHASES } from '@/game/endgame';
 import { FamilyId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
@@ -122,7 +122,12 @@ function ActiveCombat() {
     prevFinished.current = combat?.finished ?? false;
   }, [combat?.finished, combat?.won]);
 
-  const env = COMBAT_ENVIRONMENTS[state.loc];
+  const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
+  const bossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
+  // Merge boss overrides into env for display
+  const env = bossOverride && baseEnv
+    ? { ...baseEnv, actions: bossOverride.actions, enemyAttackLogs: bossOverride.enemyAttackLogs, scenePhrases: bossOverride.scenePhrases }
+    : baseEnv;
   const isBossFight = !!combat.bossPhase;
   const phaseData = combat.bossPhase ? BOSS_PHASES[combat.bossPhase - 1] : null;
 

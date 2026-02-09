@@ -393,6 +393,163 @@ export const BOSS_DATA: Record<string, { name: string; hp: number; attack: numbe
   bikers: { name: 'Hammer', hp: 150, attack: 15, desc: 'Iron Skulls president. Een muur van staal.' },
 };
 
+export interface BossCombatOverride {
+  introLines: string[];
+  scenePhrases: string[];
+  enemyAttackLogs: string[];
+  actions: {
+    attack: CombatEnvAction;
+    heavy: CombatEnvAction;
+    defend: CombatEnvAction;
+    environment: CombatEnvAction;
+    tactical: CombatEnvAction & { stat: StatId };
+  };
+}
+
+export const BOSS_COMBAT_OVERRIDES: Record<FamilyId, BossCombatOverride> = {
+  cartel: {
+    introLines: [
+      "El Serpiente grijnst terwijl hij een gouden machete trekt.",
+      "\"Je had weg moeten blijven van de haven, amigo...\"",
+    ],
+    scenePhrases: [
+      "Cocaïnestof dwarrelt tussen de containers. El Serpiente beweegt als een schaduw — snel, dodelijk, meedogenloos.",
+      "Het maanlicht weerkaatst op zijn gouden tanden. Zijn mannen staan in een kring. Dit is zijn terrein.",
+      "De geur van zeewater en bloed. El Serpiente likt langs zijn machete. \"Danzen we, gringo?\"",
+      "Vuurvliegjes van sigaretten in de duisternis. El Serpiente fluistert commando's. Zijn reputatie is verdiend.",
+      "De havenkranen staan stil. Vanavond draait alles om jullie twee. Winner takes all.",
+    ],
+    enemyAttackLogs: [
+      "El Serpiente slingert zijn machete in een dodelijke boog! {dmg} schade!",
+      "\"¡Muere!\" — El Serpiente vuurt twee pistolen tegelijk! {dmg} schade!",
+      "El Serpiente werpt een mes met chirurgische precisie! {dmg} schade!",
+      "El Serpiente grijpt je bij de keel en smijt je tegen een container! {dmg} schade!",
+      "\"Te langzaam...\" El Serpiente's machete flitst door de lucht! {dmg} schade!",
+    ],
+    actions: {
+      attack: { label: "KOGEL VOOR DE SLANG", desc: "Richt op El Serpiente", logs: [
+        "Je vuurt op El Serpiente — hij duikt weg maar je schiet raak! {dmg} schade!",
+        "Door de cocaïnenevel heen zie je hem bewegen. Je schiet. Raak! {dmg} schade!",
+        "El Serpiente sist van pijn als je kogel zijn schouder raakt — {dmg} schade!",
+      ]},
+      heavy: { label: "CONTAINER LATEN VALLEN", desc: "Verpletter de Slang", logs: [
+        "Je kapt het kraankabel — een container dondert op El Serpiente's positie! {dmg} schade!",
+        "Je trapt een stapel olievaten om die El Serpiente onder zich begraven! {dmg} schade!",
+        "Met brute kracht duw je een vorkheftruck richting de Slang — {dmg} schade!",
+      ]},
+      defend: { label: "ONTWIJKEN", desc: "Ontwijk de machete", logs: [
+        "Je rolt weg achter een container — de machete vonkt op het staal. +{heal} HP.",
+        "El Serpiente's aanval mist op millimeters. Je hergroepeert. +{heal} HP.",
+        "Je vangt de macheteslag op met een stalen pijp en duwt hem terug. +{heal} HP.",
+      ]},
+      environment: { label: "KRAANHAAK SLINGEREN", desc: "Gebruik de haven tegen hem", logs: [
+        "Je slingert de kraanhaak — El Serpiente wordt van zijn voeten geslagen! STUNNED!",
+        "Een anker slingert door de nacht en raakt El Serpiente vol! STUNNED!",
+        "Je activeert de noodsprinkler — diesel en water verblinden de Slang! STUNNED!",
+      ]},
+      tactical: { label: "SMOKKELROUTE", desc: "Gebruik geheime doorgang", stat: "brains", logs: [
+        "Je kent de smokkelroutes beter dan hij. Via een verborgen luik duik je op achter hem...",
+        "Door de ondergrondse tunnels herpositioneer je jezelf. El Serpiente zoekt je op de verkeerde plek.",
+        "De smokkelaarsgang onder de kade — jij kent elk hoekje. De Slang niet.",
+      ]},
+    },
+  },
+  syndicate: {
+    introLines: [
+      "Mr. Wu zet zijn bril recht en sluit zijn laptop. \"Ik had je verwacht.\"",
+      "Beveiligingslasers doven. De deur vergrendelt achter je. Er is geen weg terug.",
+    ],
+    scenePhrases: [
+      "Hologrammen flikkeren op de glazen wanden. Mr. Wu staat kalm als een standbeeld — zijn ogen berekenen elke kans.",
+      "Het penthouse ruikt naar groene thee en elektronica. Ergens zoemt een drone. Mr. Wu glimlacht koud.",
+      "Schermen tonen live-feeds van heel Noxhaven. Mr. Wu kent elke beweging. Behalve deze.",
+      "De lift is geblokkeerd. Bewakingsdrones cirkelen. Mr. Wu's stem klinkt door de speakers: \"Fascinerend.\"",
+      "Blauw licht baadt het penthouse. Mr. Wu tikt op zijn horloge. \"Je hebt precies 3 minuten.\"",
+    ],
+    enemyAttackLogs: [
+      "Mr. Wu activeert een verborgen taser in de vloer! {dmg} schade!",
+      "Een bewakingsdrone vuurt een precisielaser! {dmg} schade!",
+      "Mr. Wu gooit een EMP-granaat — je elektronica hapert! {dmg} schade!",
+      "\"Voorspelbaar.\" Mr. Wu's bodyguard-robot slaat toe! {dmg} schade!",
+      "Mr. Wu hackt je wapenapparatuur — het ontploft bijna in je handen! {dmg} schade!",
+    ],
+    actions: {
+      attack: { label: "DOOR DE FIREWALL", desc: "Doorbreek zijn verdediging", logs: [
+        "Je schiet door een hologram heen — Mr. Wu was niet waar hij leek, maar je vindt hem! {dmg} schade!",
+        "Je negeert de digitale afleidingen en vuurt op de echte Wu — raak! {dmg} schade!",
+        "Een kogel door zijn laptopscherm. Mr. Wu's ogen worden groot. {dmg} schade!",
+      ]},
+      heavy: { label: "SERVERRACK OMGOOIEN", desc: "Vernietig zijn systemen", logs: [
+        "Je duwt een serverrack om — vonken, vuur en een schreeuw van Mr. Wu! {dmg} schade!",
+        "Je smijt zijn quantum-computer door het panoramavenster! {dmg} schade!",
+        "De noodstroomgenerator explodeert als je erin schiet — {dmg} schade!",
+      ]},
+      defend: { label: "DIGITALE CAMOUFLAGE", desc: "Gebruik de hologrammen als dekking", logs: [
+        "Je duikt achter een holografische projectie. Wu vuurt op een illusie. +{heal} HP.",
+        "De hologrammen verbergen je positie. Even ademen. +{heal} HP.",
+        "Je hackt een scherm om je silhouet elders te projecteren. +{heal} HP.",
+      ]},
+      environment: { label: "SYSTEEM HACKEN", desc: "Gebruik zijn tech tegen hem", logs: [
+        "Je hackt het sprinklersysteem — water en elektriciteit! Mr. Wu glijdt uit! STUNNED!",
+        "Je activeert de nood-lockdown — stalen platen sluiten Mr. Wu in! STUNNED!",
+        "Je overschrijft zijn drone-controle — zijn eigen drones vallen hem aan! STUNNED!",
+      ]},
+      tactical: { label: "VIRUS UPLOADEN", desc: "Schakel alle systemen uit", stat: "brains", logs: [
+        "Je plugt een USB in zijn mainframe. Het virus verspreidt zich — alle schermen worden zwart.",
+        "Code rolt over de schermen. Zijn beveiligingssysteem crasht. Mr. Wu staat er alleen voor.",
+        "\"Impossible...\" fluistert Wu terwijl zijn digitale imperium om hem heen instort.",
+      ]},
+    },
+  },
+  bikers: {
+    introLines: [
+      "Hammer slaat met zijn vuist op de werkbank. Het metaal verbuigt.",
+      "\"Tijd om te laten zien waarom ze me Hammer noemen.\"",
+    ],
+    scenePhrases: [
+      "De fabrieksvloer trilt onder Hammer's zware stappen. Hij torent boven je uit — een berg van spieren en staal.",
+      "Vonken spatten van de lasapparaten. Hammer grijpt een smidshamer zo groot als je torso. Hij grijnt.",
+      "De geur van zweet en verbrand metaal. Hammer brult. De muren lijken te trillen van zijn woede.",
+      "Machines stampen op het ritme van jullie gevecht. Hammer is niet snel — maar één klap is genoeg.",
+      "Gesmolten staal sist in de goten. Hammer veegt bloed van zijn vuist. \"Is dat alles?\"",
+    ],
+    enemyAttackLogs: [
+      "Hammer zwaait zijn smidshamer — de luchtdruk alleen al doet pijn! {dmg} schade!",
+      "\"HIER KOMT IE!\" Hammer's vuist raakt je als een goederentrein! {dmg} schade!",
+      "Hammer grijpt een stalen balk en slaat ermee als een honkbalknuppel! {dmg} schade!",
+      "Hammer kopstoot je vol in het gezicht! {dmg} schade!",
+      "Hammer tilt een aambeeld op en slingert het naar je toe! {dmg} schade!",
+    ],
+    actions: {
+      attack: { label: "ZWAKKE PLEK RAKEN", desc: "Zoek een opening in zijn pantser", logs: [
+        "Je vindt een opening tussen zijn platen — een precieze treffer! {dmg} schade!",
+        "Terwijl Hammer zwaait duk je onder zijn arm en schiet — {dmg} schade!",
+        "Je schiet op zijn knieschijf — zelfs Hammer wankelt! {dmg} schade!",
+      ]},
+      heavy: { label: "OVEN ONTPLOFFEN", desc: "Gebruik de smeltoven als wapen", logs: [
+        "Je schiet het slot van de smeltoven — gesmolten metaal stroomt richting Hammer! {dmg} schade!",
+        "Je activeert de hydraulische pers terwijl Hammer eronder staat — {dmg} schade!",
+        "Een kettingreactie van explosies door de fabriek — Hammer vliegt door de lucht! {dmg} schade!",
+      ]},
+      defend: { label: "ACHTER MACHINES", desc: "Laat de fabriek je beschermen", logs: [
+        "Je duikt achter een industriële pers. Hammer's vuist laat een deuk achter. +{heal} HP.",
+        "De lopende band schuift je uit het bereik van zijn hamer. +{heal} HP.",
+        "Je verschuilt je achter een stapel staalplaten — zelfs Hammer slaat daar niet doorheen. +{heal} HP.",
+      ]},
+      environment: { label: "LASAPPARAAT RICHTEN", desc: "Industrieel gereedschap als wapen", logs: [
+        "Je richt het lasapparaat op Hammer — een verblindende vlam! STUNNED!",
+        "De transportband sleurt Hammer mee tussen de tandwielen! STUNNED!",
+        "Je opent een persluchtklep — de stoom verblind Hammer volledig! STUNNED!",
+      ]},
+      tactical: { label: "VLOER LATEN ZAKKEN", desc: "Open het vloerrooster", stat: "muscle", logs: [
+        "Je trapt het vloerrooster open — Hammer zakt tot zijn middel in het gat!",
+        "Met al je kracht trek je de noodhendel. De vloer klapt open onder Hammer's gewicht.",
+        "Je lokt Hammer naar het zwakste punt van de vloer. Het staal buigt... en breekt.",
+      ]},
+    },
+  },
+};
+
 export const DISTRICT_FLAVOR: Record<string, { neutral: string; owned: string; high_heat: string }> = {
   port: { neutral: "Het ruikt naar zout, diesel en verraad.", owned: "De containers zijn nu van jou. Niemand beweegt zonder jouw toestemming.", high_heat: "De kustwacht patrouilleert. Elk schip wordt gecontroleerd." },
   crown: { neutral: "Glazen torens vol duistere geheimen.", owned: "Je kijkt neer op de stad. Letterlijk en figuurlijk.", high_heat: "Drones vliegen rond. Ze zoeken iemand... ze zoeken jou." },

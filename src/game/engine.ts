@@ -1,5 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
@@ -1065,6 +1065,11 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
   const muscle = getPlayerStat(state, 'muscle');
   const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
 
+  const bossOverride = BOSS_COMBAT_OVERRIDES[familyId];
+  const introLines = bossOverride
+    ? [...bossOverride.introLines]
+    : [`Je staat tegenover ${boss.name}...`, boss.desc];
+
   return {
     idx: 0,
     targetName: boss.name,
@@ -1073,7 +1078,7 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
     enemyAttack: boss.attack,
     playerHP: playerMaxHP,
     playerMaxHP,
-    logs: [`Je staat tegenover ${boss.name}...`, boss.desc],
+    logs: introLines,
     isBoss: true,
     familyId,
     stunned: false,
@@ -1091,7 +1096,10 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const muscle = getPlayerStat(state, 'muscle');
   const brains = getPlayerStat(state, 'brains');
   const charm = getPlayerStat(state, 'charm');
-  const env = COMBAT_ENVIRONMENTS[state.loc];
+  const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
+  const bossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId] : null;
+  // Boss override: use boss-specific actions/logs, fallback to district env
+  const env = bossOverride ? { ...baseEnv, actions: bossOverride.actions, enemyAttackLogs: bossOverride.enemyAttackLogs } : baseEnv;
 
   const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   const fmt = (s: string, vars: Record<string, string | number>) =>
