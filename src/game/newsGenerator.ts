@@ -6,7 +6,7 @@ import { GameState, DistrictId, FamilyId } from './types';
 import { DISTRICTS, FAMILIES, GOODS } from './constants';
 
 export type NewsUrgency = 'low' | 'medium' | 'high';
-export type NewsCategory = 'player' | 'faction' | 'market' | 'weather' | 'heat' | 'crew' | 'corruption' | 'vehicle' | 'karma' | 'flavor';
+export type NewsCategory = 'player' | 'faction' | 'market' | 'weather' | 'heat' | 'crew' | 'corruption' | 'vehicle' | 'karma' | 'villa' | 'flavor';
 
 export interface NewsItem {
   text: string;
@@ -517,6 +517,113 @@ function karmaNews(state: GameState): NewsItem[] {
   return items;
 }
 
+// ========== VILLA NEWS ==========
+
+function villaNews(state: GameState): NewsItem[] {
+  const items: NewsItem[] = [];
+  const villa = state.villa;
+  if (!villa) return items;
+
+  // Recently bought villa
+  if (state.day - villa.purchaseDay <= 3) {
+    items.push({
+      text: 'Mysterieuze koper neemt luxe villa op de heuvels over — "Alles was contant"',
+      category: 'villa', urgency: 'high', icon: '🏛️',
+      detail: 'Een mega-villa boven de stad is in handen gevallen van een onbekende. Makelaars zijn verbijsterd door de snelle deal.',
+    });
+  }
+
+  // Party thrown recently
+  if (villa.lastPartyDay && state.day - villa.lastPartyDay <= 2) {
+    items.push(safePick([
+      {
+        text: 'EXCLUSIEF: Wild feest op heuvelvilla — politici, celebs en "dubieuze figuren" gespot',
+        category: 'villa' as NewsCategory, urgency: 'high' as NewsUrgency, icon: '🎉',
+        detail: 'Buren klagen over muziek tot diep in de nacht. Dure sportwagens blokkeerden de oprit.',
+      },
+      {
+        text: 'Mysterieus gala trekt de elite van Noxhaven naar privé-landgoed',
+        category: 'villa' as NewsCategory, urgency: 'medium' as NewsUrgency, icon: '🥂',
+        detail: 'Genodigden spreken over "een avond die je niet snel vergeet". Details blijven geheim.',
+      },
+      {
+        text: '"Het feest van het jaar" — luxe villa-eigenaar viert met de top van Noxhaven',
+        category: 'villa' as NewsCategory, urgency: 'medium' as NewsUrgency, icon: '🍾',
+        detail: 'Catering ter waarde van duizenden euro\'s, live muziek en vuurwerk. De gastenlijst is streng geheim.',
+      },
+    ], {
+      text: 'EXCLUSIEF: Wild feest op heuvelvilla — politici, celebs en "dubieuze figuren" gespot',
+      category: 'villa', urgency: 'high', icon: '🎉',
+      detail: 'Buren klagen over muziek tot diep in de nacht. Dure sportwagens blokkeerden de oprit.',
+    }));
+  }
+
+  // Villa level upgrades
+  if (villa.level >= 3) {
+    items.push({
+      text: 'Luchtfoto onthult fortress-achtig landgoed op heuvels boven Noxhaven',
+      category: 'villa', urgency: 'medium', icon: '🏰',
+      detail: 'Drone-beelden tonen een zwaar beveiligd complex met bewakingscamera\'s, een helipad en een zwembad.',
+    });
+  } else if (villa.level >= 2) {
+    items.push({
+      text: 'Bouwactiviteit op heuvelvilla wekt argwaan — "Wat bouwen ze daar?"',
+      category: 'villa', urgency: 'low', icon: '🏗️',
+      detail: 'Aannemers werken dag en nacht aan uitbreidingen. Buren melden zware machines en betonmixers.',
+    });
+  }
+
+  // Many modules installed
+  if (villa.modules.length >= 8) {
+    items.push({
+      text: 'Insider: "Die villa is een compleet operatiecentrum — labs, wapens, alles"',
+      category: 'villa', urgency: 'high', icon: '🔬',
+      detail: 'Een anonieme bron beweert dat het landgoed op de heuvels fungeert als hoofdkwartier voor criminele operaties.',
+    });
+  }
+
+  // Camera module
+  if (villa.modules.includes('camera')) {
+    items.push({
+      text: 'High-tech bewakingssysteem geïnstalleerd bij privé-landgoed — "Beter dan de FBI"',
+      category: 'villa', urgency: 'low', icon: '📹',
+      detail: 'Beveiligingsexperts schatten de waarde van het camerasysteem op meer dan €100.000.',
+    });
+  }
+
+  // Tunnel module
+  if (villa.modules.includes('tunnel')) {
+    items.push({
+      text: 'Geruchten over geheime tunnels onder heuvelvilla — "Net als El Chapo"',
+      category: 'villa', urgency: 'medium', icon: '🕳️',
+      detail: 'Een ex-aannemer beweert dat er ondergrondse gangen zijn gegraven. De eigenaar ontkent alles.',
+    });
+  }
+
+  // Production active
+  const hasProduction = villa.modules.includes('wietplantage') || villa.modules.includes('coke_lab') || villa.modules.includes('synthetica_lab');
+  if (hasProduction) {
+    items.push(safePick([
+      {
+        text: 'Sterke chemische geur gemeld in heuvels boven Noxhaven — "Ruikt naar ammoniak"',
+        category: 'villa' as NewsCategory, urgency: 'medium' as NewsUrgency, icon: '🧪',
+        detail: 'Wandelaars klagen over een penetrante geur. De milieudienst start een onderzoek.',
+      },
+      {
+        text: 'Elektriciteitsverbruik in heuvels abnormaal hoog — energiebedrijf doet onderzoek',
+        category: 'villa' as NewsCategory, urgency: 'low' as NewsUrgency, icon: '⚡',
+        detail: 'Het stroomverbruik in het gebied is 400% hoger dan normaal. "Dat is niet voor een jacuzzi," aldus een technicus.',
+      },
+    ], {
+      text: 'Sterke chemische geur gemeld in heuvels boven Noxhaven — "Ruikt naar ammoniak"',
+      category: 'villa', urgency: 'medium', icon: '🧪',
+      detail: 'Wandelaars klagen over een penetrante geur. De milieudienst start een onderzoek.',
+    }));
+  }
+
+  return items;
+}
+
 // ========== MAIN GENERATOR ==========
 
 export function generateDailyNews(state: GameState): NewsItem[] {
@@ -531,6 +638,7 @@ export function generateDailyNews(state: GameState): NewsItem[] {
     ...corruptionNews(state),
     ...vehicleNews(state),
     ...karmaNews(state),
+    ...villaNews(state),
   ];
 
   // Deduplicate: max 1 item per category
