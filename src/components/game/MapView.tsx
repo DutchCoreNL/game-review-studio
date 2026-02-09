@@ -11,10 +11,11 @@ import { NemesisInfo } from './map/NemesisInfo';
 import { NewsTicker } from './map/NewsTicker';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices, Wrench, Home, Building2 } from 'lucide-react';
+import { Moon, Dices, Wrench, Home, Building2, Swords } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
+import { canTriggerFinalBoss } from '@/game/endgame';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -202,6 +203,18 @@ export function MapView() {
             className="px-4"
           >
             VILLA
+          </GameButton>
+        )}
+        {!isHiding && canTriggerFinalBoss(state) && !state.activeCombat && (
+          <GameButton
+            variant="blood"
+            size="lg"
+            glow
+            icon={<Swords size={14} />}
+            onClick={() => dispatch({ type: 'START_FINAL_BOSS' })}
+            className="px-4"
+          >
+            DECKER
           </GameButton>
         )}
       </div>
