@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, BUSINESSES, HQ_UPGRADES, FAMILIES } from '@/game/constants';
+import { VEHICLES, BUSINESSES, FAMILIES } from '@/game/constants';
 import { FamilyId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { SectionHeader } from './ui/SectionHeader';
@@ -11,7 +11,7 @@ import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
 import { motion } from 'framer-motion';
-import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Crown, Users, Skull, Handshake, Swords } from 'lucide-react';
+import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords } from 'lucide-react';
 import { useState } from 'react';
 
 type SubTab = 'assets' | 'business' | 'families' | 'corruption' | 'war';
@@ -137,53 +137,23 @@ function AssetsPanel() {
         ))}
       </div>
 
-      {/* Lab */}
-      {state.hqUpgrades.includes('lab') && (
-        <>
-          <SectionHeader title="Synthetica Lab" icon={<Factory size={12} />} />
-          <div className="game-card border-l-[3px] border-l-game-purple mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2">
-                <Factory size={16} className="text-game-purple" />
-                <div>
-                  <h4 className="font-bold text-xs">Lab Actief</h4>
-                  <p className="text-[0.5rem] text-muted-foreground">Chemicaliën: {state.lab.chemicals}</p>
-                </div>
-              </div>
-              <GameButton variant="purple" size="sm"
-                onClick={() => { dispatch({ type: 'BUY_CHEMICALS', amount: 10 }); showToast('Chemicaliën gekocht'); }}>
-                KOOP 10 (€500)
-              </GameButton>
-            </div>
-            <p className="text-[0.5rem] text-muted-foreground">Productie: max 20 Synthetica per nacht</p>
-          </div>
-        </>
-      )}
 
       {/* Smuggle Routes */}
       <div className="mb-4">
         <SmuggleRoutesPanel />
       </div>
 
-      {/* HQ Upgrades */}
-      <SectionHeader title="HQ Upgrades" icon={<Crown size={12} />} />
-      <div className="space-y-2">
-        {HQ_UPGRADES.map(u => {
-          const owned = state.hqUpgrades.includes(u.id);
-          return (
-            <div key={u.id} className="game-card flex justify-between items-center">
-              <div>
-                <h4 className="font-bold text-xs">{u.name}</h4>
-                <p className="text-[0.5rem] text-muted-foreground">{u.desc}</p>
-              </div>
-              <GameButton variant={owned ? 'muted' : 'gold'} size="sm" disabled={owned || state.money < u.cost}
-                onClick={() => { dispatch({ type: 'BUY_UPGRADE', id: u.id }); showToast(`${u.name} geïnstalleerd!`); }}>
-                {owned ? 'BEZIT' : `€${u.cost.toLocaleString()}`}
-              </GameButton>
-            </div>
-          );
-        })}
-      </div>
+      {/* Lab (legacy HQ upgrade — still shown if owned, villa lab takes over) */}
+      {state.hqUpgrades.includes('lab') && !state.villa?.modules.includes('synthetica_lab') && (
+        <>
+          <SectionHeader title="Synthetica Lab (Legacy)" icon={<Factory size={12} />} />
+          <div className="game-card border-l-[3px] border-l-game-purple mb-4">
+            <p className="text-[0.5rem] text-muted-foreground">
+              ⚠️ Dit lab wordt vervangen door de villa-module. Koop het Synthetica Lab in je villa voor verbeterde productie.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

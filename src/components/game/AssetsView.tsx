@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, BUSINESSES, HQ_UPGRADES, REKAT_COSTS } from '@/game/constants';
+import { VEHICLES, BUSINESSES, REKAT_COSTS } from '@/game/constants';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Flame } from 'lucide-react';
 
