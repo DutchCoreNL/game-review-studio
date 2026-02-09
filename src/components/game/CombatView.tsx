@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES } from '@/game/constants';
-import { BOSS_PHASES } from '@/game/endgame';
+import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -123,10 +123,11 @@ function ActiveCombat() {
   }, [combat?.finished, combat?.won]);
 
   const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
-  const bossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
-  // Merge boss overrides into env for display
-  const env = bossOverride && baseEnv
-    ? { ...baseEnv, actions: bossOverride.actions, enemyAttackLogs: bossOverride.enemyAttackLogs, scenePhrases: bossOverride.scenePhrases }
+  const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
+  const finalBossOverride = combat.bossPhase ? FINAL_BOSS_COMBAT_OVERRIDES[combat.bossPhase] : null;
+  const override = finalBossOverride || factionBossOverride;
+  const env = override && baseEnv
+    ? { ...baseEnv, actions: override.actions, enemyAttackLogs: override.enemyAttackLogs, scenePhrases: override.scenePhrases }
     : baseEnv;
   const isBossFight = !!combat.bossPhase;
   const phaseData = combat.bossPhase ? BOSS_PHASES[combat.bossPhase - 1] : null;

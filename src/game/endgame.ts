@@ -3,8 +3,8 @@
  * Progression phases, final boss (multi-phase), ranking, New Game+, endgame events
  */
 
-import { GameState, EndgamePhase, VictoryData, VictoryRank, CombatState, FamilyId } from './types';
-import { FAMILIES, DISTRICTS, createInitialState } from './constants';
+import { GameState, EndgamePhase, VictoryData, VictoryRank, CombatState, FamilyId, StatId } from './types';
+import { FAMILIES, DISTRICTS, createInitialState, CombatEnvAction } from './constants';
 import { getPlayerStat, gainXp } from './engine';
 
 // ========== PROGRESSION PHASES ==========
@@ -163,6 +163,111 @@ export function getDeckDialogue(combat: CombatState): string | null {
   }
   return null;
 }
+
+// ========== FINAL BOSS COMBAT OVERRIDES ==========
+
+export interface FinalBossCombatOverride {
+  scenePhrases: string[];
+  enemyAttackLogs: string[];
+  actions: {
+    attack: CombatEnvAction;
+    heavy: CombatEnvAction;
+    defend: CombatEnvAction;
+    environment: CombatEnvAction;
+    tactical: CombatEnvAction & { stat: StatId };
+  };
+}
+
+export const FINAL_BOSS_COMBAT_OVERRIDES: Record<number, FinalBossCombatOverride> = {
+  1: {
+    // SWAT-Commandant Voss
+    scenePhrases: [
+      "Traangas waait door de straten. SWAT-schilden vormen een muur van kevlar en staal. Voss schreeuwt commando's.",
+      "Helikopterlichten snijden door de nacht. Het geluid van laarzen op asfalt. Voss staat onbeweeglijk — een veteraan.",
+      "Flashbangs exploderen. Door de witte flits zie je Voss' silhouet — kogelvrij vest, vizier neer, wapen geheven.",
+      "Sirenes overal. Voss heeft de hele wijk afgezet. Geen uitweg. Alleen erdoorheen.",
+      "De grond trilt van het pantservoertuig. Voss' stem klinkt door de megafoon: \"Laatste waarschuwing.\"",
+    ],
+    enemyAttackLogs: [
+      "Voss vuurt een precisieschot vanachter zijn schild! {dmg} schade!",
+      "SWAT-eenheid Alpha opent het vuur op Voss' bevel! {dmg} schade!",
+      "Voss gooit een flashbang — je ogen branden! {dmg} schade!",
+      "Een rubberkogel raakt je ribben — Voss speelt niet meer. {dmg} schade!",
+      "Voss stormt vooruit met zijn riotschild en ramt je! {dmg} schade!",
+    ],
+    actions: {
+      attack: { label: "DOORBREKEND VUUR", desc: "Schiet door de SWAT-linie", logs: [
+        "Je vuurt door een spleet in de schildmuur — Voss wankelt! {dmg} schade!",
+        "Een salvo vanuit dekking treft Voss' schouder! {dmg} schade!",
+        "Je schiet het vizier van Voss' helm kapot — hij is kwetsbaar! {dmg} schade!",
+      ]},
+      heavy: { label: "PANTSERVOERTUIG RAKEN", desc: "Richt op hun uitrusting", logs: [
+        "Je schiet de banden van het SWAT-busje — het explodeert bijna! {dmg} schade!",
+        "Een molotov raakt het pantservoertuig — Voss duikt weg! {dmg} schade!",
+        "Je gooit een gasfles naar de SWAT-linie — BOEM! {dmg} schade!",
+      ]},
+      defend: { label: "BARRICADE OPWERPEN", desc: "Gebruik alles als schild", logs: [
+        "Je schuift een auto als barricade. SWAT-kogels boren zich in het metaal. +{heal} HP.",
+        "Achter een betonblok hervind je je kracht terwijl kogels rondvliegen. +{heal} HP.",
+        "Je crew dekt je terwijl je even op adem komt achter een container. +{heal} HP.",
+      ]},
+      environment: { label: "STROOMKAST BLAZEN", desc: "Creëer chaos in de straten", logs: [
+        "Je schiet een stroomkast kapot — vonken en duisternis! Voss verliest overzicht! STUNNED!",
+        "Een waterleiding barst open — de straat verandert in een rivier! Voss glijdt uit! STUNNED!",
+        "Je activeert een autoalarm-kettingreactie — oorverdovend lawaai! STUNNED!",
+      ]},
+      tactical: { label: "FLANKEER VIA DAKEN", desc: "Omsingel het SWAT-team", stat: "brains", logs: [
+        "Je klimt via de brandtrap naar het dak. Van bovenaf zie je Voss' blinde vlek...",
+        "Over de daken spring je achter de SWAT-linie. Ze verwachtten je van voren — niet van boven.",
+        "Je crew leidt af terwijl jij via het riool achter Voss opduikt. Totale verrassing.",
+      ]},
+    },
+  },
+  2: {
+    // Commissaris Decker
+    scenePhrases: [
+      "Decker staat in het midden van de verwoesting. Zijn jas wappert in de wind. Geen angst in zijn ogen — alleen vastberadenheid.",
+      "De stad brandt om jullie heen. Decker laadt zijn wapen met dodelijke kalmte. \"Dit eindigt hier.\"",
+      "Helikopters cirkelen boven jullie. Schijnwerpers kruisen. Maar dit gevecht is tussen jullie twee.",
+      "Puin en rook. Decker veegt stof van zijn schouder. \"Ik heb 30 jaar gewacht op dit moment.\"",
+      "De skyline van Noxhaven gloeit oranje van de branden. Decker glimlacht koud. \"Eén van ons loopt hier weg.\"",
+    ],
+    enemyAttackLogs: [
+      "Decker vuurt met dodelijke precisie — hij mist nooit twee keer! {dmg} schade!",
+      "\"Te voorspelbaar!\" Decker voorspelt je beweging en vuurt! {dmg} schade!",
+      "Decker haalt een verborgen mes — een snelle snee over je arm! {dmg} schade!",
+      "Decker trapt je been weg en slaat met de kolf van zijn wapen! {dmg} schade!",
+      "\"Dit is voor elke agent die jij te schande hebt gemaakt!\" Decker opent het vuur! {dmg} schade!",
+    ],
+    actions: {
+      attack: { label: "ALLES OF NIETS", desc: "Dit is het moment", logs: [
+        "Je vuurt met alles wat je hebt — Decker struikelt achteruit! {dmg} schade!",
+        "Oog in oog met de Commissaris. Je schiet. Raak! {dmg} schade!",
+        "Decker probeerde te ontwijken maar je was sneller — {dmg} schade!",
+      ]},
+      heavy: { label: "STAD ALS WAPEN", desc: "Gebruik de verwoesting", logs: [
+        "Je trapt een brandende muur om — Decker verdwijnt in vuur en puin! {dmg} schade!",
+        "Een lantaarnpaal buigt onder je gewicht en valt op Decker! {dmg} schade!",
+        "Je schiet een gasleidng kapot — de explosie werpt Decker meters ver! {dmg} schade!",
+      ]},
+      defend: { label: "OVERLEVEN", desc: "Blijf staan, wat er ook komt", logs: [
+        "Je encasseert de klap en weigert te vallen. Dit is jouw stad. +{heal} HP.",
+        "Decker's kogels missen op millimeters. Je ademt. Je leeft. Je vecht door. +{heal} HP.",
+        "Achter een omgevallen politieauto vind je een moment van rust. +{heal} HP.",
+      ]},
+      environment: { label: "STAD LATEN BEVEN", desc: "Ontsteek de chaos", logs: [
+        "Je schiet een transformator — de hele straat wordt donker! Decker is gedesoriënteerd! STUNNED!",
+        "Een gasexplosie verderop — Decker duikt instinctief weg! STUNNED!",
+        "Je activeert de bouwkraan boven jullie — puin regent neer! Decker moet wegspringen! STUNNED!",
+      ]},
+      tactical: { label: "NOXHAVEN'S KRACHT", desc: "De stad vecht met jou mee", stat: "charm", logs: [
+        "De mensen van Noxhaven komen uit hun huizen. Ze staan achter jou. Decker ziet het — en aarzelt.",
+        "Vanuit elke steeg, elk raam, elke hoek — de stad keert zich tegen Decker. Jij bent hun leider.",
+        "\"Dit is niet meer jouw stad, Decker.\" De menigte blokkeert zijn vluchtroute. Hij staat er alleen voor.",
+      ]},
+    },
+  },
+};
 
 // ========== ENDGAME EVENTS ==========
 
