@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, HQ_UPGRADES } from '@/game/constants';
+import { FAMILIES } from '@/game/constants';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 
@@ -62,34 +62,6 @@ export function FamiliesView() {
                 </div>
               )}
             </motion.div>
-          );
-        })}
-      </div>
-
-      {/* HQ Upgrades */}
-      <SectionHeader title="HQ Upgrades" />
-      <div className="space-y-2 mb-4">
-        {HQ_UPGRADES.map(u => {
-          const owned = state.hqUpgrades.includes(u.id);
-          return (
-            <div key={u.id} className="game-card flex justify-between items-center">
-              <div>
-                <h4 className="font-bold text-xs">{u.name}</h4>
-                <p className="text-[0.55rem] text-muted-foreground">{u.desc}</p>
-              </div>
-              <button
-                onClick={() => {
-                  dispatch({ type: 'BUY_UPGRADE', id: u.id });
-                  showToast(`${u.name} geïnstalleerd!`);
-                }}
-                disabled={owned || state.money < u.cost}
-                className={`px-3 py-1.5 rounded text-[0.6rem] font-bold ${
-                  owned ? 'bg-muted text-muted-foreground' : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30'
-                }`}
-              >
-                {owned ? 'BEZIT' : `€${u.cost.toLocaleString()}`}
-              </button>
-            </div>
           );
         })}
       </div>

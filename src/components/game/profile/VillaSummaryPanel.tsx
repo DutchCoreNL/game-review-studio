@@ -25,9 +25,10 @@ export function VillaSummaryPanel() {
   const baseDefense = villa.level * 10;
   const moduleDefense = (villa.modules.includes('camera') ? 25 : 0)
     + (villa.modules.includes('wapenkamer') ? 10 : 0)
-    + (villa.modules.includes('commandocentrum') ? 15 : 0);
+    + (villa.modules.includes('commandocentrum') ? 15 : 0)
+    + (villa.modules.includes('server_room') ? 5 : 0);
   const totalDefense = baseDefense + moduleDefense;
-  const maxDefense = 30 + 25 + 10 + 15;
+  const maxDefense = 30 + 25 + 10 + 15 + 5;
   const defensePct = Math.min(100, Math.round((totalDefense / maxDefense) * 100));
   const defenseRating = totalDefense >= 60 ? 'FORT KNOX' : totalDefense >= 40 ? 'GOED BEWAAKT' : totalDefense >= 20 ? 'REDELIJK' : 'KWETSBAAR';
   const defenseColor = totalDefense >= 60 ? 'text-emerald' : totalDefense >= 40 ? 'text-gold' : totalDefense >= 20 ? 'text-orange-400' : 'text-blood';
@@ -98,6 +99,18 @@ export function VillaSummaryPanel() {
           {villa.modules.includes('tunnel') && (
             <div className="flex justify-between text-[0.5rem]">
               <span className="text-muted-foreground">🕳️ Tunnel (verlies gehalveerd)</span>
+              <span className="font-bold text-gold">✓</span>
+            </div>
+          )}
+          {villa.modules.includes('server_room') && (
+            <div className="flex justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">🖥️ Server Room</span>
+              <span className="font-bold text-emerald">+5</span>
+            </div>
+          )}
+          {villa.modules.includes('garage_uitbreiding') && (
+            <div className="flex justify-between text-[0.5rem]">
+              <span className="text-muted-foreground">🏗️ Garage Uitbreiding (+10 bagage)</span>
               <span className="font-bold text-gold">✓</span>
             </div>
           )}

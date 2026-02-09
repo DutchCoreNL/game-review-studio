@@ -9,7 +9,7 @@ export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
 
 // ========== VILLA TYPES ==========
 
-export type VillaModuleId = 'kluis' | 'opslagkelder' | 'synthetica_lab' | 'wietplantage' | 'coke_lab' | 'crew_kwartieren' | 'wapenkamer' | 'commandocentrum' | 'helipad' | 'zwembad' | 'camera' | 'tunnel';
+export type VillaModuleId = 'kluis' | 'opslagkelder' | 'synthetica_lab' | 'wietplantage' | 'coke_lab' | 'crew_kwartieren' | 'wapenkamer' | 'commandocentrum' | 'helipad' | 'zwembad' | 'camera' | 'tunnel' | 'garage_uitbreiding' | 'server_room';
 
 export interface VillaState {
   level: number; // 1-3

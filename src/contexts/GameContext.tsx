@@ -167,8 +167,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   const s = JSON.parse(JSON.stringify(state)) as GameState;
 
   switch (action.type) {
-    case 'SET_STATE':
-      return action.state;
+    case 'SET_STATE': {
+      // Migrate old HQ upgrades to villa modules
+      const loaded = action.state;
+      if (loaded.villa && loaded.hqUpgrades) {
+        if (loaded.hqUpgrades.includes('garage') && !loaded.villa.modules.includes('garage_uitbreiding')) {
+          loaded.villa.modules.push('garage_uitbreiding');
+        }
+        if (loaded.hqUpgrades.includes('server') && !loaded.villa.modules.includes('server_room')) {
+          loaded.villa.modules.push('server_room');
+        }
+      }
+      return loaded;
+    }
 
     case 'TRADE': {
       if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't trade while hiding or in prison

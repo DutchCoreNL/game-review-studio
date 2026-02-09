@@ -69,6 +69,7 @@ export function recalcMaxInv(state: GameState): number {
     inv += totalBonus;
   }
   if (state.hqUpgrades.includes('garage')) inv += 10;
+  if (state.villa?.modules.includes('garage_uitbreiding')) inv += 10;
   if (state.ownedDistricts.includes('port')) inv = Math.floor(inv * 1.1);
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
   // Safehouse storage bonuses (level 2: +5, level 3: +10)
@@ -472,6 +473,7 @@ export function endTurn(state: GameState): NightReportData {
     let vDecay = 8;
     if (state.ownedDistricts.includes('crown')) vDecay += 2;
     if (state.hqUpgrades.includes('server')) vDecay += 3;
+    if (state.villa?.modules.includes('server_room')) vDecay += 5;
     v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
     // Rekat cooldown countdown
     if (v.rekatCooldown > 0) v.rekatCooldown--;
@@ -482,6 +484,7 @@ export function endTurn(state: GameState): NightReportData {
   if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
   if (state.ownedDistricts.includes('crown')) pDecay += 1;
   if (state.hqUpgrades.includes('server')) pDecay += 3;
+  if (state.villa?.modules.includes('server_room')) pDecay += 5;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   // Karma: Eerbaar extra heat decay
   pDecay += getKarmaHeatDecayBonus(state);

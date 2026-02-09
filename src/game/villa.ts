@@ -34,6 +34,8 @@ export const VILLA_MODULES: VillaModuleDef[] = [
   { id: 'zwembad', name: 'Zwembad & Lounge', cost: 35000, icon: '🏊', desc: 'Crew-moraal bonus, +5 charm bij villa-deals.', reqLevel: 1 },
   { id: 'camera', name: 'Bewakingscamera\'s', cost: 45000, icon: '📹', desc: '+25 verdediging, waarschuwing bij aanvallen, nemesis-aanvalkans -30%.', reqLevel: 2 },
   { id: 'tunnel', name: 'Ondergrondse Tunnel', cost: 60000, icon: '🕳️', desc: 'Ontsnappingsroute: +25% gevangenis-ontsnapping, bij villa-aanval verlies gehalveerd.', reqLevel: 3 },
+  { id: 'garage_uitbreiding', name: 'Garage Uitbreiding', cost: 15000, icon: '🏗️', desc: '+10 max bagage ruimte voor al je voertuigen.', reqLevel: 1 },
+  { id: 'server_room', name: 'Server Room', cost: 25000, icon: '🖥️', desc: '-5 extra heat decay per nacht (voertuig & persoonlijk).', reqLevel: 2 },
 ];
 
 // ========== VILLA STORAGE LIMITS ==========
