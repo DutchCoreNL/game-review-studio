@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic } from '../game/types';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES } from '../game/constants';
+import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage } from '../game/newFeatures';
@@ -140,6 +141,17 @@ type GameAction =
   | { type: 'RESOLVE_HEIST_COMPLICATION'; choiceId: string }
   | { type: 'FINISH_HEIST' }
   | { type: 'CANCEL_HEIST' }
+  // Villa actions
+  | { type: 'BUY_VILLA' }
+  | { type: 'UPGRADE_VILLA' }
+  | { type: 'INSTALL_VILLA_MODULE'; moduleId: VillaModuleId }
+  | { type: 'DEPOSIT_VILLA_MONEY'; amount: number }
+  | { type: 'WITHDRAW_VILLA_MONEY'; amount: number }
+  | { type: 'DEPOSIT_VILLA_GOODS'; goodId: GoodId; amount: number }
+  | { type: 'WITHDRAW_VILLA_GOODS'; goodId: GoodId; amount: number }
+  | { type: 'DEPOSIT_VILLA_AMMO'; amount: number }
+  | { type: 'WITHDRAW_VILLA_AMMO'; amount: number }
+  | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1578,6 +1590,123 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== VILLA ACTIONS ==========
+
+    case 'BUY_VILLA': {
+      if (s.villa) return s;
+      if (s.money < VILLA_COST) return s;
+      if (s.player.level < VILLA_REQ_LEVEL || s.rep < VILLA_REQ_REP) return s;
+      s.money -= VILLA_COST;
+      s.stats.totalSpent += VILLA_COST;
+      s.villa = {
+        level: 1,
+        modules: [],
+        vaultMoney: 0,
+        storedGoods: {},
+        storedAmmo: 0,
+        helipadUsedToday: false,
+        purchaseDay: s.day,
+      };
+      addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
+      return s;
+    }
+
+    case 'UPGRADE_VILLA': {
+      if (!s.villa || s.villa.level >= 3) return s;
+      const nextLevel = s.villa.level + 1;
+      const cost = VILLA_UPGRADE_COSTS[nextLevel];
+      if (!cost || s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      s.villa.level = nextLevel;
+      return s;
+    }
+
+    case 'INSTALL_VILLA_MODULE': {
+      if (!s.villa) return s;
+      const modDef = VILLA_MODULES.find(m => m.id === action.moduleId);
+      if (!modDef) return s;
+      if (s.villa.modules.includes(action.moduleId)) return s;
+      if (s.villa.level < modDef.reqLevel) return s;
+      if (s.money < modDef.cost) return s;
+      s.money -= modDef.cost;
+      s.stats.totalSpent += modDef.cost;
+      s.villa.modules.push(action.moduleId);
+      s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
+    case 'DEPOSIT_VILLA_MONEY': {
+      if (!s.villa || !s.villa.modules.includes('kluis')) return s;
+      const max = getVaultMax(s.villa.level);
+      const space = max - s.villa.vaultMoney;
+      const amt = Math.min(action.amount, s.money, space);
+      if (amt <= 0) return s;
+      s.money -= amt;
+      s.villa.vaultMoney += amt;
+      return s;
+    }
+
+    case 'WITHDRAW_VILLA_MONEY': {
+      if (!s.villa) return s;
+      const wAmt = Math.min(action.amount, s.villa.vaultMoney);
+      if (wAmt <= 0) return s;
+      s.villa.vaultMoney -= wAmt;
+      s.money += wAmt;
+      return s;
+    }
+
+    case 'DEPOSIT_VILLA_GOODS': {
+      if (!s.villa || !s.villa.modules.includes('opslagkelder')) return s;
+      const maxStorage = getStorageMax(s.villa.level);
+      const currentStored = Object.values(s.villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
+      const storageSpace = maxStorage - currentStored;
+      const playerHas = s.inventory[action.goodId] || 0;
+      const dAmt = Math.min(action.amount, playerHas, storageSpace);
+      if (dAmt <= 0) return s;
+      s.inventory[action.goodId] = playerHas - dAmt;
+      s.villa.storedGoods[action.goodId] = (s.villa.storedGoods[action.goodId] || 0) + dAmt;
+      return s;
+    }
+
+    case 'WITHDRAW_VILLA_GOODS': {
+      if (!s.villa) return s;
+      const stored = s.villa.storedGoods[action.goodId] || 0;
+      const currentInvCount = Object.values(s.inventory).reduce((a, b) => a + (b || 0), 0);
+      const invSpace = s.maxInv - currentInvCount;
+      const wgAmt = Math.min(action.amount, stored, invSpace);
+      if (wgAmt <= 0) return s;
+      s.villa.storedGoods[action.goodId] = stored - wgAmt;
+      s.inventory[action.goodId] = (s.inventory[action.goodId] || 0) + wgAmt;
+      return s;
+    }
+
+    case 'DEPOSIT_VILLA_AMMO': {
+      if (!s.villa || !s.villa.modules.includes('wapenkamer')) return s;
+      const aAmt = Math.min(action.amount, s.ammo || 0);
+      if (aAmt <= 0) return s;
+      s.ammo -= aAmt;
+      s.villa.storedAmmo += aAmt;
+      return s;
+    }
+
+    case 'WITHDRAW_VILLA_AMMO': {
+      if (!s.villa) return s;
+      const waAmt = Math.min(action.amount, s.villa.storedAmmo);
+      if (waAmt <= 0) return s;
+      s.villa.storedAmmo -= waAmt;
+      s.ammo = (s.ammo || 0) + waAmt;
+      return s;
+    }
+
+    case 'VILLA_HELIPAD_TRAVEL': {
+      if (!s.villa || !s.villa.modules.includes('helipad') || s.villa.helipadUsedToday) return s;
+      if ((s.hidingDays || 0) > 0 || s.prison) return s;
+      s.villa.helipadUsedToday = true;
+      s.loc = action.to;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -1707,6 +1836,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.heistPlan === undefined) saved.heistPlan = null;
       // News migration
       if (!saved.dailyNews) saved.dailyNews = [];
+      // Villa migration
+      if (saved.villa === undefined) saved.villa = null;
+      if (saved.villa) {
+        if (saved.villa.storedAmmo === undefined) saved.villa.storedAmmo = 0;
+        if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = false;
+        if (!saved.villa.storedGoods) saved.villa.storedGoods = {};
+      }
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

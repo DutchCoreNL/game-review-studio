@@ -3,6 +3,7 @@ import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINES
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
+import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction } from './villa';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -74,8 +75,12 @@ export function recalcMaxInv(state: GameState): number {
   if (state.safehouses) {
     state.safehouses.forEach(sh => {
       if (sh.level >= 2) inv += 5;
-      if (sh.level >= 3) inv += 5; // total +10 at level 3
+      if (sh.level >= 3) inv += 5;
     });
+  }
+  // Villa opslagkelder bonus
+  if (state.villa?.modules.includes('opslagkelder')) {
+    inv += 10;
   }
   return inv;
 }
@@ -321,15 +326,17 @@ export function calculateSentence(personalHeat: number): number {
 export function arrestPlayer(state: GameState, report: NightReportData): void {
   const sentence = calculateSentence(state.personalHeat || 0);
 
-  // Confiscate money
-  const moneyLost = Math.floor(state.money * PRISON_MONEY_CONFISCATION);
+  // Confiscate money (villa vault money is protected)
+  const protectedMoney = getVillaProtectedMoney(state);
+  const vulnerableMoney = Math.max(0, state.money - 0); // all pocket money is vulnerable
+  const moneyLost = Math.floor(vulnerableMoney * PRISON_MONEY_CONFISCATION);
   state.money -= moneyLost;
 
   // Confiscate all dirty money
   const dirtyMoneyLost = state.dirtyMoney;
   state.dirtyMoney = 0;
 
-  // Confiscate illegal goods (drugs, weapons)
+  // Confiscate illegal goods (drugs, weapons) — villa stored goods are PROTECTED
   const goodsLost: string[] = [];
   const illegalGoods: GoodId[] = ['drugs', 'weapons'];
   illegalGoods.forEach(gid => {
@@ -339,6 +346,7 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
       state.inventoryCosts[gid] = 0;
     }
   });
+  // Villa stored goods are NOT touched (that's the whole point)
 
   state.prison = {
     daysRemaining: sentence,
@@ -379,7 +387,21 @@ export function endTurn(state: GameState): NightReportData {
 
   // Lab production (storm gives +50% output, not double)
   const labMultiplier = state.weather === 'storm' ? 1.5 : 1;
-  if (state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
+
+  // Villa production FIRST (before old HQ lab, to consume chemicals)
+  let villaProduction: import('./villa').VillaProductionResult | null = null;
+  if (state.villa) {
+    villaProduction = processVillaProduction(state);
+    if (villaProduction.heatGenerated > 0) {
+      addPersonalHeat(state, villaProduction.heatGenerated);
+    }
+    // Reset helipad daily
+    state.villa.helipadUsedToday = false;
+  }
+
+  // Only run old HQ lab if villa doesn't have synthetica_lab
+  const villaHasLab = state.villa?.modules.includes('synthetica_lab');
+  if (!villaHasLab && state.hqUpgrades.includes('lab') && state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
     if (space > 0) {
@@ -405,7 +427,8 @@ export function endTurn(state: GameState): NightReportData {
   if (isHiding) {
     state.hidingDays = Math.max(0, state.hidingDays - 1);
     const safeHouseBonus = state.hqUpgrades.includes('safehouse') ? 5 : 0;
-    addPersonalHeat(state, -(15 + safeHouseBonus));
+    const villaHideBonus = state.villa ? getVillaHeatReduction(state) : 0;
+    addPersonalHeat(state, -(15 + safeHouseBonus + villaHideBonus));
 
     // Notify when hiding ends
     if (state.hidingDays <= 0) {
