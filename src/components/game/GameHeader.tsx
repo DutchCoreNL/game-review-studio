@@ -6,8 +6,11 @@ import { WeatherType } from '@/game/types';
 import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
+import { ResourceTile } from './header/ResourceTile';
+import { HeatTile } from './header/HeatTile';
+import { KarmaChip } from './header/KarmaChip';
 import { motion } from 'framer-motion';
-import { Flame, Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Car, EyeOff, Shield, Zap, Crosshair } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair } from 'lucide-react';
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,
@@ -24,18 +27,6 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
   heatwave: 'text-blood',
   storm: 'text-game-purple',
 };
-
-function getHeatBarColor(value: number): string {
-  if (value > 70) return 'bg-blood';
-  if (value > 50) return 'bg-gold';
-  return 'bg-emerald';
-}
-
-function getHeatTextColor(value: number): string {
-  if (value > 70) return 'text-blood';
-  if (value > 50) return 'text-gold';
-  return 'text-emerald';
-}
 
 export function GameHeader() {
   const { state, dispatch } = useGame();
@@ -104,12 +95,20 @@ export function GameHeader() {
 
       {/* Row 2: Resource chips — labeled, compact tiles */}
       <div className="flex items-stretch gap-1.5 overflow-x-auto no-scrollbar">
-        {/* REP */}
-        <ResourceTile label="REP" value={state.rep} color="text-gold" />
+        <ResourceTile
+          label="REP"
+          value={state.rep}
+          color="text-gold"
+          tooltip="Reputatie bepaalt je rang in de onderwereld. Verdien REP door missies, operaties en gevechten te voltooien."
+        />
 
-        {/* LVL */}
         <div className="relative">
-          <ResourceTile label="LVL" value={state.player.level} color="text-gold" />
+          <ResourceTile
+            label="LVL"
+            value={state.player.level}
+            color="text-gold"
+            tooltip="Je level stijgt door XP te verdienen. Bij elk level krijg je skillpunten om je stats te verbeteren."
+          />
           {state.player.skillPoints > 0 && (
             <motion.span
               initial={{ scale: 0 }}
@@ -121,129 +120,39 @@ export function GameHeader() {
           )}
         </div>
 
-        {/* AMMO */}
         <ResourceTile
           label="KOGELS"
           value={ammo}
           color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
           icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
           pulse={ammo <= 3}
+          tooltip="Kogels zijn nodig voor gevechten en huurmoorden. Koop ze in de markt, sloop auto's in de crusher, of bouw een Kogelfabriek."
         />
 
-        {/* HEAT — combined with mini bars */}
-        <div className="flex flex-col justify-center bg-muted/20 rounded px-2 py-1 border border-border/50 min-w-[4.5rem]">
-          <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Heat</span>
-          <div className="flex items-center gap-1">
-            <Car size={7} className={getHeatTextColor(vehicleHeat)} />
-            <div className="relative flex-1 h-1 rounded-full bg-muted/50 overflow-hidden">
-              <motion.div
-                className={`absolute inset-y-0 left-0 rounded-full ${getHeatBarColor(vehicleHeat)}`}
-                animate={{ width: `${vehicleHeat}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-            <span className={`text-[0.45rem] font-bold tabular-nums ${getHeatTextColor(vehicleHeat)}`}>{vehicleHeat}</span>
-          </div>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Flame size={7} className={getHeatTextColor(personalHeat)} />
-            <div className="relative flex-1 h-1 rounded-full bg-muted/50 overflow-hidden">
-              <motion.div
-                className={`absolute inset-y-0 left-0 rounded-full ${getHeatBarColor(personalHeat)}`}
-                animate={{ width: `${personalHeat}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-            <span className={`text-[0.45rem] font-bold tabular-nums ${getHeatTextColor(personalHeat)} ${personalHeat > 70 ? 'animate-pulse' : ''}`}>{personalHeat}</span>
-          </div>
-        </div>
+        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} />
 
-        {/* KARMA */}
         <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} />
 
-        {/* SCHULD — only if > 0 */}
         {state.debt > 0 && (
           <ResourceTile
             label="SCHULD"
             value={`€${(state.debt / 1000).toFixed(0)}k`}
             color={state.debt > 100000 ? 'text-blood' : 'text-muted-foreground'}
             icon={state.debt > 100000 ? <Skull size={8} className="text-blood" /> : undefined}
+            tooltip="Je openstaande schuld. Betaal het af voordat het te hoog oploopt, anders komen de incasseerders langs."
           />
         )}
 
-        {/* HIDING */}
         {isHiding && (
           <ResourceTile
             label="SCHUIL"
             value={`${state.hidingDays}d`}
             color="text-ice"
             icon={<EyeOff size={8} className="text-ice" />}
+            tooltip="Je zit ondergedoken. Tijdens het schuilen daalt je heat, maar je kunt geen operaties uitvoeren."
           />
         )}
       </div>
     </header>
-  );
-}
-
-function ResourceTile({ label, value, color, icon, pulse }: {
-  label: string;
-  value: string | number;
-  color: string;
-  icon?: React.ReactNode;
-  pulse?: boolean;
-}) {
-  return (
-    <div className={`flex flex-col items-center justify-center bg-muted/20 rounded px-2 py-1 border border-border/50 min-w-[2.5rem] ${pulse ? 'animate-pulse' : ''}`}>
-      <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">{label}</span>
-      <div className="flex items-center gap-0.5">
-        {icon}
-        <span className={`font-bold text-[0.65rem] tabular-nums leading-none ${color}`}>{value}</span>
-      </div>
-    </div>
-  );
-}
-
-function KarmaChip({ karma, alignment, label }: {
-  karma: number;
-  alignment: 'meedogenloos' | 'neutraal' | 'eerbaar';
-  label: string;
-}) {
-  const isMeedogenloos = alignment === 'meedogenloos';
-  const isEerbaar = alignment === 'eerbaar';
-  const isNeutraal = alignment === 'neutraal';
-
-  const color = isMeedogenloos ? 'text-blood' : isEerbaar ? 'text-gold' : 'text-muted-foreground';
-  const Icon = isMeedogenloos ? Zap : isEerbaar ? Shield : null;
-  const barPos = Math.round(((karma + 100) / 200) * 100);
-
-  return (
-    <div
-      className="flex flex-col items-center justify-center bg-muted/20 rounded px-2 py-1 border border-border/50 min-w-[3rem]"
-      title={`Karma: ${karma} — ${label}`}
-    >
-      <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Karma</span>
-      <div className="flex items-center gap-1">
-        {Icon && <Icon size={7} className={color} />}
-        {isNeutraal && <span className="text-[0.45rem] leading-none">⚖️</span>}
-        {/* Mini karma bar */}
-        <div className="relative w-6 h-1 rounded-full bg-muted/40 overflow-hidden">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: 'linear-gradient(90deg, hsl(0 72% 51% / 0.3), transparent 40%, transparent 60%, hsl(45 93% 47% / 0.3))',
-            }}
-          />
-          <motion.div
-            className={`absolute top-0 h-full w-1 rounded-full ${
-              isMeedogenloos ? 'bg-blood' : isEerbaar ? 'bg-gold' : 'bg-muted-foreground'
-            }`}
-            animate={{ left: `${Math.max(0, Math.min(95, barPos) - 5)}%` }}
-            transition={{ duration: 0.5 }}
-          />
-        </div>
-      </div>
-      <span className={`font-bold text-[0.4rem] leading-none mt-0.5 ${color}`}>
-        {label.length > 6 ? label.slice(0, 5) + '.' : label}
-      </span>
-    </div>
   );
 }
