@@ -122,17 +122,21 @@ function ActiveCombat() {
     prevFinished.current = combat?.finished ?? false;
   }, [combat?.finished, combat?.won]);
 
-  const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
-  const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
-  const finalBossOverride = combat.bossPhase ? FINAL_BOSS_COMBAT_OVERRIDES[combat.bossPhase] : null;
-  const override = finalBossOverride || factionBossOverride;
-  const env = override && baseEnv
-    ? { ...baseEnv, actions: override.actions, enemyAttackLogs: override.enemyAttackLogs, scenePhrases: override.scenePhrases }
-    : baseEnv;
   const isBossFight = !!combat.bossPhase;
   const phaseData = combat.bossPhase ? BOSS_PHASES[combat.bossPhase - 1] : null;
 
-  // Pick a scene phrase based on turn
+  // Memoize env to prevent new object each render
+  const env = useMemo(() => {
+    const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
+    const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
+    const finalBossOverride = combat.bossPhase ? FINAL_BOSS_COMBAT_OVERRIDES[combat.bossPhase] : null;
+    const override = finalBossOverride || factionBossOverride;
+    return override && baseEnv
+      ? { ...baseEnv, actions: override.actions, enemyAttackLogs: override.enemyAttackLogs, scenePhrases: override.scenePhrases }
+      : baseEnv;
+  }, [state.loc, combat.isBoss, combat.familyId, combat.bossPhase]);
+
+  // Pick a scene phrase based on turn — stable reference
   const scenePhrase = useMemo(() => {
     if (!env) return null;
     return env.scenePhrases[combat.turn % env.scenePhrases.length];
