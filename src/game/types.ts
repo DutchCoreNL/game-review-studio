@@ -138,6 +138,11 @@ export interface NemesisState {
   cooldown: number;
   defeated: number;
   lastAction: string;
+  // Successor system fields
+  generation: number; // 1-5 (1 = original, 2+ = successors)
+  alive: boolean;
+  nextSpawnDay: number; // day when next successor appears
+  defeatedNames: string[]; // names of defeated nemeses for flavor
 }
 
 export type DistrictHQUpgradeId = 'patrol' | 'walls' | 'surveillance' | 'turret' | 'command';

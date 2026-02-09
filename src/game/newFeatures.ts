@@ -73,23 +73,50 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   const nem = state.nemesis;
   if (!nem) return;
 
-  // Cooldown handling
-  if (nem.cooldown > 0) {
-    nem.cooldown--;
-    if (nem.cooldown === 0) {
-      // Nemesis returns stronger
-      nem.hp = nem.maxHp;
-      nem.power = Math.min(100, nem.power + 10);
-      nem.maxHp = 80 + nem.defeated * 30 + state.day * 2;
-      nem.hp = nem.maxHp;
-      addPhoneMessage(state, 'nemesis', `Ik ben terug. Sterker dan ooit. - ${nem.name}`, 'threat');
+  // === SUCCESSOR SYSTEM: If nemesis is dead, check for successor spawn ===
+  if (!nem.alive) {
+    // All 5 generations defeated — no more nemesis (unless free play)
+    if (nem.generation >= 5 && !state.freePlayMode) {
+      report.nemesisAction = 'De onderwereld is rustig... geen rivaal meer.';
+      return;
     }
-    report.nemesisAction = `${nem.name} herstelt... (${nem.cooldown} dagen)`;
+    // Waiting for successor
+    if (state.day < nem.nextSpawnDay) {
+      const daysLeft = nem.nextSpawnDay - state.day;
+      report.nemesisAction = `Een nieuwe rivaal wordt verwacht... (${daysLeft} ${daysLeft === 1 ? 'dag' : 'dagen'})`;
+      return;
+    }
+    // Spawn successor
+    const usedNames = [nem.name, ...nem.defeatedNames];
+    const availableNames = NEMESIS_NAMES.filter(n => !usedNames.includes(n));
+    const newName = availableNames.length > 0
+      ? availableNames[Math.floor(Math.random() * availableNames.length)]
+      : NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)];
+    const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
+    const newLocation = districts.filter(d => d !== nem.location)[Math.floor(Math.random() * 4)];
+    
+    nem.defeatedNames.push(nem.name);
+    nem.name = newName;
+    nem.generation++;
+    nem.alive = true;
+    nem.cooldown = 0;
+    nem.maxHp = 80 + nem.generation * 20; // max ~180 at gen 5
+    nem.hp = nem.maxHp;
+    nem.power = Math.floor(nem.power * 0.6); // successor starts at 60% of previous power
+    nem.location = newLocation;
+    nem.lastAction = '';
+    addPhoneMessage(state, 'anonymous', `⚠️ Een nieuwe rivaal is opgestaan: ${newName}. Generatie #${nem.generation}.`, 'threat');
+    report.nemesisAction = `Nieuwe rivaal: ${newName} (Generatie #${nem.generation})`;
     return;
   }
 
-  // Scale power with player
-  nem.power = Math.min(100, 10 + state.day + state.player.level * 2 + nem.defeated * 8);
+  // === POWER SCALING: Capped at ~85% of player's total power ===
+  const totalStats = state.player.stats.muscle + state.player.stats.brains + state.player.stats.charm;
+  const playerPower = state.player.level * 3 + totalStats;
+  const basePower = 10 + state.day * 0.5;
+  nem.power = Math.floor(Math.min(playerPower * 0.85, basePower + nem.generation * 5));
+  // Ensure minimum power so nemesis isn't trivial
+  nem.power = Math.max(nem.power, 8 + nem.generation * 3);
 
   // Nemesis moves
   const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
@@ -238,20 +265,27 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
 
 export function startNemesisCombat(state: GameState): import('./types').CombatState | null {
   const nem = state.nemesis;
-  if (!nem || nem.cooldown > 0 || state.loc !== nem.location) return null;
+  if (!nem || !nem.alive || nem.cooldown > 0 || state.loc !== nem.location) return null;
 
   const muscle = state.player.stats.muscle;
   const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
 
+  // Enemy attack capped relative to player's muscle
+  const rawAttack = Math.floor(12 + nem.power * 0.15 + nem.generation * 3);
+  const cappedAttack = Math.min(rawAttack, muscle * 2 + 10);
+  // MaxHP capped by generation (max ~180)
+  const cappedMaxHp = Math.min(nem.maxHp, 80 + nem.generation * 20);
+  const cappedHp = Math.min(nem.hp, cappedMaxHp);
+
   return {
     idx: 0,
     targetName: nem.name,
-    targetHP: nem.hp,
-    enemyMaxHP: nem.maxHp,
-    enemyAttack: Math.floor(12 + nem.power * 0.15 + nem.defeated * 3),
+    targetHP: cappedHp,
+    enemyMaxHP: cappedMaxHp,
+    enemyAttack: cappedAttack,
     playerHP: playerMaxHP,
     playerMaxHP,
-    logs: [`Je staat tegenover ${nem.name}...`, `Power Level: ${nem.power}`],
+    logs: [`Je staat tegenover ${nem.name}...`, `Power Level: ${nem.power}`, `Generatie #${nem.generation}`],
     isBoss: false,
     familyId: null,
     stunned: false,
@@ -265,12 +299,22 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
 export function resolveNemesisDefeat(state: GameState): void {
   const nem = state.nemesis;
   nem.defeated++;
-  nem.cooldown = 5;
-  const reward = 15000 + nem.defeated * 10000;
+  nem.alive = false; // Permanently dead
+
+  // Reward scales with generation
+  const reward = 15000 + nem.generation * 12000;
   state.money += reward;
-  state.rep += 150;
+  state.rep += 100 + nem.generation * 50;
   state.stats.totalEarned += reward;
-  addPhoneMessage(state, 'anonymous', `${nem.name} is verslagen! +€${reward.toLocaleString()} buit.`, 'opportunity');
+
+  // Calculate next spawn day: longer wait for higher generations
+  if (nem.generation < 5 || state.freePlayMode) {
+    nem.nextSpawnDay = state.day + 10 + nem.generation * 3; // 13, 16, 19, 22, 25 days
+    addPhoneMessage(state, 'anonymous', `${nem.name} is permanent uitgeschakeld! +€${reward.toLocaleString()} buit. Een opvolger kan over ${10 + nem.generation * 3} dagen opduiken.`, 'opportunity');
+  } else {
+    // Generation 5 defeated — no more nemeses
+    addPhoneMessage(state, 'anonymous', `${nem.name} was de laatste rivaal. De onderwereld is definitief van jou! +€${reward.toLocaleString()} buit.`, 'opportunity');
+  }
 }
 
 // ========== 4. TERRITORY DEFENSE ==========

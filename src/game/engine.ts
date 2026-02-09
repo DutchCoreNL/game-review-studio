@@ -1008,7 +1008,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     combat.logs.push(`${combat.targetName} is verslagen!`);
     if (combat.isNemesis) {
       resolveNemesisDefeat(state);
-      combat.logs.push(`+€${(15000 + state.nemesis.defeated * 10000).toLocaleString()} | +150 REP`);
+      const nemReward = 15000 + state.nemesis.generation * 12000;
+      combat.logs.push(`+€${nemReward.toLocaleString()} | +${100 + state.nemesis.generation * 50} REP | ${state.nemesis.name} is permanent uitgeschakeld!`);
     } else if (combat.familyId) {
       state.leadersDefeated.push(combat.familyId);
       state.rep += 200;

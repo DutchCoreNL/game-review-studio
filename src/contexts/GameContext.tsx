@@ -1793,8 +1793,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         saved.nemesis = {
           name: NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)],
           power: 10, location: 'crown', hp: 80, maxHp: 80, cooldown: 0, defeated: 0, lastAction: '',
+          generation: 1, alive: true, nextSpawnDay: 0, defeatedNames: [],
         };
       }
+      // Migrate existing nemesis saves to new successor system
+      if (saved.nemesis.generation === undefined) saved.nemesis.generation = 1;
+      if (saved.nemesis.alive === undefined) saved.nemesis.alive = saved.nemesis.cooldown === 0;
+      if (saved.nemesis.nextSpawnDay === undefined) saved.nemesis.nextSpawnDay = 0;
+      if (saved.nemesis.defeatedNames === undefined) saved.nemesis.defeatedNames = [];
       if (!saved.districtDefenses) {
         saved.districtDefenses = {
           port: { upgrades: [], fortLevel: 0 },

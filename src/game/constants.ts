@@ -368,6 +368,10 @@ function createInitialNemesis(): NemesisState {
     cooldown: 0,
     defeated: 0,
     lastAction: '',
+    generation: 1,
+    alive: true,
+    nextSpawnDay: 0,
+    defeatedNames: [],
   };
 }
 
