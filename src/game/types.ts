@@ -153,7 +153,18 @@ export interface PhoneMessage {
 
 // ========== CORRUPTION NETWORK TYPES ==========
 
-export type CorruptContactType = 'agent' | 'detective' | 'judge' | 'politician' | 'customs';
+export type CorruptContactType = 'agent' | 'detective' | 'judge' | 'politician' | 'customs' | 'lawyer';
+
+// ========== PRISON SYSTEM TYPES ==========
+
+export interface PrisonState {
+  daysRemaining: number;
+  totalSentence: number;
+  moneyLost: number;
+  dirtyMoneyLost: number;
+  goodsLost: string[];
+  escapeAttempted: boolean;
+}
 
 export interface CorruptContactDef {
   id: string;
@@ -422,6 +433,11 @@ export interface NightReportData {
   personalHeatChange: number;
   policeRaid: boolean;
   policeFine: number;
+  imprisoned?: boolean;
+  prisonSentence?: number;
+  prisonMoneyLost?: number;
+  prisonDirtyMoneyLost?: number;
+  prisonGoodsLost?: string[];
   crewHealing: number;
   vehicleDecay: { id: string; amount: number }[];
   randomEvent: RandomEvent | null;
@@ -641,4 +657,7 @@ export interface GameState {
   // ========== HITMAN & AMMO STATE ==========
   ammo: number;
   hitContracts: HitContract[];
+
+  // ========== PRISON STATE ==========
+  prison: PrisonState | null;
 }

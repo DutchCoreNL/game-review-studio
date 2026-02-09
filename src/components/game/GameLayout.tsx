@@ -22,6 +22,7 @@ import { FinalBossAlert } from './FinalBossAlert';
 import { CorruptionEventPopup } from './CorruptionEventPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
+import { PrisonOverlay } from './PrisonOverlay';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -75,6 +76,7 @@ export function GameLayout() {
         {state.pendingCarTheft && <CarTheftPopup />}
         {state.pendingCorruptionEvent && <CorruptionEventPopup />}
         {state.pendingFlashback && <FlashbackOverlay />}
+        {state.prison && <PrisonOverlay />}
         <FinalBossAlert />
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />

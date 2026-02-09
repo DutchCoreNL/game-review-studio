@@ -1,5 +1,5 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
@@ -309,6 +309,53 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
   }
 }
 
+// ========== PRISON HELPERS ==========
+
+export function calculateSentence(personalHeat: number): number {
+  for (const entry of PRISON_SENTENCE_TABLE) {
+    if (personalHeat <= entry.maxHeat) return entry.days;
+  }
+  return 7;
+}
+
+export function arrestPlayer(state: GameState, report: NightReportData): void {
+  const sentence = calculateSentence(state.personalHeat || 0);
+
+  // Confiscate money
+  const moneyLost = Math.floor(state.money * PRISON_MONEY_CONFISCATION);
+  state.money -= moneyLost;
+
+  // Confiscate all dirty money
+  const dirtyMoneyLost = state.dirtyMoney;
+  state.dirtyMoney = 0;
+
+  // Confiscate illegal goods (drugs, weapons)
+  const goodsLost: string[] = [];
+  const illegalGoods: GoodId[] = ['drugs', 'weapons'];
+  illegalGoods.forEach(gid => {
+    if ((state.inventory[gid] || 0) > 0) {
+      goodsLost.push(GOODS.find(g => g.id === gid)?.name || gid);
+      state.inventory[gid] = 0;
+      state.inventoryCosts[gid] = 0;
+    }
+  });
+
+  state.prison = {
+    daysRemaining: sentence,
+    totalSentence: sentence,
+    moneyLost,
+    dirtyMoneyLost,
+    goodsLost,
+    escapeAttempted: false,
+  };
+
+  report.imprisoned = true;
+  report.prisonSentence = sentence;
+  report.prisonMoneyLost = moneyLost;
+  report.prisonDirtyMoneyLost = dirtyMoneyLost;
+  report.prisonGoodsLost = goodsLost;
+}
+
 export function endTurn(state: GameState): NightReportData {
   const report: NightReportData = {
     day: state.day + 1,
@@ -453,6 +500,34 @@ export function endTurn(state: GameState): NightReportData {
     addPersonalHeat(state, -20);
     report.policeRaid = true;
     report.policeFine = fine;
+
+    // === PRISON: Arrest chance during raid ===
+    let arrestChance = PRISON_ARREST_CHANCE_RAID;
+    // Corrupt contacts reduce arrest chance
+    arrestChance *= (1 - raidProtection / 100);
+    // Lawyer halves arrest chance
+    const hasLawyer = state.corruptContacts?.some(c => {
+      const def = CORRUPT_CONTACTS.find(cd => cd.id === c.contactDefId);
+      return def?.type === 'lawyer' && c.active && !c.compromised;
+    });
+    if (hasLawyer) arrestChance *= 0.5;
+
+    if (Math.random() < arrestChance) {
+      arrestPlayer(state, report);
+    }
+  }
+
+  // === PRISON: Day countdown ===
+  if (state.prison) {
+    state.prison.daysRemaining--;
+    if (state.prison.daysRemaining <= 0) {
+      // Release: reset heat
+      state.personalHeat = 0;
+      state.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
+      recomputeHeat(state);
+      state.prison = null;
+      addPhoneMessage(state, 'anonymous', 'Je bent vrijgelaten. Schone lei. Begin opnieuw.', 'info');
+    }
   }
 
   // Debt interest

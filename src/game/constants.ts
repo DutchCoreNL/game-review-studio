@@ -503,8 +503,29 @@ export function createInitialState(): import('./types').GameState {
     // Hitman & Ammo state
     ammo: 12,
     hitContracts: [],
+    // Prison state
+    prison: null,
   };
 }
+
+// ========== PRISON CONSTANTS ==========
+
+export const PRISON_SENTENCE_TABLE: { maxHeat: number; days: number }[] = [
+  { maxHeat: 30, days: 1 },
+  { maxHeat: 50, days: 2 },
+  { maxHeat: 70, days: 3 },
+  { maxHeat: 85, days: 5 },
+  { maxHeat: 100, days: 7 },
+];
+
+export const PRISON_BRIBE_COST_PER_DAY = 5000;
+export const PRISON_ESCAPE_BASE_CHANCE = 0.20;
+export const PRISON_MONEY_CONFISCATION = 0.20;
+export const PRISON_ARREST_CHANCE_RAID = 0.30;
+export const PRISON_ARREST_CHANCE_MISSION = 0.15;
+export const PRISON_ARREST_CHANCE_HIGH_RISK = 0.25;
+export const PRISON_ESCAPE_HEAT_PENALTY = 15;
+export const PRISON_ESCAPE_FAIL_EXTRA_DAYS = 2;
 
 // ========== SAFEHOUSE CONSTANTS ==========
 
