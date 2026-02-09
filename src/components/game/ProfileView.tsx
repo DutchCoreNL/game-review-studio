@@ -15,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
 import { StoryArcsPanel } from './profile/StoryArcsPanel';
+import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
 import { useState } from 'react';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
@@ -29,7 +30,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -71,6 +72,7 @@ export function ProfileView() {
         {([
           { id: 'stats' as ProfileTab, label: 'STATS' },
           { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
+          { id: 'villa' as ProfileTab, label: 'VILLA' },
           { id: 'contacts' as ProfileTab, label: 'NPC\'S' },
           { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
           { id: 'arcs' as ProfileTab, label: 'BOGEN' },
@@ -202,6 +204,8 @@ export function ProfileView() {
           </div>
         </>
       )}
+
+      {profileTab === 'villa' && <VillaSummaryPanel />}
 
       {profileTab === 'contacts' && <NpcRelationsPanel />}
 
