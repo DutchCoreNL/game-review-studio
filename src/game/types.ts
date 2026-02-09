@@ -704,4 +704,9 @@ export interface GameState {
 
   // ========== PRISON STATE ==========
   prison: PrisonState | null;
+
+  // ========== HEIST STATE ==========
+  activeHeist: import('../game/heists').ActiveHeist | null;
+  heistCooldowns: Record<string, number>; // heistId -> last completed day
+  heistPlan: import('../game/heists').HeistPlan | null;
 }

@@ -14,13 +14,14 @@ import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
+import { HeistView } from './heist/HeistView';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'challenges';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'challenges';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -66,6 +67,7 @@ export function OperationsView() {
         {([
           { id: 'solo' as OpsSubTab, label: 'SOLO', icon: <Crosshair size={12} /> },
           { id: 'contracts' as OpsSubTab, label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
+          { id: 'heists' as OpsSubTab, label: 'HEIST', icon: <Target size={12} /> },
           { id: 'hits' as OpsSubTab, label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
           { id: 'crew' as OpsSubTab, label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
           { id: 'challenges' as OpsSubTab, label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
@@ -266,6 +268,8 @@ export function OperationsView() {
       )}
 
       {subTab === 'hits' && <HitsView />}
+
+      {subTab === 'heists' && <HeistView />}
 
       {subTab === 'challenges' && <DailyChallengesView />}
 

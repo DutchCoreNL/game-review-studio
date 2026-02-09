@@ -519,6 +519,10 @@ export function createInitialState(): import('./types').GameState {
     hitContracts: [],
     // Prison state
     prison: null,
+    // Heist state
+    activeHeist: null,
+    heistCooldowns: {},
+    heistPlan: null,
   };
 }
 
