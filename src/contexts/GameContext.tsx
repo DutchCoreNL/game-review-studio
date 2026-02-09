@@ -152,6 +152,7 @@ type GameAction =
   | { type: 'DEPOSIT_VILLA_AMMO'; amount: number }
   | { type: 'WITHDRAW_VILLA_AMMO'; amount: number }
   | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
+  | { type: 'VILLA_THROW_PARTY' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1610,6 +1611,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         storedAmmo: 0,
         helipadUsedToday: false,
         purchaseDay: s.day,
+        lastPartyDay: 0,
       };
       addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
       return s;
@@ -1708,6 +1710,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if ((s.hidingDays || 0) > 0 || s.prison) return s;
       s.villa.helipadUsedToday = true;
       s.loc = action.to;
+      return s;
+    }
+
+    case 'VILLA_THROW_PARTY': {
+      if (!s.villa || !s.villa.modules.includes('zwembad')) return s;
+      const partyCost = [0, 15000, 25000, 40000][s.villa.level] || 15000;
+      const cooldownDays = 5;
+      if (s.money < partyCost) return s;
+      if (s.day - (s.villa.lastPartyDay || 0) < cooldownDays) return s;
+
+      s.money -= partyCost;
+      s.stats.totalSpent += partyCost;
+      s.villa.lastPartyDay = s.day;
+
+      // Boost all faction relations (+8/+12/+18 based on villa level)
+      const relBoost = [0, 8, 12, 18][s.villa.level] || 8;
+      const factions = ['cartel', 'syndicate', 'bikers'] as const;
+      factions.forEach(fid => {
+        s.familyRel[fid] = Math.min(100, (s.familyRel[fid] || 0) + relBoost);
+      });
+
+      // Rep boost (+15/+25/+40)
+      const repBoost = [0, 15, 25, 40][s.villa.level] || 15;
+      s.rep += repBoost;
+
+      // Karma shift: parties are neutral-to-positive
+      s.karma = Math.min(100, (s.karma || 0) + 3);
+
+      // Crew morale: heal all crew slightly
+      s.crew.forEach(c => {
+        if (c.hp > 0 && c.hp < 100) c.hp = Math.min(100, c.hp + 10);
+      });
+
+      addPhoneMessage(s, 'anonymous', `Legendarisch feest bij Villa Noxhaven! Iedereen praat erover. +${relBoost} factie-relaties, +${repBoost} rep.`, 'info');
       return s;
     }
 

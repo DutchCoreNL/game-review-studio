@@ -19,6 +19,7 @@ export interface VillaState {
   storedAmmo: number;
   helipadUsedToday: boolean;
   purchaseDay: number;
+  lastPartyDay: number; // day when last party was thrown (cooldown)
 }
 export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | null;
 export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
