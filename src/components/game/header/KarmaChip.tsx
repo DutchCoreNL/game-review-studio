@@ -6,9 +6,10 @@ interface KarmaChipProps {
   karma: number;
   alignment: 'meedogenloos' | 'neutraal' | 'eerbaar';
   label: string;
+  onTap?: () => void;
 }
 
-export function KarmaChip({ karma, alignment, label }: KarmaChipProps) {
+export function KarmaChip({ karma, alignment, label, onTap }: KarmaChipProps) {
   const isMeedogenloos = alignment === 'meedogenloos';
   const isEerbaar = alignment === 'eerbaar';
   const isNeutraal = alignment === 'neutraal';
@@ -18,7 +19,7 @@ export function KarmaChip({ karma, alignment, label }: KarmaChipProps) {
   const barPos = Math.round(((karma + 100) / 200) * 100);
 
   return (
-    <TappableTile tooltip={`Karma: ${karma}. Je bent ${label}. Eerbare keuzes verhogen karma, meedogenloze keuzes verlagen het. Je alignment beïnvloedt beschikbare missies en NPC-reacties.`}>
+    <TappableTile tooltip={`Karma: ${karma}. Je bent ${label}. Eerbare keuzes verhogen karma, meedogenloze keuzes verlagen het.`} onTap={onTap}>
       <div className="flex flex-col items-center justify-center bg-muted/20 rounded px-2 py-1 border border-border/50 min-w-[3rem]">
         <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Karma</span>
         <div className="flex items-center gap-1">

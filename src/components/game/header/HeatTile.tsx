@@ -17,11 +17,12 @@ function getHeatTextColor(value: number): string {
 interface HeatTileProps {
   vehicleHeat: number;
   personalHeat: number;
+  onTap?: () => void;
 }
 
-export function HeatTile({ vehicleHeat, personalHeat }: HeatTileProps) {
+export function HeatTile({ vehicleHeat, personalHeat, onTap }: HeatTileProps) {
   return (
-    <TappableTile tooltip="Heat bepaalt hoe hard de politie je zoekt. Voertuig-heat stijgt bij autodiefstal, persoonlijke heat bij misdaden. Verlaag het door onder te duiken of clean te rijden.">
+    <TappableTile tooltip="Heat bepaalt hoe hard de politie je zoekt." onTap={onTap}>
       <div className="flex flex-col justify-center bg-muted/20 rounded px-2 py-1 border border-border/50 min-w-[4.5rem]">
         <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Heat</span>
         <div className="flex items-center gap-1">
