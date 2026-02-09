@@ -1060,11 +1060,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Track key decision
         if (!s.keyDecisions) s.keyDecisions = [];
         s.keyDecisions.push(`arc_${action.arcId}_${action.choiceId}`);
-        // Track key decision (also on failure, with fail marker)
+      } else {
+        // Track failed decision with fail marker
         if (!s.keyDecisions) s.keyDecisions = [];
         s.keyDecisions.push(`arc_${action.arcId}_${action.choiceId}`);
         s.keyDecisions.push(`arc_${action.arcId}_fail_${action.choiceId}`);
-      } else {
         s.money += arcResult.effects.money;
         Engine.splitHeat(s, arcResult.effects.heat, 0.3);
         Engine.recomputeHeat(s);

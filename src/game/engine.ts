@@ -4,7 +4,7 @@ import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFe
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
-import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction } from './villa';
+import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -1010,7 +1010,8 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
 }
 
 export function recruit(state: GameState): { success: boolean; message: string } {
-  if (state.crew.length >= 6) return { success: false, message: "Crew limiet bereikt (Max 6)." };
+  const maxCrew = 6 + getVillaMaxCrewBonus(state);
+  if (state.crew.length >= maxCrew) return { success: false, message: `Crew limiet bereikt (Max ${maxCrew}).` };
   if (state.money < 2500) return { success: false, message: "Onvoldoende geld." };
 
   state.money -= 2500;
