@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS } from '../game/constants';
+import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState } from '../game/types';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, SOLO_OPERATIONS } from '../game/constants';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage } from '../game/newFeatures';
@@ -122,6 +122,9 @@ type GameAction =
   | { type: 'BUY_AMMO'; packId: string }
   | { type: 'EXECUTE_HIT'; hitId: string }
   | { type: 'CRUSH_CAR'; carId: string }
+  // Prison actions
+  | { type: 'BRIBE_PRISON' }
+  | { type: 'ATTEMPT_ESCAPE' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -140,7 +143,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return action.state;
 
     case 'TRADE': {
-      if ((s.hidingDays || 0) > 0) return s; // Can't trade while hiding
+      if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't trade while hiding or in prison
       const moneyBefore = s.money;
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
       // Heat 2.0: trade heat goes to vehicle (transport of goods)
@@ -169,7 +172,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRAVEL': {
-      if ((s.hidingDays || 0) > 0) return s; // Can't travel while hiding
+      if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't travel while hiding or in prison
       const hasChauffeur = s.crew.some(c => c.role === 'Chauffeur');
       const hasRacer = s.crew.some(c => c.specialization === 'racer');
       const isOwned = s.ownedDistricts.includes(action.to);
@@ -527,11 +530,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SOLO_OP': {
-      if ((s.hidingDays || 0) > 0) return s;
-      Engine.performSoloOp(s, action.opId);
+      if ((s.hidingDays || 0) > 0 || s.prison) return s;
+      const soloOpDef = SOLO_OPERATIONS.find(o => o.id === action.opId);
+      const soloResult = Engine.performSoloOp(s, action.opId);
       Engine.recomputeHeat(s);
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
+      // Arrest chance on failed solo op
+      if (!soloResult.success && soloOpDef) {
+        const risk = soloOpDef.risk;
+        let arrestChance = risk > 70 ? PRISON_ARREST_CHANCE_HIGH_RISK : PRISON_ARREST_CHANCE_MISSION;
+        const charm = Engine.getPlayerStat(s, 'charm');
+        arrestChance -= charm * 0.02;
+        if (arrestChance > 0 && Math.random() < arrestChance && !s.prison) {
+          const report: any = {};
+          Engine.arrestPlayer(s, report);
+          addPhoneMessage(s, 'NHPD', `Je bent gearresteerd na een mislukte operatie! Straf: ${s.prison?.daysRemaining} dagen.`, 'threat');
+          s.screenEffect = 'blood-flash';
+        }
+      }
       const soloEvent = rollStreetEvent(s, 'solo_op');
       if (soloEvent) {
         s.pendingStreetEvent = soloEvent;
@@ -1315,7 +1332,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'EXECUTE_HIT': {
-      if ((s.hidingDays || 0) > 0) return s;
+      if ((s.hidingDays || 0) > 0 || s.prison) return s;
       const hitResult = executeHit(s, action.hitId);
       if (hitResult.success) {
         s.screenEffect = 'gold-flash';
@@ -1360,6 +1377,42 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.screenEffect = 'gold-flash';
       s.lastRewardAmount = actualGain;
 
+      return s;
+    }
+
+    // ========== PRISON ACTIONS ==========
+
+    case 'BRIBE_PRISON': {
+      if (!s.prison) return s;
+      const bribeCost = s.prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+      if (s.money < bribeCost) return s;
+      s.money -= bribeCost;
+      s.stats.totalSpent += bribeCost;
+      s.prison = null;
+      // Heat is NOT reset (didn't serve sentence)
+      addPhoneMessage(s, 'anonymous', 'Vrijgekocht. Je heat is niet gereset — ze houden je in de gaten.', 'warning');
+      return s;
+    }
+
+    case 'ATTEMPT_ESCAPE': {
+      if (!s.prison || s.prison.escapeAttempted) return s;
+      s.prison.escapeAttempted = true;
+      let chance = PRISON_ESCAPE_BASE_CHANCE;
+      chance += Engine.getPlayerStat(s, 'brains') * 0.03;
+      if (s.crew.some(c => c.role === 'Hacker')) chance += 0.10;
+      if (Math.random() < chance) {
+        // Success
+        Engine.addPersonalHeat(s, PRISON_ESCAPE_HEAT_PENALTY);
+        Engine.recomputeHeat(s);
+        s.prison = null;
+        s.screenEffect = 'gold-flash';
+        addPhoneMessage(s, 'anonymous', 'Ontsnapping geslaagd! Maar je bent nu een voortvluchtige. +15 heat.', 'warning');
+      } else {
+        // Fail
+        s.prison.daysRemaining += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
+        s.screenEffect = 'blood-flash';
+        addPhoneMessage(s, 'NHPD', `Ontsnappingspoging mislukt! +${PRISON_ESCAPE_FAIL_EXTRA_DAYS} extra dagen straf.`, 'threat');
+      }
       return s;
     }
 
@@ -1469,6 +1522,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.ammo === undefined) saved.ammo = 12;
       if (!saved.hitContracts) saved.hitContracts = [];
       if (saved.dailyProgress && saved.dailyProgress.hits_completed === undefined) saved.dailyProgress.hits_completed = 0;
+      // Prison migration
+      if (saved.prison === undefined) saved.prison = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();

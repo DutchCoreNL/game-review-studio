@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
 import { DramaticEventReveal } from './night-report/DramaticEventReveal';
@@ -69,6 +69,10 @@ export function NightReport() {
   // Police raid
   const raidDelay = report.policeRaid ? next(0.2) : d;
   if (report.policeRaid) scheduleSound(raidDelay, playAlarmSound);
+
+  // Prison arrest (after raid)
+  const prisonDelay = report.imprisoned ? next(0.3) : d;
+  if (report.imprisoned) scheduleSound(prisonDelay, playAlarmSound);
 
   // Smuggle results
   const smuggleDelays = report.smuggleResults?.map((sr) => {
@@ -225,6 +229,33 @@ export function NightReport() {
                   <p className="text-[0.6rem] text-muted-foreground">
                     Boete: €<AnimatedCounter value={report.policeFine} prefix="" duration={1000} />
                   </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Prison arrest */}
+            {report.imprisoned && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: prisonDelay, type: 'spring', stiffness: 400 }}
+                className="bg-[hsl(var(--blood)/0.15)] border-2 border-blood rounded-lg p-3 glow-blood"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Lock size={16} className="text-blood flex-shrink-0" />
+                  <p className="text-xs font-bold text-blood uppercase">GEARRESTEERD!</p>
+                </div>
+                <div className="space-y-1 text-[0.6rem] text-muted-foreground">
+                  <p>Straf: <span className="text-blood font-bold">{report.prisonSentence} {report.prisonSentence === 1 ? 'dag' : 'dagen'}</span></p>
+                  {(report.prisonMoneyLost || 0) > 0 && (
+                    <p>Geld in beslag genomen: <span className="text-blood font-bold">-€{report.prisonMoneyLost?.toLocaleString()}</span></p>
+                  )}
+                  {(report.prisonDirtyMoneyLost || 0) > 0 && (
+                    <p>Dirty money verloren: <span className="text-blood font-bold">-€{report.prisonDirtyMoneyLost?.toLocaleString()}</span></p>
+                  )}
+                  {report.prisonGoodsLost && report.prisonGoodsLost.length > 0 && (
+                    <p>Geconfisqueerd: <span className="text-blood font-bold">{report.prisonGoodsLost.join(', ')}</span></p>
+                  )}
                 </div>
               </motion.div>
             )}
