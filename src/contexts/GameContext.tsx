@@ -4,6 +4,7 @@ import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, HQ_UPGRADES,
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage } from '../game/newFeatures';
+import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
@@ -128,6 +129,16 @@ type GameAction =
   // Prison actions
   | { type: 'BRIBE_PRISON' }
   | { type: 'ATTEMPT_ESCAPE' }
+  // Heist actions
+  | { type: 'START_HEIST_PLANNING'; heistId: string }
+  | { type: 'UPDATE_HEIST_PLAN'; plan: import('../game/heists').HeistPlan }
+  | { type: 'PERFORM_RECON' }
+  | { type: 'BUY_HEIST_EQUIP'; equipId: import('../game/heists').HeistEquipId }
+  | { type: 'LAUNCH_HEIST' }
+  | { type: 'ADVANCE_HEIST' }
+  | { type: 'RESOLVE_HEIST_COMPLICATION'; choiceId: string }
+  | { type: 'FINISH_HEIST' }
+  | { type: 'CANCEL_HEIST' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1451,6 +1462,119 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== HEIST ACTIONS ==========
+
+    case 'START_HEIST_PLANNING': {
+      s.heistPlan = createHeistPlan(action.heistId);
+      return s;
+    }
+
+    case 'UPDATE_HEIST_PLAN': {
+      s.heistPlan = action.plan;
+      return s;
+    }
+
+    case 'PERFORM_RECON': {
+      if (!s.heistPlan || s.money < 2000) return s;
+      s.money -= 2000;
+      s.stats.totalSpent += 2000;
+      s.heistPlan.reconDone = true;
+      s.heistPlan.reconIntel = performRecon(s, s.heistPlan);
+      return s;
+    }
+
+
+
+    case 'BUY_HEIST_EQUIP': {
+      if (!s.heistPlan) return s;
+      const equip = HEIST_EQUIPMENT.find((e: any) => e.id === action.equipId);
+      if (!equip || s.money < equip.cost) return s;
+      if (s.heistPlan.equipment.includes(action.equipId)) return s;
+      s.money -= equip.cost;
+      s.stats.totalSpent += equip.cost;
+      s.heistPlan.equipment.push(action.equipId);
+      return s;
+    }
+
+    case 'LAUNCH_HEIST': {
+      if (!s.heistPlan) return s;
+      const validation = validateHeistPlan(s.heistPlan, s);
+      if (!validation.valid) return s;
+      s.activeHeist = startHeistFn(s, s.heistPlan);
+      s.heistPlan = null;
+      // Execute first phase
+      executePhase(s, s.activeHeist);
+      return s;
+    }
+
+    case 'ADVANCE_HEIST': {
+      if (!s.activeHeist || s.activeHeist.finished || s.activeHeist.pendingComplication) return s;
+      executePhase(s, s.activeHeist);
+      return s;
+    }
+
+    case 'RESOLVE_HEIST_COMPLICATION': {
+      if (!s.activeHeist || !s.activeHeist.pendingComplication) return s;
+      resolveComplication(s, s.activeHeist, action.choiceId);
+      // If no more pending complication and not finished, auto-advance
+      if (!s.activeHeist.pendingComplication && !s.activeHeist.finished) {
+        executePhase(s, s.activeHeist);
+      }
+      return s;
+    }
+
+    case 'FINISH_HEIST': {
+      if (!s.activeHeist) return s;
+      const heist = s.activeHeist;
+      const tmpl = HEIST_TEMPLATES.find((h: any) => h.id === heist.plan.heistId);
+      // Apply rewards
+      if (heist.success) {
+        s.money += heist.totalReward;
+        s.stats.totalEarned += heist.totalReward;
+        s.rep += 25 + (tmpl?.tier || 1) * 10;
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = heist.totalReward;
+        // Faction effect
+        if (tmpl?.factionEffect) {
+          s.familyRel[tmpl.factionEffect.familyId] = (s.familyRel[tmpl.factionEffect.familyId] || 0) + tmpl.factionEffect.change;
+        }
+        // District rep
+        if (tmpl) {
+          s.districtRep[tmpl.district] = Math.min(100, (s.districtRep[tmpl.district] || 0) + 10);
+        }
+      } else {
+        s.money += Math.max(0, heist.totalReward);
+        s.stats.totalEarned += Math.max(0, heist.totalReward);
+        s.screenEffect = 'blood-flash';
+      }
+      // Apply heat
+      Engine.splitHeat(s, Math.max(0, heist.totalHeat + (tmpl?.baseHeat || 0)), 0.4);
+      Engine.recomputeHeat(s);
+      // Crew damage
+      if (heist.totalCrewDamage > 0) {
+        Object.values(heist.plan.crewAssignments).forEach(idx => {
+          if (idx !== null && s.crew[idx]) {
+            s.crew[idx].hp = Math.max(1, s.crew[idx].hp - Math.floor(heist.totalCrewDamage / 3));
+            s.crew[idx].xp += heist.success ? 15 : 5;
+          }
+        });
+      }
+      // Set cooldown
+      if (!s.heistCooldowns) s.heistCooldowns = {};
+      s.heistCooldowns[heist.plan.heistId] = s.day;
+      // XP
+      Engine.gainXp(s, heist.success ? 50 : 15);
+      s.activeHeist = null;
+      Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'CANCEL_HEIST': {
+      s.heistPlan = null;
+      s.activeHeist = null;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -1573,6 +1697,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.dailyProgress && saved.dailyProgress.hits_completed === undefined) saved.dailyProgress.hits_completed = 0;
       // Prison migration
       if (saved.prison === undefined) saved.prison = null;
+      // Heist migration
+      if (saved.activeHeist === undefined) saved.activeHeist = null;
+      if (!saved.heistCooldowns) saved.heistCooldowns = {};
+      if (saved.heistPlan === undefined) saved.heistPlan = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
       const today = new Date().toDateString();
