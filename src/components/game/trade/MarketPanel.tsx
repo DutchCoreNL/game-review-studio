@@ -9,6 +9,7 @@ import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
+import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight } from 'lucide-react';
 import { useState, useCallback } from 'react';
@@ -24,10 +25,22 @@ const GOOD_ICONS: Record<string, React.ReactNode> = {
   meds: <Pill size={14} />,
 };
 
+/** Calculate heat surcharge info from state */
+function getHeatSurcharge(state: { ownedVehicles: any[]; activeVehicle: string | null; personalHeat?: number }) {
+  const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
+  const vHeat = activeVehicle?.vehicleHeat ?? 0;
+  const pHeat = state.personalHeat ?? 0;
+  const avgHeat = Math.round((vHeat + pHeat) / 2);
+  const surchargePercent = avgHeat > 50 ? Math.min(40, Math.floor((avgHeat - 50) * 0.8)) : 0;
+  const surchargeMultiplier = avgHeat > 50 ? 1 + Math.min(0.4, (avgHeat - 50) * 0.008) : 1;
+  return { vHeat, pHeat, avgHeat, surchargePercent, surchargeMultiplier };
+}
+
 export function MarketPanel() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
   const [quantity, setQuantity] = useState(1);
   const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: TradeMode } | null>(null);
+  const [pendingTrade, setPendingTrade] = useState<{ gid: GoodId; qty: number; cost: number } | null>(null);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -35,19 +48,16 @@ export function MarketPanel() {
   const prices = state.prices[state.loc] || {};
   const district = DISTRICTS[state.loc];
   const route = getBestTradeRoute(state);
+  const heat = getHeatSurcharge(state);
 
-  const handleTrade = useCallback((gid: GoodId) => {
+  const executeTrade = useCallback((gid: GoodId, actualQty: number) => {
     const owned = state.inventory[gid] || 0;
-    const actualQty = quantity === 0
-      ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
-      : quantity;
 
     if (actualQty <= 0) {
       playNegativeSound();
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
-    const moneyBefore = state.money;
     dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
     const good = GOODS.find(g => g.id === gid);
     if (tradeMode === 'sell') playCoinSound(); else playPurchaseSound();
@@ -64,30 +74,43 @@ export function MarketPanel() {
 
     setLastTrade({ gid, amount: tradeAmount, mode: tradeMode });
     setTimeout(() => setLastTrade(null), 1200);
-  }, [state, quantity, tradeMode, invCount, dispatch, showToast, prices, totalCharm]);
+  }, [state, tradeMode, dispatch, showToast, prices, totalCharm]);
+
+  const handleTrade = useCallback((gid: GoodId) => {
+    const owned = state.inventory[gid] || 0;
+    const actualQty = quantity === 0
+      ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
+      : quantity;
+
+    // Confirm large MAX trades (>€5000)
+    if (quantity === 0 && actualQty > 1) {
+      const basePrice = prices[gid] || 0;
+      const estimatedCost = tradeMode === 'buy'
+        ? basePrice * Math.min(actualQty, Math.floor(state.money / basePrice))
+        : Math.floor(basePrice * 0.85) * Math.min(actualQty, owned);
+
+      if (estimatedCost > 5000) {
+        setPendingTrade({ gid, qty: actualQty, cost: estimatedCost });
+        return;
+      }
+    }
+
+    executeTrade(gid, actualQty);
+  }, [state, quantity, tradeMode, invCount, prices, executeTrade]);
 
   return (
     <>
       <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
 
-      {/* Heat surcharge — uses average of vehicle + personal heat */}
-      {(() => {
-        const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
-        const vHeat = activeVehicle?.vehicleHeat ?? 0;
-        const pHeat = state.personalHeat ?? 0;
-        const avgHeat = Math.round((vHeat + pHeat) / 2);
-        if (avgHeat <= 50) return null;
-
-        const surcharge = Math.min(40, Math.floor((avgHeat - 50) * 0.8));
-        return (
-          <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
-            ⚠️ HEAT TOESLAG: +{surcharge}% risico toeslag op inkoop!
-            <span className="block text-[0.5rem] font-normal text-blood/70 mt-0.5">
-              🚗 Voertuig: {vHeat}% · 🔥 Persoonlijk: {pHeat}% · Gem: {avgHeat}%
-            </span>
-          </div>
-        );
-      })()}
+      {/* Heat surcharge banner */}
+      {heat.surchargePercent > 0 && (
+        <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
+          ⚠️ HEAT TOESLAG: +{heat.surchargePercent}% risico toeslag op inkoop!
+          <span className="block text-[0.5rem] font-normal text-blood/70 mt-0.5">
+            🚗 Voertuig: {heat.vHeat}% · 🔥 Persoonlijk: {heat.pHeat}% · Gem: {heat.avgHeat}%
+          </span>
+        </div>
+      )}
 
       {/* Stats strip */}
       <div className="flex justify-between items-center mb-3">
@@ -155,14 +178,8 @@ export function MarketPanel() {
             }
           } else {
             if (g.faction && (state.familyRel[g.faction] || 0) > 50) displayPrice = Math.floor(displayPrice * 0.7);
-            // Heat surcharge based on average of vehicle + personal heat
-            const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
-            const vHeat = activeVehicle?.vehicleHeat ?? 0;
-            const pHeat = state.personalHeat ?? 0;
-            const avgHeat = Math.round((vHeat + pHeat) / 2);
-            if (avgHeat > 50) {
-              const surcharge = 1 + Math.min(0.4, (avgHeat - 50) * 0.008);
-              displayPrice = Math.floor(displayPrice * surcharge);
+            if (heat.surchargeMultiplier > 1) {
+              displayPrice = Math.floor(displayPrice * heat.surchargeMultiplier);
             }
             if (invCount >= state.maxInv) disabled = true;
           }
@@ -229,7 +246,7 @@ export function MarketPanel() {
                     disabled={disabled}
                     onClick={() => handleTrade(g.id)}
                   >
-                    {tradeMode === 'buy' ? 'KOOP' : 'SELL'}
+                    {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
                     {effectiveQty > 1 && !disabled && (
                       <span className="text-[0.45rem] opacity-70 ml-0.5">x{Math.min(effectiveQty, tradeMode === 'buy' ? Math.floor(state.money / displayPrice) : owned)}</span>
                     )}
@@ -258,24 +275,45 @@ export function MarketPanel() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-1.5">
             <Lightbulb size={12} className="text-gold" />
             <span className="text-[0.6rem] font-bold text-gold uppercase tracking-wider">Beste Route</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[0.6rem]">
-            <span className="text-muted-foreground">Koop</span>
-            <span className="font-bold text-foreground">{GOODS.find(g => g.id === route.good)?.name}</span>
-            <span className="text-muted-foreground">in</span>
-            <span className="font-semibold text-foreground">{DISTRICTS[route.buyDistrict]?.name}</span>
-            <span className="text-emerald font-semibold">(€{route.buyPrice})</span>
-            <ArrowRight size={10} className="text-gold" />
-            <span className="font-semibold text-foreground">{DISTRICTS[route.sellDistrict]?.name}</span>
-            <span className="text-blood font-semibold">(€{route.sellPrice})</span>
+          <div className="text-[0.6rem] space-y-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-muted-foreground">Koop</span>
+              <span className="font-bold text-foreground">{GOODS.find(g => g.id === route.good)?.name}</span>
+              <span className="text-muted-foreground">in</span>
+              <span className="font-semibold text-foreground">{DISTRICTS[route.buyDistrict]?.name}</span>
+              <span className="text-emerald font-semibold">(€{route.buyPrice})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ArrowRight size={10} className="text-gold" />
+              <span className="text-muted-foreground">Verkoop in</span>
+              <span className="font-semibold text-foreground">{DISTRICTS[route.sellDistrict]?.name}</span>
+              <span className="text-blood font-semibold">(€{route.sellPrice})</span>
+            </div>
           </div>
-          <div className="text-[0.5rem] text-gold font-bold mt-1">
+          <div className="text-[0.5rem] text-gold font-bold mt-1.5">
             Winst: +€{route.profit}/stuk
           </div>
         </motion.div>
+      )}
+
+      {/* MAX trade confirmation dialog */}
+      {pendingTrade && (
+        <ConfirmDialog
+          open={true}
+          title={tradeMode === 'buy' ? 'Grote inkoop bevestigen' : 'Grote verkoop bevestigen'}
+          message={`Weet je zeker dat je ${pendingTrade.qty}x wilt ${tradeMode === 'buy' ? 'kopen' : 'verkopen'} voor ~€${pendingTrade.cost.toLocaleString()}?`}
+          confirmText={tradeMode === 'buy' ? 'KOPEN' : 'VERKOPEN'}
+          variant={tradeMode === 'sell' ? 'danger' : 'warning'}
+          onConfirm={() => {
+            executeTrade(pendingTrade.gid, pendingTrade.qty);
+            setPendingTrade(null);
+          }}
+          onCancel={() => setPendingTrade(null)}
+        />
       )}
     </>
   );
