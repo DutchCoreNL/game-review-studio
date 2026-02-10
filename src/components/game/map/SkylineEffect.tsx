@@ -1,6 +1,6 @@
 /**
- * SkylineEffect — Mountain/hill silhouette background (right + top),
- * fog/haze gradient, compass and scale bar.
+ * SkylineEffect — Subtle skyline silhouette at the top of the map,
+ * plus fog/haze gradient from bottom to top, compass and scale bar.
  */
 
 import { motion } from 'framer-motion';
@@ -8,56 +8,35 @@ import { motion } from 'framer-motion';
 export function SkylineEffect() {
   return (
     <g pointerEvents="none">
-      {/* === MOUNTAIN SILHOUETTE — right and top background === */}
-      {/* Far mountains (behind Crown Heights) */}
+      {/* Skyline silhouette along the top */}
       <path
         d={`
-          M 220,0 L 240,0 L 250,20 L 265,5 L 280,18 L 295,0
-          L 330,0 L 345,12 L 355,3 L 370,15 L 385,0 L 400,0
-          L 400,45 Q 385,35 370,42 Q 355,30 340,38
-          Q 325,28 310,35 Q 295,22 280,30 Q 265,18 250,28 Q 240,22 220,30 Z
+          M 0,18
+          L 30,18 L 32,12 L 38,12 L 38,16 L 50,16 L 50,10 L 56,10 L 56,15
+          L 80,15 L 82,8 L 86,8 L 86,14 L 100,14 L 100,18
+          L 140,18 L 142,6 L 148,6 L 148,14 L 155,14 L 155,10 L 160,10 L 160,16
+          L 200,16 L 200,4 L 206,4 L 206,8 L 210,8 L 210,2 L 215,2 L 215,6 L 218,6 L 218,12
+          L 240,12 L 242,0 L 248,0 L 248,5 L 252,5 L 252,3 L 256,3 L 256,8 L 260,8 L 260,14
+          L 280,14 L 280,8 L 284,8 L 284,12 L 290,12 L 290,16
+          L 320,16 L 322,10 L 328,10 L 328,14 L 340,14 L 340,18
+          L 360,18 L 360,12 L 366,12 L 366,16 L 380,16 L 380,18
+          L 400,18 L 400,0 L 0,0 Z
         `}
-        fill="hsla(220, 18%, 5%, 0.8)"
+        fill="hsla(220, 15%, 6%, 0.7)"
       />
 
-      {/* Closer hills (right side, behind Neon/Lowrise) */}
-      <path
-        d={`
-          M 340,100 Q 355,85 370,92 Q 385,78 400,88 L 400,130
-          Q 385,120 370,125 Q 355,115 340,122 Z
-        `}
-        fill="hsla(220, 15%, 7%, 0.6)"
-      />
-
-      {/* Hill behind Crown Heights (villa hill) */}
-      <path
-        d={`
-          M 260,50 Q 280,30 300,38 Q 320,28 340,45
-          Q 330,55 310,52 Q 290,48 270,55 Z
-        `}
-        fill="hsla(120, 10%, 7%, 0.4)"
-      />
-
-      {/* Mountain snow caps (subtle) */}
+      {/* Skyline window lights (tiny dots on the silhouette) */}
       {[
-        [265, 5, 8], [355, 3, 6], [295, 0, 5],
-      ].map(([x, y, w], i) => (
-        <path key={`snow-${i}`}
-          d={`M ${x - w / 2},${y + 4} L ${x},${y} L ${x + w / 2},${y + 4}`}
-          fill="hsla(210, 15%, 20%, 0.15)" />
-      ))}
-
-      {/* Distant city lights on mountains */}
-      {[
-        [360, 10], [375, 8], [380, 13], [345, 14], [258, 22],
-        [275, 16], [290, 12], [350, 8],
+        [84, 10], [144, 8], [146, 11], [202, 6], [204, 10],
+        [212, 4], [213, 7], [244, 2], [246, 6], [250, 5],
+        [254, 5], [282, 10], [324, 12], [362, 14],
       ].map(([x, y], i) => (
-        <rect key={`ml-${i}`} x={x} y={y} width="1" height="0.8"
-          fill={`hsla(45, 60%, 45%, ${0.04 + (i % 3) * 0.02})`}
+        <rect key={`skw-${i}`} x={x} y={y} width="1" height="1"
+          fill={`hsla(45, 70%, 50%, ${0.08 + (i % 3) * 0.04})`}
           rx="0.1"
         >
-          {i % 3 === 0 && (
-            <animate attributeName="opacity" values="0.04;0.1;0.03;0.07" dur={`${5 + i}s`} repeatCount="indefinite" />
+          {i % 4 === 0 && (
+            <animate attributeName="opacity" values="0.06;0.15;0.04;0.1" dur={`${4 + i}s`} repeatCount="indefinite" />
           )}
         </rect>
       ))}
@@ -65,16 +44,16 @@ export function SkylineEffect() {
       {/* Fog/haze gradient from bottom */}
       <defs>
         <linearGradient id="city-fog-gradient" x1="0%" y1="100%" x2="0%" y2="60%">
-          <stop offset="0%" stopColor="hsla(220, 15%, 4%, 0.4)" />
-          <stop offset="100%" stopColor="hsla(220, 15%, 4%, 0)" />
+          <stop offset="0%" stopColor="hsla(220, 15%, 5%, 0.35)" />
+          <stop offset="100%" stopColor="hsla(220, 15%, 5%, 0)" />
         </linearGradient>
       </defs>
       <rect x="0" y="0" width="400" height="290" fill="url(#city-fog-gradient)" />
 
       {/* Atmospheric haze - subtle animated layer */}
-      <motion.rect x="0" y="230" width="400" height="60" rx="0"
-        fill="hsla(220, 20%, 8%, 0.06)"
-        animate={{ opacity: [0.04, 0.1, 0.04] }}
+      <motion.rect x="0" y="220" width="400" height="70" rx="0"
+        fill="hsla(220, 20%, 10%, 0.08)"
+        animate={{ opacity: [0.06, 0.12, 0.06] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
     </g>
@@ -87,8 +66,11 @@ export function MapOverlayUI() {
       {/* Compass rose (top-right area) */}
       <g transform="translate(378, 26)">
         <circle r="8" fill="hsla(0, 0%, 5%, 0.7)" stroke="hsla(0, 0%, 25%, 0.4)" strokeWidth="0.5" />
+        {/* N arrow */}
         <path d="M 0,-6 L 1.5,0 L 0,-1 L -1.5,0 Z" fill="hsla(0, 70%, 50%, 0.7)" />
+        {/* S arrow */}
         <path d="M 0,6 L 1.5,0 L 0,1 L -1.5,0 Z" fill="hsla(0, 0%, 40%, 0.5)" />
+        {/* Cardinal letters */}
         <text x="0" y="-8.5" textAnchor="middle" fontSize="2.5" fill="hsla(0, 70%, 55%, 0.8)" fontWeight="bold">N</text>
         <text x="8.5" y="1" textAnchor="middle" fontSize="2" fill="hsla(0, 0%, 50%, 0.5)">O</text>
         <text x="0" y="10" textAnchor="middle" fontSize="2" fill="hsla(0, 0%, 50%, 0.5)">Z</text>
@@ -96,7 +78,7 @@ export function MapOverlayUI() {
       </g>
 
       {/* Scale bar (bottom-left) */}
-      <g transform="translate(60, 278)">
+      <g transform="translate(55, 278)">
         <line x1="0" y1="0" x2="30" y2="0" stroke="hsla(0, 0%, 45%, 0.4)" strokeWidth="0.8" />
         <line x1="0" y1="-2" x2="0" y2="2" stroke="hsla(0, 0%, 45%, 0.4)" strokeWidth="0.5" />
         <line x1="30" y1="-2" x2="30" y2="2" stroke="hsla(0, 0%, 45%, 0.4)" strokeWidth="0.5" />
