@@ -1,69 +1,125 @@
 
+# Nieuwe Stadskaart op Basis van Referentie-afbeelding
 
-# Fix & Uitbreiding: Verslagen Facties Systeem
+## Overzicht
 
-## Probleem
+De stadskaart wordt volledig herontworpen naar een realistischer, gedetailleerder nachtelijk stadsbeeld gebaseerd op de referentie-afbeelding. De layout wordt aangepast zodat de districten overeenkomen met de afbeelding:
 
-Wanneer een factieleider is verslagen maar de factie nog niet is veroverd (vazal), blijven meerdere systemen op de achtergrond gewoon doordraaien alsof de factie nog actief is:
+- **Port Nero** (linksboven): Havenfaciliteiten met schepen, containers, kranen en blauw licht
+- **Iron Borough** (linksonder): Industrieel gebied met fabrieken, schoorstenen, oranje/rode gloed
+- **Neon Strip** (midden): Entertainment-district met paarse/roze neonverlichting
+- **Crown Heights** (rechtsboven): Wolkenkrabbers en de villa op de heuvel, koel blauw/wit
+- **Lowrise** (rechtsonder): Lage woongebouwen met warme, gedempte verlichting
+- **Water**: Kustlijn links en een kanaal dat Iron Borough scheidt
+- **Bergen/heuvels**: Rechts en bovenzijde als achtergrond
 
-- **Contracten** worden nog steeds gegenereerd met verslagen facties als opdrachtgever of doelwit
-- **Factieoorlogen** controleren alleen op "veroverd", niet op "leider dood" — een verslagen factie kan je nog steeds aanvallen en bestelen
-- **Relatieveranderingen** gaan door via contracten bij een dode leider
-- **Passief inkomen** van hoge relatie blijft doorlopen bij verslagen facties
-- **Marktprijzen** houden geen rekening met verslagen/veroverde status
-- **Straatgevechten** op de kaart kunnen nog steeds spawnen namens verslagen facties
+## Technische Aanpak
 
-## Oplossing
+De bestaande SVG-architectuur blijft behouden (viewBox, lagen, hitboxes, interactie) maar alle visuele elementen worden vervangen.
 
-### 1. Centrale helper: `isFactionActive()`
-
-Een nieuwe functie in `engine.ts` die overal hergebruikt wordt:
-
-```text
-isFactionActive(state, familyId):
-  - return false als leider dood EN niet veroverd (chaos-fase)
-  - return false als veroverd (vazal = vreedzaam)
-  - return true anders
-```
-
-### 2. Contractgeneratie filteren
-
-In `generateContracts()`: filter verslagen/veroverde facties uit als employer en target. Als er minder dan 2 actieve facties zijn, genereer "solo" contracten zonder factie-affiliatie.
-
-### 3. Factieoorlog fix
-
-In `applyFactionWar()`: voeg check toe op `leadersDefeated`. Een verslagen factie (leider dood) is in chaos en kan niet georganiseerd aanvallen, ongeacht relatie.
-
-### 4. Passief inkomen fix
-
-In `endTurn()` factie-alliantie-inkomen: sla verslagen-maar-niet-veroverde facties over. Alleen actieve allianties (rel >= 80 en leider leeft) of veroverde facties geven inkomen.
-
-### 5. Contract relatie-effecten fix
-
-In `executeContract()`: voorkom relatieveranderingen bij verslagen facties.
-
-### 6. Marktprijs-impact
-
-Verslagen facties hebben geen grip meer op hun thuismarkt: de speciale prijskorting voor cartel in port vervalt als de cartel verslagen is.
-
-### 7. Kaart-events fix
-
-`generateMapEvents()`: straatgevechten spawnen niet meer als alle vijandige facties verslagen zijn.
-
-## Uitbreiding: Machtsverval Systeem
-
-Als bonus wordt een "machtsverval" mechanisme toegevoegd voor verslagen facties die niet veroverd worden:
-
-- **Verslagen facties verliezen elke dag -2 relatie** (hun loyalisten keren zich af)
-- **Na 10 dagen zonder overname**: de factie stuurt een dreigend bericht via de telefoon ("De straat vergeet niet...")
-- Dit motiveert spelers om verslagen facties snel te veroveren
-
-## Technische Wijzigingen
+### Bestanden die worden aangepast:
 
 | Bestand | Wijziging |
 |---|---|
-| `src/game/engine.ts` | Nieuwe `isFactionActive()` helper. Fixes in `generateContracts`, `applyFactionWar`, `endTurn` (passief inkomen), `executeContract`, `generatePrices`, `generateMapEvents`. Nieuw machtsverval-systeem in `endTurn`. |
-| `src/game/types.ts` | Optioneel: `leaderDefeatedDay` record toevoegen voor verval-tracking |
+| `src/components/game/CityMap.tsx` | Nieuwe district-posities, wegen, landmarks, hitboxes en labels. Alle 5 landmark-functies herschreven. |
+| `src/components/game/map/CityFabric.tsx` | Nieuwe zone-indeling en kleuren passend bij de referentie. |
+| `src/components/game/map/Coastline.tsx` | Uitgebreid met kanaal tussen Iron en Neon/Lowrise, meer water-elementen. |
+| `src/components/game/map/CityAmbience.tsx` | Aangepaste glow-posities, haven-activiteit en straatverlichting. |
+| `src/components/game/map/SkylineEffect.tsx` | Bergen/heuvels silhouet rechts en boven in plaats van alleen skyline bovenaan. |
 
-Geen UI-wijzigingen nodig — alle fixes zijn in de game-logica.
+### Nieuwe Indeling (SVG 400x290)
 
+```text
++------------------------------------------+
+|  Bergen/heuvels achtergrond              |
+|                                          |
+|   PORT NERO        CROWN HEIGHTS         |
+|   (blauw)          (villa + torens)      |
+|   [kranen,schepen]  [wolkenkrabbers]     |
+|                                          |
+|   ~~~ Water/kanaal ~~~                   |
+|                                          |
+|   IRON BOROUGH     NEON STRIP            |
+|   (oranje/rood)    (paars/roze)          |
+|   [fabrieken]      [clubs,neon]          |
+|                                          |
+|        LOWRISE (rechtsonder)             |
+|        (warm geel, lage huizen)          |
++------------------------------------------+
+```
+
+### District Posities (nieuw)
+
+| District | cx | cy | Beschrijving |
+|---|---|---|---|
+| port | 90 | 90 | Linksboven, aan het water |
+| crown | 300 | 70 | Rechtsboven, op de heuvel met villa |
+| iron | 100 | 220 | Linksonder, industrieel |
+| neon | 230 | 180 | Midden, entertainment |
+| low | 320 | 230 | Rechtsonder, residentieel |
+
+### Visuele Verbeteringen per District
+
+**Port Nero:**
+- Meerdere schepen (containerschip, bulkcarrier) in het water
+- Containerrijen in kleurvariaties (blauw, rood, groen)
+- Twee kranen met bewegende armen
+- Blauwige sfeerverlichting over hele havengebied
+- Kraanfundamenten en kadebeschoeingen
+
+**Iron Borough:**
+- Twee grote fabrieken met werkende schoorstenen (rook-animaties)
+- Vuurgloed/lava-effecten vanuit ovens
+- Industriele pijpleidingen en opslagtanks
+- Oranje/rode kleurtemperatuur
+- Spoorlijnen met bewegende wagon
+
+**Neon Strip:**
+- Grote gebouwen met paars/roze neonverlichting
+- Knipperende reclameborden en LED-schermen
+- Casino-entree met glow
+- Reflecties op nat wegdek
+- Meerdere neonborden (BAR, CLUB, CASINO)
+
+**Crown Heights:**
+- 3-4 hoge wolkenkrabbers met verlichte ramen
+- Villa op een heuvel (met tuinen en oprit)
+- Helipad met draaiend licht
+- Koele blauw/witte kleurtemperatuur
+- Bergen-silhouet erachter
+
+**Lowrise:**
+- Dichtbepaakte lage gebouwen (2-3 verdiepingen)
+- Warme, gedempte gele straatverlichting
+- Smalle straatjes
+- Graffiti-accenten op muren
+- Kapotte straatlantaarns
+
+### Wegen
+
+Gebogen hoofdwegen verbinden alle districten via een stelsel van snelwegen en opritten, vergelijkbaar met de referentie-afbeelding. Alle bestaande functionaliteit (verkeer-animaties, smuggelroutes, event-markers) blijft werken op de nieuwe wegen.
+
+### Behouden Functionaliteit
+
+Alle bestaande interactieve elementen blijven intact:
+- District hitboxes en selectie
+- Speler-marker ("JIJ")
+- Safehouse markers
+- Villa compound (verplaatst naar Crown Heights heuvel)
+- Chop Shop in Iron Borough
+- Verkeer-animaties op wegen
+- Weer-overlay
+- Heat-overlay
+- Nemesis-marker
+- Travel-animatie
+- Smuggelroutes
+- Map events (checkpoints, gevechten, etc.)
+- Nieuws-ticker en kompas/schaal
+
+### Nieuwe Elementen
+
+- **Bergen-silhouet** als achtergrond rechts en boven
+- **Kanaal/waterweg** tussen Port/Iron en het centrum
+- **Snelweg-knooppunten** met viaducten
+- **Meer gedetailleerde gebouwen** met individuele raamverlichting
+- **Verbeterde kleurzones** per district met sterkere identiteit
