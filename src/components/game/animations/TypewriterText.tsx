@@ -25,7 +25,8 @@ export function TypewriterText({ text, speed = 25, className = '', onComplete }:
       }
     }, speed);
     return () => clearInterval(interval);
-  }, [text, speed, onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, speed]);
 
   const skip = useCallback(() => {
     if (!done) {
