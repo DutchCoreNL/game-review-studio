@@ -1,12 +1,8 @@
 /**
  * CityFabric — Procedurally generated background city blocks
- * that fill the entire map, creating a realistic urban fabric.
- * All elements are static (no animations) for performance.
+ * matching new district layout. Static for performance.
  */
 
-import { DistrictId } from '@/game/types';
-
-// Seeded pseudo-random for consistent renders
 function seededRandom(seed: number) {
   let s = seed;
   return () => {
@@ -15,99 +11,88 @@ function seededRandom(seed: number) {
   };
 }
 
-// District color zones - each has a subtle tint
 const ZONE_COLORS: Record<string, { base: string; accent: string; heightMod: number }> = {
-  port: { base: 'hsla(210, 25%, 10%,', accent: 'hsla(210, 30%, 14%,', heightMod: 0.8 },
-  crown: { base: 'hsla(220, 15%, 12%,', accent: 'hsla(220, 20%, 16%,', heightMod: 1.4 },
-  iron: { base: 'hsla(25, 18%, 10%,', accent: 'hsla(30, 22%, 13%,', heightMod: 0.9 },
-  low: { base: 'hsla(0, 5%, 8%,', accent: 'hsla(0, 8%, 10%,', heightMod: 0.6 },
-  neon: { base: 'hsla(280, 15%, 11%,', accent: 'hsla(290, 20%, 14%,', heightMod: 1.0 },
-  neutral: { base: 'hsla(0, 0%, 9%,', accent: 'hsla(0, 0%, 11%,', heightMod: 0.7 },
+  port:   { base: 'hsla(210, 30%, 10%,', accent: 'hsla(210, 35%, 14%,', heightMod: 0.8 },
+  crown:  { base: 'hsla(220, 18%, 12%,', accent: 'hsla(220, 22%, 16%,', heightMod: 1.5 },
+  iron:   { base: 'hsla(25, 22%, 9%,',   accent: 'hsla(30, 25%, 12%,',  heightMod: 0.9 },
+  low:    { base: 'hsla(35, 10%, 8%,',   accent: 'hsla(35, 12%, 10%,',  heightMod: 0.5 },
+  neon:   { base: 'hsla(280, 18%, 10%,', accent: 'hsla(290, 22%, 13%,', heightMod: 1.0 },
+  neutral:{ base: 'hsla(0, 0%, 8%,',     accent: 'hsla(0, 0%, 10%,',    heightMod: 0.6 },
 };
 
-// Determine which zone a point belongs to
+// New zone mapping based on updated layout
 function getZone(x: number, y: number): string {
-  if (x < 45) return 'water'; // coastline area
-  if (x < 140 && y < 140) return 'port';
-  if (x > 210 && y < 140) return 'crown';
-  if (x > 140 && x < 250 && y > 145 && y < 220) return 'iron';
-  if (x < 140 && y > 200) return 'low';
-  if (x > 270 && y > 150) return 'neon';
+  if (x < 52) return 'water';
+  // Canal zone
+  if (y > 138 && y < 158) return 'water';
+  // Upper city
+  if (y < 140) {
+    if (x < 170) return 'port';
+    if (x > 240) return 'crown';
+    return 'neutral';
+  }
+  // Lower city
+  if (x < 160 && y > 158) return 'iron';
+  if (x > 280 && y > 200) return 'low';
+  if (x > 160 && x < 310 && y > 158) return 'neon';
   return 'neutral';
 }
 
 interface CityBlock {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  fill: string;
-  opacity: number;
+  x: number; y: number; w: number; h: number; fill: string;
 }
 
 function generateCityBlocks(): CityBlock[] {
   const blocks: CityBlock[] = [];
   const rand = seededRandom(42);
 
-  // Grid-based generation with variation
-  for (let gx = 48; gx < 390; gx += 9) {
-    for (let gy = 8; gy < 282; gy += 8) {
-      // Skip some cells for streets/variation
-      if (rand() < 0.25) continue;
+  for (let gx = 54; gx < 395; gx += 8) {
+    for (let gy = 8; gy < 282; gy += 7) {
+      if (rand() < 0.22) continue;
 
       const zone = getZone(gx, gy);
       if (zone === 'water') continue;
 
       const colors = ZONE_COLORS[zone] || ZONE_COLORS.neutral;
-
-      // Vary block size
-      const w = 3 + rand() * 5;
-      const h = 2 + rand() * 4 * colors.heightMod;
-      const jitterX = (rand() - 0.5) * 3;
-      const jitterY = (rand() - 0.5) * 2;
-
-      const useAccent = rand() > 0.65;
-      const baseOpacity = 0.25 + rand() * 0.35;
+      const w = 2.5 + rand() * 4.5;
+      const h = 1.5 + rand() * 3.5 * colors.heightMod;
+      const jx = (rand() - 0.5) * 2.5;
+      const jy = (rand() - 0.5) * 2;
+      const useAccent = rand() > 0.6;
+      const op = 0.22 + rand() * 0.35;
 
       blocks.push({
-        x: gx + jitterX,
-        y: gy + jitterY,
-        w,
-        h,
-        fill: (useAccent ? colors.accent : colors.base) + `${baseOpacity})`,
-        opacity: 1,
+        x: gx + jx, y: gy + jy, w, h,
+        fill: (useAccent ? colors.accent : colors.base) + `${op})`,
       });
     }
   }
-
   return blocks;
 }
 
-// Pre-generate blocks once (module-level, not per render)
 const CITY_BLOCKS = generateCityBlocks();
 
-// Background street grid between blocks
 function BackgroundStreets() {
   const streets: JSX.Element[] = [];
   const rand = seededRandom(99);
 
-  // Horizontal streets
-  for (let y = 20; y < 280; y += 12 + Math.floor(rand() * 6)) {
-    const x1 = 48 + rand() * 30;
-    const x2 = 350 + rand() * 40;
+  for (let y = 18; y < 280; y += 11 + Math.floor(rand() * 5)) {
+    // Skip canal zone
+    if (y > 136 && y < 160) continue;
+    const x1 = 54 + rand() * 25;
+    const x2 = 360 + rand() * 35;
     streets.push(
       <line key={`bsh-${y}`} x1={x1} y1={y} x2={x2} y2={y}
-        stroke="hsla(0, 0%, 8%, 0.6)" strokeWidth={0.4 + rand() * 0.3} />
+        stroke="hsla(0, 0%, 7%, 0.5)" strokeWidth={0.3 + rand() * 0.3} />
     );
   }
 
-  // Vertical streets
-  for (let x = 55; x < 385; x += 14 + Math.floor(rand() * 8)) {
-    const y1 = 10 + rand() * 20;
-    const y2 = 260 + rand() * 25;
+  for (let x = 58; x < 390; x += 12 + Math.floor(rand() * 7)) {
+    const y1 = 8 + rand() * 15;
+    const y2 = 265 + rand() * 20;
     streets.push(
       <line key={`bsv-${x}`} x1={x} y1={y1} x2={x} y2={y2}
-        stroke="hsla(0, 0%, 8%, 0.5)" strokeWidth={0.3 + rand() * 0.3} />
+        stroke="hsla(0, 0%, 7%, 0.45)" strokeWidth={0.25 + rand() * 0.25} />
     );
   }
 
@@ -117,17 +102,12 @@ function BackgroundStreets() {
 export function CityFabric() {
   return (
     <g pointerEvents="none">
-      {/* Background street grid */}
       <BackgroundStreets />
-
-      {/* City blocks */}
       {CITY_BLOCKS.map((block, i) => (
         <rect
           key={`cb-${i}`}
-          x={block.x}
-          y={block.y}
-          width={block.w}
-          height={block.h}
+          x={block.x} y={block.y}
+          width={block.w} height={block.h}
           fill={block.fill}
           rx={0.3}
         />
