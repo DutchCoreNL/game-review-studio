@@ -30,33 +30,52 @@ interface CityMapProps {
 }
 
 // Road paths — repositioned to match the new background image
+// === MAIN ROADS — isometric paths following the background image ===
 const ROADS = [
-  'M 75,100 Q 75,160 78,200',                          // Port to Iron (left side vertical)
-  'M 95,80 Q 160,50 200,45',                            // Port to Villa area
-  'M 200,55 Q 260,55 310,70',                           // Villa to Crown
-  'M 320,95 Q 310,140 280,170',                         // Crown to Neon area
-  'M 230,175 Q 275,200 310,220',                        // Neon to Lowrise
-  'M 100,220 Q 150,210 190,185',                        // Iron to Neon
-  'M 320,100 Q 340,160 325,210',                        // Crown to Lowrise (right side)
-  'M 90,220 Q 180,240 310,230',                         // Iron to Lowrise (bottom)
-  'M 200,175 Q 200,130 200,80',                         // Neon to Villa (center vertical)
-  'M 75,95 Q 140,85 200,80',                            // Port east along top
-  'M 100,200 Q 140,175 190,170',                        // Iron to Neon shortcut
-  'M 250,175 Q 290,170 320,160',                        // Neon east to Crown area
+  // Coastal highway: top-left harbor curving down along the west coast
+  'M 30,55 Q 35,75 40,95 Q 42,120 38,150 Q 35,180 45,210',
+  // Port boulevard: harbor east toward central roundabout
+  'M 65,72 Q 100,82 130,100 Q 155,115 180,140 Q 190,155 200,170',
+  // Northern expressway: Port across hilltop toward Crown Heights
+  'M 80,60 Q 130,42 175,38 Q 220,36 265,45 Q 295,52 320,65',
+  // Crown descent: Crown Heights south toward Neon/Lowrise
+  'M 330,85 Q 325,110 315,135 Q 305,155 290,170 Q 275,178 260,182',
+  // Neon roundabout: circular flow around the central purple plaza
+  'M 175,165 Q 185,155 200,152 Q 215,155 225,165 Q 220,178 200,185 Q 180,178 175,165',
+  // Industrial artery: Neon south-west to Iron Borough
+  'M 185,180 Q 160,195 135,205 Q 110,215 85,225',
+  // Eastern boulevard: Crown through east side to Lowrise
+  'M 340,80 Q 350,120 355,160 Q 352,195 340,220 Q 330,230 320,235',
+  // Southern connector: Iron Borough east along bottom to Lowrise
+  'M 90,235 Q 140,245 190,248 Q 240,245 290,238 Q 310,232 325,225',
+  // Central spine: Villa hilltop straight down to Neon roundabout
+  'M 200,42 Q 200,80 200,110 Q 200,135 200,155',
+  // Neon east spur: roundabout east toward Lowrise
+  'M 220,175 Q 250,185 275,195 Q 300,210 320,220',
+  // Iron north connector: factories up toward Port area
+  'M 75,210 Q 68,170 62,140 Q 58,115 60,85',
+  // Crown-Neon diagonal: shortcut through mid-east
+  'M 300,90 Q 275,120 255,145 Q 240,160 225,170',
+  // Secondary port road: inner harbor road
+  'M 50,70 Q 55,90 58,110 Q 60,130 55,155',
+  // Lowrise inner road: residential loop
+  'M 310,210 Q 330,215 345,225 Q 355,240 345,250 Q 330,252 315,245',
 ];
 
-// Ambient background roads
+// Ambient background roads — subtle grid lines for urban density
 const AMBIENT_ROADS = [
-  'M 50,150 Q 110,148 170,150',
-  'M 200,55 Q 198,170 200,280',
-  'M 48,200 L 140,200',
-  'M 260,65 Q 310,68 370,72',
-  'M 330,95 Q 328,180 330,260',
-  'M 160,128 Q 220,130 280,128',
-  'M 120,165 Q 118,215 120,260',
-  'M 250,158 Q 310,160 375,162',
-  'M 55,95 Q 110,98 160,100',
-  'M 270,218 Q 320,220 375,222',
+  'M 100,130 Q 150,128 200,130',
+  'M 200,42 Q 198,150 200,260',
+  'M 40,195 L 140,195',
+  'M 260,55 Q 310,58 370,65',
+  'M 335,90 Q 333,170 335,250',
+  'M 140,110 Q 200,112 260,110',
+  'M 110,160 Q 108,210 110,255',
+  'M 250,150 Q 310,152 370,155',
+  'M 50,85 Q 100,88 150,90',
+  'M 275,215 Q 325,218 375,220',
+  'M 150,180 Q 148,220 150,260',
+  'M 60,165 Q 100,168 140,170',
 ];
 
 // District label positions — repositioned for new background
@@ -477,36 +496,55 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         </g>
 
         {/* === TRAFFIC === */}
+        {/* Headlights — small warm dots moving forward */}
         {ROADS.map((d, i) => (
-          <motion.circle key={`t1-${i}`} r="1.5" fill="hsl(45 50% 50%)" opacity="0.35"
+          <motion.circle key={`t1-${i}`} r={1 + (i % 3) * 0.3} fill="hsla(45, 60%, 55%, 0.4)" opacity="0.3"
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 4 + i * 1.2, repeat: Infinity, ease: 'linear', delay: i * 0.6 }}
+            transition={{ duration: 5 + i * 1.4, repeat: Infinity, ease: 'linear', delay: i * 0.7 }}
             style={{ offsetPath: `path("${d}")` }} />
         ))}
-        {ROADS.slice(0, 5).map((d, i) => (
-          <motion.circle key={`t2-${i}`} r="1" fill="hsl(0 60% 50%)" opacity="0.25"
+        {/* Taillights — red dots moving opposite direction */}
+        {ROADS.slice(0, 7).map((d, i) => (
+          <motion.circle key={`t2-${i}`} r={0.7 + (i % 2) * 0.3} fill="hsla(0, 65%, 50%, 0.35)" opacity="0.25"
             animate={{ offsetDistance: ['100%', '0%'] }}
-            transition={{ duration: 5 + i * 1.5, repeat: Infinity, ease: 'linear', delay: i * 1.2 + 2 }}
+            transition={{ duration: 6 + i * 1.8, repeat: Infinity, ease: 'linear', delay: i * 1.4 + 1.5 }}
             style={{ offsetPath: `path("${d}")` }} />
         ))}
-        {ROADS.slice(2, 5).map((d, i) => (
-          <motion.rect key={`bus-${i}`} x="-2.5" y="-1" width="5" height="2" rx="0.5"
-            fill="hsla(200, 50%, 40%, 0.3)"
+        {/* Roundabout traffic — extra particles on the Neon loop (road index 4) */}
+        {[0, 1, 2].map(i => (
+          <motion.circle key={`rnd-${i}`} r="0.9" fill="hsla(280, 60%, 55%, 0.4)" opacity="0.35"
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 10 + i * 3, repeat: Infinity, ease: 'linear', delay: i * 4 + 3 }}
-            style={{ offsetPath: `path("${d}")` }} />
+            transition={{ duration: 3 + i * 0.6, repeat: Infinity, ease: 'linear', delay: i * 1.2 }}
+            style={{ offsetPath: `path("${ROADS[4]}")` }} />
         ))}
-        {ROADS.slice(0, 3).map((d, i) => (
-          <motion.circle key={`moto-${i}`} r="0.8" fill="hsla(45, 80%, 55%, 0.5)"
+        {/* Buses — larger, slower rectangles on main arteries */}
+        {ROADS.slice(1, 4).map((d, i) => (
+          <motion.rect key={`bus-${i}`} x="-2" y="-0.8" width="4" height="1.6" rx="0.5"
+            fill="hsla(200, 45%, 40%, 0.25)"
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 2.5 + i * 0.8, repeat: Infinity, ease: 'linear', delay: i * 2 + 5 }}
+            transition={{ duration: 12 + i * 3, repeat: Infinity, ease: 'linear', delay: i * 5 + 2 }}
             style={{ offsetPath: `path("${d}")` }} />
         ))}
+        {/* Motorcycles — tiny fast streaks */}
+        {ROADS.slice(0, 4).map((d, i) => (
+          <motion.circle key={`moto-${i}`} r="0.6" fill="hsla(45, 80%, 60%, 0.5)"
+            animate={{ offsetDistance: ['0%', '100%'] }}
+            transition={{ duration: 2.2 + i * 0.7, repeat: Infinity, ease: 'linear', delay: i * 2.5 + 4 }}
+            style={{ offsetPath: `path("${d}")` }} />
+        ))}
+        {/* Coastal traffic — dim dots along the western shore road */}
+        {[0, 1].map(i => (
+          <motion.circle key={`coast-${i}`} r="0.8" fill="hsla(210, 40%, 50%, 0.3)" opacity="0.3"
+            animate={{ offsetDistance: i === 0 ? ['0%', '100%'] : ['100%', '0%'] }}
+            transition={{ duration: 8 + i * 3, repeat: Infinity, ease: 'linear', delay: i * 4 }}
+            style={{ offsetPath: `path("${ROADS[0]}")` }} />
+        ))}
+        {/* Emergency vehicle — reacts to vehicle heat */}
         {vehicleHeat > 40 && (
-          <motion.circle r="1.8" opacity="0.5"
+          <motion.circle r="1.5" opacity="0.5"
             animate={{ offsetDistance: ['0%', '100%'] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            style={{ offsetPath: `path("${ROADS[Math.floor(vehicleHeat / 30) % ROADS.length]}")` }}>
+            style={{ offsetPath: `path("${ROADS[Math.floor(vehicleHeat / 25) % ROADS.length]}")` }}>
             <animate attributeName="fill" values="hsla(220,80%,50%,0.8);hsla(0,80%,50%,0.8)" dur="0.4s" repeatCount="indefinite" />
           </motion.circle>
         )}
