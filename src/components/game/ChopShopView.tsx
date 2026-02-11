@@ -7,6 +7,7 @@ import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Wrench, DollarSign, Paintbrush, ShieldCheck, Clock, ArrowLeft, Zap, Star, Package, Hammer, Crosshair } from 'lucide-react';
 import { useState } from 'react';
+import chopshopBg from '@/assets/chopshop-bg.jpg';
 
 const RARITY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
   common: { text: 'text-muted-foreground', bg: 'bg-muted/30', border: 'border-border' },
@@ -431,7 +432,10 @@ export function ChopShopView() {
   const selected = selectedCar ? state.stolenCars.find(c => c.id === selectedCar) : null;
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={chopshopBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       <SectionHeader title="Chop Shop" icon={<Wrench size={16} />} badge="Iron Borough" />
 
       {/* Stats bar */}
@@ -495,6 +499,7 @@ export function ChopShopView() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
