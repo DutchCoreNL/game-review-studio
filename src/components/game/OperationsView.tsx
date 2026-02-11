@@ -16,7 +16,7 @@ import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import operationsBg from '@/assets/operations-bg.jpg';
-import { SOLO_OP_IMAGES } from '@/assets/items';
+import { SOLO_OP_IMAGES, CONTRACT_TYPE_IMAGES } from '@/assets/items';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
@@ -314,7 +314,14 @@ function ContractCard({ contract, crew, isExpanded, onToggle, onAssign }: { cont
   const borderClass = CONTRACT_BORDER[contract.type] || 'border-l-border';
 
   return (
-    <motion.div className={`game-card border-l-[3px] ${borderClass}`} layout>
+    <motion.div className={`game-card border-l-[3px] ${borderClass} overflow-hidden`} layout>
+      {/* Contract type banner */}
+      {CONTRACT_TYPE_IMAGES[contract.type] && (
+        <div className="relative -mx-3 -mt-3 mb-2.5 h-16 overflow-hidden">
+          <img src={CONTRACT_TYPE_IMAGES[contract.type]} alt={contract.type} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+        </div>
+      )}
       <button onClick={onToggle} className="w-full text-left">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
