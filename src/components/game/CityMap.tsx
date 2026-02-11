@@ -30,52 +30,56 @@ interface CityMapProps {
 }
 
 // Road paths — repositioned to match the new background image
-// === MAIN ROADS — isometric paths following the background image ===
+// === MAIN ROADS — traced precisely on the isometric background ===
 const ROADS = [
-  // Coastal highway: top-left harbor curving down along the west coast
-  'M 30,55 Q 35,75 40,95 Q 42,120 38,150 Q 35,180 45,210',
-  // Port boulevard: harbor east toward central roundabout
-  'M 65,72 Q 100,82 130,100 Q 155,115 180,140 Q 190,155 200,170',
-  // Northern expressway: Port across hilltop toward Crown Heights
-  'M 80,60 Q 130,42 175,38 Q 220,36 265,45 Q 295,52 320,65',
-  // Crown descent: Crown Heights south toward Neon/Lowrise
-  'M 330,85 Q 325,110 315,135 Q 305,155 290,170 Q 275,178 260,182',
-  // Neon roundabout: circular flow around the central purple plaza
-  'M 175,165 Q 185,155 200,152 Q 215,155 225,165 Q 220,178 200,185 Q 180,178 175,165',
-  // Industrial artery: Neon south-west to Iron Borough
-  'M 185,180 Q 160,195 135,205 Q 110,215 85,225',
-  // Eastern boulevard: Crown through east side to Lowrise
-  'M 340,80 Q 350,120 355,160 Q 352,195 340,220 Q 330,230 320,235',
-  // Southern connector: Iron Borough east along bottom to Lowrise
-  'M 90,235 Q 140,245 190,248 Q 240,245 290,238 Q 310,232 325,225',
-  // Central spine: Villa hilltop straight down to Neon roundabout
-  'M 200,42 Q 200,80 200,110 Q 200,135 200,155',
-  // Neon east spur: roundabout east toward Lowrise
-  'M 220,175 Q 250,185 275,195 Q 300,210 320,220',
-  // Iron north connector: factories up toward Port area
-  'M 75,210 Q 68,170 62,140 Q 58,115 60,85',
-  // Crown-Neon diagonal: shortcut through mid-east
-  'M 300,90 Q 275,120 255,145 Q 240,160 225,170',
-  // Secondary port road: inner harbor road
-  'M 50,70 Q 55,90 58,110 Q 60,130 55,155',
-  // Lowrise inner road: residential loop
-  'M 310,210 Q 330,215 345,225 Q 355,240 345,250 Q 330,252 315,245',
+  // R0: Main highway from harbor (top-left) diagonally to central roundabout
+  'M 45,128 Q 70,135 95,145 Q 130,158 160,168 Q 180,174 198,175',
+  // R1: Highway continuation from roundabout to Crown Heights (top-right)
+  'M 202,172 Q 230,155 255,140 Q 280,120 305,105 Q 320,95 340,82',
+  // R2: Northern ridge road — Port area to Villa hilltop
+  'M 55,145 Q 80,120 110,105 Q 140,90 170,75 Q 190,65 200,55',
+  // R3: Villa hilltop to Crown Heights along the ridge
+  'M 200,55 Q 230,60 255,68 Q 280,78 305,88 Q 325,96 345,78',
+  // R4: Neon roundabout — circular traffic loop at center
+  'M 185,168 Q 192,160 200,158 Q 208,160 215,168 Q 210,178 200,182 Q 190,178 185,168',
+  // R5: Roundabout south-west to Iron Borough (factories)
+  'M 192,180 Q 170,195 148,208 Q 125,218 100,228 Q 85,235 72,240',
+  // R6: Roundabout south-east to Lowrise (residential)
+  'M 208,180 Q 230,192 255,205 Q 278,215 300,222 Q 315,228 330,232',
+  // R7: Eastern expressway — Crown Heights south to Lowrise
+  'M 345,85 Q 352,110 356,140 Q 355,170 348,200 Q 340,220 330,235',
+  // R8: Southern cross-road — Iron Borough east to Lowrise
+  'M 75,245 Q 120,252 165,255 Q 210,254 255,248 Q 300,240 330,235',
+  // R9: Western coastal road — along the harbor/water edge
+  'M 35,130 Q 38,155 40,180 Q 42,205 48,228 Q 52,240 60,250',
+  // R10: Iron Borough internal — factory district loop
+  'M 65,225 Q 78,215 90,210 Q 105,208 115,215 Q 110,228 95,235 Q 78,238 65,232',
+  // R11: Crown-Neon connector — diagonal shortcut mid-east
+  'M 310,100 Q 290,120 270,140 Q 250,155 230,168',
+  // R12: Central spine — Villa straight south to roundabout
+  'M 200,60 Q 200,90 200,120 Q 200,140 200,158',
+  // R13: Port inner harbor road
+  'M 48,140 Q 55,155 60,170 Q 62,185 58,200',
+  // R14: Lowrise residential loop
+  'M 315,218 Q 330,222 340,230 Q 345,240 338,248 Q 325,250 315,242',
+  // R15: Secondary connector Port to Iron via west
+  'M 52,160 Q 55,185 60,210 Q 65,225 72,238',
 ];
 
-// Ambient background roads — subtle grid lines for urban density
+// Ambient background roads — faint urban grid for depth
 const AMBIENT_ROADS = [
-  'M 100,130 Q 150,128 200,130',
-  'M 200,42 Q 198,150 200,260',
-  'M 40,195 L 140,195',
-  'M 260,55 Q 310,58 370,65',
-  'M 335,90 Q 333,170 335,250',
-  'M 140,110 Q 200,112 260,110',
-  'M 110,160 Q 108,210 110,255',
-  'M 250,150 Q 310,152 370,155',
-  'M 50,85 Q 100,88 150,90',
-  'M 275,215 Q 325,218 375,220',
-  'M 150,180 Q 148,220 150,260',
-  'M 60,165 Q 100,168 140,170',
+  'M 90,160 Q 140,158 190,160',
+  'M 200,58 Q 198,140 200,250',
+  'M 42,210 L 130,210',
+  'M 255,72 Q 305,78 360,85',
+  'M 340,90 Q 338,170 340,245',
+  'M 130,120 Q 190,122 250,120',
+  'M 105,170 Q 103,215 105,255',
+  'M 245,155 Q 305,158 360,162',
+  'M 48,140 Q 95,142 145,145',
+  'M 280,220 Q 325,224 370,228',
+  'M 155,185 Q 153,225 155,260',
+  'M 55,180 Q 95,182 135,185',
 ];
 
 // District label positions — repositioned for new background
@@ -496,52 +500,75 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         </g>
 
         {/* === TRAFFIC === */}
-        {/* Headlights — small warm dots moving forward */}
-        {ROADS.map((d, i) => (
-          <motion.circle key={`t1-${i}`} r={1 + (i % 3) * 0.3} fill="hsla(45, 60%, 55%, 0.4)" opacity="0.3"
+        {/* Headlights — warm dots, 2 per main road at staggered delays */}
+        {ROADS.slice(0, 12).flatMap((d, i) => [0, 1].map(j => (
+          <motion.circle key={`hl-${i}-${j}`} r={0.8 + (i % 3) * 0.2}
+            fill="hsla(45, 65%, 58%, 0.45)" opacity={0.3 + j * 0.05}
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 5 + i * 1.4, repeat: Infinity, ease: 'linear', delay: i * 0.7 }}
+            transition={{ duration: 5 + i * 0.9 + j * 2, repeat: Infinity, ease: 'linear', delay: j * 3.5 + i * 0.4 }}
             style={{ offsetPath: `path("${d}")` }} />
-        ))}
-        {/* Taillights — red dots moving opposite direction */}
-        {ROADS.slice(0, 7).map((d, i) => (
-          <motion.circle key={`t2-${i}`} r={0.7 + (i % 2) * 0.3} fill="hsla(0, 65%, 50%, 0.35)" opacity="0.25"
+        )))}
+        {/* Taillights — red/amber returning, staggered */}
+        {ROADS.slice(0, 8).flatMap((d, i) => [0, 1].map(j => (
+          <motion.circle key={`tl-${i}-${j}`} r={0.6 + (i % 2) * 0.2}
+            fill={j === 0 ? 'hsla(0, 60%, 48%, 0.35)' : 'hsla(20, 70%, 50%, 0.3)'}
+            opacity="0.25"
             animate={{ offsetDistance: ['100%', '0%'] }}
-            transition={{ duration: 6 + i * 1.8, repeat: Infinity, ease: 'linear', delay: i * 1.4 + 1.5 }}
+            transition={{ duration: 6 + i * 1.2 + j * 2.5, repeat: Infinity, ease: 'linear', delay: j * 4 + i * 0.8 + 1 }}
             style={{ offsetPath: `path("${d}")` }} />
-        ))}
-        {/* Roundabout traffic — extra particles on the Neon loop (road index 4) */}
-        {[0, 1, 2].map(i => (
-          <motion.circle key={`rnd-${i}`} r="0.9" fill="hsla(280, 60%, 55%, 0.4)" opacity="0.35"
+        )))}
+        {/* Roundabout traffic — purple-tinted particles circling the Neon plaza */}
+        {[0, 1, 2, 3].map(i => (
+          <motion.circle key={`rnd-${i}`} r={0.7 + (i % 2) * 0.2}
+            fill={i % 2 === 0 ? 'hsla(280, 55%, 55%, 0.4)' : 'hsla(320, 50%, 50%, 0.35)'}
+            opacity="0.35"
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 3 + i * 0.6, repeat: Infinity, ease: 'linear', delay: i * 1.2 }}
+            transition={{ duration: 2.5 + i * 0.5, repeat: Infinity, ease: 'linear', delay: i * 0.9 }}
             style={{ offsetPath: `path("${ROADS[4]}")` }} />
         ))}
-        {/* Buses — larger, slower rectangles on main arteries */}
-        {ROADS.slice(1, 4).map((d, i) => (
-          <motion.rect key={`bus-${i}`} x="-2" y="-0.8" width="4" height="1.6" rx="0.5"
-            fill="hsla(200, 45%, 40%, 0.25)"
+        {/* Buses — slow rectangles on highway and boulevard */}
+        {[0, 1, 7].map((ri, i) => (
+          <motion.rect key={`bus-${i}`} x="-1.8" y="-0.7" width="3.6" height="1.4" rx="0.4"
+            fill="hsla(200, 45%, 42%, 0.22)"
             animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 12 + i * 3, repeat: Infinity, ease: 'linear', delay: i * 5 + 2 }}
+            transition={{ duration: 14 + i * 4, repeat: Infinity, ease: 'linear', delay: i * 6 + 3 }}
+            style={{ offsetPath: `path("${ROADS[ri]}")` }} />
+        ))}
+        {/* Motorcycles — tiny fast dots */}
+        {ROADS.slice(0, 5).map((d, i) => (
+          <motion.circle key={`moto-${i}`} r="0.5"
+            fill="hsla(45, 85%, 62%, 0.55)"
+            animate={{ offsetDistance: ['0%', '100%'] }}
+            transition={{ duration: 2 + i * 0.5, repeat: Infinity, ease: 'linear', delay: i * 2.8 + 5 }}
             style={{ offsetPath: `path("${d}")` }} />
         ))}
-        {/* Motorcycles — tiny fast streaks */}
-        {ROADS.slice(0, 4).map((d, i) => (
-          <motion.circle key={`moto-${i}`} r="0.6" fill="hsla(45, 80%, 60%, 0.5)"
-            animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 2.2 + i * 0.7, repeat: Infinity, ease: 'linear', delay: i * 2.5 + 4 }}
-            style={{ offsetPath: `path("${d}")` }} />
+        {/* Coastal traffic — dim harbor-blue dots along western shore */}
+        {[0, 1, 2].map(i => (
+          <motion.circle key={`coast-${i}`} r="0.7"
+            fill="hsla(210, 40%, 50%, 0.3)" opacity="0.25"
+            animate={{ offsetDistance: i % 2 === 0 ? ['0%', '100%'] : ['100%', '0%'] }}
+            transition={{ duration: 7 + i * 2.5, repeat: Infinity, ease: 'linear', delay: i * 3 }}
+            style={{ offsetPath: `path("${ROADS[9]}")` }} />
         ))}
-        {/* Coastal traffic — dim dots along the western shore road */}
+        {/* Factory district loop traffic */}
         {[0, 1].map(i => (
-          <motion.circle key={`coast-${i}`} r="0.8" fill="hsla(210, 40%, 50%, 0.3)" opacity="0.3"
+          <motion.circle key={`fac-${i}`} r="0.6"
+            fill="hsla(30, 50%, 45%, 0.3)" opacity="0.3"
+            animate={{ offsetDistance: ['0%', '100%'] }}
+            transition={{ duration: 4 + i * 1.5, repeat: Infinity, ease: 'linear', delay: i * 2.5 }}
+            style={{ offsetPath: `path("${ROADS[10]}")` }} />
+        ))}
+        {/* Lowrise residential loop traffic */}
+        {[0, 1].map(i => (
+          <motion.circle key={`res-${i}`} r="0.6"
+            fill="hsla(45, 50%, 50%, 0.3)" opacity="0.25"
             animate={{ offsetDistance: i === 0 ? ['0%', '100%'] : ['100%', '0%'] }}
-            transition={{ duration: 8 + i * 3, repeat: Infinity, ease: 'linear', delay: i * 4 }}
-            style={{ offsetPath: `path("${ROADS[0]}")` }} />
+            transition={{ duration: 5 + i * 2, repeat: Infinity, ease: 'linear', delay: i * 3 }}
+            style={{ offsetPath: `path("${ROADS[14]}")` }} />
         ))}
         {/* Emergency vehicle — reacts to vehicle heat */}
         {vehicleHeat > 40 && (
-          <motion.circle r="1.5" opacity="0.5"
+          <motion.circle r="1.3" opacity="0.5"
             animate={{ offsetDistance: ['0%', '100%'] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
             style={{ offsetPath: `path("${ROADS[Math.floor(vehicleHeat / 25) % ROADS.length]}")` }}>
