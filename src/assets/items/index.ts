@@ -68,6 +68,13 @@ import contactCouncilor from './contact-councilor.jpg';
 import contactHarbor from './contact-harbor.jpg';
 import contactLawyer from './contact-lawyer.jpg';
 
+// Boss portrait images
+import bossSerpiente from './boss-serpiente.jpg';
+import bossWu from './boss-wu.jpg';
+import bossHammer from './boss-hammer.jpg';
+import bossVoss from './boss-voss.jpg';
+import bossDecker from './boss-decker.jpg';
+
 export const VEHICLE_IMAGES: Record<string, string> = {
   toyohata: carToyohata,
   forgedyer: carForgedyer,
@@ -143,4 +150,12 @@ export const CONTACT_IMAGES: Record<string, string> = {
   city_councilor: contactCouncilor,
   harbor_master: contactHarbor,
   defense_lawyer: contactLawyer,
+};
+
+export const BOSS_IMAGES: Record<string, string> = {
+  cartel: bossSerpiente,
+  syndicate: bossWu,
+  bikers: bossHammer,
+  voss: bossVoss,
+  decker: bossDecker,
 };

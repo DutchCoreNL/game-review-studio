@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
+import { BOSS_IMAGES } from '@/assets/items';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -202,7 +203,21 @@ function ActiveCombat() {
         </motion.div>
       )}
 
-      {/* HP Bars */}
+      {/* Enemy portrait + HP Bars */}
+      {(combat.isBoss || isBossFight) && (
+        <div className="flex justify-center mb-3">
+          <div className="w-16 h-16 rounded-full border-2 border-blood overflow-hidden shadow-lg shadow-blood/30">
+            <img
+              src={isBossFight
+                ? (combat.bossPhase === 2 ? BOSS_IMAGES.decker : BOSS_IMAGES.voss)
+                : BOSS_IMAGES[combat.familyId || '']
+              }
+              alt={combat.targetName}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
       <div className="space-y-3 mb-4">
         <AnimatedHPBar label="Jij" current={combat.playerHP} max={combat.playerMaxHP} color="emerald" flashColor="blood" />
         <AnimatedHPBar label={combat.targetName} current={combat.targetHP} max={combat.enemyMaxHP} color="blood" flashColor="gold" />
@@ -376,17 +391,25 @@ function CombatMenu() {
               style={{ borderLeftColor: defeated ? '#444' : fam.color }}
             >
               <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2">
-                    {defeated ? <Skull size={14} className="text-muted-foreground" /> : <Crown size={14} style={{ color: fam.color }} />}
-                    <h4 className="font-bold text-xs">{boss.name}</h4>
-                    <GameBadge variant={defeated ? 'muted' : 'blood'}>{fam.name}</GameBadge>
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded bg-muted border border-border overflow-hidden shrink-0">
+                    {BOSS_IMAGES[fid] ? (
+                      <img src={BOSS_IMAGES[fid]} alt={boss.name} className={`w-full h-full object-cover ${defeated ? 'grayscale' : ''}`} />
+                    ) : (
+                      defeated ? <Skull size={14} className="text-muted-foreground w-full h-full flex items-center justify-center" /> : <Crown size={14} style={{ color: fam.color }} />
+                    )}
                   </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-xs">{boss.name}</h4>
+                      <GameBadge variant={defeated ? 'muted' : 'blood'}>{fam.name}</GameBadge>
+                    </div>
                   <p className="text-[0.5rem] text-muted-foreground mt-1">{boss.desc}</p>
                   <div className="flex gap-3 mt-1.5">
                     <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5"><Heart size={8} /> {boss.hp}</span>
                     <span className="text-[0.5rem] text-gold font-semibold flex items-center gap-0.5"><Swords size={8} /> {boss.attack}</span>
                     <span className="text-[0.5rem] text-muted-foreground">Rel: {rel}</span>
+                  </div>
                   </div>
                 </div>
               </div>
