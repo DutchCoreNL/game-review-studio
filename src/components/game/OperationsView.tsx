@@ -15,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
+import operationsBg from '@/assets/operations-bg.jpg';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
@@ -61,7 +62,10 @@ export function OperationsView() {
   const costPerHp = ironDiscount ? 40 : 50;
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={operationsBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       {/* Sub-tabs */}
       <div className="flex gap-1.5 mb-4 mt-1">
         {([
@@ -289,6 +293,7 @@ export function OperationsView() {
         }}
         onCancel={() => setFireConfirm(null)}
       />
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { CorruptionView } from './CorruptionView';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords } from 'lucide-react';
 import { useState } from 'react';
+import imperiumBg from '@/assets/imperium-bg.jpg';
 
 type SubTab = 'assets' | 'business' | 'families' | 'corruption' | 'war';
 
@@ -21,7 +22,10 @@ export function ImperiumView() {
   const [subTab, setSubTab] = useState<SubTab>('assets');
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={imperiumBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-4 mt-1 flex-wrap">
         {([
@@ -50,6 +54,7 @@ export function ImperiumView() {
       {subTab === 'war' && <DistrictDefensePanel />}
       {subTab === 'families' && <FamiliesPanel />}
       {subTab === 'corruption' && <CorruptionView />}
+      </div>
     </div>
   );
 }

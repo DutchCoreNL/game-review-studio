@@ -18,6 +18,7 @@ import { StoryArcsPanel } from './profile/StoryArcsPanel';
 import { StatsOverviewPanel } from './profile/StatsOverviewPanel';
 import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
 import { useState } from 'react';
+import profileBg from '@/assets/profile-bg.jpg';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
   { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
@@ -42,7 +43,10 @@ export function ProfileView() {
   const stats = state.stats;
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={profileBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       {/* Boss Card */}
       <div className="game-card border-l-[3px] border-l-gold mb-4 mt-1">
         <div className="flex items-center gap-3">
@@ -334,6 +338,7 @@ export function ProfileView() {
         onConfirm={() => { setConfirmReset(false); dispatch({ type: 'RESET' }); showToast('Spel gereset'); }}
         onCancel={() => setConfirmReset(false)}
       />
+      </div>
     </div>
   );
 }
