@@ -75,6 +75,13 @@ import bossHammer from './boss-hammer.jpg';
 import bossVoss from './boss-voss.jpg';
 import bossDecker from './boss-decker.jpg';
 
+// Solo operation images
+import opPickpocket from './op-pickpocket.jpg';
+import opAtmSkimming from './op-atm-skimming.jpg';
+import opCarTheft from './op-car-theft.jpg';
+import opStoreRobbery from './op-store-robbery.jpg';
+import opCryptoHeist from './op-crypto-heist.jpg';
+
 export const VEHICLE_IMAGES: Record<string, string> = {
   toyohata: carToyohata,
   forgedyer: carForgedyer,
@@ -150,6 +157,14 @@ export const CONTACT_IMAGES: Record<string, string> = {
   city_councilor: contactCouncilor,
   harbor_master: contactHarbor,
   defense_lawyer: contactLawyer,
+};
+
+export const SOLO_OP_IMAGES: Record<string, string> = {
+  pickpocket: opPickpocket,
+  atm_skimming: opAtmSkimming,
+  car_theft: opCarTheft,
+  store_robbery: opStoreRobbery,
+  crypto_heist: opCryptoHeist,
 };
 
 export const BOSS_IMAGES: Record<string, string> = {

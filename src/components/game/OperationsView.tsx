@@ -16,6 +16,7 @@ import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import operationsBg from '@/assets/operations-bg.jpg';
+import { SOLO_OP_IMAGES } from '@/assets/items';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
@@ -104,60 +105,68 @@ export function OperationsView() {
               const locked = state.player.level < op.level;
               const rewardRange = !locked ? calculateOperationRewardRange(op, state) : null;
               return (
-                <motion.div key={op.id} className={`game-card border-l-[3px] ${locked ? 'opacity-40 border-l-border' : 'border-l-gold'}`}>
-                  <div className="flex justify-between items-center">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-xs">{op.name}</h4>
-                        {locked && <Lock size={10} className="text-muted-foreground" />}
-                        {!locked && <GameBadge variant="muted" size="xs">Lvl {op.level}+</GameBadge>}
-                      </div>
-                      <p className="text-[0.5rem] text-muted-foreground">{op.desc}</p>
-                      <div className="flex gap-3 mt-1 items-center">
-                        <span className="text-[0.5rem] text-blood font-semibold">⚡ {op.risk}%</span>
-                        {rewardRange ? (
-                          <span className="text-[0.5rem] text-gold font-semibold">
-                            €{rewardRange.min.toLocaleString()} - €{rewardRange.max.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
-                        )}
-                        <span className="text-[0.5rem] text-muted-foreground">🔥 +{op.heat}</span>
-                      </div>
-                      {rewardRange && rewardRange.bonuses.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {rewardRange.bonuses.map((b, i) => (
-                            <span key={i} className="text-[0.4rem] font-bold px-1 py-0.5 rounded bg-gold/10 text-gold border border-gold/20 flex items-center gap-0.5">
-                              <TrendingUp size={7} /> {b.label} {b.value}
-                            </span>
-                          ))}
+                <motion.div key={op.id} className={`game-card border-l-[3px] ${locked ? 'opacity-40 border-l-border' : 'border-l-gold'} overflow-hidden`}>
+                  {/* Operation image banner */}
+                  {SOLO_OP_IMAGES[op.id] && (
+                    <div className="relative -mx-3 -mt-3 mb-2.5 h-20 overflow-hidden">
+                      <img src={SOLO_OP_IMAGES[op.id]} alt={op.name} className={`w-full h-full object-cover ${locked ? 'grayscale' : ''}`} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                      <div className="absolute bottom-1.5 left-2.5 right-2.5 flex items-end justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-xs text-foreground drop-shadow-lg">{op.name}</h4>
+                            {locked && <Lock size={10} className="text-muted-foreground" />}
+                            {!locked && <GameBadge variant="muted" size="xs">Lvl {op.level}+</GameBadge>}
+                          </div>
+                          <p className="text-[0.5rem] text-muted-foreground drop-shadow">{op.desc}</p>
                         </div>
-                      )}
+                        <GameButton variant="gold" size="sm" disabled={locked}
+                          icon={<Crosshair size={12} />}
+                          onClick={() => {
+                            const range = calculateOperationRewardRange(op, state);
+                            const actualReward = rollActualReward(range);
+                            const encounters = generateMissionEncounters('solo', op.id);
+                            const mission: ActiveMission = {
+                              type: 'solo',
+                              missionId: op.id,
+                              currentEncounter: 0,
+                              encounters,
+                              totalReward: 0,
+                              totalHeat: 0,
+                              totalCrewDamage: 0,
+                              totalRelChange: {},
+                              log: [],
+                              baseReward: actualReward,
+                              baseHeat: op.heat,
+                              finished: false,
+                              success: false,
+                            };
+                            dispatch({ type: 'START_MISSION', mission });
+                          }}>GO</GameButton>
+                      </div>
                     </div>
-                    <GameButton variant="gold" size="sm" disabled={locked}
-                      icon={<Crosshair size={12} />}
-                      onClick={() => {
-                        const range = calculateOperationRewardRange(op, state);
-                        const actualReward = rollActualReward(range);
-                        const encounters = generateMissionEncounters('solo', op.id);
-                        const mission: ActiveMission = {
-                          type: 'solo',
-                          missionId: op.id,
-                          currentEncounter: 0,
-                          encounters,
-                          totalReward: 0,
-                          totalHeat: 0,
-                          totalCrewDamage: 0,
-                          totalRelChange: {},
-                          log: [],
-                          baseReward: actualReward,
-                          baseHeat: op.heat,
-                          finished: false,
-                          success: false,
-                        };
-                        dispatch({ type: 'START_MISSION', mission });
-                      }}>GO</GameButton>
+                  )}
+                  {/* Stats row */}
+                  <div className="flex gap-3 items-center">
+                    <span className="text-[0.5rem] text-blood font-semibold">⚡ {op.risk}%</span>
+                    {rewardRange ? (
+                      <span className="text-[0.5rem] text-gold font-semibold">
+                        €{rewardRange.min.toLocaleString()} - €{rewardRange.max.toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
+                    )}
+                    <span className="text-[0.5rem] text-muted-foreground">🔥 +{op.heat}</span>
                   </div>
+                  {rewardRange && rewardRange.bonuses.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {rewardRange.bonuses.map((b, i) => (
+                        <span key={i} className="text-[0.4rem] font-bold px-1 py-0.5 rounded bg-gold/10 text-gold border border-gold/20 flex items-center gap-0.5">
+                          <TrendingUp size={7} /> {b.label} {b.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
