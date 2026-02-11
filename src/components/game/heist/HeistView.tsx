@@ -8,6 +8,7 @@ import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Target, Users, Eye, ShoppingBag, Play, X, Lock, Clock, CheckCircle } from 'lucide-react';
+import heistBg from '@/assets/heist-bg.jpg';
 
 export function HeistView() {
   const { state, dispatch, showToast } = useGame();
@@ -25,7 +26,10 @@ export function HeistView() {
   const locked = HEIST_TEMPLATES.filter(h => !available.find(a => a.id === h.id));
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={heistBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       <SectionHeader title="Heist Missies" icon={<Target size={12} />} />
       <p className="text-[0.55rem] text-muted-foreground mb-3">Plan en voer grootschalige overvallen uit met je crew.</p>
 
@@ -76,6 +80,7 @@ export function HeistView() {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

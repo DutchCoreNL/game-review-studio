@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { MarketPanel } from './trade/MarketPanel';
 import { LaunderingPanel } from './trade/LaunderingPanel';
 import { GearPanel } from './trade/GearPanel';
+import tradeBg from '@/assets/trade-bg.jpg';
 
 type TradeSubTab = 'market' | 'launder' | 'gear';
 
@@ -10,7 +11,10 @@ export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={tradeBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       {/* Sub-tabs */}
       <div className="flex gap-1.5 mb-4 mt-1">
         {([
@@ -35,6 +39,7 @@ export function TradeView() {
       {subTab === 'market' && <MarketPanel />}
       {subTab === 'launder' && <LaunderingPanel />}
       {subTab === 'gear' && <GearPanel />}
+      </div>
     </div>
   );
 }
