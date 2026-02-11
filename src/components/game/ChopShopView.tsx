@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Wrench, DollarSign, Paintbrush, ShieldCheck, Clock, ArrowLeft, Zap, Star, Package, Hammer, Crosshair } from 'lucide-react';
 import { useState } from 'react';
 import chopshopBg from '@/assets/chopshop-bg.jpg';
+import { STOLEN_CAR_IMAGES } from '@/assets/items';
 
 const RARITY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
   common: { text: 'text-muted-foreground', bg: 'bg-muted/30', border: 'border-border' },
@@ -149,11 +150,15 @@ function CarCard({ car, onSelect, isNew }: { car: StolenCar; onSelect: () => voi
       )}
       <div className="flex items-center gap-2.5">
         <motion.div
-          className={`w-9 h-9 rounded ${rarity.bg} border ${rarity.border} flex items-center justify-center text-lg`}
+          className={`w-11 h-11 rounded overflow-hidden ${rarity.bg} border ${rarity.border} flex items-center justify-center`}
           animate={isNew ? { rotate: [0, -8, 8, -4, 0] } : {}}
           transition={isNew ? { delay: 0.2, duration: 0.5 } : {}}
         >
-          🚗
+          {STOLEN_CAR_IMAGES[carDef.id] ? (
+            <img src={STOLEN_CAR_IMAGES[carDef.id]} alt={carDef.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-lg">🚗</span>
+          )}
         </motion.div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -247,7 +252,13 @@ function CarDetail({ car, onBack }: { car: StolenCar; onBack: () => void }) {
       {/* Car header */}
       <div className={`game-card ${rarity.bg} border ${rarity.border} p-4 mb-3`}>
         <div className="flex items-center gap-3 mb-2">
-          <div className="text-3xl">🚗</div>
+          <div className="w-16 h-16 rounded overflow-hidden border border-gold/30 flex-shrink-0">
+            {STOLEN_CAR_IMAGES[carDef.id] ? (
+              <img src={STOLEN_CAR_IMAGES[carDef.id]} alt={carDef.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">🚗</div>
+            )}
+          </div>
           <div>
             <h3 className="font-bold text-sm">{carDef.name}</h3>
             <div className="flex items-center gap-2 text-[0.55rem]">
