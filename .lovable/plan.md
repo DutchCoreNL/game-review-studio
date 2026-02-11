@@ -1,125 +1,83 @@
 
-# Nieuwe Stadskaart op Basis van Referentie-afbeelding
+
+# Kaart Achtergrond Vervangen door Afbeelding
 
 ## Overzicht
 
-De stadskaart wordt volledig herontworpen naar een realistischer, gedetailleerder nachtelijk stadsbeeld gebaseerd op de referentie-afbeelding. De layout wordt aangepast zodat de districten overeenkomen met de afbeelding:
+De huidige volledig SVG-gebaseerde kaart wordt omgebouwd naar een **hybride aanpak**: een achtergrondafbeelding met daarover een SVG-overlay voor alle interactieve elementen (markers, labels, animaties).
 
-- **Port Nero** (linksboven): Havenfaciliteiten met schepen, containers, kranen en blauw licht
-- **Iron Borough** (linksonder): Industrieel gebied met fabrieken, schoorstenen, oranje/rode gloed
-- **Neon Strip** (midden): Entertainment-district met paarse/roze neonverlichting
-- **Crown Heights** (rechtsboven): Wolkenkrabbers en de villa op de heuvel, koel blauw/wit
-- **Lowrise** (rechtsonder): Lage woongebouwen met warme, gedempte verlichting
-- **Water**: Kustlijn links en een kanaal dat Iron Borough scheidt
-- **Bergen/heuvels**: Rechts en bovenzijde als achtergrond
+## Aanpak
 
-## Technische Aanpak
+De `CityMap.tsx` component wordt aangepast zodat:
 
-De bestaande SVG-architectuur blijft behouden (viewBox, lagen, hitboxes, interactie) maar alle visuele elementen worden vervangen.
+1. **De afbeelding** (`Gemini_Generated_Image_dgkqy1dgkqy1dgkq-2.png`) wordt als achtergrond getoond met `object-fit: cover`
+2. **Alle SVG landmark-functies** (PortNeroLandmarks, CrownHeightsLandmarks, etc.) worden verwijderd -- de afbeelding toont nu de visuele details
+3. **De achtergrondlagen** (CityFabric, Coastline, SkylineEffect achtergrond) worden verwijderd -- vervangen door de afbeelding
+4. **Alle interactieve SVG-elementen blijven behouden** als overlay bovenop de afbeelding:
+   - District hitboxes en labels
+   - Speler-marker ("JIJ")
+   - Safehouse markers
+   - Villa compound marker
+   - Nemesis marker
+   - Heat overlay
+   - Weather overlay
+   - Map events
+   - Travel animatie
+   - Verkeer-animaties op wegen
+   - Kompas en schaal
 
-### Bestanden die worden aangepast:
+## Nieuwe District Posities
+
+De markers worden herpositioneerd om overeen te komen met de locaties op de afbeelding:
+
+| District | Oud (cx, cy) | Nieuw (cx, cy) | Locatie op afbeelding |
+|---|---|---|---|
+| port | 85, 88 | 75, 80 | Links-boven, bij haven/schepen |
+| iron | 195, 195 | 80, 220 | Links-onder, bij fabrieken |
+| neon | 325, 200 | 200, 175 | Centrum, paars rondpunt |
+| crown | 270, 100 | 320, 75 | Rechts-boven, wolkenkrabbers |
+| low | 80, 245 | 320, 225 | Rechts-onder, woonwijk |
+
+Villa marker wordt verplaatst naar midden-boven (ca. 200, 45) op de heuvel.
+
+## Technische Wijzigingen
 
 | Bestand | Wijziging |
 |---|---|
-| `src/components/game/CityMap.tsx` | Nieuwe district-posities, wegen, landmarks, hitboxes en labels. Alle 5 landmark-functies herschreven. |
-| `src/components/game/map/CityFabric.tsx` | Nieuwe zone-indeling en kleuren passend bij de referentie. |
-| `src/components/game/map/Coastline.tsx` | Uitgebreid met kanaal tussen Iron en Neon/Lowrise, meer water-elementen. |
-| `src/components/game/map/CityAmbience.tsx` | Aangepaste glow-posities, haven-activiteit en straatverlichting. |
-| `src/components/game/map/SkylineEffect.tsx` | Bergen/heuvels silhouet rechts en boven in plaats van alleen skyline bovenaan. |
+| `src/components/game/CityMap.tsx` | Container wordt `relative` div met `<img>` achtergrond + SVG overlay. Landmark-functies verwijderd. DISTRICT_META, DISTRICT_ZONES, ROADS en villa-positie bijgewerkt. CityFabric/Coastline/SkylineEffect imports verwijderd. |
 
-### Nieuwe Indeling (SVG 400x290)
+### Wat blijft intact
+- `MapView.tsx` -- geen wijzigingen
+- `GameHeader`, `GameNav`, nieuwsbalk -- geen wijzigingen
+- Alle game-logica -- geen wijzigingen
+- `WeatherOverlay`, `NemesisMarker`, `CityAmbience` -- blijven werken als SVG overlay
+- Heat overlay, traffic animaties, map events -- blijven werken
+
+### Container Structuur (nieuw)
 
 ```text
-+------------------------------------------+
-|  Bergen/heuvels achtergrond              |
-|                                          |
-|   PORT NERO        CROWN HEIGHTS         |
-|   (blauw)          (villa + torens)      |
-|   [kranen,schepen]  [wolkenkrabbers]     |
-|                                          |
-|   ~~~ Water/kanaal ~~~                   |
-|                                          |
-|   IRON BOROUGH     NEON STRIP            |
-|   (oranje/rood)    (paars/roze)          |
-|   [fabrieken]      [clubs,neon]          |
-|                                          |
-|        LOWRISE (rechtsonder)             |
-|        (warm geel, lage huizen)          |
-+------------------------------------------+
+<div relative, aspect-ratio, overflow-hidden>
+  <img src="afbeelding.png" object-fit:cover />
+  <svg viewBox="0 0 400 290" absolute overlay>
+    -- Wegen (herpositioneerd)
+    -- CityAmbience (herpositioneerd)
+    -- District hitboxes + labels
+    -- Speler marker
+    -- Safehouse markers
+    -- Villa marker
+    -- Traffic animaties
+    -- Map events
+    -- Travel animatie
+    -- Nemesis marker
+    -- Weather overlay
+    -- Heat overlay
+    -- Kompas/schaal
+    -- Scanline
+  </svg>
+</div>
 ```
-
-### District Posities (nieuw)
-
-| District | cx | cy | Beschrijving |
-|---|---|---|---|
-| port | 90 | 90 | Linksboven, aan het water |
-| crown | 300 | 70 | Rechtsboven, op de heuvel met villa |
-| iron | 100 | 220 | Linksonder, industrieel |
-| neon | 230 | 180 | Midden, entertainment |
-| low | 320 | 230 | Rechtsonder, residentieel |
-
-### Visuele Verbeteringen per District
-
-**Port Nero:**
-- Meerdere schepen (containerschip, bulkcarrier) in het water
-- Containerrijen in kleurvariaties (blauw, rood, groen)
-- Twee kranen met bewegende armen
-- Blauwige sfeerverlichting over hele havengebied
-- Kraanfundamenten en kadebeschoeingen
-
-**Iron Borough:**
-- Twee grote fabrieken met werkende schoorstenen (rook-animaties)
-- Vuurgloed/lava-effecten vanuit ovens
-- Industriele pijpleidingen en opslagtanks
-- Oranje/rode kleurtemperatuur
-- Spoorlijnen met bewegende wagon
-
-**Neon Strip:**
-- Grote gebouwen met paars/roze neonverlichting
-- Knipperende reclameborden en LED-schermen
-- Casino-entree met glow
-- Reflecties op nat wegdek
-- Meerdere neonborden (BAR, CLUB, CASINO)
-
-**Crown Heights:**
-- 3-4 hoge wolkenkrabbers met verlichte ramen
-- Villa op een heuvel (met tuinen en oprit)
-- Helipad met draaiend licht
-- Koele blauw/witte kleurtemperatuur
-- Bergen-silhouet erachter
-
-**Lowrise:**
-- Dichtbepaakte lage gebouwen (2-3 verdiepingen)
-- Warme, gedempte gele straatverlichting
-- Smalle straatjes
-- Graffiti-accenten op muren
-- Kapotte straatlantaarns
 
 ### Wegen
 
-Gebogen hoofdwegen verbinden alle districten via een stelsel van snelwegen en opritten, vergelijkbaar met de referentie-afbeelding. Alle bestaande functionaliteit (verkeer-animaties, smuggelroutes, event-markers) blijft werken op de nieuwe wegen.
+De ROADS array wordt aangepast zodat de wegen de visuele straten op de afbeelding volgen. Dit zorgt ervoor dat verkeer-animaties, politie-checkpoints en andere map events op de juiste plekken verschijnen.
 
-### Behouden Functionaliteit
-
-Alle bestaande interactieve elementen blijven intact:
-- District hitboxes en selectie
-- Speler-marker ("JIJ")
-- Safehouse markers
-- Villa compound (verplaatst naar Crown Heights heuvel)
-- Chop Shop in Iron Borough
-- Verkeer-animaties op wegen
-- Weer-overlay
-- Heat-overlay
-- Nemesis-marker
-- Travel-animatie
-- Smuggelroutes
-- Map events (checkpoints, gevechten, etc.)
-- Nieuws-ticker en kompas/schaal
-
-### Nieuwe Elementen
-
-- **Bergen-silhouet** als achtergrond rechts en boven
-- **Kanaal/waterweg** tussen Port/Iron en het centrum
-- **Snelweg-knooppunten** met viaducten
-- **Meer gedetailleerde gebouwen** met individuele raamverlichting
-- **Verbeterde kleurzones** per district met sterkere identiteit
