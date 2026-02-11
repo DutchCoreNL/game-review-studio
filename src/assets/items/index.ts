@@ -75,6 +75,12 @@ import bossHammer from './boss-hammer.jpg';
 import bossVoss from './boss-voss.jpg';
 import bossDecker from './boss-decker.jpg';
 
+// Contract type images
+import contractDelivery from './contract-delivery.jpg';
+import contractCombat from './contract-combat.jpg';
+import contractStealth from './contract-stealth.jpg';
+import contractTech from './contract-tech.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -165,6 +171,13 @@ export const SOLO_OP_IMAGES: Record<string, string> = {
   car_theft: opCarTheft,
   store_robbery: opStoreRobbery,
   crypto_heist: opCryptoHeist,
+};
+
+export const CONTRACT_TYPE_IMAGES: Record<string, string> = {
+  delivery: contractDelivery,
+  combat: contractCombat,
+  stealth: contractStealth,
+  tech: contractTech,
 };
 
 export const BOSS_IMAGES: Record<string, string> = {
