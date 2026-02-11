@@ -9,6 +9,7 @@ import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Swords, Shield, Cpu, Zap, Lock, Sparkles, Crosshair } from 'lucide-react';
 import { useState } from 'react';
+import { GEAR_IMAGES } from '@/assets/items';
 
 type GearFilter = 'all' | 'weapon' | 'armor' | 'gadget';
 
@@ -163,10 +164,14 @@ export function GearPanel() {
               animate={{ opacity: !reqMet ? 0.6 : 1, y: 0 }}
             >
               <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded flex items-center justify-center flex-shrink-0 ${
-                  owned ? 'bg-emerald/10' : !reqMet ? 'bg-muted' : 'bg-muted'
+                <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center flex-shrink-0 ${
+                  !GEAR_IMAGES[item.id] ? (owned ? 'bg-emerald/10' : 'bg-muted') : ''
                 }`}>
-                  {!reqMet ? <Lock size={14} className="text-muted-foreground" /> : SLOT_ICONS[item.type]}
+                  {GEAR_IMAGES[item.id] ? (
+                    <img src={GEAR_IMAGES[item.id]} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    !reqMet ? <Lock size={14} className="text-muted-foreground" /> : SLOT_ICONS[item.type]
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">

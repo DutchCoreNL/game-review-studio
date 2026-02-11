@@ -12,6 +12,7 @@ import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords } from 'lucide-react';
+import { VEHICLE_IMAGES } from '@/assets/items';
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 
@@ -72,8 +73,12 @@ function AssetsPanel() {
       {activeV && activeObj && (
         <motion.div className="game-card border-l-[3px] border-l-gold mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-              <Car size={20} className="text-gold" />
+            <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 border border-gold/30">
+              {VEHICLE_IMAGES[activeV.id] ? (
+                <img src={VEHICLE_IMAGES[activeV.id]} alt={activeV.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center"><Car size={20} className="text-gold" /></div>
+              )}
             </div>
             <div>
               <h3 className="font-bold text-sm">{activeV.name}</h3>
@@ -130,6 +135,15 @@ function AssetsPanel() {
       <div className="space-y-2 mb-4">
         {VEHICLES.filter(v => !ownedIds.includes(v.id)).map(v => (
           <div key={v.id} className="game-card">
+            <div className="flex items-start gap-3">
+              <div className="w-14 h-14 rounded overflow-hidden flex-shrink-0 border border-border">
+                {VEHICLE_IMAGES[v.id] ? (
+                  <img src={VEHICLE_IMAGES[v.id]} alt={v.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center"><Car size={20} className="text-muted-foreground" /></div>
+                )}
+              </div>
+              <div className="flex-1">
             <h4 className="font-bold text-xs">{v.name}</h4>
             <p className="text-[0.5rem] text-muted-foreground">
               Store: {v.storage} | Spd: {v.speed} | Arm: {v.armor} | Charm: {v.charm}
@@ -138,6 +152,8 @@ function AssetsPanel() {
               onClick={() => { dispatch({ type: 'BUY_VEHICLE', id: v.id }); showToast(`${v.name} gekocht!`); }} className="mt-2">
               KOOP €{v.cost.toLocaleString()}
             </GameButton>
+              </div>
+            </div>
           </div>
         ))}
       </div>
