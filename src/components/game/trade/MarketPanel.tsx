@@ -13,6 +13,7 @@ import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight } from 'lucide-react';
 import { useState, useCallback } from 'react';
+import { GOOD_IMAGES } from '@/assets/items';
 
 const QUANTITIES = [1, 5, 10, 0];
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
@@ -197,8 +198,12 @@ export function MarketPanel() {
             >
               <div className="flex items-start gap-3">
                 {/* Icon */}
-                <div className={`w-9 h-9 rounded flex items-center justify-center flex-shrink-0 ${cat.bgColor}`}>
-                  <span className={cat.color}>{GOOD_ICONS[g.id]}</span>
+                <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center flex-shrink-0 ${!GOOD_IMAGES[g.id] ? cat.bgColor : ''}`}>
+                  {GOOD_IMAGES[g.id] ? (
+                    <img src={GOOD_IMAGES[g.id]} alt={g.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className={cat.color}>{GOOD_ICONS[g.id]}</span>
+                  )}
                 </div>
 
                 {/* Info */}
