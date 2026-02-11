@@ -8,6 +8,7 @@ import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star } from 'lucide-react';
 import { GaragePanel } from './garage/GaragePanel';
+import { DISTRICT_IMAGES } from '@/assets/items';
 
 export function DistrictPopup() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -75,10 +76,17 @@ export function DistrictPopup() {
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="fixed left-4 right-4 top-[100px] bottom-4 z-[9001] max-w-[560px] mx-auto flex flex-col"
       >
-        <div className="game-card border-t-[3px] border-t-blood p-4 shadow-xl overflow-y-auto max-h-full game-scroll">
+        <div className="game-card border-t-[3px] border-t-blood shadow-xl overflow-y-auto max-h-full game-scroll overflow-hidden">
+          {/* District banner image */}
+          {DISTRICT_IMAGES[selectedDistrict] && (
+            <div className="relative -mx-4 -mt-4 mb-3 h-28 overflow-hidden">
+              <img src={DISTRICT_IMAGES[selectedDistrict]} alt={sel.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            </div>
+          )}
           <button
             onClick={() => selectDistrict(null as any)}
-            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors z-10"
           >
             <X size={16} />
           </button>

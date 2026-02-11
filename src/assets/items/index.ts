@@ -81,6 +81,13 @@ import contractCombat from './contract-combat.jpg';
 import contractStealth from './contract-stealth.jpg';
 import contractTech from './contract-tech.jpg';
 
+// District images
+import districtPort from './district-port.jpg';
+import districtCrown from './district-crown.jpg';
+import districtIron from './district-iron.jpg';
+import districtLow from './district-low.jpg';
+import districtNeon from './district-neon.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -186,4 +193,12 @@ export const BOSS_IMAGES: Record<string, string> = {
   bikers: bossHammer,
   voss: bossVoss,
   decker: bossDecker,
+};
+
+export const DISTRICT_IMAGES: Record<string, string> = {
+  port: districtPort,
+  crown: districtCrown,
+  iron: districtIron,
+  low: districtLow,
+  neon: districtNeon,
 };
