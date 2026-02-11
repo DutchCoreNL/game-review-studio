@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { NPC_DEFS, getNpcTier } from '@/game/npcs';
 import { NpcId } from '@/game/types';
+import { NPC_IMAGES } from '@/assets/items';
 import { SectionHeader } from '../ui/SectionHeader';
 import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
@@ -48,8 +49,12 @@ export function NpcRelationsPanel() {
             >
               {/* Header */}
               <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-9 h-9 rounded bg-muted flex items-center justify-center border border-border text-lg shrink-0">
-                  {npc.icon}
+                <div className="w-9 h-9 rounded bg-muted flex items-center justify-center border border-border overflow-hidden shrink-0">
+                  {NPC_IMAGES[npc.id] ? (
+                    <img src={NPC_IMAGES[npc.id]} alt={npc.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg">{npc.icon}</span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">

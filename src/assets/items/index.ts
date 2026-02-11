@@ -52,6 +52,22 @@ import villaTunnel from './villa-tunnel.jpg';
 import villaGarage from './villa-garage.jpg';
 import villaServer from './villa-server.jpg';
 
+// NPC portrait images
+import npcRosa from './npc-rosa.jpg';
+import npcMarco from './npc-marco.jpg';
+import npcYilmaz from './npc-yilmaz.jpg';
+import npcLuna from './npc-luna.jpg';
+import npcKrow from './npc-krow.jpg';
+
+// Corrupt contact images
+import contactBeatCop from './contact-beat-cop.jpg';
+import contactViceDetective from './contact-vice-detective.jpg';
+import contactCustoms from './contact-customs.jpg';
+import contactJudge from './contact-judge.jpg';
+import contactCouncilor from './contact-councilor.jpg';
+import contactHarbor from './contact-harbor.jpg';
+import contactLawyer from './contact-lawyer.jpg';
+
 export const VEHICLE_IMAGES: Record<string, string> = {
   toyohata: carToyohata,
   forgedyer: carForgedyer,
@@ -109,4 +125,22 @@ export const VILLA_MODULE_IMAGES: Record<string, string> = {
   tunnel: villaTunnel,
   garage_uitbreiding: villaGarage,
   server_room: villaServer,
+};
+
+export const NPC_IMAGES: Record<string, string> = {
+  rosa: npcRosa,
+  marco: npcMarco,
+  yilmaz: npcYilmaz,
+  luna: npcLuna,
+  krow: npcKrow,
+};
+
+export const CONTACT_IMAGES: Record<string, string> = {
+  beat_cop: contactBeatCop,
+  vice_detective: contactViceDetective,
+  customs_officer: contactCustoms,
+  district_judge: contactJudge,
+  city_councilor: contactCouncilor,
+  harbor_master: contactHarbor,
+  defense_lawyer: contactLawyer,
 };
