@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
-import { FamilyId } from '@/game/types';
+import { FamilyId, DistrictId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -11,6 +11,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound } from '@/game/sounds';
+
+import combatBgPort from '@/assets/combat-bg-port.jpg';
+import combatBgCrown from '@/assets/combat-bg-crown.jpg';
+import combatBgIron from '@/assets/combat-bg-iron.jpg';
+import combatBgLow from '@/assets/combat-bg-low.jpg';
+import combatBgNeon from '@/assets/combat-bg-neon.jpg';
+
+const COMBAT_BG: Record<string, string> = {
+  port: combatBgPort,
+  crown: combatBgCrown,
+  iron: combatBgIron,
+  low: combatBgLow,
+  neon: combatBgNeon,
+};
 
 // ========== Combat Action Button ==========
 
@@ -142,8 +156,13 @@ function ActiveCombat() {
     return env.scenePhrases[combat.turn % env.scenePhrases.length];
   }, [env, combat.turn]);
 
+  const bgSrc = COMBAT_BG[state.loc] || combatBgNeon;
+
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={bgSrc} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       {/* Boss phase indicator */}
       {isBossFight && phaseData && (
         <motion.div
@@ -268,6 +287,7 @@ function ActiveCombat() {
       ) : (
         <CombatResult />
       )}
+      </div>
     </div>
   );
 }
