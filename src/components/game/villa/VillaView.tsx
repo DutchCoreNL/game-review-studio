@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, ArrowUp, ArrowDown, Package, DollarSign, Shield, Factory, Users, Navigation, Sparkles } from 'lucide-react';
 import villaBg from '@/assets/villa-bg.jpg';
+import { VILLA_MODULE_IMAGES } from '@/assets/items';
 
 type VillaTab = 'overview' | 'production' | 'storage' | 'modules';
 
@@ -437,7 +438,13 @@ function ModulesTab() {
           <div key={mod.id} className={`border rounded-lg p-2.5 ${installed ? 'border-emerald/30 bg-emerald/5' : 'border-border bg-muted/20'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-base">{mod.icon}</span>
+                <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 border border-border">
+                  {VILLA_MODULE_IMAGES[mod.id] ? (
+                    <img src={VILLA_MODULE_IMAGES[mod.id]} alt={mod.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center text-base">{mod.icon}</div>
+                  )}
+                </div>
                 <div>
                   <p className={`text-xs font-bold ${installed ? 'text-emerald' : 'text-foreground'}`}>{mod.name}</p>
                   <p className="text-[0.55rem] text-muted-foreground">{mod.desc}</p>
