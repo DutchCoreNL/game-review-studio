@@ -9,6 +9,7 @@ import { HighLowGame } from './casino/HighLowGame';
 import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino/casinoUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown } from 'lucide-react';
+import casinoBg from '@/assets/casino-bg.png';
 
 export function CasinoView() {
   const { state, dispatch, showToast } = useGame();
@@ -59,7 +60,12 @@ export function CasinoView() {
   }
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      {/* Background */}
+      <img src={casinoBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
+      
+      <div className="relative z-10">
       <SectionHeader title="THE VELVET ROOM" icon={<Gem size={12} />} />
 
       {/* VIP Status */}
@@ -131,6 +137,7 @@ export function CasinoView() {
           TERUG NAAR MENU
         </button>
       )}
+    </div>
     </div>
   );
 }
