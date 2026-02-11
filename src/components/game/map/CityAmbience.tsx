@@ -11,11 +11,11 @@ interface CityAmbienceProps {
 
 // ========== DISTRICT CENTER POSITIONS ==========
 const DISTRICT_CENTERS: Record<DistrictId, { cx: number; cy: number }> = {
-  port: { cx: 85, cy: 88 },
-  crown: { cx: 270, cy: 100 },
-  iron: { cx: 195, cy: 195 },
-  low: { cx: 80, cy: 245 },
-  neon: { cx: 325, cy: 200 },
+  port: { cx: 75, cy: 80 },
+  crown: { cx: 320, cy: 75 },
+  iron: { cx: 80, cy: 220 },
+  low: { cx: 320, cy: 225 },
+  neon: { cx: 200, cy: 175 },
 };
 
 // ========== CITY GLOW ==========
@@ -48,11 +48,11 @@ function CityGlow() {
       <rect x="0" y="0" width="400" height="290" fill="url(#city-sky-glow)" />
       
       {/* District-specific ambient glows */}
-      <ellipse cx="75" cy="85" rx="55" ry="45" fill="url(#port-glow)" />
-      <ellipse cx="265" cy="95" rx="55" ry="45" fill="url(#crown-glow)" />
-      <ellipse cx="195" cy="190" rx="45" ry="35" fill="url(#iron-glow)" />
+      <ellipse cx="75" cy="80" rx="50" ry="40" fill="url(#port-glow)" />
+      <ellipse cx="320" cy="75" rx="55" ry="40" fill="url(#crown-glow)" />
+      <ellipse cx="80" cy="220" rx="50" ry="35" fill="url(#iron-glow)" />
       
-      <motion.ellipse cx="325" cy="195" rx="55" ry="40" fill="url(#neon-area-glow)"
+      <motion.ellipse cx="200" cy="175" rx="50" ry="35" fill="url(#neon-area-glow)"
         animate={{ opacity: [0.8, 1, 0.8] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
       
@@ -204,11 +204,11 @@ function OwnedDistrictGlow({ ownedDistricts }: { ownedDistricts: DistrictId[] })
   if (ownedDistricts.length === 0) return null;
 
   const zones: Record<DistrictId, { x: number; y: number; w: number; h: number }> = {
-    port: { x: 40, y: 50, w: 100, h: 70 },
-    crown: { x: 220, y: 50, w: 100, h: 80 },
-    iron: { x: 150, y: 155, w: 95, h: 60 },
-    low: { x: 35, y: 210, w: 95, h: 55 },
-    neon: { x: 275, y: 160, w: 100, h: 65 },
+    port:  { x: 30,  y: 50,  w: 100, h: 65 },
+    crown: { x: 270, y: 40,  w: 110, h: 75 },
+    iron:  { x: 30,  y: 185, w: 110, h: 65 },
+    low:   { x: 275, y: 195, w: 100, h: 60 },
+    neon:  { x: 155, y: 145, w: 100, h: 60 },
   };
 
   return (
@@ -270,10 +270,10 @@ function TrafficLights() {
     <g pointerEvents="none">
       {/* Traffic lights at major intersections */}
       {[
-        { x: 195, y: 185 }, // Iron Borough central
-        { x: 130, y: 88 },  // Port-Crown road
-        { x: 250, y: 130 }, // Crown-Iron junction
-        { x: 115, y: 200 }, // Low-Iron junction
+        { x: 200, y: 175 }, // Neon roundabout
+        { x: 130, y: 150 }, // Port-Neon road
+        { x: 290, y: 130 }, // Crown-Neon junction
+        { x: 130, y: 230 }, // Iron-Lowrise junction
       ].map((pos, i) => (
         <g key={`tl-${i}`}>
           <rect x={pos.x - 0.5} y={pos.y - 3} width="1" height="3" fill="hsla(0, 0%, 20%, 0.5)" />
@@ -301,8 +301,8 @@ function ParkDetails() {
     <g pointerEvents="none">
       {/* Park benches in Crown Heights */}
       {[
-        { x: 225, y: 105 },
-        { x: 233, y: 108 },
+        { x: 305, y: 60 },
+        { x: 313, y: 63 },
       ].map((pos, i) => (
         <g key={`bench-${i}`}>
           <rect x={pos.x} y={pos.y} width="4" height="1.5" fill="hsla(25, 30%, 18%, 0.4)" rx="0.3" />
@@ -312,7 +312,7 @@ function ParkDetails() {
       ))}
 
       {/* Park path */}
-      <path d="M 220,102 Q 228,98 236,102 Q 240,106 235,110"
+      <path d="M 300,58 Q 308,54 316,58 Q 320,62 315,66"
         fill="none" stroke="hsla(30, 15%, 16%, 0.3)" strokeWidth="1" strokeDasharray="2 2" />
     </g>
   );
