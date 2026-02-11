@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { CORRUPT_CONTACTS } from '@/game/constants';
 import { getTotalMonthlyCost, getCorruptionRaidProtection, getCorruptionFineReduction, getCorruptionSmuggleProtection, getCorruptionTradeBonus } from '@/game/corruption';
+import { CONTACT_IMAGES } from '@/assets/items';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -95,7 +96,13 @@ export function CorruptionView() {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{def.icon}</span>
+                        <div className="w-9 h-9 rounded bg-muted border border-border overflow-hidden shrink-0">
+                          {CONTACT_IMAGES[def.id] ? (
+                            <img src={CONTACT_IMAGES[def.id]} alt={def.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-lg flex items-center justify-center w-full h-full">{def.icon}</span>
+                          )}
+                        </div>
                         <div>
                           <h4 className="font-bold text-xs">{def.name}</h4>
                           <p className="text-[0.5rem] text-muted-foreground">{def.title}</p>
@@ -188,7 +195,15 @@ export function CorruptionView() {
             >
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{isLocked ? '🔒' : def.icon}</span>
+                  <div className="w-9 h-9 rounded bg-muted border border-border overflow-hidden shrink-0">
+                    {isLocked ? (
+                      <span className="text-lg flex items-center justify-center w-full h-full">🔒</span>
+                    ) : CONTACT_IMAGES[def.id] ? (
+                      <img src={CONTACT_IMAGES[def.id]} alt={def.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg flex items-center justify-center w-full h-full">{def.icon}</span>
+                    )}
+                  </div>
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h4 className="font-bold text-xs">{isLocked ? '???' : def.name}</h4>
@@ -279,7 +294,13 @@ export function CorruptionView() {
               if (!def) return null;
               return (
                 <div key={contact.id} className="game-card opacity-50 flex items-center gap-2">
-                  <span className="text-sm">{def.icon}</span>
+                  <div className="w-7 h-7 rounded bg-muted border border-border overflow-hidden shrink-0">
+                    {CONTACT_IMAGES[def.id] ? (
+                      <img src={CONTACT_IMAGES[def.id]} alt={def.name} className="w-full h-full object-cover grayscale" />
+                    ) : (
+                      <span className="text-sm flex items-center justify-center w-full h-full">{def.icon}</span>
+                    )}
+                  </div>
                   <div>
                     <span className="text-[0.55rem] font-bold">{def.name}</span>
                     <span className="text-[0.45rem] text-muted-foreground ml-2">
