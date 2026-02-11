@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Target, Users, Eye, ShoppingBag, Play, X, Lock, Clock, CheckCircle } from 'lucide-react';
 import heistBg from '@/assets/heist-bg.jpg';
+import { HEIST_IMAGES } from '@/assets/items';
 
 export function HeistView() {
   const { state, dispatch, showToast } = useGame();
@@ -43,34 +44,42 @@ export function HeistView() {
         {available.map(h => {
           const cooldown = getHeistCooldownRemaining(state, h.id);
           return (
-            <motion.div key={h.id} className="game-card border-l-[3px] border-l-gold" whileTap={{ scale: 0.98 }}>
-              <div className="flex justify-between items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{h.icon}</span>
-                    <div>
-                      <h4 className="font-bold text-xs">{h.name}</h4>
-                      <p className="text-[0.45rem] text-muted-foreground">{h.desc}</p>
-                    </div>
+            <motion.div key={h.id} className="game-card border-l-[3px] border-l-gold overflow-hidden" whileTap={{ scale: 0.98 }}>
+              {/* Heist banner image */}
+              {HEIST_IMAGES[h.id] && (
+                <div className="relative -mx-3 -mt-3 mb-2.5 h-24 overflow-hidden">
+                  <img src={HEIST_IMAGES[h.id]} alt={h.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                  <div className="absolute top-2 right-2">
+                    <GameButton variant="gold" size="sm" disabled={state.crew.length < 3 || cooldown > 0}
+                      onClick={() => { dispatch({ type: 'START_HEIST_PLANNING', heistId: h.id }); showToast('Planning gestart!'); }}>
+                      {cooldown > 0 ? <><Clock size={10} /> {cooldown}d</> : 'PLAN'}
+                    </GameButton>
                   </div>
-                  <div className="flex gap-2 mt-1.5 flex-wrap">
-                    <GameBadge variant="gold" size="xs">€{h.basePayout.toLocaleString()}</GameBadge>
-                    <GameBadge variant="blood" size="xs">🔥 {h.baseHeat}</GameBadge>
-                    <GameBadge variant="muted" size="xs">Tier {h.tier}</GameBadge>
-                    <GameBadge variant="muted" size="xs">📍 {DISTRICTS[h.district].name}</GameBadge>
+                  <div className="absolute bottom-1.5 left-2.5">
+                    <h4 className="font-bold text-xs text-foreground drop-shadow-lg">{h.name}</h4>
+                    <p className="text-[0.45rem] text-muted-foreground drop-shadow">{h.desc}</p>
                   </div>
                 </div>
-                <GameButton variant="gold" size="sm" disabled={state.crew.length < 3 || cooldown > 0}
-                  onClick={() => { dispatch({ type: 'START_HEIST_PLANNING', heistId: h.id }); showToast('Planning gestart!'); }}>
-                  {cooldown > 0 ? <><Clock size={10} /> {cooldown}d</> : 'PLAN'}
-                </GameButton>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                <GameBadge variant="gold" size="xs">€{h.basePayout.toLocaleString()}</GameBadge>
+                <GameBadge variant="blood" size="xs">🔥 {h.baseHeat}</GameBadge>
+                <GameBadge variant="muted" size="xs">Tier {h.tier}</GameBadge>
+                <GameBadge variant="muted" size="xs">📍 {DISTRICTS[h.district].name}</GameBadge>
               </div>
             </motion.div>
           );
         })}
 
         {locked.map(h => (
-          <div key={h.id} className="game-card opacity-40">
+          <div key={h.id} className="game-card opacity-50 overflow-hidden">
+            {HEIST_IMAGES[h.id] && (
+              <div className="relative -mx-3 -mt-3 mb-2.5 h-16 overflow-hidden">
+                <img src={HEIST_IMAGES[h.id]} alt={h.name} className="w-full h-full object-cover grayscale" />
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Lock size={14} className="text-muted-foreground" />
               <div>

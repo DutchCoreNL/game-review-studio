@@ -88,6 +88,13 @@ import districtIron from './district-iron.jpg';
 import districtLow from './district-low.jpg';
 import districtNeon from './district-neon.jpg';
 
+// Heist images
+import heistWarehouse from './heist-warehouse.jpg';
+import heistCasino from './heist-casino.jpg';
+import heistDatacenter from './heist-datacenter.jpg';
+import heistConvoy from './heist-convoy.jpg';
+import heistBank from './heist-bank.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -201,4 +208,12 @@ export const DISTRICT_IMAGES: Record<string, string> = {
   iron: districtIron,
   low: districtLow,
   neon: districtNeon,
+};
+
+export const HEIST_IMAGES: Record<string, string> = {
+  warehouse_raid: heistWarehouse,
+  casino_heist: heistCasino,
+  data_center: heistDatacenter,
+  arms_convoy: heistConvoy,
+  bank_job: heistBank,
 };
