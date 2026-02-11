@@ -7,6 +7,7 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, ArrowUp, ArrowDown, Package, DollarSign, Shield, Factory, Users, Navigation, Sparkles } from 'lucide-react';
+import villaBg from '@/assets/villa-bg.jpg';
 
 type VillaTab = 'overview' | 'production' | 'storage' | 'modules';
 
@@ -55,7 +56,10 @@ export function VillaView() {
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={villaBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
+      <div className="relative z-10 space-y-3">
       {/* Header */}
       <div className="game-card p-3 border-t-2 border-t-gold">
         <div className="flex items-center justify-between">
@@ -97,6 +101,7 @@ export function VillaView() {
           {tab === 'modules' && <ModulesTab />}
         </motion.div>
       </AnimatePresence>
+      </div>
     </div>
   );
 }
