@@ -7,6 +7,7 @@ import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Shield, ArrowLeft, Zap, Plus, Lock, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
+import safehouseBg from '@/assets/safehouse-bg.jpg';
 
 function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect: () => void }) {
   const { state } = useGame();
@@ -242,7 +243,10 @@ export function SafehouseView() {
   const districts: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'];
 
   return (
-    <div>
+    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
+      <img src={safehouseBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <div className="relative z-10">
       <SectionHeader title="Safehouses" icon={<Home size={16} />} badge={`${state.safehouses.length}/5`} />
 
       {/* Stats */}
@@ -285,6 +289,7 @@ export function SafehouseView() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
