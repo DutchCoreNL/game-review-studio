@@ -155,9 +155,10 @@ type GameAction =
   | { type: 'VILLA_THROW_PARTY' }
   | { type: 'DISMISS_ACHIEVEMENT' }
   // Market alert actions
-  | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
+   | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
   | { type: 'REMOVE_MARKET_ALERT'; id: string }
   | { type: 'CLEAR_TRIGGERED_ALERTS' }
+  | { type: 'TOGGLE_SMART_ALARM' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1791,6 +1792,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CLEAR_TRIGGERED_ALERTS': {
       return { ...s, triggeredAlerts: [] };
+    }
+
+    case 'TOGGLE_SMART_ALARM': {
+      return { ...s, smartAlarmEnabled: !s.smartAlarmEnabled };
     }
 
     default:
