@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Brain, Star, Flame, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { playDramaticReveal } from '@/game/sounds';
+import streetEventBg from '@/assets/street-event-bg.jpg';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={11} />,
@@ -58,11 +59,13 @@ export function StoryEventPopup() {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', damping: 25 }}
-          className="w-full max-w-md game-panel border-l-[3px] border-l-gold"
+          className="w-full max-w-md game-panel border-l-[3px] border-l-gold overflow-hidden"
         >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-border bg-gradient-to-r from-[hsl(45,30%,8%)] to-card">
-            <div className="flex items-center gap-2">
+          {/* Banner */}
+          <div className="relative h-24 overflow-hidden">
+            <img src={streetEventBg} alt="Straatscène" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+            <div className="absolute bottom-2 left-4 flex items-center gap-2">
               <AlertTriangle size={14} className="text-gold" />
               <span className="text-[0.6rem] font-bold text-gold uppercase tracking-widest">Straatgebeurtenis</span>
             </div>
