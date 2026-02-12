@@ -17,6 +17,7 @@ import { KarmaPanel } from './profile/KarmaPanel';
 import { StoryArcsPanel } from './profile/StoryArcsPanel';
 import { StatsOverviewPanel } from './profile/StatsOverviewPanel';
 import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
+import { AudioSettingsPanel } from './profile/AudioSettingsPanel';
 import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
 
@@ -32,7 +33,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -82,6 +83,7 @@ export function ProfileView() {
           { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
           { id: 'arcs' as ProfileTab, label: 'BOGEN' },
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
+          { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
             className={`shrink-0 px-3 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
@@ -218,6 +220,8 @@ export function ProfileView() {
       {profileTab === 'contacts' && <NpcRelationsPanel />}
 
       {profileTab === 'arcs' && <StoryArcsPanel />}
+
+      {profileTab === 'audio' && <AudioSettingsPanel />}
 
       {profileTab === 'districts' && (
         <>
