@@ -913,6 +913,42 @@ export function endTurn(state: GameState): NightReportData {
   generateContracts(state);
   generateMapEvents(state);
 
+  // === SMART ALARM: auto-generate alerts for routes with >€1000 profit ===
+  if (state.smartAlarmEnabled) {
+    if (!state.marketAlerts) state.marketAlerts = [];
+    const DISTRICT_IDS = Object.keys(DISTRICTS) as import('./types').DistrictId[];
+    const totalCharm = getPlayerStat(state, 'charm');
+    const charmBonus = (totalCharm * 0.02) + (state.rep / 5000);
+
+    GOODS.forEach(g => {
+      const gid = g.id as import('./types').GoodId;
+      let cheapest = Infinity;
+      let expensive = 0;
+      DISTRICT_IDS.forEach(did => {
+        const p = state.prices[did]?.[gid] || 0;
+        if (p < cheapest) cheapest = p;
+        if (p > expensive) expensive = p;
+      });
+      const sellPrice = Math.floor(expensive * 0.85 * (1 + charmBonus));
+      const profit = sellPrice - cheapest;
+
+      if (profit > 1000 && state.marketAlerts.length < 10) {
+        // Check if a similar alert already exists
+        const exists = state.marketAlerts.some(a => a.goodId === gid && a.condition === 'below' && a.threshold === cheapest);
+        if (!exists) {
+          state.marketAlerts.push({
+            id: `smart_${gid}_${state.day}`,
+            goodId: gid,
+            district: 'any',
+            condition: 'below',
+            threshold: cheapest,
+            oneShot: true,
+          });
+        }
+      }
+    });
+  }
+
   // === PROCESS MARKET ALERTS ===
   if (state.marketAlerts && state.marketAlerts.length > 0) {
     const triggered: import('./types').TriggeredMarketAlert[] = [];

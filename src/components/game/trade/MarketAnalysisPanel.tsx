@@ -220,6 +220,27 @@ export function MarketAnalysisPanel() {
       {/* ========== MARKET ALERTS ========== */}
       <SectionHeader title="Markt Alarmen" icon={<Bell size={12} />} />
 
+      {/* Smart Alarm Toggle */}
+      <div className="game-card p-2.5 mb-3 flex items-center justify-between border-l-[3px] border-l-gold">
+        <div className="flex items-center gap-2 min-w-0">
+          <BellRing size={14} className={state.smartAlarmEnabled ? 'text-gold' : 'text-muted-foreground'} />
+          <div>
+            <span className="text-[0.65rem] font-bold text-foreground">Slim Alarm</span>
+            <span className="block text-[0.5rem] text-muted-foreground">Auto alarm bij routes met &gt;€1.000 winst</span>
+          </div>
+        </div>
+        <button
+          onClick={() => dispatch({ type: 'TOGGLE_SMART_ALARM' })}
+          className={`relative w-9 h-5 rounded-full transition-colors ${
+            state.smartAlarmEnabled ? 'bg-gold' : 'bg-muted border border-border'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background shadow transition-transform ${
+            state.smartAlarmEnabled ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+
       {/* Active alerts list */}
       {alerts.length > 0 && (
         <div className="space-y-1.5 mb-3">

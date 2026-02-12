@@ -766,6 +766,7 @@ export interface GameState {
   // ========== MARKET ALERTS STATE ==========
   marketAlerts: MarketAlert[];
   triggeredAlerts: TriggeredMarketAlert[];
+  smartAlarmEnabled?: boolean;
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
