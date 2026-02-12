@@ -28,6 +28,7 @@ interface GameContextType {
   selectDistrict: (id: DistrictId | null) => void;
   showToast: (msg: string, isError?: boolean) => void;
   dispatch: (action: GameAction) => void;
+  onExitToMenu?: () => void;
 }
 
 type GameAction =
@@ -2086,7 +2087,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export function GameProvider({ children }: { children: React.ReactNode }) {
+export function GameProvider({ children, onExitToMenu }: { children: React.ReactNode; onExitToMenu?: () => void }) {
   const [state, rawDispatch] = useReducer(gameReducer, null, () => {
     const saved = Engine.loadGame();
     if (saved) {
@@ -2324,6 +2325,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       selectDistrict: setSelectedDistrict,
       showToast,
       dispatch,
+      onExitToMenu,
     }}>
       {children}
     </GameContext.Provider>

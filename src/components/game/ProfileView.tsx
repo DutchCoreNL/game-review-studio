@@ -10,7 +10,7 @@ import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { AnimatedXPBar } from './animations/RewardPopup';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
@@ -40,7 +40,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
 type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'avatar';
 
 export function ProfileView() {
-  const { state, dispatch, showToast, setView } = useGame();
+  const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
   const [profileTab, setProfileTab] = useState<ProfileTab>('stats');
   const [confirmReset, setConfirmReset] = useState(false);
   const xpPct = Math.min(100, (state.player.xp / state.player.nextXp) * 100);
@@ -359,11 +359,19 @@ export function ProfileView() {
         </>
       )}
 
-      {/* Reset */}
-      <button onClick={() => setConfirmReset(true)}
-        className="w-full py-2 rounded text-xs font-semibold text-muted-foreground bg-muted border border-border mt-4 hover:text-foreground transition-colors">
-        OPNIEUW BEGINNEN
-      </button>
+      {/* Menu & Reset */}
+      <div className="flex gap-2 mt-4">
+        {onExitToMenu && (
+          <button onClick={onExitToMenu}
+            className="flex-1 py-2 rounded text-xs font-semibold text-gold bg-gold/10 border border-gold/30 hover:bg-gold/20 transition-colors flex items-center justify-center gap-1.5">
+            <Home size={12} /> HOOFDMENU
+          </button>
+        )}
+        <button onClick={() => setConfirmReset(true)}
+          className="flex-1 py-2 rounded text-xs font-semibold text-muted-foreground bg-muted border border-border hover:text-foreground transition-colors">
+          OPNIEUW BEGINNEN
+        </button>
+      </div>
 
       <ConfirmDialog
         open={confirmReset}
