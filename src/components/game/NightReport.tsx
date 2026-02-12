@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -349,7 +349,50 @@ export function NightReport() {
               />
             )}
 
-            {/* Weather change */}
+            {/* Crew defections */}
+            {report.crewDefections && report.crewDefections.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(), type: 'spring', stiffness: 350 }}
+                className="border rounded-lg p-3 bg-[hsl(var(--blood)/0.08)] border-blood"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <UserMinus size={14} className="text-blood" />
+                  <span className="text-xs font-bold text-blood">CREW DESERTIE!</span>
+                </div>
+                {report.crewDefections.map((def, i) => (
+                  <p key={i} className="text-[0.6rem] text-muted-foreground">
+                    {def.name} heeft de crew verlaten — {def.reason}
+                  </p>
+                ))}
+              </motion.div>
+            )}
+
+            {/* Safehouse raid */}
+            {report.safehouseRaid && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(), type: 'spring', stiffness: 350 }}
+                className={`border rounded-lg p-3 ${
+                  report.safehouseRaid.won
+                    ? 'bg-[hsl(var(--gold)/0.08)] border-gold'
+                    : 'bg-[hsl(var(--blood)/0.08)] border-blood'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Swords size={14} className={report.safehouseRaid.won ? 'text-gold' : 'text-blood'} />
+                  <span className={`text-xs font-bold ${report.safehouseRaid.won ? 'text-gold' : 'text-blood'}`}>
+                    {report.safehouseRaid.won ? 'SAFEHOUSE VERDEDIGD!' : 'SAFEHOUSE AANGEVALLEN!'}
+                  </span>
+                </div>
+                <p className="text-[0.6rem] text-muted-foreground">{report.safehouseRaid.details}</p>
+                {report.safehouseRaid.loot && report.safehouseRaid.loot > 0 && (
+                  <p className="text-[0.55rem] text-emerald font-bold mt-0.5">+€{report.safehouseRaid.loot.toLocaleString()} buitgemaakt</p>
+                )}
+              </motion.div>
+            )}
             {report.weatherChange && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: weatherDelay, duration: 0.35 }} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

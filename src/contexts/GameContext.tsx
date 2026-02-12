@@ -1907,7 +1907,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (saved.villa.lastPartyDay === undefined) saved.villa.lastPartyDay = 0;
       }
       // Ensure crew have specialization field
-      saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
+      saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; if (c.loyalty === undefined) c.loyalty = 75; });
       // Narrative expansion migrations
       if (saved.backstory === undefined) saved.backstory = null;
       if (saved.karma === undefined) saved.karma = 0;

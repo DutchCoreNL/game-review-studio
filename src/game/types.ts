@@ -417,6 +417,7 @@ export interface CrewMember {
   xp: number;
   level: number;
   specialization: string | null;
+  loyalty: number; // 0-100, below 20 = risk of defection
 }
 
 export type VehicleUpgradeType = 'armor' | 'speed' | 'storage';
@@ -514,6 +515,10 @@ export interface NightReportData {
   villaLabProduced?: number;
   villaVaultProtected?: number; // shown only on arrest
   villaAttack?: { won: boolean; nemesisName: string; damage: string; stolenMoney?: number; moduleDamaged?: string; defenseScore?: number; attackPower?: number; defenseBreakdown?: { label: string; value: number; icon: string }[] };
+  // Crew loyalty
+  crewDefections?: { name: string; reason: string }[];
+  // Safehouse raids
+  safehouseRaid?: { district: DistrictId; attackerName: string; won: boolean; details: string; loot?: number };
 }
 
 export interface RandomEvent {
