@@ -145,6 +145,39 @@ export const BUSINESSES: Business[] = [
   { id: 'hotel', name: 'Hotel Noxhaven Grand', cost: 150000, income: 3000, clean: 2500, desc: 'Het kroonjuweel — luxehotel met VIP-gasten en maximale dekking.', reqRep: 400, reqBusinessCount: 3 },
 ];
 
+// ========== RACING CONSTANTS ==========
+
+import { RaceDef, RaceNPC, UniqueVehicle, DealerDeal } from './types';
+
+export const RACES: RaceDef[] = [
+  { id: 'street', name: 'Straatrace', desc: 'Illegale race door Lowrise. Snel geld, weinig risico.', minBet: 1000, maxBet: 5000, heatGain: 5, icon: '🏁' },
+  { id: 'harbor', name: 'Havenrun', desc: 'Gevaarlijke race langs de kades van Port Nero.', minBet: 5000, maxBet: 15000, heatGain: 12, reqDistrict: 'port', icon: '⚓' },
+  { id: 'neon_gp', name: 'Neon Grand Prix', desc: 'De ultieme illegale race op de Neon Strip.', minBet: 15000, maxBet: 50000, heatGain: 20, reqDistrict: 'neon', reqDay: 20, icon: '🏎️' },
+];
+
+export const RACE_NPCS: RaceNPC[] = [
+  { name: 'Razor Eddie', vehicle: 'Getunede Supra', skill: 3 },
+  { name: 'Nitro Nadia', vehicle: 'Zwarte Mustang', skill: 5 },
+  { name: 'El Diablo', vehicle: 'Rode Ferrari', skill: 7 },
+  { name: 'Ghost', vehicle: 'Witte Porsche', skill: 8 },
+  { name: 'Iron Mike', vehicle: 'Gepantserde BMW', skill: 4 },
+  { name: 'Silk', vehicle: 'Zilveren Mercedes', skill: 6 },
+  { name: 'Turbo Tina', vehicle: 'Groene Lambo', skill: 9 },
+];
+
+// ========== UNIQUE VEHICLES ==========
+
+export const UNIQUE_VEHICLES: UniqueVehicle[] = [
+  { id: 'decker_phantom', name: "Decker's Phantom", storage: 15, speed: 3, armor: 4, charm: 25, desc: 'Het persoonlijke voertuig van Commissaris Decker. Legendarisch.', unlockCondition: 'Versla Decker (final boss)', unlockCheck: 'final_boss', icon: '👻' },
+  { id: 'cartel_bulldozer', name: 'Cartel Bulldozer', storage: 40, speed: -2, armor: 5, charm: 5, desc: 'Een gepantserd monster van het kartel. Onverwoestbaar.', unlockCondition: 'Verover alle 3 facties', unlockCheck: 'all_factions', icon: '🦏' },
+  { id: 'nemesis_trophy', name: 'Nemesis Trophy Car', storage: 10, speed: 6, armor: 2, charm: 10, desc: 'Gebouwd van de wrakken van je verslagen vijanden.', unlockCondition: 'Versla 3 nemesis-generaties', unlockCheck: 'nemesis_gen3', icon: '🏆' },
+  { id: 'gouden_klassiek', name: 'Gouden Klassiek', storage: 20, speed: 3, armor: 3, charm: 15, desc: 'Een volledig vergulde klassieke auto. Ultiem statussymbool.', unlockCondition: 'Bezit alle 6 reguliere voertuigen', unlockCheck: 'all_vehicles', icon: '✨' },
+];
+
+// ========== DEALER CONSTANTS ==========
+
+export const VEHICLE_SELL_RATIO = 0.55; // base sell percentage
+
 export const REKAT_COSTS: Record<string, number> = {
   toyohata: 2000,
   forgedyer: 4000,
@@ -1000,6 +1033,11 @@ export function createInitialState(): import('./types').GameState {
     // Market alerts
     marketAlerts: [],
     triggeredAlerts: [],
+    // Racing state
+    raceUsedToday: false,
+    // Dealer state
+    vehiclePriceModifiers: {},
+    dealerDeal: null,
   };
 }
 

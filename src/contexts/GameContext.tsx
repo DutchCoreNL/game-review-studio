@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
@@ -166,6 +166,11 @@ type GameAction =
   | { type: 'SCOUT_NEMESIS' }
   | { type: 'FORM_ALLIANCE'; familyId: FamilyId }
   | { type: 'BREAK_ALLIANCE'; familyId: FamilyId }
+  // Racing actions
+  | { type: 'START_RACE'; raceType: import('../game/types').RaceType; bet: number; result: import('../game/racing').RaceResult }
+  // Dealer actions
+  | { type: 'SELL_VEHICLE'; vehicleId: string }
+  | { type: 'TRADE_IN_VEHICLE'; oldVehicleId: string; newVehicleId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -198,6 +203,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.activeMarketEvent === undefined) loaded.activeMarketEvent = null;
       if (!loaded.marketAlerts) loaded.marketAlerts = [];
       if (!loaded.triggeredAlerts) loaded.triggeredAlerts = [];
+      // Migrate: racing & dealer state
+      if (loaded.raceUsedToday === undefined) loaded.raceUsedToday = false;
+      if (!loaded.vehiclePriceModifiers) loaded.vehiclePriceModifiers = {};
+      if (loaded.dealerDeal === undefined) loaded.dealerDeal = null;
       return loaded;
     }
 
@@ -430,6 +439,45 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (Math.random() < 0.2) {
         const foundAmmo = 2 + Math.floor(Math.random() * 4);
         s.ammo = Math.min(99, (s.ammo || 0) + foundAmmo);
+      }
+      // === RACING: Reset daily cooldown ===
+      s.raceUsedToday = false;
+      // === DEALER: Fluctuate vehicle prices ===
+      if (!s.vehiclePriceModifiers) s.vehiclePriceModifiers = {};
+      for (const v of VEHICLES) {
+        const current = s.vehiclePriceModifiers[v.id] ?? 1;
+        const change = -0.10 + Math.random() * 0.25; // -10% to +15%
+        s.vehiclePriceModifiers[v.id] = Math.max(0.7, Math.min(1.3, current + change * 0.3));
+      }
+      // === DEALER: Generate deal every 5 days ===
+      if (s.day % 5 === 0) {
+        const ownedIds = s.ownedVehicles.map(v => v.id);
+        const candidates = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
+        if (candidates.length > 0) {
+          const pick = candidates[Math.floor(Math.random() * candidates.length)];
+          s.dealerDeal = {
+            vehicleId: pick.id,
+            discount: 0.2 + Math.random() * 0.1, // 20-30%
+            expiresDay: s.day + 1,
+          };
+          addPhoneMessage(s, '🏪 Dealer', `Speciale aanbieding: ${pick.name} met ${Math.round((0.2 + Math.random() * 0.1) * 100)}% korting! Alleen vandaag.`, 'opportunity');
+        }
+      }
+      // === UNIQUE VEHICLES: Check unlock conditions ===
+      const checkUniqueUnlock = (checkId: string): boolean => {
+        switch (checkId) {
+          case 'final_boss': return s.finalBossDefeated;
+          case 'all_factions': return (s.conqueredFactions?.length || 0) >= 3;
+          case 'nemesis_gen3': return (s.nemesis?.generation || 1) > 3;
+          case 'all_vehicles': return VEHICLES.every(v => s.ownedVehicles.some(ov => ov.id === v.id));
+          default: return false;
+        }
+      };
+      for (const uv of UNIQUE_VEHICLES) {
+        if (!s.ownedVehicles.some(ov => ov.id === uv.id) && checkUniqueUnlock(uv.unlockCheck)) {
+          s.ownedVehicles.push({ id: uv.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+          addPhoneMessage(s, '🏆 UNIEK', `Je hebt ${uv.name} ontgrendeld! ${uv.desc}`, 'opportunity');
+        }
       }
       return s;
     }
@@ -1846,6 +1894,81 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       });
 
       addPhoneMessage(s, 'anonymous', `Legendarisch feest bij Villa Noxhaven! Iedereen praat erover. +${relBoost} factie-relaties, +${repBoost} rep.`, 'info');
+      return s;
+    }
+
+    case 'START_RACE': {
+      if (s.raceUsedToday) return s;
+      const raceDef = RACES.find(r => r.id === action.raceType);
+      if (!raceDef) return s;
+      if (s.money < action.bet) return s;
+      s.raceUsedToday = true;
+      const rr = action.result;
+      if (rr.won) {
+        const winnings = Math.floor(action.bet * rr.multiplier);
+        s.money += winnings;
+        s.stats.totalEarned += winnings;
+        s.rep += rr.repGain;
+        Engine.gainXp(s, rr.xpGain);
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = winnings;
+      } else {
+        s.money -= action.bet;
+        s.stats.totalSpent += action.bet;
+        // Damage vehicle on loss
+        const activeOv = s.ownedVehicles.find(v => v.id === s.activeVehicle);
+        if (activeOv && rr.conditionLoss > 0) {
+          activeOv.condition = Math.max(10, activeOv.condition - rr.conditionLoss);
+        }
+      }
+      // Heat
+      Engine.addVehicleHeat(s, raceDef.heatGain);
+      Engine.recomputeHeat(s);
+      return s;
+    }
+
+    case 'SELL_VEHICLE': {
+      const vIdx = s.ownedVehicles.findIndex(v => v.id === action.vehicleId);
+      if (vIdx === -1 || s.ownedVehicles.length <= 1) return s;
+      const vDef = VEHICLES.find(v => v.id === action.vehicleId);
+      if (!vDef || vDef.cost === 0) return s;
+      const ov = s.ownedVehicles[vIdx];
+      const conditionMod = (ov.condition / 100) * 0.3 + 0.4;
+      const upgradeBonus = ov.upgrades ? Object.values(ov.upgrades).reduce((sum, lvl) => sum + ((lvl as number) || 0) * 0.05, 0) : 0;
+      const sellPrice = Math.floor(vDef.cost * (0.55 + upgradeBonus) * conditionMod);
+      s.money += sellPrice;
+      s.stats.totalEarned += sellPrice;
+      s.ownedVehicles.splice(vIdx, 1);
+      if (s.activeVehicle === action.vehicleId && s.ownedVehicles.length > 0) {
+        s.activeVehicle = s.ownedVehicles[0].id;
+        s.maxInv = Engine.recalcMaxInv(s);
+      }
+      return s;
+    }
+
+    case 'TRADE_IN_VEHICLE': {
+      const oldIdx = s.ownedVehicles.findIndex(v => v.id === action.oldVehicleId);
+      if (oldIdx === -1) return s;
+      const oldDef = VEHICLES.find(v => v.id === action.oldVehicleId);
+      const newDef = VEHICLES.find(v => v.id === action.newVehicleId);
+      if (!oldDef || !newDef || oldDef.cost === 0) return s;
+      const oldOv = s.ownedVehicles[oldIdx];
+      const condMod = (oldOv.condition / 100) * 0.3 + 0.4;
+      const upBonus = oldOv.upgrades ? Object.values(oldOv.upgrades).reduce((sum, lvl) => sum + ((lvl as number) || 0) * 0.05, 0) : 0;
+      const tradeInPrice = Math.floor(oldDef.cost * (0.55 + upBonus + 0.10) * condMod); // +10% trade-in bonus
+      const mod = s.vehiclePriceModifiers?.[action.newVehicleId] ?? 1;
+      const newPrice = Math.floor(newDef.cost * mod);
+      const netCost = newPrice - tradeInPrice;
+      if (netCost > 0 && s.money < netCost) return s;
+      s.money -= Math.max(0, netCost);
+      if (netCost > 0) s.stats.totalSpent += netCost;
+      if (netCost < 0) { s.money += Math.abs(netCost); s.stats.totalEarned += Math.abs(netCost); }
+      s.ownedVehicles.splice(oldIdx, 1);
+      s.ownedVehicles.push({ id: action.newVehicleId, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+      if (s.activeVehicle === action.oldVehicleId) {
+        s.activeVehicle = action.newVehicleId;
+        s.maxInv = Engine.recalcMaxInv(s);
+      }
       return s;
     }
 
