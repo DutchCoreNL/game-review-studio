@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, GOODS, GOOD_CATEGORIES } from '@/game/constants';
+import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE } from '@/game/constants';
 import { playCoinSound, playPurchaseSound, playNegativeSound } from '@/game/sounds';
 import { GoodId, TradeMode } from '@/game/types';
 import { getPlayerStat, getBestTradeRoute } from '@/game/engine';
@@ -11,7 +11,7 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 
@@ -102,6 +102,16 @@ export function MarketPanel() {
   return (
     <>
       <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
+
+      {/* Active market event banner */}
+      {state.activeMarketEvent && (
+        <div className="text-gold text-xs font-bold bg-gold/10 p-2 rounded mb-3 border border-gold/20">
+          {state.activeMarketEvent.name}
+          <span className="block text-[0.5rem] font-normal text-gold/70 mt-0.5">
+            {state.activeMarketEvent.desc} ({state.activeMarketEvent.daysLeft}d resterend)
+          </span>
+        </div>
+      )}
 
       {/* Heat surcharge banner */}
       {heat.surchargePercent > 0 && (
@@ -218,6 +228,11 @@ export function MarketPanel() {
                     {demand && <GameBadge variant="gold" size="xs">VRAAG</GameBadge>}
                     {g.faction && (state.familyRel[g.faction] || 0) > 50 && tradeMode === 'buy' && (
                       <GameBadge variant="emerald" size="xs">-30%</GameBadge>
+                    )}
+                    {GOOD_SPOILAGE[g.id as GoodId] > 0 && owned > 0 && (
+                      <span className="text-[0.45rem] text-blood/70 flex items-center gap-0.5" title="Bederfbaar goed">
+                        <Leaf size={8} /> {Math.round(GOOD_SPOILAGE[g.id as GoodId] * 100)}%/nacht
+                      </span>
                     )}
                   </div>
 

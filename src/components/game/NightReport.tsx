@@ -393,6 +393,28 @@ export function NightReport() {
                 )}
               </motion.div>
             )}
+            {/* Market Event */}
+            {report.marketEvent && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-gold/8 border border-gold/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-gold mb-0.5">
+                  <TrendingUp size={12} /> {report.marketEvent.name}
+                </div>
+                <p className="text-[0.55rem] text-muted-foreground">{report.marketEvent.desc}</p>
+              </motion.div>
+            )}
+
+            {/* Spoilage */}
+            {report.spoilage && report.spoilage.length > 0 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-blood/8 border border-blood/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-blood mb-0.5">
+                  <Leaf size={12} /> Bederf
+                </div>
+                {report.spoilage.map((s, i) => (
+                  <p key={i} className="text-[0.55rem] text-muted-foreground">-{s.lost}x {s.good} verloren door bederf</p>
+                ))}
+              </motion.div>
+            )}
+
             {report.weatherChange && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: weatherDelay, duration: 0.35 }} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

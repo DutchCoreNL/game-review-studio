@@ -181,6 +181,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       // Migrate: add pendingAchievements if missing
       if (!loaded.pendingAchievements) loaded.pendingAchievements = [];
+      // Migrate: add market dynamics fields
+      if (!loaded.marketPressure) loaded.marketPressure = {};
+      if (loaded.activeMarketEvent === undefined) loaded.activeMarketEvent = null;
       return loaded;
     }
 
