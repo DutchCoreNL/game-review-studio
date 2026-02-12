@@ -1,116 +1,60 @@
 
 
-# Rivaal Systeem Uitbreiding -- Diepere Integratie
+# Verkeer Realistischer op de Wegen — Plan
 
-## Huidige Situatie
-Het nemesis-systeem heeft al een stevig fundament: 5 generaties opvolgers, villa-aanvallen, marktmanipulatie, contextafhankelijke berichten via de telefoon, en een apart "De Rivaal" verhaalboog. Maar er zijn significante verbeterkansen:
+## Probleem
+De huidige 16 wegenpaden (SVG `path` definities in `ROADS[]`) volgen de wegen op de achtergrondafbeelding niet nauwkeurig genoeg. Het verkeer (koplampen, achterlichten, bussen, motoren) zweeft daardoor soms naast de zichtbare wegen in plaats van er precies overheen te rijden.
 
-**Wat ontbreekt:**
-- De nemesis heeft geen **persoonlijkheid** -- alle rivalen gedragen zich identiek
-- Er is geen **interactie** buiten gevechten -- je kunt alleen uitdagen of afwachten
-- De nemesis reageert niet op **jouw acties** (carjacks, handel, conquests)
-- Geen **territorium-conflict** -- de nemesis claimt nooit echt een district
-- Geen **bondgenootschappen** -- de nemesis werkt niet samen met facties
-- De rivaal-verhaalboog (Viktor Krow) staat los van het dynamische nemesis-systeem
+## Aanpak
+De achtergrondafbeelding toont een isometrische stadskaart met duidelijk zichtbare wegen. Het plan is om alle 16 ROADS-paden opnieuw te traceren op basis van de exacte positie van de wegen in de achtergrondafbeelding, en daarnaast het verkeerssysteem uit te breiden met meer variatie.
 
----
+## Stap 1: Wegen opnieuw traceren
+Het SVG-viewBox is `0 0 400 290`. De achtergrondafbeelding toont de volgende wegenstructuur die nauwkeuriger moet worden gevolgd:
 
-## Voorgestelde Verbeteringen
+**Hoofd-snelwegen (opnieuw traceren):**
+- R0: Haven-weg van linksboven (Port Nero) naar het centrale plein (Neon Strip) — volgt de diagonale hoofdweg die door het midden loopt
+- R1: Vervolg van centraal plein naar Crown Heights (rechtsboven) — de brede weg richting het financiele district
+- R4: De rotonde/plaza in Neon Strip — het ronde verkeerspunt in het centrum
+- R7: De oostelijke snelweg langs Crown Heights naar Lowrise
+- R9: De kustweg langs de westelijke waterrand
 
-### 1. Nemesis Persoonlijkheden (Archetypes)
-Elke rivaal krijgt een archetype dat bepaalt hoe zij zich gedragen:
+**Verbindingswegen (opnieuw traceren):**
+- R2: Noordelijke route Port Nero naar Villa-heuvel
+- R3: Villa-heuvel naar Crown Heights langs de heuvelrug
+- R5: Rotonde naar Iron Borough (zuidwest)
+- R6: Rotonde naar Lowrise (zuidoost)
+- R8: Zuidelijke dwarsweg Iron Borough naar Lowrise
+- R11-R15: Interne district-wegen en lussen
 
-| Archetype | Gedrag | Favoriete Actie |
-|---|---|---|
-| **De Zakenman** | Manipuleert markten, koopt facties om | Marktmanipulatie +50% |
-| **De Brute** | Valt villa/districten aan, steelt goederen | Aanvalskans +30% |
-| **De Schaduw** | Saboteert handelsleveringen, vergroot je heat | Heat-manipulatie |
-| **De Strateeg** | Sluit allianties met facties, ondermijnt relaties | Factie-allianties |
+**Nieuwe wegen toevoegen:**
+- Extra parallelle wegen waar de afbeelding duidelijk twee rijbanen toont
+- Kleinere steegjes in de district-kernen voor voetgangers
 
-Dit maakt elke generatie uniek en dwingt de speler om strategie aan te passen.
+## Stap 2: Meer verkeersdetails
+Na het hertraceren worden de verkeersanimaties verbeterd:
+- **Tegenverkeer**: Koplampen en achterlichten op dezelfde weg maar in tegengestelde richting, elk op hun eigen "rijbaan" (licht versetzt pad)
+- **Variabele snelheden**: Meer spreiding in duur om filevorming te simuleren
+- **Meer verkeer op drukke wegen** (R0, R1, R4): 3-4 voertuigen per weg
+- **Minder verkeer op rustige wegen** (R10, R13, R14): 1 voertuig
 
-### 2. Nemesis Reacties op Speleracties
-De nemesis reageert op specifieke dingen die je doet:
-
-- **Speler koopt district**: nemesis stuurt dreigbericht, kans op tegenaanval stijgt
-- **Speler verslaat factie-leider**: nemesis probeert die factie te rekruteren
-- **Speler handelt veel**: nemesis dumpt dezelfde goederen om prijzen te crashen
-- **Speler in gevangenis**: nemesis steelt extra goederen/geld (je bent kwetsbaar)
-- **Speler heat > 60**: nemesis stuurt anonieme tip naar de politie (+heat)
-
-### 3. Nemesis Territorium Claim
-De nemesis kan nu daadwerkelijk een district "claimen" (niet eigendom, maar invloed):
-- In het geclaimde district: +15% hogere inkoopprijzen, -10% verkoopprijzen voor de speler
-- De nemesis versterkt zich in dat district (verdedigingsbonus bij gevecht)
-- De speler kan het district "bevrijden" door de nemesis daar te verslaan
-- Visueel: een rood nemesis-icoon op de kaart bij dat district (al aanwezig via NemesisMarker)
-
-### 4. Nemesis-Factie Allianties
-Vanaf generatie 2+ kan de nemesis een bondgenootschap sluiten met een factie:
-- De factie-relatie van de speler met die factie daalt extra (-3/dag)
-- De nemesis krijgt een power-boost van +10
-- De speler kan het bondgenootschap breken door de factie om te kopen (geld/charm) of de nemesis te verslaan
-- Een telefoonbericht kondigt de alliantie aan
-
-### 5. Diplomatie-optie (niet alleen vechten)
-Naast "UITDAGEN" op de kaart, twee nieuwe opties:
-- **Onderhandelen** (vereist: charm > 30, kost geld): tijdelijk bestand van 5 dagen, nemesis stopt met aanvallen. Kan maar 1x per generatie.
-- **Informant sturen** (vereist: hacker in crew of brains > 25): onthult nemesis' volgende geplande actie in het Night Report
-
-### 6. Wraakacties na Gevangenis
-Als de speler in de gevangenis zit, doet de nemesis altijd een extra actie:
-- 50% kans: steelt uit vault (als villa beschikbaar)
-- 30% kans: claimt een van je districten (district rep daalt met 15)
-- 20% kans: corrumpeert een van je crewleden (loyalty -25)
-
----
+## Stap 3: AMBIENT_ROADS ook opnieuw traceren
+De 12 achtergrond-straten in `AMBIENT_ROADS[]` worden ook opnieuw gepositioneerd om overeen te komen met de kleinere zijstraten op de afbeelding.
 
 ## Technische Wijzigingen
 
-### `src/game/types.ts`
-- `NemesisState` uitbreiden met:
-  - `archetype: NemesisArchetype` (type: 'zakenman' | 'brute' | 'schaduw' | 'strateeg')
-  - `claimedDistrict: DistrictId | null`
-  - `alliedFaction: FamilyId | null`
-  - `truceDaysLeft: number` (voor onderhandelingen)
-  - `lastReaction: string` (voor reactieve acties)
+### `src/components/game/CityMap.tsx`
+- **ROADS[] array (regel 34-67)**: Alle 16 paden opnieuw definiëren met nauwkeurigere SVG `path` coördinaten die de isometrische wegen op de achtergrondafbeelding volgen
+- **AMBIENT_ROADS[] array (regel 70-83)**: Achtergrondstraten hertraceren
+- **Verkeersectie (regel 525-601)**: Meer voertuigen op hoofdwegen, minder op rustige wegen, parallelle rijbanen voor tegenverkeer
 
-### `src/game/constants.ts`
-- `NEMESIS_ARCHETYPES` array met gedragsprofiel per type
-- Toewijzing van archetype-namen bij spawning
+### `src/components/game/map/CityAmbience.tsx`
+- **StreetLights**: Automatisch gepositioneerd op nieuwe wegenpaden (geen wijziging nodig, gebruikt ROADS)
+- **Pedestrians**: Idem, volgt automatisch nieuwe paden
 
-### `src/game/newFeatures.ts`
-- `updateNemesis()` uitbreiden:
-  - Archetype-specifieke acties met gewogen kansen
-  - Reactie-systeem: check recente spelersacties
-  - Territorium-claim logica
-  - Factie-alliantie systeem
-  - Gevangenis-wraakacties
-- Nieuwe functies: `negotiateNemesis()`, `scoutNemesis()`
-
-### `src/contexts/GameContext.tsx`
-- Nieuwe actions: `NEGOTIATE_NEMESIS`, `SCOUT_NEMESIS`
-- Gevangenis-integratie: roep nemesis wraaklogica aan bij prison tick
-
-### `src/components/game/map/NemesisInfo.tsx`
-- "ONDERHANDELEN" en "SCOUT" knoppen toevoegen naast "UITDAGEN"
-- Archetype-icoon en beschrijving tonen
-- Geclaimd district en factie-alliantie info tonen
-
-### `src/components/game/NightReport.tsx`
-- Scout-resultaten tonen als speler een informant heeft gestuurd
-- Nemesis reactie-details weergeven
-
----
-
-## Balans
-
-| Mechanisme | Effect |
-|---|---|
-| Archetype | Maakt elke generatie uniek, strategie-variatie |
-| Reactie-systeem | Nemesis voelt "levend", reageert op de speler |
-| Territorium-claim | Economische druk, geeft reden om te vechten |
-| Factie-alliantie | Verbindt nemesis met bestaande systemen |
-| Onderhandelen | Niet-gewelddadige optie, kost geld |
-| Gevangenis-wraak | Gevangenis voelt nog gevaarlijker |
+## Werkwijze
+Omdat de wegen met het blote oog op de screenshot moeten worden getraceerd, zal ik:
+1. De achtergrondafbeelding pixel-voor-pixel bestuderen via de browser screenshot
+2. Per weg de begin-, tussen- en eindpunten bepalen in het 400x290 coördinatensysteem
+3. De SVG-paden aanpassen met Quadratic/Cubic Bézier curves voor vloeiende bochten
+4. Het resultaat visueel verifiëren via de preview
 
