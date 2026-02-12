@@ -387,10 +387,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Story arcs: check triggers and progression
-      checkArcTriggers(s);
-      if (!s.pendingStreetEvent) {
-        checkArcProgression(s);
+      // Story arcs: check triggers and progression (skip while in prison)
+      if (!s.prison) {
+        checkArcTriggers(s);
+        if (!s.pendingStreetEvent) {
+          checkArcProgression(s);
+        }
       }
       // Car orders: generate new orders every 3 days, max 3 active
       if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {

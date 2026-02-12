@@ -112,13 +112,13 @@ export function GameLayout() {
         {state.showPhone && <PhoneOverlay />}
         {state.pendingSpecChoice && <CrewSpecPopup />}
         {state.victoryData && <VictoryScreen />}
-        {state.pendingStreetEvent && <StoryEventPopup />}
-        {state.pendingArcEvent && <StoryArcEvent />}
-        {state.pendingCarTheft && <CarTheftPopup />}
-        {state.pendingCorruptionEvent && <CorruptionEventPopup />}
-        {state.pendingFlashback && <FlashbackOverlay />}
+        {!state.prison && state.pendingStreetEvent && <StoryEventPopup />}
+        {!state.prison && state.pendingArcEvent && <StoryArcEvent />}
+        {!state.prison && state.pendingCarTheft && <CarTheftPopup />}
+        {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
+        {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
         {state.prison && <PrisonOverlay />}
-        {state.pendingWarEvent && <WarEventPopup />}
+        {!state.prison && state.pendingWarEvent && <WarEventPopup />}
         <FinalBossAlert />
         <AchievementPopup />
         {state.backstory === null && state.tutorialDone && (
