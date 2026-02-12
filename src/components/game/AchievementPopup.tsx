@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { ACHIEVEMENTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
+import { ACHIEVEMENT_IMAGES } from '@/assets/items';
 import { useEffect, useRef } from 'react';
 import { playAchievementSound } from '@/game/sounds';
 
@@ -46,9 +47,15 @@ export function AchievementPopup() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 400 }}
-              className="w-16 h-16 mx-auto mb-3 rounded-full bg-gold/15 border-2 border-gold flex items-center justify-center"
+              className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-gold"
             >
-              <Trophy size={28} className="text-gold" />
+              {ACHIEVEMENT_IMAGES[currentId!] ? (
+                <img src={ACHIEVEMENT_IMAGES[currentId!]} alt={achievement.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gold/15 flex items-center justify-center">
+                  <Trophy size={28} className="text-gold" />
+                </div>
+              )}
             </motion.div>
             <motion.p
               initial={{ opacity: 0 }}

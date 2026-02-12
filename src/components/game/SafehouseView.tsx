@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Shield, ArrowLeft, Zap, Plus, Lock, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import safehouseBg from '@/assets/safehouse-bg.jpg';
+import { SAFEHOUSE_UPGRADE_IMAGES } from '@/assets/items';
 
 function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect: () => void }) {
   const { state } = useGame();
@@ -208,26 +209,35 @@ function SafehouseDetail({ district, onBack }: { district: DistrictId; onBack: (
             const hasUpgrade = sh.upgrades.includes(upg.id);
             const canAfford = state.money >= upg.cost;
             return (
-              <div key={upg.id} className={`flex items-center gap-2 rounded px-2.5 py-2 border ${
+              <div key={upg.id} className={`rounded overflow-hidden border ${
                 hasUpgrade ? 'bg-ice/10 border-ice/20' : 'bg-background/50 border-border'
               }`}>
-                <span className="text-sm flex-shrink-0">{upg.icon}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[0.6rem] font-bold">{upg.name}</span>
-                    {hasUpgrade && <span className="text-[0.45rem] text-ice font-bold">✓</span>}
+                {/* Upgrade banner */}
+                {SAFEHOUSE_UPGRADE_IMAGES[upg.id] && (
+                  <div className="relative h-14 overflow-hidden">
+                    <img src={SAFEHOUSE_UPGRADE_IMAGES[upg.id]} alt={upg.name} className={`w-full h-full object-cover ${hasUpgrade ? '' : 'grayscale opacity-60'}`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                   </div>
-                  <div className="text-[0.45rem] text-muted-foreground">{upg.desc}</div>
-                </div>
-                {!hasUpgrade && (
-                  <GameButton variant="muted" size="sm" disabled={!canAfford}
-                    onClick={() => {
-                      dispatch({ type: 'INSTALL_SAFEHOUSE_UPGRADE', district, upgradeId: upg.id });
-                      showToast(`${upg.icon} ${upg.name} geïnstalleerd!`);
-                    }}>
-                    €{upg.cost.toLocaleString()}
-                  </GameButton>
                 )}
+                <div className="flex items-center gap-2 px-2.5 py-2">
+                  <span className="text-sm flex-shrink-0">{upg.icon}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[0.6rem] font-bold">{upg.name}</span>
+                      {hasUpgrade && <span className="text-[0.45rem] text-ice font-bold">✓</span>}
+                    </div>
+                    <div className="text-[0.45rem] text-muted-foreground">{upg.desc}</div>
+                  </div>
+                  {!hasUpgrade && (
+                    <GameButton variant="muted" size="sm" disabled={!canAfford}
+                      onClick={() => {
+                        dispatch({ type: 'INSTALL_SAFEHOUSE_UPGRADE', district, upgradeId: upg.id });
+                        showToast(`${upg.icon} ${upg.name} geïnstalleerd!`);
+                      }}>
+                      €{upg.cost.toLocaleString()}
+                    </GameButton>
+                  )}
+                </div>
               </div>
             );
           })}

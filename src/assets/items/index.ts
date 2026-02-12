@@ -111,6 +111,30 @@ import backstoryWeduwnaar from './backstory-weduwnaar.jpg';
 import backstoryBankier from './backstory-bankier.jpg';
 import backstoryStraatkind from './backstory-straatkind.jpg';
 
+// Faction images
+import factionCartel from './faction-cartel.jpg';
+import factionSyndicate from './faction-syndicate.jpg';
+import factionBikers from './faction-bikers.jpg';
+
+// Safehouse upgrade images
+import safehouseReinforced from './safehouse-reinforced.jpg';
+import safehouseMedbay from './safehouse-medbay.jpg';
+import safehouseVault from './safehouse-vault.jpg';
+import safehouseGarage from './safehouse-garage.jpg';
+import safehouseComms from './safehouse-comms.jpg';
+
+// Achievement badge images
+import badgeFirstBlood from './badge-first-blood.jpg';
+import badgeDrugLord from './badge-drug-lord.jpg';
+import badgeLandlord from './badge-landlord.jpg';
+import badgeMillionaire from './badge-millionaire.jpg';
+import badgeCrewBoss from './badge-crew-boss.jpg';
+import badgeKingpin from './badge-kingpin.jpg';
+import badgeJackpot from './badge-jackpot.jpg';
+import badgeCleanMoney from './badge-clean-money.jpg';
+import badgeCarCollector from './badge-car-collector.jpg';
+import badgeSurvivor from './badge-survivor.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -251,4 +275,31 @@ export const BACKSTORY_IMAGES: Record<string, string> = {
   weduwnaar: backstoryWeduwnaar,
   bankier: backstoryBankier,
   straatkind: backstoryStraatkind,
+};
+
+export const FACTION_IMAGES: Record<string, string> = {
+  cartel: factionCartel,
+  syndicate: factionSyndicate,
+  bikers: factionBikers,
+};
+
+export const SAFEHOUSE_UPGRADE_IMAGES: Record<string, string> = {
+  reinforced: safehouseReinforced,
+  medbay: safehouseMedbay,
+  vault: safehouseVault,
+  garage: safehouseGarage,
+  comms: safehouseComms,
+};
+
+export const ACHIEVEMENT_IMAGES: Record<string, string> = {
+  first_blood: badgeFirstBlood,
+  drug_lord: badgeDrugLord,
+  landlord: badgeLandlord,
+  millionaire: badgeMillionaire,
+  crew_boss: badgeCrewBoss,
+  kingpin: badgeKingpin,
+  jackpot: badgeJackpot,
+  clean_money: badgeCleanMoney,
+  car_collector: badgeCarCollector,
+  survivor: badgeSurvivor,
 };
