@@ -312,10 +312,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Endgame events: random events when all factions conquered
       if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
         // Initialize seen events tracker
-        if (!(s as any).seenEndgameEvents) (s as any).seenEndgameEvents = [];
+        if (!s.seenEndgameEvents) s.seenEndgameEvents = [];
         const egEvent = getEndgameEvent(s);
         if (egEvent) {
-          (s as any).seenEndgameEvents.push(egEvent.id);
+          s.seenEndgameEvents.push(egEvent.id);
           // Apply event effects
           if (egEvent.reward.money) {
             if (egEvent.reward.money > 0) {
@@ -392,7 +392,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Generate hit contracts
       s.hitContracts = generateHitContracts(s);
       // Generate daily news
-      (s as any).dailyNews = generateDailyNews(s);
+      s.dailyNews = generateDailyNews(s);
       // Small chance to find ammo after successful missions/operations
       if (Math.random() < 0.2) {
         const foundAmmo = 2 + Math.floor(Math.random() * 4);
@@ -721,7 +721,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Check if this was the final boss phase 2 and it was won
       if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.bossPhase === 2) {
-        (s as any)._finalBossWon = true;
+        s._finalBossWon = true;
       }
       // Update endgame phase after combat
       s.endgamePhase = calculateEndgamePhase(s);
@@ -729,8 +729,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'END_COMBAT': {
-      const wasFinalBoss = (s as any)._finalBossWon;
-      delete (s as any)._finalBossWon;
+      const wasFinalBoss = s._finalBossWon;
+      delete s._finalBossWon;
       s.activeCombat = null;
       if (wasFinalBoss) {
         // Trigger final boss resolution
@@ -752,7 +752,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'FACTION_ACTION': {
       const result = Engine.performFactionAction(s, action.familyId, action.actionType);
-      (s as any)._lastFactionResult = result;
+      s._lastFactionResult = result;
       Engine.checkAchievements(s);
       if (s.dailyProgress) { s.dailyProgress.faction_actions++; }
       syncChallenges(s);
@@ -1082,7 +1082,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Mark completed arc for flashback (triggered on DISMISS_ARC_EVENT)
       const completedArc = s.activeStoryArcs?.find(a => a.arcId === action.arcId && a.finished);
       if (completedArc) {
-        (s as any)._completedArcFlashbackId = action.arcId;
+        s._completedArcFlashbackId = action.arcId;
       }
 
       return s;
@@ -1090,13 +1090,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_ARC_EVENT': {
       // Generate consequence flashback if an arc just completed
-      const flashbackArcId = (s as any)._completedArcFlashbackId;
+      const flashbackArcId = s._completedArcFlashbackId;
       if (flashbackArcId) {
         const flashback = generateArcFlashback(s, flashbackArcId);
         if (flashback) {
           s.pendingFlashback = flashback;
         }
-        delete (s as any)._completedArcFlashbackId;
+        delete s._completedArcFlashbackId;
       }
       s.pendingArcEvent = null;
       s.arcEventResult = null;
@@ -1168,17 +1168,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (action.success) {
         // Success!
         const condition = 60 + Math.floor(Math.random() * 40); // 60-100%
-        const newCar = {
+        const newCar: import('../game/types').StolenCar = {
           id: `stolen_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
           carTypeId: carDef.id,
           condition,
           omgekat: false,
-          upgrades: [] as string[],
+          upgrades: [],
           stolenDay: s.day,
           stolenFrom: s.pendingCarTheft!.district,
           baseValue: carDef.baseValue,
         };
-        s.stolenCars.push(newCar as any);
+        s.stolenCars.push(newCar);
         Engine.addVehicleHeat(s, carDef.heatGain);
         Engine.addPersonalHeat(s, Math.floor(carDef.heatGain * 0.5));
         Engine.recomputeHeat(s);
@@ -1221,10 +1221,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const car = s.stolenCars.find(c => c.id === action.carId);
       if (!car) return s;
       const upg = CHOP_SHOP_UPGRADES.find(u => u.id === action.upgradeId);
-      if (!upg || car.upgrades.includes(action.upgradeId as any) || s.money < upg.cost) return s;
+      if (!upg || car.upgrades.includes(action.upgradeId) || s.money < upg.cost) return s;
       s.money -= upg.cost;
       s.stats.totalSpent += upg.cost;
-      car.upgrades.push(action.upgradeId as any);
+      car.upgrades.push(action.upgradeId);
       return s;
     }
 
@@ -1234,7 +1234,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Calculate value
       let value = car.baseValue * (car.condition / 100);
-      car.upgrades.forEach((uid: any) => {
+      car.upgrades.forEach((uid) => {
         const upg = CHOP_SHOP_UPGRADES.find(u => u.id === uid);
         if (upg) value *= (1 + upg.valueBonus / 100);
       });
@@ -1908,6 +1908,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; });
+      // Narrative expansion migrations
+      if (saved.backstory === undefined) saved.backstory = null;
+      if (saved.karma === undefined) saved.karma = 0;
+      if (!saved.npcRelations) saved.npcRelations = {};
+      if (!saved.keyDecisions) saved.keyDecisions = [];
+      if (saved.pendingFlashback === undefined) saved.pendingFlashback = null;
+      // Endgame event tracking migration
+      if (!saved.seenEndgameEvents) saved.seenEndgameEvents = [];
+      // Achievement popup migration
+      if (!saved.pendingAchievements) saved.pendingAchievements = [];
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;
@@ -1942,9 +1952,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     rawDispatch(action);
   }, []);
 
-  // Auto-save on state change + check for new achievements + phase-up
+  // Auto-save on state change (debounced) + check for new achievements + phase-up
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    Engine.saveGame(state);
+    // Debounced save — 2 seconds
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => Engine.saveGame(state), 2000);
+
     const prev = prevAchievementsRef.current;
     const newOnes = state.achievements.filter(a => !prev.includes(a));
     if (newOnes.length > 0) {
@@ -1961,6 +1975,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => showToast(phaseMsg), 500);
     }
     prevPhaseRef.current = state.endgamePhase;
+
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state, showToast]);
 
   // Generate prices if empty

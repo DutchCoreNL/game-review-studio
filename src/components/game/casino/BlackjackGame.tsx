@@ -6,6 +6,7 @@ import { BetControls } from './BetControls';
 import { createDeck, getBlackjackScore, CasinoSessionStats, getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
+import { playCardDeal, playBlackjackWin, playBlackjackBust, playBlackjackNatural } from '@/game/sounds/casinoSounds';
 
 interface BlackjackGameProps {
   dispatch: (action: any) => void;
@@ -39,6 +40,7 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
     const dh = [d.pop()!, d.pop()!];
     setDeck(d); setPlayerHand(ph); setDealerHand(dh);
     setPlaying(true); setResult(''); setCanDoubleDown(true);
+    playCardDeal();
     if (getBlackjackScore(ph) === 21) stand(ph, dh, d, bet);
   };
 
@@ -47,6 +49,7 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
     const newDeck = [...deck];
     const newHand = [...playerHand, newDeck.pop()!];
     setDeck(newDeck); setPlayerHand(newHand);
+    playCardDeal();
     if (getBlackjackScore(newHand) > 21) endGame(false, 'BUST! Meer dan 21.', newHand);
   };
 
@@ -88,18 +91,19 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
       const isBj = getBlackjackScore(hand) === 21 && hand.length === 2;
       const baseMult = isBj ? 2.5 : 2;
       const basePayout = Math.floor(activeBet * baseMult);
-      // Apply VIP bonus to net profit only (preserves house edge)
       const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
       dispatch({ type: 'CASINO_WIN', amount: winAmount });
       dispatch({ type: 'TRACK_BLACKJACK_WIN' });
       setResultColor('text-emerald');
       onResult(true, winAmount - activeBet);
+      if (isBj) playBlackjackNatural(); else playBlackjackWin();
     } else if (win === false) {
       setResultColor('text-blood');
       setResultShake(true);
       setTimeout(() => setResultShake(false), 500);
       dispatch({ type: 'RESET_BLACKJACK_STREAK' });
       onResult(false, -activeBet);
+      playBlackjackBust();
     } else {
       setResultColor('text-foreground');
       onResult(null, 0);

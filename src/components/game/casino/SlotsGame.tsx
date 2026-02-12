@@ -4,6 +4,7 @@ import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
+import { playSlotSpin, playSlotReelStop, playSlotWin, playSlotJackpot, playLoss } from '@/game/sounds/casinoSounds';
 
 interface SlotsGameProps {
   dispatch: (action: any) => void;
@@ -37,6 +38,7 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     dispatch({ type: 'CASINO_BET', amount: bet });
     setResult(''); setNearMiss(false);
     setSpinning([true, true, true]);
+    playSlotSpin();
 
     // Add to jackpot (persistent via state)
     dispatch({ type: 'JACKPOT_ADD', amount: Math.floor(bet * 0.05) });
@@ -74,10 +76,10 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     }, 80);
 
     // Stop reels sequentially
-    setTimeout(() => stopReel(0), 800);
-    setTimeout(() => stopReel(1), 1400);
+    setTimeout(() => { stopReel(0); playSlotReelStop(); }, 800);
+    setTimeout(() => { stopReel(1); playSlotReelStop(); }, 1400);
     setTimeout(() => {
-      stopReel(2);
+      stopReel(2); playSlotReelStop();
       clearInterval(animInterval);
       setSpinning([false, false, false]);
       setTimeout(() => resolve(finalReels, currentBet), 100);
@@ -95,12 +97,15 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
         win = jackpot;
         dispatch({ type: 'JACKPOT_RESET' });
         setResult(`🎰 JACKPOT! +€${win.toLocaleString()}`);
+        playSlotJackpot();
       } else if (a === '💎') {
         win = activeBet * 25;
         setResult(`💎 DIAMANT! +€${win.toLocaleString()}`);
+        playSlotWin();
       } else {
         win = activeBet * 8;
         setResult(`WINNAAR! +€${win.toLocaleString()}`);
+        playSlotWin();
       }
     } else if (a === b || b === c || a === c) {
       // Pair payout reduced from 1.5x to 1.2x
@@ -114,6 +119,7 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       }
     } else {
       setResult('Helaas...');
+      playLoss();
     }
 
     if (win > 0) {

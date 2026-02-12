@@ -4,6 +4,7 @@ import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
+import { playRouletteSpin, playRouletteBallDrop, playRouletteWin, playLoss } from '@/game/sounds/casinoSounds';
 
 type RouletteBet = 'red' | 'black' | 'green' | 'even' | 'odd' | 'low' | 'high';
 
@@ -34,6 +35,7 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
     if (bet > money || bet < 10) return showToast('Niet genoeg geld!', true);
     dispatch({ type: 'CASINO_BET', amount: bet });
     setSpinning(true); setResult('');
+    playRouletteSpin();
     const currentBet = bet;
     let counter = 0;
     const interval = setInterval(() => {
@@ -43,6 +45,7 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
       if (counter > 20) {
         clearInterval(interval);
         setSpinning(false);
+        playRouletteBallDrop();
         resolve(num, color, choice, currentBet);
       }
     }, 80);
@@ -62,16 +65,17 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
 
     if (won) {
       const basePayout = Math.floor(activeBet * mult);
-      // Apply VIP bonus to net profit only
       const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
       dispatch({ type: 'CASINO_WIN', amount: winAmount });
       setResult(`GEWONNEN! +€${winAmount}`);
       setResultColor('text-emerald');
       onResult(true, winAmount - activeBet);
+      playRouletteWin();
     } else {
       setResult('VERLOREN');
       setResultColor('text-blood');
       onResult(false, -activeBet);
+      playLoss();
     }
   };
 

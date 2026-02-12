@@ -346,6 +346,95 @@ function createStormWind() {
   };
 }
 
+// Fog — muffled drone with reverb-like echo
+function createFogDrone() {
+  const ctx = getCtx();
+  const bufferSize = ctx.sampleRate * 3;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const w = Math.random() * 2 - 1;
+    data[i] = (last + 0.01 * w) / 1.01;
+    last = data[i];
+    data[i] *= 2;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = 120;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.035, ctx.currentTime + 4);
+  source.connect(lpf);
+  lpf.connect(gain);
+  gain.connect(getAmbianceGain());
+  source.start();
+  return {
+    stop: () => {
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 3);
+      setTimeout(() => { try { source.stop(); } catch {} }, 3500);
+    }
+  };
+}
+
+// Heatwave — low hum with shimmer
+function createHeatwaveHum() {
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 60;
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.frequency.value = 0.2;
+  lfoGain.gain.value = 8;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+  lfo.start();
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.02, ctx.currentTime + 3);
+  osc.connect(gain);
+  gain.connect(getAmbianceGain());
+  osc.start();
+  return {
+    stop: () => {
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
+      setTimeout(() => { try { osc.stop(); lfo.stop(); } catch {} }, 2500);
+    }
+  };
+}
+
+// Insect chirps — sporadic high-frequency bursts
+function createInsectChirps() {
+  const ctx = getCtx();
+  let chirpInterval: ReturnType<typeof setInterval> | null = null;
+  const playChirp = () => {
+    if (isMuted() || !running) return;
+    const freq = 4000 + Math.random() * 4000;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const dur = 0.02 + Math.random() * 0.03;
+    gain.gain.setValueAtTime(0.004 + Math.random() * 0.004, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(getAmbianceGain());
+    osc.start();
+    osc.stop(ctx.currentTime + dur + 0.01);
+  };
+  chirpInterval = setInterval(() => {
+    if (Math.random() < 0.3) playChirp();
+    if (Math.random() < 0.1) { playChirp(); setTimeout(playChirp, 30 + Math.random() * 50); }
+  }, 150);
+  return {
+    stop: () => { if (chirpInterval) clearInterval(chirpInterval); }
+  };
+}
+
 function stopWeatherLayers() {
   weatherNodes.forEach(n => { try { n.stop(); } catch {} });
   weatherNodes = [];
@@ -366,6 +455,11 @@ function applyWeather(weather: string) {
     weatherNodes.push(createRainDrops());
     weatherNodes.push(createStormWind());
     thunderTimer = setTimeout(playThunder, 2000 + Math.random() * 5000);
+  } else if (weather === 'fog') {
+    weatherNodes.push(createFogDrone());
+  } else if (weather === 'heatwave') {
+    weatherNodes.push(createHeatwaveHum());
+    weatherNodes.push(createInsectChirps());
   }
 }
 
