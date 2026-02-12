@@ -11,9 +11,10 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
+import { AnimatePresence } from 'framer-motion';
 
 const QUANTITIES = [1, 5, 10, 0];
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
@@ -42,6 +43,7 @@ export function MarketPanel() {
   const [quantity, setQuantity] = useState(1);
   const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: TradeMode } | null>(null);
   const [pendingTrade, setPendingTrade] = useState<{ gid: GoodId; qty: number; cost: number } | null>(null);
+  const [expandedGood, setExpandedGood] = useState<string | null>(null);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -245,7 +247,7 @@ export function MarketPanel() {
                     {sparkData.length >= 2 && <PriceSparkline data={[...sparkData, basePrice]} />}
                   </div>
 
-                  {/* District modifier */}
+                  {/* District modifier + info toggle */}
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[0.5rem] font-semibold ${distMod < 0.9 ? 'text-emerald' : distMod > 1.3 ? 'text-blood' : 'text-muted-foreground'}`}>
                       {distMod < 0.9 ? '↓ Goedkoop hier' : distMod > 1.3 ? '↑ Duur hier' : '— Normaal'}
@@ -255,6 +257,13 @@ export function MarketPanel() {
                         {profitInfo}
                       </span>
                     )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setExpandedGood(expandedGood === g.id ? null : g.id); }}
+                      className={`ml-auto text-[0.45rem] flex items-center gap-0.5 transition-colors ${expandedGood === g.id ? 'text-gold' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      <Info size={9} />
+                      <ChevronDown size={8} className={`transition-transform ${expandedGood === g.id ? 'rotate-180' : ''}`} />
+                    </button>
                   </div>
                 </div>
 
@@ -283,6 +292,85 @@ export function MarketPanel() {
                   />
                 </div>
               </div>
+
+              {/* Price Factor Breakdown */}
+              <AnimatePresence>
+                {expandedGood === g.id && (() => {
+                  const pressure = state.marketPressure?.[state.loc]?.[g.id] || 0;
+                  const pressureMod = 1 + (pressure * 0.15);
+                  const eventEffects = state.activeMarketEvent?.effects || {};
+                  const eventMod = (eventEffects as Record<string, number>)[g.id] || 1.0;
+                  const hasFactionDiscount = g.faction && (state.familyRel[g.faction] || 0) > 50;
+                  const spoilRate = GOOD_SPOILAGE[g.id as GoodId];
+
+                  const factors: { label: string; value: string; color: string }[] = [
+                    { label: 'Basisprijs', value: `€${g.base}`, color: 'text-foreground' },
+                    { label: `District mod (${district.name})`, value: `×${distMod.toFixed(1)}`, color: distMod < 0.9 ? 'text-emerald' : distMod > 1.3 ? 'text-blood' : 'text-foreground' },
+                  ];
+
+                  if (demand) factors.push({ label: 'Hoge vraag', value: '×1.6', color: 'text-gold' });
+
+                  if (Math.abs(pressure) > 0.05) {
+                    factors.push({
+                      label: `Marktdruk (${pressure > 0 ? 'veel gekocht' : 'veel verkocht'})`,
+                      value: `×${pressureMod.toFixed(2)}`,
+                      color: pressure > 0 ? 'text-blood' : 'text-emerald',
+                    });
+                  }
+
+                  if (eventMod !== 1.0) {
+                    factors.push({
+                      label: `Event: ${state.activeMarketEvent?.name || ''}`,
+                      value: `×${eventMod.toFixed(1)}`,
+                      color: eventMod > 1 ? 'text-blood' : 'text-emerald',
+                    });
+                  }
+
+                  if (tradeMode === 'buy') {
+                    if (hasFactionDiscount) factors.push({ label: 'Factie korting', value: '×0.7', color: 'text-emerald' });
+                    if (heat.surchargeMultiplier > 1) factors.push({ label: `Heat toeslag (+${heat.surchargePercent}%)`, value: `×${heat.surchargeMultiplier.toFixed(2)}`, color: 'text-blood' });
+                  } else {
+                    factors.push({ label: 'Verkoopmarge', value: '×0.85', color: 'text-muted-foreground' });
+                    if (charmBonus > 0) factors.push({ label: `Charisma & Rep bonus`, value: `+${charmBonus}%`, color: 'text-gold' });
+                  }
+
+                  if (spoilRate > 0) {
+                    const hasStorage = state.villa?.modules.includes('opslagkelder');
+                    factors.push({
+                      label: `Bederf ${hasStorage ? '(½ met Opslagkelder)' : ''}`,
+                      value: `-${Math.round((hasStorage ? spoilRate * 0.5 : spoilRate) * 100)}%/nacht`,
+                      color: 'text-blood',
+                    });
+                  }
+
+                  factors.push({
+                    label: 'Eindprijs',
+                    value: `€${displayPrice}`,
+                    color: 'text-gold',
+                  });
+
+                  return (
+                    <motion.div
+                      key="breakdown"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                        <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">Prijsfactoren</span>
+                        {factors.map((f, i) => (
+                          <div key={i} className={`flex justify-between text-[0.5rem] ${i === factors.length - 1 ? 'pt-1 border-t border-border/30 font-bold' : ''}`}>
+                            <span className="text-muted-foreground">{f.label}</span>
+                            <span className={`font-semibold ${f.color}`}>{f.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
             </motion.div>
           );
         })}
