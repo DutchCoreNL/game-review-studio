@@ -154,6 +154,10 @@ type GameAction =
   | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
   | { type: 'VILLA_THROW_PARTY' }
   | { type: 'DISMISS_ACHIEVEMENT' }
+  // Market alert actions
+  | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
+  | { type: 'REMOVE_MARKET_ALERT'; id: string }
+  | { type: 'CLEAR_TRIGGERED_ALERTS' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -184,6 +188,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Migrate: add market dynamics fields
       if (!loaded.marketPressure) loaded.marketPressure = {};
       if (loaded.activeMarketEvent === undefined) loaded.activeMarketEvent = null;
+      if (!loaded.marketAlerts) loaded.marketAlerts = [];
+      if (!loaded.triggeredAlerts) loaded.triggeredAlerts = [];
       return loaded;
     }
 
@@ -1772,6 +1778,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.generateContracts(fresh);
       fresh.dailyNews = generateDailyNews(fresh);
       return fresh;
+    }
+
+    case 'ADD_MARKET_ALERT': {
+      const alert = action.alert as import('@/game/types').MarketAlert;
+      return { ...s, marketAlerts: [...s.marketAlerts, alert] };
+    }
+
+    case 'REMOVE_MARKET_ALERT': {
+      return { ...s, marketAlerts: s.marketAlerts.filter(a => a.id !== action.id) };
+    }
+
+    case 'CLEAR_TRIGGERED_ALERTS': {
+      return { ...s, triggeredAlerts: [] };
     }
 
     default:

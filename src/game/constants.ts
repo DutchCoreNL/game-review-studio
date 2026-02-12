@@ -951,6 +951,9 @@ export function createInitialState(): import('./types').GameState {
     // Achievement popup state
     pendingAchievements: [],
     seenEndgameEvents: [],
+    // Market alerts
+    marketAlerts: [],
+    triggeredAlerts: [],
   };
 }
 
