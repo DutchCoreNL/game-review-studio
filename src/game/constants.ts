@@ -136,6 +136,13 @@ export const BUSINESSES: Business[] = [
   { id: 'club', name: 'Club Paradiso', cost: 25000, income: 800, clean: 600, desc: 'Nachtclub met dubieuze gasten.' },
   { id: 'autogarage', name: 'Tony\'s Autogarage', cost: 15000, income: 500, clean: 400, desc: 'Garagebedrijf en chop shop.' },
   { id: 'ammo_factory', name: 'Kogelfabriek', cost: 35000, income: 0, clean: 0, desc: 'Produceert dagelijks 3 kogels.' },
+  // Endgame businesses
+  { id: 'haven_import', name: 'Havenpakhuis Import/Export', cost: 50000, income: 1200, clean: 800, desc: 'Legale import als dekmantel voor smokkelwaar.', reqDistrict: 'port' },
+  { id: 'goudhandel', name: 'Goudhandel De Kroon', cost: 75000, income: 1500, clean: 1200, desc: 'Edelmetaal en juwelen — perfecte witwasoperatie.', reqDistrict: 'crown' },
+  { id: 'escort', name: 'Neon Escort Agency', cost: 60000, income: 1800, clean: 500, desc: 'Exclusieve escortservice met rijke klanten.', reqDistrict: 'neon', reqRep: 200 },
+  { id: 'bouwbedrijf', name: 'Bouwbedrijf IJzerwerk', cost: 80000, income: 1000, clean: 1500, desc: 'Aannemersbedrijf dat grote sommen witwast via nepfacturen.', reqDistrict: 'iron' },
+  { id: 'cryptobeurs', name: 'Cryptobeurs NoxCoin', cost: 100000, income: 2500, clean: 2000, desc: 'Cryptoplatform — hoge opbrengst, digitaal witwassen.', reqRep: 300, reqDay: 30 },
+  { id: 'hotel', name: 'Hotel Noxhaven Grand', cost: 150000, income: 3000, clean: 2500, desc: 'Het kroonjuweel — luxehotel met VIP-gasten en maximale dekking.', reqRep: 400, reqBusinessCount: 3 },
 ];
 
 export const REKAT_COSTS: Record<string, number> = {
