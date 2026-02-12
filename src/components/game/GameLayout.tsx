@@ -1,5 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { setMusicScene, stopMusic } from '@/game/sounds/ambientMusic';
+import { startAmbiance, stopAmbiance } from '@/game/sounds/cityAmbiance';
+import { playPopupOpen } from '@/game/sounds/uiSounds';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
 import { MapView } from './MapView';
@@ -40,6 +43,28 @@ export function GameLayout() {
   const { view, state, dispatch } = useGame();
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
+
+  // Music scene management
+  useEffect(() => {
+    if (state.activeCombat) {
+      setMusicScene('combat');
+    } else {
+      setMusicScene(view as 'city' | 'trade' | 'ops' | 'empire' | 'profile');
+    }
+  }, [view, state.activeCombat]);
+
+  // Start city ambiance on mount
+  useEffect(() => {
+    startAmbiance();
+    return () => { stopAmbiance(); stopMusic(); };
+  }, []);
+
+  // Popup open sounds
+  useEffect(() => {
+    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent) {
+      playPopupOpen();
+    }
+  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent]);
 
   const clearEffect = useCallback(() => {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });

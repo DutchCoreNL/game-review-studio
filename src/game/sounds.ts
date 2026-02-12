@@ -6,7 +6,7 @@ let masterGain: GainNode | null = null;
 let muted = false;
 let volume = 0.35;
 
-function getCtx(): AudioContext {
+export function getCtx(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
     masterGain = audioCtx.createGain();
@@ -19,7 +19,7 @@ function getCtx(): AudioContext {
   return audioCtx;
 }
 
-function getMaster(): GainNode {
+export function getMaster(): GainNode {
   getCtx();
   return masterGain!;
 }

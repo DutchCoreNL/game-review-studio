@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { GameView } from '@/game/types';
 import { Map, Package, Crosshair, Crown, User, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { playNavClick } from '@/game/sounds/uiSounds';
 
 const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
   { id: 'city', label: 'KAART', icon: Map },
@@ -22,7 +23,7 @@ export function GameNav() {
         return (
           <button
             key={item.id}
-            onClick={() => setView(item.id)}
+            onClick={() => { playNavClick(); setView(item.id); }}
             className={`flex flex-col items-center gap-0.5 text-[0.55rem] font-semibold transition-all duration-200 px-3 py-1.5 min-w-[56px] relative ${
               isActive ? 'text-gold' : 'text-muted-foreground'
             }`}
