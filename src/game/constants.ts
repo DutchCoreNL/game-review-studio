@@ -777,6 +777,36 @@ export const PHONE_CONTACTS: Record<string, { name: string; avatar: string }> = 
 
 // ========== INITIAL STATE ==========
 
+// ========== NEMESIS ARCHETYPES ==========
+
+import { NemesisArchetype } from './types';
+
+export interface NemesisArchetypeDef {
+  id: NemesisArchetype;
+  name: string;
+  icon: string;
+  desc: string;
+  marketManipBonus: number; // multiplier on market manipulation chance
+  attackBonus: number; // multiplier on villa/district attack chance
+  heatManipBonus: number; // extra heat added to player per action
+  allianceChance: number; // chance to form faction alliance
+}
+
+export const NEMESIS_ARCHETYPES: NemesisArchetypeDef[] = [
+  { id: 'zakenman', name: 'De Zakenman', icon: '💼', desc: 'Manipuleert markten en koopt facties om.', marketManipBonus: 1.5, attackBonus: 0.8, heatManipBonus: 0, allianceChance: 0.3 },
+  { id: 'brute', name: 'De Brute', icon: '👊', desc: 'Valt villa en districten aan, steelt goederen.', marketManipBonus: 0.5, attackBonus: 1.3, heatManipBonus: 0, allianceChance: 0.1 },
+  { id: 'schaduw', name: 'De Schaduw', icon: '🌑', desc: 'Saboteert leveringen en vergroot je heat.', marketManipBonus: 1.0, attackBonus: 0.7, heatManipBonus: 5, allianceChance: 0.15 },
+  { id: 'strateeg', name: 'De Strateeg', icon: '♟️', desc: 'Sluit allianties met facties en ondermijnt relaties.', marketManipBonus: 0.8, attackBonus: 0.9, heatManipBonus: 0, allianceChance: 0.5 },
+];
+
+export const NEMESIS_NEGOTIATE_COST_BASE = 15000;
+export const NEMESIS_TRUCE_DAYS = 5;
+
+function getRandomArchetype(): NemesisArchetype {
+  const types: NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
+  return types[Math.floor(Math.random() * types.length)];
+}
+
 function createInitialNemesis(): NemesisState {
   return {
     name: NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)],
@@ -791,6 +821,13 @@ function createInitialNemesis(): NemesisState {
     alive: true,
     nextSpawnDay: 0,
     defeatedNames: [],
+    archetype: getRandomArchetype(),
+    claimedDistrict: null,
+    alliedFaction: null,
+    truceDaysLeft: 0,
+    lastReaction: '',
+    negotiatedThisGen: false,
+    scoutResult: null,
   };
 }
 

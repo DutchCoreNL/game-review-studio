@@ -3,9 +3,9 @@
  * Weather, District Rep, Crew Specs, Smuggle Routes, Territory Defense, Nemesis, Phone
  */
 
-import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
-import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat } from './engine';
-import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, NemesisArchetype, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
+import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat, arrestPlayer } from './engine';
+import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
 
@@ -73,14 +73,20 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   const nem = state.nemesis;
   if (!nem) return;
 
+  // === TRUCE COUNTDOWN ===
+  if (nem.truceDaysLeft > 0) {
+    nem.truceDaysLeft--;
+    if (nem.truceDaysLeft === 0) {
+      addPhoneMessage(state, 'nemesis', `Het bestand is voorbij. Bereid je voor. — ${nem.name}`, 'threat');
+    }
+  }
+
   // === SUCCESSOR SYSTEM: If nemesis is dead, check for successor spawn ===
   if (!nem.alive) {
-    // All 5 generations defeated — no more nemesis (unless free play)
     if (nem.generation >= 5 && !state.freePlayMode) {
       report.nemesisAction = 'De onderwereld is rustig... geen rivaal meer.';
       return;
     }
-    // Waiting for successor
     if (state.day < nem.nextSpawnDay) {
       const daysLeft = nem.nextSpawnDay - state.day;
       report.nemesisAction = `Een nieuwe rivaal wordt verwacht... (${daysLeft} ${daysLeft === 1 ? 'dag' : 'dagen'})`;
@@ -94,60 +100,135 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
       : NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)];
     const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
     const newLocation = districts.filter(d => d !== nem.location)[Math.floor(Math.random() * 4)];
-    
+
     nem.defeatedNames.push(nem.name);
     nem.name = newName;
     nem.generation++;
     nem.alive = true;
     nem.cooldown = 0;
-    nem.maxHp = 80 + nem.generation * 20; // max ~180 at gen 5
+    nem.maxHp = 80 + nem.generation * 20;
     nem.hp = nem.maxHp;
-    nem.power = Math.floor(nem.power * 0.6); // successor starts at 60% of previous power
+    nem.power = Math.floor(nem.power * 0.6);
     nem.location = newLocation;
     nem.lastAction = '';
-    addPhoneMessage(state, 'anonymous', `⚠️ Een nieuwe rivaal is opgestaan: ${newName}. Generatie #${nem.generation}.`, 'threat');
-    report.nemesisAction = `Nieuwe rivaal: ${newName} (Generatie #${nem.generation})`;
+    nem.claimedDistrict = null;
+    nem.alliedFaction = null;
+    nem.truceDaysLeft = 0;
+    nem.lastReaction = '';
+    nem.negotiatedThisGen = false;
+    nem.scoutResult = null;
+    // New archetype for successor
+    const archetypes: NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
+    nem.archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+    const archDef = NEMESIS_ARCHETYPES.find(a => a.id === nem.archetype)!;
+    addPhoneMessage(state, 'anonymous', `⚠️ Een nieuwe rivaal is opgestaan: ${newName} (${archDef.icon} ${archDef.name}). Generatie #${nem.generation}.`, 'threat');
+    report.nemesisAction = `Nieuwe rivaal: ${newName} — ${archDef.name} (Gen #${nem.generation})`;
     return;
   }
 
-  // === POWER SCALING: Capped at ~85% of player's total power ===
+  // === If truce is active, nemesis does nothing ===
+  if (nem.truceDaysLeft > 0) {
+    nem.lastAction = 'houdt zich aan het bestand';
+    report.nemesisAction = `${nem.name}: houdt zich aan het bestand (${nem.truceDaysLeft} dagen over)`;
+    return;
+  }
+
+  // === POWER SCALING ===
   const totalStats = state.player.stats.muscle + state.player.stats.brains + state.player.stats.charm;
   const playerPower = state.player.level * 3 + totalStats;
   const basePower = 10 + state.day * 0.5;
   nem.power = Math.floor(Math.min(playerPower * 0.85, basePower + nem.generation * 5));
-  // Ensure minimum power so nemesis isn't trivial
   nem.power = Math.max(nem.power, 8 + nem.generation * 3);
 
-  // Nemesis moves
+  // Alliance power boost
+  if (nem.alliedFaction) nem.power += 10;
+
+  const archDef = NEMESIS_ARCHETYPES.find(a => a.id === nem.archetype)!;
   const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
+
+  // Nemesis moves
   if (Math.random() < 0.4) {
-    nem.location = districts[Math.floor(Math.random() * districts.length)];
+    // Prefer moving to claimed district sometimes
+    if (nem.claimedDistrict && Math.random() < 0.4) {
+      nem.location = nem.claimedDistrict;
+    } else {
+      nem.location = districts[Math.floor(Math.random() * districts.length)];
+    }
   }
 
-  // Nemesis actions (1-2 per day)
+  // === REACTIONS TO PLAYER ACTIONS ===
+  const reactions: string[] = [];
+
+  // React to player buying district
+  if (state.ownedDistricts.length > 0 && Math.random() < 0.15) {
+    addPhoneMessage(state, 'nemesis', `Je denkt dat je de stad kunt kopen? Ik zal je laten zien hoe het werkt. — ${nem.name}`, 'threat');
+    reactions.push('dreigt na jouw districtaankoop');
+  }
+
+  // React to high heat: send anonymous tip
+  if ((state.personalHeat || 0) > 60 && nem.archetype === 'schaduw' && Math.random() < 0.3) {
+    addPersonalHeat(state, archDef.heatManipBonus);
+    addPhoneMessage(state, 'police', `We hebben een anonieme tip ontvangen over uw activiteiten...`, 'warning');
+    reactions.push('stuurt anonieme tip naar politie');
+    report.nemesisReaction = `${nem.name} heeft een anonieme tip naar de politie gestuurd (+${archDef.heatManipBonus} heat)`;
+  }
+
+  // React to player in prison: extra revenge
+  if (state.prison) {
+    const revengeResult = nemesisPrisonRevenge(state, nem);
+    if (revengeResult) {
+      reactions.push(revengeResult);
+      report.nemesisPrisonRevenge = `${nem.name}: ${revengeResult}`;
+    }
+  }
+
+  nem.lastReaction = reactions.join(', ');
+
+  // === FACTION ALLIANCE (gen 2+) ===
+  if (nem.generation >= 2 && !nem.alliedFaction && Math.random() < archDef.allianceChance * 0.15) {
+    const factions = Object.keys(FAMILIES) as FamilyId[];
+    const target = factions[Math.floor(Math.random() * factions.length)];
+    nem.alliedFaction = target;
+    addPhoneMessage(state, 'anonymous', `⚠️ ${nem.name} heeft een bondgenootschap gesloten met ${FAMILIES[target].name}!`, 'threat');
+  }
+
+  // Alliance effects: drain faction relation
+  if (nem.alliedFaction) {
+    state.familyRel[nem.alliedFaction] = Math.max(-100, (state.familyRel[nem.alliedFaction] || 0) - 3);
+  }
+
+  // === TERRITORY CLAIM ===
+  if (!nem.claimedDistrict && Math.random() < 0.1 + (archDef.attackBonus - 1) * 0.1) {
+    const unowned = districts.filter(d => !state.ownedDistricts.includes(d) && d !== state.loc);
+    if (unowned.length > 0) {
+      nem.claimedDistrict = unowned[Math.floor(Math.random() * unowned.length)];
+      nem.location = nem.claimedDistrict;
+      addPhoneMessage(state, 'nemesis', `${DISTRICTS[nem.claimedDistrict].name} is nu van mij. Kom maar als je durft. — ${nem.name}`, 'threat');
+    }
+  }
+
+  // === NEMESIS ACTIONS (archetype-weighted) ===
   const actions: string[] = [];
   const actionCount = 1 + (Math.random() < 0.3 ? 1 : 0);
 
-  // === VILLA ATTACK (special action, higher chance when player is powerful) ===
+  // Villa attack
   const villaAttackChance = state.villa
     ? Math.min(0.25, 0.05 + (state.villa.level * 0.03) + (state.villa.modules.length * 0.01) + (state.ownedDistricts.length * 0.02))
-      * (state.villa.modules.includes('camera') ? 0.7 : 1) // cameras reduce attack chance by 30%
+      * (state.villa.modules.includes('camera') ? 0.7 : 1)
+      * archDef.attackBonus
     : 0;
 
   if (state.villa && Math.random() < villaAttackChance) {
-    // Villa defense calculation
+    // Villa defense calculation (same as before)
     const villa = state.villa;
     const defenseBreakdown: { label: string; value: number; icon: string }[] = [];
-
     const levelDef = villa.level * 15;
     defenseBreakdown.push({ label: `Villa Level ${villa.level}`, value: levelDef, icon: '🏛️' });
-
     let defenseScore = levelDef;
     if (villa.modules.includes('commandocentrum')) { defenseScore += 20; defenseBreakdown.push({ label: 'Commandocentrum', value: 20, icon: '🎯' }); }
     if (villa.modules.includes('wapenkamer')) { defenseScore += 10; defenseBreakdown.push({ label: 'Wapenkamer', value: 10, icon: '🔫' }); }
     if (villa.modules.includes('crew_kwartieren')) { defenseScore += 10; defenseBreakdown.push({ label: 'Crew Kwartieren', value: 10, icon: '🏠' }); }
     if (villa.modules.includes('camera')) { defenseScore += 25; defenseBreakdown.push({ label: 'Bewakingscamera\'s', value: 25, icon: '📹' }); }
-    // Crew contributes
     const crewDefense = state.crew.filter(c => c.hp > 30).length * 5;
     if (crewDefense > 0) { defenseScore += crewDefense; defenseBreakdown.push({ label: 'Crew verdediging', value: crewDefense, icon: '👥' }); }
 
@@ -155,73 +236,43 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
     const won = defenseScore >= attackPower;
 
     if (won) {
-      // Defender wins — nemesis takes damage
       nem.hp = Math.max(0, nem.hp - 15);
       actions.push('villa-aanval afgeslagen!');
-      report.villaAttack = {
-        won: true,
-        nemesisName: nem.name,
-        damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}${villa.modules.includes('camera') ? ' (📹 camera-bonus)' : ''}`,
-        defenseScore,
-        attackPower,
-        defenseBreakdown,
-      };
+      report.villaAttack = { won: true, nemesisName: nem.name, damage: `Verdediging: ${defenseScore} vs Aanval: ${attackPower}`, defenseScore, attackPower, defenseBreakdown };
       addPhoneMessage(state, 'anonymous', `${nem.name} heeft je villa aangevallen, maar je verdediging hield stand!`, 'info');
     } else {
-      // Attacker wins — damage to villa
       const damages: string[] = [];
       let stolenMoney = 0;
       let moduleDamaged: string | undefined;
-
-      // Tunnel halves losses
       const hasTunnel = villa.modules.includes('tunnel');
-
-      // Steal from vault (25-40% of vault, halved with tunnel)
       if (villa.modules.includes('kluis') && villa.vaultMoney > 0) {
         let stealPct = 0.25 + Math.random() * 0.15;
-        if (hasTunnel) stealPct *= 0.5; // tunnel halves theft
+        if (hasTunnel) stealPct *= 0.5;
         stolenMoney = Math.floor(villa.vaultMoney * stealPct);
         villa.vaultMoney -= stolenMoney;
         damages.push(`€${stolenMoney.toLocaleString()} gestolen uit kluis${hasTunnel ? ' (tunnel beperkt verlies)' : ''}`);
       }
-
-      // Damage a random module (tunnel & camera can't be destroyed in attack)
       const damageable = villa.modules.filter(m => m !== 'kluis' && m !== 'opslagkelder' && m !== 'tunnel' && m !== 'camera');
-      const destroyChance = hasTunnel ? 0.2 : 0.4; // tunnel reduces module destruction chance
+      const destroyChance = hasTunnel ? 0.2 : 0.4;
       if (damageable.length > 0 && Math.random() < destroyChance) {
         const targetMod = damageable[Math.floor(Math.random() * damageable.length)];
         villa.modules = villa.modules.filter(m => m !== targetMod);
-        const modName = targetMod.replace('_', ' ');
-        moduleDamaged = modName;
-        damages.push(`${modName} vernietigd`);
+        moduleDamaged = targetMod.replace('_', ' ');
+        damages.push(`${moduleDamaged} vernietigd`);
       }
-
-      // Crew damage
       state.crew.forEach(c => {
-        if (c.hp > 0 && Math.random() < 0.5) {
-          const dmg = 10 + Math.floor(Math.random() * 15);
-          c.hp = Math.max(1, c.hp - dmg);
-        }
+        if (c.hp > 0 && Math.random() < 0.5) { c.hp = Math.max(1, c.hp - (10 + Math.floor(Math.random() * 15))); }
       });
-
       actions.push('valt je villa aan!');
-      report.villaAttack = {
-        won: false,
-        nemesisName: nem.name,
-        damage: damages.join(', ') || 'Schade aan je villa',
-        stolenMoney: stolenMoney > 0 ? stolenMoney : undefined,
-        moduleDamaged,
-        defenseScore,
-        attackPower,
-        defenseBreakdown,
-      };
+      report.villaAttack = { won: false, nemesisName: nem.name, damage: damages.join(', ') || 'Schade aan je villa', stolenMoney: stolenMoney > 0 ? stolenMoney : undefined, moduleDamaged, defenseScore, attackPower, defenseBreakdown };
       addPhoneMessage(state, 'nemesis', `Je villa is niet zo veilig als je denkt. - ${nem.name}`, 'threat');
     }
   } else {
-    // Normal nemesis actions
+    // Normal nemesis actions (archetype-weighted)
     for (let i = 0; i < actionCount; i++) {
       const roll = Math.random();
-      if (roll < 0.3) {
+      const marketThreshold = 0.3 * archDef.marketManipBonus;
+      if (roll < marketThreshold) {
         // Market manipulation
         const district = districts[Math.floor(Math.random() * districts.length)];
         if (state.prices[district]) {
@@ -231,9 +282,10 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
           state.prices[district][good] = Math.floor(state.prices[district][good] * shift);
         }
         actions.push('manipuleert de markt');
-      } else if (roll < 0.5) {
-        // Sabotage (steal goods)
-        if (Math.random() < 0.2 + nem.power / 200) {
+      } else if (roll < marketThreshold + 0.2) {
+        // Sabotage (steal goods) — brute bonus
+        const stealChance = (0.2 + nem.power / 200) * (nem.archetype === 'brute' ? 1.3 : 1);
+        if (Math.random() < stealChance) {
           const goods = Object.keys(state.inventory) as GoodId[];
           const target = goods.find(g => (state.inventory[g] || 0) > 0);
           if (target) {
@@ -243,24 +295,132 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
             addPhoneMessage(state, 'anonymous', `Iemand heeft je goederen gestolen. ${nem.name} wordt verdacht.`, 'warning');
           }
         }
-      } else if (roll < 0.7) {
+      } else if (roll < marketThreshold + 0.4) {
         // Faction influence
         const factions = Object.keys(FAMILIES) as FamilyId[];
         const fid = factions[Math.floor(Math.random() * factions.length)];
         state.familyRel[fid] = Math.max(-100, (state.familyRel[fid] || 0) - 3);
         actions.push(`beïnvloedt ${FAMILIES[fid].name} tegen je`);
+      } else if (nem.archetype === 'schaduw' && Math.random() < 0.3) {
+        // Schaduw: heat manipulation
+        addPersonalHeat(state, archDef.heatManipBonus);
+        actions.push('vergroot je heat');
       } else {
-        // Territory claim attempt on unowned district
+        // Territory expansion
         const unowned = districts.filter(d => !state.ownedDistricts.includes(d));
-        if (unowned.length > 0) {
-          actions.push('breidt invloed uit');
-        }
+        if (unowned.length > 0) actions.push('breidt invloed uit');
       }
     }
   }
 
+  // Scout result: plan next action for informant
+  nem.scoutResult = actions.length > 0 ? actions[0] : 'houdt zich gedeisd';
+
   nem.lastAction = actions.join(', ') || 'houdt zich gedeisd';
-  report.nemesisAction = `${nem.name}: ${nem.lastAction}`;
+  report.nemesisAction = `${nem.name} (${archDef.icon}): ${nem.lastAction}`;
+
+  // Show scout result in report if player sent an informant
+  if (state.nemesis.scoutResult && report.nemesisScoutResult === undefined) {
+    // This will be set by scoutNemesis() if the player requested it
+  }
+}
+
+// ========== NEMESIS PRISON REVENGE ==========
+
+function nemesisPrisonRevenge(state: GameState, nem: NemesisState): string | null {
+  const roll = Math.random();
+  if (roll < 0.5 && state.villa && state.villa.vaultMoney > 0) {
+    // Steal from vault
+    const stolen = Math.floor(state.villa.vaultMoney * 0.15);
+    state.villa.vaultMoney -= stolen;
+    return `steelt €${stolen.toLocaleString()} uit je kluis terwijl je vastzit`;
+  } else if (roll < 0.8) {
+    // Claim/damage a district
+    const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
+    const owned = state.ownedDistricts;
+    if (owned.length > 0) {
+      const target = owned[Math.floor(Math.random() * owned.length)];
+      state.districtRep[target] = Math.max(0, (state.districtRep[target] || 0) - 15);
+      return `ondermijnt je reputatie in ${DISTRICTS[target].name} (-15 rep)`;
+    }
+  } else {
+    // Corrupt a crew member
+    if (state.crew.length > 0) {
+      const target = state.crew[Math.floor(Math.random() * state.crew.length)];
+      target.loyalty = Math.max(0, target.loyalty - 25);
+      return `corrumpeert ${target.name} (loyalty -25)`;
+    }
+  }
+  return null;
+}
+
+// ========== NEGOTIATE NEMESIS ==========
+
+export function negotiateNemesis(state: GameState): { success: boolean; message: string } {
+  const nem = state.nemesis;
+  if (!nem || !nem.alive) return { success: false, message: 'Geen actieve rivaal.' };
+  if (nem.negotiatedThisGen) return { success: false, message: 'Je hebt deze rivaal al eerder een bestand voorgesteld.' };
+  if (nem.truceDaysLeft > 0) return { success: false, message: 'Er is al een bestand actief.' };
+  
+  const charm = getPlayerStat(state, 'charm');
+  if (charm < 30) return { success: false, message: 'Je hebt minstens 30 Charm nodig om te onderhandelen.' };
+  
+  const cost = NEMESIS_NEGOTIATE_COST_BASE + nem.generation * 5000;
+  if (state.money < cost) return { success: false, message: `Je hebt €${cost.toLocaleString()} nodig om te onderhandelen.` };
+
+  state.money -= cost;
+  state.stats.totalSpent += cost;
+  nem.truceDaysLeft = NEMESIS_TRUCE_DAYS;
+  nem.negotiatedThisGen = true;
+  addPhoneMessage(state, 'nemesis', `Goed. ${NEMESIS_TRUCE_DAYS} dagen rust. Maar daarna... — ${nem.name}`, 'info');
+  return { success: true, message: `Bestand van ${NEMESIS_TRUCE_DAYS} dagen gesloten met ${nem.name} voor €${cost.toLocaleString()}.` };
+}
+
+// ========== SCOUT NEMESIS ==========
+
+export function scoutNemesis(state: GameState): { success: boolean; message: string } {
+  const nem = state.nemesis;
+  if (!nem || !nem.alive) return { success: false, message: 'Geen actieve rivaal.' };
+
+  const hasHacker = state.crew.some(c => c.role === 'Hacker' && c.hp > 0);
+  const brains = getPlayerStat(state, 'brains');
+  if (!hasHacker && brains < 25) return { success: false, message: 'Je hebt een Hacker in je crew of 25+ Brains nodig.' };
+
+  const archDef = NEMESIS_ARCHETYPES.find(a => a.id === nem.archetype)!;
+  // Plan next action based on archetype
+  const plannedActions: string[] = [];
+  if (nem.archetype === 'zakenman') plannedActions.push('marktmanipulatie plegen', 'een factie omkopen');
+  if (nem.archetype === 'brute') plannedActions.push('je villa aanvallen', 'goederen stelen');
+  if (nem.archetype === 'schaduw') plannedActions.push('je heat verhogen', 'een anonieme tip sturen');
+  if (nem.archetype === 'strateeg') plannedActions.push('een factie-alliantie sluiten', 'je factierelaties ondermijnen');
+  if (nem.claimedDistrict) plannedActions.push(`zich verschansen in ${DISTRICTS[nem.claimedDistrict].name}`);
+
+  const intel = plannedActions[Math.floor(Math.random() * plannedActions.length)];
+  const scoutMsg = `Intel: ${nem.name} (${archDef.icon} ${archDef.name}) is van plan om ${intel}. Locatie: ${DISTRICTS[nem.location].name}.`;
+  
+  // Store for night report
+  state.nemesis.scoutResult = scoutMsg;
+
+  addPhoneMessage(state, 'informant', scoutMsg, 'info');
+  return { success: true, message: scoutMsg };
+}
+
+// ========== NEMESIS TERRITORY PRICE EFFECTS ==========
+
+export function getNemesisTerritoryPriceMod(state: GameState, districtId: DistrictId, mode: 'buy' | 'sell'): number {
+  const nem = state.nemesis;
+  if (!nem || !nem.alive || nem.claimedDistrict !== districtId) return 1;
+  return mode === 'buy' ? 1.15 : 0.90; // +15% buy, -10% sell
+}
+
+// ========== NEMESIS COMBAT DEFENSE BONUS ==========
+
+export function getNemesisDefenseBonus(state: GameState): number {
+  const nem = state.nemesis;
+  if (!nem || !nem.alive) return 0;
+  // Defense bonus when fighting nemesis in their claimed district
+  if (nem.claimedDistrict === state.loc) return 15;
+  return 0;
 }
 
 export function startNemesisCombat(state: GameState): import('./types').CombatState | null {
@@ -299,20 +459,23 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
 export function resolveNemesisDefeat(state: GameState): void {
   const nem = state.nemesis;
   nem.defeated++;
-  nem.alive = false; // Permanently dead
+  nem.alive = false;
 
-  // Reward scales with generation
+  // Clear territory and alliances
+  nem.claimedDistrict = null;
+  nem.alliedFaction = null;
+  nem.truceDaysLeft = 0;
+  nem.scoutResult = null;
+
   const reward = 15000 + nem.generation * 12000;
   state.money += reward;
   state.rep += 100 + nem.generation * 50;
   state.stats.totalEarned += reward;
 
-  // Calculate next spawn day: longer wait for higher generations
   if (nem.generation < 5 || state.freePlayMode) {
-    nem.nextSpawnDay = state.day + 10 + nem.generation * 3; // 13, 16, 19, 22, 25 days
+    nem.nextSpawnDay = state.day + 10 + nem.generation * 3;
     addPhoneMessage(state, 'anonymous', `${nem.name} is permanent uitgeschakeld! +€${reward.toLocaleString()} buit. Een opvolger kan over ${10 + nem.generation * 3} dagen opduiken.`, 'opportunity');
   } else {
-    // Generation 5 defeated — no more nemeses
     addPhoneMessage(state, 'anonymous', `${nem.name} was de laatste rivaal. De onderwereld is definitief van jou! +€${reward.toLocaleString()} buit.`, 'opportunity');
   }
 }
