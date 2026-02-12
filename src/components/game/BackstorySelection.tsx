@@ -3,6 +3,7 @@ import { BACKSTORIES, type BackstoryDef } from '@/game/backstory';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Zap, Brain, Heart } from 'lucide-react';
+import { BACKSTORY_IMAGES } from '@/assets/items';
 
 const STAT_ICONS: Record<string, React.ReactNode> = {
   muscle: <Zap size={14} className="text-blood" />,
@@ -91,25 +92,34 @@ export function BackstorySelection({ onSelect }: BackstorySelectionProps) {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.15 }}
                   onClick={() => { setSelected(bs); setPhase('confirm'); }}
-                  className={`w-full text-left p-3 rounded-lg border border-border bg-card hover:border-${bs.color}/50 hover:bg-${bs.color}/5 transition-all active:scale-[0.98] group`}
+                  className={`w-full text-left rounded-lg border border-border bg-card overflow-hidden hover:border-${bs.color}/50 hover:bg-${bs.color}/5 transition-all active:scale-[0.98] group`}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl mt-0.5">{bs.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-display text-xs text-foreground uppercase tracking-wider">
-                          {bs.name}
-                        </h3>
-                        <div className="flex items-center gap-1">
-                          {Object.entries(bs.statBonuses).map(([stat, val]) => (
-                            <span key={stat} className="flex items-center gap-0.5 text-[0.5rem] text-muted-foreground">
-                              {STAT_ICONS[stat]} +{val} {STAT_NAMES[stat]}
-                            </span>
-                          ))}
+                  {/* Banner image */}
+                  {BACKSTORY_IMAGES[bs.id] && (
+                    <div className="relative h-20 overflow-hidden">
+                      <img src={BACKSTORY_IMAGES[bs.id]} alt={bs.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl mt-0.5">{bs.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display text-xs text-foreground uppercase tracking-wider">
+                            {bs.name}
+                          </h3>
+                          <div className="flex items-center gap-1">
+                            {Object.entries(bs.statBonuses).map(([stat, val]) => (
+                              <span key={stat} className="flex items-center gap-0.5 text-[0.5rem] text-muted-foreground">
+                                {STAT_ICONS[stat]} +{val} {STAT_NAMES[stat]}
+                              </span>
+                            ))}
+                          </div>
                         </div>
+                        <p className="text-[0.55rem] text-muted-foreground italic mt-0.5">{bs.subtitle}</p>
+                        <p className="text-[0.6rem] text-muted-foreground mt-1">{bs.desc}</p>
                       </div>
-                      <p className="text-[0.55rem] text-muted-foreground italic mt-0.5">{bs.subtitle}</p>
-                      <p className="text-[0.6rem] text-muted-foreground mt-1">{bs.desc}</p>
                     </div>
                   </div>
                 </motion.button>
@@ -126,20 +136,40 @@ export function BackstorySelection({ onSelect }: BackstorySelectionProps) {
               exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-4"
             >
-              <div className="text-center">
-                <span className="text-4xl">{selected.icon}</span>
-                <h2 className="font-display text-lg text-foreground uppercase tracking-widest mt-2">
-                  {selected.name}
-                </h2>
-                <p className="text-[0.55rem] text-muted-foreground italic">{selected.subtitle}</p>
-              </div>
+              <div className="rounded-lg overflow-hidden border border-border">
+                {/* Banner */}
+                {BACKSTORY_IMAGES[selected.id] && (
+                  <div className="relative h-28 overflow-hidden">
+                    <img src={BACKSTORY_IMAGES[selected.id]} alt={selected.name} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                    <div className="absolute bottom-2 left-0 right-0 text-center">
+                      <span className="text-3xl">{selected.icon}</span>
+                      <h2 className="font-display text-lg text-foreground uppercase tracking-widest mt-1">
+                        {selected.name}
+                      </h2>
+                      <p className="text-[0.55rem] text-muted-foreground italic">{selected.subtitle}</p>
+                    </div>
+                  </div>
+                )}
+                {!BACKSTORY_IMAGES[selected.id] && (
+                  <div className="text-center pt-4">
+                    <span className="text-4xl">{selected.icon}</span>
+                    <h2 className="font-display text-lg text-foreground uppercase tracking-widest mt-2">
+                      {selected.name}
+                    </h2>
+                    <p className="text-[0.55rem] text-muted-foreground italic">{selected.subtitle}</p>
+                  </div>
+                )}
 
-              <div className="bg-muted/30 rounded-lg p-3 border border-border">
-                <TypewriterText
-                  text={selected.longDesc}
-                  speed={20}
-                  className="text-[0.6rem] leading-relaxed text-foreground"
-                />
+                <div className="p-3">
+                  <div className="bg-muted/30 rounded-lg p-3 border border-border">
+                    <TypewriterText
+                      text={selected.longDesc}
+                      speed={20}
+                      className="text-[0.6rem] leading-relaxed text-foreground"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
