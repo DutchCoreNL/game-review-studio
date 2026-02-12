@@ -3,6 +3,7 @@ import { VEHICLES, VEHICLE_SELL_RATIO, UNIQUE_VEHICLES } from '@/game/constants'
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { VEHICLE_IMAGES } from '@/assets/items';
+import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { Store, TrendingUp, TrendingDown, Tag, Car, ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -182,6 +183,15 @@ export function DealerPanel() {
                     <p className="text-[0.4rem] text-muted-foreground">
                       S:{v.storage} · Spd:{v.speed} · Arm:{v.armor} · Ch:{v.charm}
                     </p>
+                    {/* Progress bar: money saved vs. vehicle cost */}
+                    {state.money < marketPrice && (
+                      <div className="mt-1">
+                        <Progress value={Math.min(100, (state.money / marketPrice) * 100)} className="h-[3px] bg-muted/30" />
+                        <p className="text-[0.35rem] text-muted-foreground mt-0.5">
+                          {Math.round((state.money / marketPrice) * 100)}% — nog €{(marketPrice - state.money).toLocaleString()} nodig
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <GameButton

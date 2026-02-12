@@ -606,6 +606,11 @@ export interface NightReportData {
   triggeredAlerts?: TriggeredMarketAlert[];
   // Expiry warnings
   expiryWarnings?: ExpiryWarning[];
+  // Engagement systems
+  cliffhanger?: { text: string; icon: string };
+  goldenHourBonus?: number;
+  goldenHourStarted?: boolean;
+  goldenHourEnded?: boolean;
 }
 
 export interface ExpiryWarning {
@@ -863,6 +868,9 @@ export interface GameState {
   // ========== DEALER STATE ==========
   vehiclePriceModifiers: Record<string, number>; // vehicleId -> multiplier (0.9 - 1.15)
   dealerDeal: DealerDeal | null;
+
+  // ========== GOLDEN HOUR STATE ==========
+  goldenHour: { turnsLeft: number } | null;
 
   // ========== AUCTION STATE ==========
   auctionItems?: AuctionItem[];

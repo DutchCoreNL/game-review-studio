@@ -11,8 +11,9 @@ import { ResourceTile } from './header/ResourceTile';
 import { HeatTile } from './header/HeatTile';
 import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
+import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles } from 'lucide-react';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
 
@@ -45,9 +46,11 @@ export function GameHeader() {
   const karmaAlign = getKarmaAlignment(karma);
   const karmaLbl = getKarmaLabel(karma);
   const ammo = state.ammo || 0;
+  const xpPct = state.player.nextXp > 0 ? (state.player.xp / state.player.nextXp) * 100 : 0;
+  const isGoldenHour = !!state.goldenHour;
 
   return (
-    <header className="flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-3 pt-2 pb-2">
+    <header className={`flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-3 pt-2 pb-2 ${isGoldenHour ? 'ring-1 ring-gold/40 shadow-[0_0_15px_hsl(var(--gold)/0.15)]' : ''}`}>
       {/* Row 1: Title + Money */}
       <div className="flex justify-between items-start mb-2">
         <div className="min-w-0">
@@ -116,6 +119,10 @@ export function GameHeader() {
             tooltip="Je level stijgt door XP te verdienen."
             onTap={() => setPopup('level')}
           />
+          {/* XP mini progress bar */}
+          <div className="absolute -bottom-0.5 left-1 right-1">
+            <Progress value={xpPct} className="h-[2px] bg-muted/30" />
+          </div>
           {state.player.skillPoints > 0 && (
             <motion.span
               initial={{ scale: 0 }}
@@ -160,6 +167,20 @@ export function GameHeader() {
             icon={<EyeOff size={8} className="text-ice" />}
             tooltip="Je zit ondergedoken. Tijdens het schuilen daalt je heat, maar je kunt geen operaties uitvoeren."
           />
+        )}
+
+        {isGoldenHour && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-gold/15 border border-gold/40 text-gold"
+          >
+            <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>
+              <Sparkles size={8} />
+            </motion.div>
+            <span className="text-[0.45rem] font-bold uppercase tracking-wider">GOUD</span>
+            <span className="text-[0.45rem] font-bold">{state.goldenHour!.turnsLeft}</span>
+          </motion.div>
         )}
       </div>
 

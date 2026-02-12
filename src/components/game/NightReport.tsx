@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -573,11 +573,65 @@ export function NightReport() {
             </motion.div>
           )}
 
+          {/* Golden Hour notification */}
+          {report.goldenHourStarted && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: d + 0.5, type: 'spring', stiffness: 350 }}
+              className="border rounded-lg p-3 bg-[hsl(var(--gold)/0.12)] border-gold/50 shadow-[0_0_20px_hsl(var(--gold)/0.1)]"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>✨</motion.span>
+                <span className="text-xs font-bold text-gold uppercase tracking-wider">Gouden Uur Begonnen!</span>
+              </div>
+              <p className="text-[0.55rem] text-muted-foreground">Alle inkomsten x2 voor 3 beurten — maar heat stijgt ook sneller!</p>
+            </motion.div>
+          )}
+          {report.goldenHourEnded && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: d + 0.5, duration: 0.35 }}
+              className="flex items-center gap-2 bg-gold/8 border border-gold/20 rounded-lg px-3 py-2"
+            >
+              <span>🌟</span>
+              <span className="text-[0.6rem] text-gold font-bold">Gouden Uur voorbij</span>
+              {report.goldenHourBonus && report.goldenHourBonus > 0 && (
+                <span className="text-[0.55rem] text-emerald ml-auto font-bold">+€{report.goldenHourBonus.toLocaleString()} bonus</span>
+              )}
+            </motion.div>
+          )}
+          {report.goldenHourBonus && report.goldenHourBonus > 0 && !report.goldenHourEnded && (
+            <AnimatedReportRow icon={<Sparkles size={14} />} label="Gouden Uur Bonus" value={report.goldenHourBonus} prefix="€" positive color="text-gold" delay={d + 0.4} />
+          )}
+
+          {/* Cliffhanger - "Morgen..." teaser */}
+          {report.cliffhanger && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: d + 0.8, duration: 0.6 }}
+              className="border rounded-lg p-3 bg-[hsl(var(--game-purple)/0.08)] border-game-purple/30 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-sm">{report.cliffhanger.icon}</span>
+                <span className="text-[0.6rem] font-bold text-game-purple uppercase tracking-widest">Morgen...</span>
+                <motion.span
+                  className="text-game-purple/60 text-xs"
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >...</motion.span>
+              </div>
+              <p className="text-[0.55rem] text-muted-foreground italic leading-relaxed">{report.cliffhanger.text}</p>
+            </motion.div>
+          )}
+
           {/* Dismiss */}
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: d + 0.7, duration: 0.3 }}
+            transition={{ delay: d + 1.0, duration: 0.3 }}
             onClick={() => dispatch({ type: 'DISMISS_NIGHT_REPORT' })}
             className="w-full mt-5 py-3 rounded bg-gold text-secondary-foreground font-bold text-sm uppercase tracking-wider"
             whileTap={{ scale: 0.97 }}

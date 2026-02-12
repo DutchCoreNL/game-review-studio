@@ -41,7 +41,13 @@ export function CarTheftPopup() {
     if (success) {
       showToast(`🚗 ${carDef.name} gestolen! Check de Chop Shop.`, false);
     } else {
-      showToast(`❌ Autodiefstal mislukt! Alarm afgegaan, +${carDef.heatGain + 10} heat.`, true);
+      // Near-miss feedback
+      const diff = Math.round(successChance);
+      const skillNeeded = Math.ceil((carDef.stealDifficulty - statBonus * 2) / 2);
+      const nearMissMsg = diff >= 60
+        ? `Bijna! ${diff}% kans — net pech gehad.`
+        : `Slagingskans was ${diff}%. Je Brains/Muscle is ${skillNeeded > 0 ? skillNeeded + ' punten te laag' : 'te laag'}.`;
+      showToast(`❌ Mislukt! ${nearMissMsg}`, true);
     }
     dispatch({ type: 'ATTEMPT_CAR_THEFT', success });
   };

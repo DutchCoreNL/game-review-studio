@@ -1038,6 +1038,8 @@ export function createInitialState(): import('./types').GameState {
     // Dealer state
     vehiclePriceModifiers: {},
     dealerDeal: null,
+    // Golden hour state
+    goldenHour: null,
   };
 }
 
