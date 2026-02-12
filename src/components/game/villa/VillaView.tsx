@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax } from '@/game/villa';
+import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, VILLA_PRESTIGE_UPGRADES, getVaultMax, getStorageMax } from '@/game/villa';
 import { GOODS, DISTRICTS } from '@/game/constants';
 import { GoodId, DistrictId, VillaModuleId } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
@@ -110,8 +110,9 @@ export function VillaView() {
 function OverviewTab() {
   const { state, dispatch, showToast } = useGame();
   const villa = state.villa!;
-  const vaultMax = getVaultMax(villa.level);
-  const storageMax = getStorageMax(villa.level);
+  const prestige = villa.prestigeModules || [];
+  const vaultMax = getVaultMax(villa.level, prestige.includes('kluis'));
+  const storageMax = getStorageMax(villa.level, prestige.includes('opslagkelder'));
   const storedCount = Object.values(villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
 
   const partyCost = [0, 15000, 25000, 40000][villa.level] || 15000;
@@ -315,8 +316,9 @@ function StorageTab({ depositAmount, setDepositAmount, goodDepositGood, setGoodD
   const hasStorage = villa.modules.includes('opslagkelder');
   const hasAmmo = villa.modules.includes('wapenkamer');
 
-  const vaultMax = getVaultMax(villa.level);
-  const storageMax = getStorageMax(villa.level);
+  const prestige = villa.prestigeModules || [];
+  const vaultMax = getVaultMax(villa.level, prestige.includes('kluis'));
+  const storageMax = getStorageMax(villa.level, prestige.includes('opslagkelder'));
   const storedCount = Object.values(villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
 
   return (
@@ -426,6 +428,7 @@ function StorageTab({ depositAmount, setDepositAmount, goodDepositGood, setGoodD
 function ModulesTab() {
   const { state, dispatch, showToast } = useGame();
   const villa = state.villa!;
+  const prestige = villa.prestigeModules || [];
 
   return (
     <div className="game-card p-3 space-y-2">
@@ -434,11 +437,17 @@ function ModulesTab() {
         const installed = villa.modules.includes(mod.id);
         const canAfford = state.money >= mod.cost;
         const meetsLevel = villa.level >= mod.reqLevel;
+        const isPrestiged = prestige.includes(mod.id);
+        const prestigeDef = VILLA_PRESTIGE_UPGRADES.find(p => p.id === mod.id);
+        const canPrestige = installed && !isPrestiged && villa.level >= 3 && prestigeDef && state.money >= prestigeDef.cost;
         return (
-          <div key={mod.id} className={`border rounded-lg p-2.5 ${installed ? 'border-emerald/30 bg-emerald/5' : 'border-border bg-muted/20'}`}>
+          <div key={mod.id} className={`border rounded-lg p-2.5 ${
+            isPrestiged ? 'border-gold/50 bg-gold/10 ring-1 ring-gold/20' :
+            installed ? 'border-emerald/30 bg-emerald/5' : 'border-border bg-muted/20'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 border border-border">
+                <div className={`w-10 h-10 rounded overflow-hidden flex-shrink-0 border ${isPrestiged ? 'border-gold/50 ring-1 ring-gold/30' : 'border-border'}`}>
                   {VILLA_MODULE_IMAGES[mod.id] ? (
                     <img src={VILLA_MODULE_IMAGES[mod.id]} alt={mod.name} className="w-full h-full object-cover" />
                   ) : (
@@ -446,25 +455,58 @@ function ModulesTab() {
                   )}
                 </div>
                 <div>
-                  <p className={`text-xs font-bold ${installed ? 'text-emerald' : 'text-foreground'}`}>{mod.name}</p>
+                  <p className={`text-xs font-bold ${isPrestiged ? 'text-gold' : installed ? 'text-emerald' : 'text-foreground'}`}>
+                    {isPrestiged && '👑 '}{mod.name}
+                  </p>
                   <p className="text-[0.55rem] text-muted-foreground">{mod.desc}</p>
+                  {isPrestiged && prestigeDef && (
+                    <p className="text-[0.45rem] text-gold font-bold mt-0.5">✦ {prestigeDef.bonus}</p>
+                  )}
                 </div>
               </div>
-              {installed ? (
-                <span className="text-[0.55rem] text-emerald font-bold">✓ ACTIEF</span>
-              ) : (
-                <GameButton variant={meetsLevel ? 'gold' : 'muted'} size="sm" disabled={!canAfford || !meetsLevel}
-                  onClick={() => {
-                    dispatch({ type: 'INSTALL_VILLA_MODULE', moduleId: mod.id });
-                    showToast(`${mod.name} geïnstalleerd!`);
-                  }}>
-                  {!meetsLevel ? `LVL ${mod.reqLevel}` : `€${mod.cost.toLocaleString()}`}
-                </GameButton>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                {isPrestiged ? (
+                  <span className="text-[0.5rem] text-gold font-bold">👑 PRESTIGE</span>
+                ) : installed ? (
+                  <>
+                    <span className="text-[0.55rem] text-emerald font-bold">✓ ACTIEF</span>
+                    {villa.level >= 3 && prestigeDef && (
+                      <GameButton variant="gold" size="sm" disabled={!canPrestige} glow={canPrestige}
+                        onClick={() => {
+                          dispatch({ type: 'PRESTIGE_VILLA_MODULE', moduleId: mod.id });
+                          showToast(`👑 ${mod.name} is nu Prestige!`);
+                        }}>
+                        👑 €{prestigeDef.cost.toLocaleString()}
+                      </GameButton>
+                    )}
+                  </>
+                ) : (
+                  <GameButton variant={meetsLevel ? 'gold' : 'muted'} size="sm" disabled={!canAfford || !meetsLevel}
+                    onClick={() => {
+                      dispatch({ type: 'INSTALL_VILLA_MODULE', moduleId: mod.id });
+                      showToast(`${mod.name} geïnstalleerd!`);
+                    }}>
+                    {!meetsLevel ? `LVL ${mod.reqLevel}` : `€${mod.cost.toLocaleString()}`}
+                  </GameButton>
+                )}
+              </div>
             </div>
           </div>
         );
       })}
+
+      {/* Prestige info */}
+      {villa.level >= 3 && (
+        <div className="bg-gold/5 border border-gold/20 rounded-lg p-2.5 mt-3">
+          <p className="text-[0.6rem] text-gold font-bold">👑 Prestige Upgrades</p>
+          <p className="text-[0.5rem] text-muted-foreground mt-0.5">
+            Villa Level 3 ontgrendelt gouden prestige-versies van alle modules. Prestige-modules bieden sterkere bonussen en gouden status.
+          </p>
+          <p className="text-[0.45rem] text-gold/70 mt-1">
+            {prestige.length}/{VILLA_MODULES.length} modules geprestiged
+          </p>
+        </div>
+      )}
     </div>
   );
 }

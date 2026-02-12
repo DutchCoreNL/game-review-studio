@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VILLA_MODULES, getVaultMax, getStorageMax } from '@/game/villa';
+import { VILLA_MODULES, VILLA_PRESTIGE_UPGRADES, getVaultMax, getStorageMax } from '@/game/villa';
 import { SectionHeader } from '../ui/SectionHeader';
 import { StatBar } from '../ui/StatBar';
 import { InfoRow } from '../ui/InfoRow';
@@ -17,8 +17,9 @@ export function VillaSummaryPanel() {
     );
   }
 
-  const vaultMax = getVaultMax(villa.level);
-  const storageMax = getStorageMax(villa.level);
+  const prestige = villa.prestigeModules || [];
+  const vaultMax = getVaultMax(villa.level, prestige.includes('kluis'));
+  const storageMax = getStorageMax(villa.level, prestige.includes('opslagkelder'));
   const storedCount = Object.values(villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
 
   // Defense score (mirrors VillaView OverviewTab logic)

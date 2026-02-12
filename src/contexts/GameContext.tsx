@@ -153,6 +153,7 @@ type GameAction =
   | { type: 'WITHDRAW_VILLA_AMMO'; amount: number }
   | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
   | { type: 'VILLA_THROW_PARTY' }
+  | { type: 'PRESTIGE_VILLA_MODULE'; moduleId: VillaModuleId }
   | { type: 'DISMISS_ACHIEVEMENT' }
   // Market alert actions
    | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
@@ -1684,6 +1685,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.villa = {
         level: 1,
         modules: [],
+        prestigeModules: [],
         vaultMoney: 0,
         storedGoods: {},
         storedAmmo: 0,
@@ -1720,9 +1722,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'PRESTIGE_VILLA_MODULE': {
+      if (!s.villa) return s;
+      if (s.villa.level < 3) return s; // prestige requires villa level 3
+      if (!s.villa.modules.includes(action.moduleId)) return s; // must be installed
+      if (!s.villa.prestigeModules) s.villa.prestigeModules = [];
+      if (s.villa.prestigeModules.includes(action.moduleId)) return s;
+      const PRESTIGE_COSTS: Record<string, number> = {
+        kluis: 50000, opslagkelder: 40000, wietplantage: 60000, coke_lab: 100000,
+        synthetica_lab: 30000, crew_kwartieren: 40000, wapenkamer: 30000, commandocentrum: 80000,
+        camera: 90000, server_room: 50000, zwembad: 70000, helipad: 120000, tunnel: 100000, garage_uitbreiding: 30000,
+      };
+      const cost = PRESTIGE_COSTS[action.moduleId] || 50000;
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      s.villa.prestigeModules.push(action.moduleId);
+      s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
     case 'DEPOSIT_VILLA_MONEY': {
       if (!s.villa || !s.villa.modules.includes('kluis')) return s;
-      const max = getVaultMax(s.villa.level);
+      const hasPrestigeKluis = s.villa.prestigeModules?.includes('kluis') || false;
+      const max = getVaultMax(s.villa.level, hasPrestigeKluis);
       const space = max - s.villa.vaultMoney;
       const amt = Math.min(action.amount, s.money, space);
       if (amt <= 0) return s;
@@ -1742,7 +1765,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DEPOSIT_VILLA_GOODS': {
       if (!s.villa || !s.villa.modules.includes('opslagkelder')) return s;
-      const maxStorage = getStorageMax(s.villa.level);
+      const hasPrestigeOpslag = s.villa.prestigeModules?.includes('opslagkelder') || false;
+      const maxStorage = getStorageMax(s.villa.level, hasPrestigeOpslag);
       const currentStored = Object.values(s.villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
       const storageSpace = maxStorage - currentStored;
       const playerHas = s.inventory[action.goodId] || 0;
@@ -2049,6 +2073,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = false;
         if (!saved.villa.storedGoods) saved.villa.storedGoods = {};
         if (saved.villa.lastPartyDay === undefined) saved.villa.lastPartyDay = 0;
+        if (!saved.villa.prestigeModules) saved.villa.prestigeModules = [];
       }
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; if (c.loyalty === undefined) c.loyalty = 75; });
