@@ -7,7 +7,7 @@ interface NemesisMarkerProps {
 }
 
 export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
-  if (nemesis.cooldown > 0) return null;
+  if (!nemesis.alive || nemesis.cooldown > 0) return null;
 
   const meta = districtMeta[nemesis.location];
   if (!meta) return null;
