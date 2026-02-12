@@ -211,15 +211,31 @@ export function OperationsView() {
                     <div>
                       <h4 className="font-bold text-xs">
                         {c.name} <span className="text-muted-foreground font-normal text-[0.55rem]">({c.role})</span>
-                        {c.specialization && (() => {
-                          const spec = CREW_SPECIALIZATIONS.find(s => s.id === c.specialization);
-                          return spec ? (
-                            <span className="ml-1 text-[0.45rem] font-bold text-game-purple bg-game-purple/10 px-1 py-0.5 rounded border border-game-purple/20">
-                              <Sparkles size={7} className="inline mr-0.5" />{spec.name}
-                            </span>
-                          ) : null;
-                        })()}
                       </h4>
+                      {/* Specialization info */}
+                      {c.specialization ? (() => {
+                        const spec = CREW_SPECIALIZATIONS.find(s => s.id === c.specialization);
+                        return spec ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[0.5rem] font-bold text-game-purple bg-game-purple/10 px-1.5 py-0.5 rounded border border-game-purple/20 flex items-center gap-0.5">
+                              <Sparkles size={8} className="flex-shrink-0" />{spec.name}
+                            </span>
+                            <span className="text-[0.45rem] text-muted-foreground italic">{spec.desc}</span>
+                          </div>
+                        ) : null;
+                      })() : (
+                        <div className="mt-0.5">
+                          {[3, 5, 7, 9].some(lvl => c.level >= lvl) && c.level < 10 ? (
+                            <span className="text-[0.45rem] text-gold/70 italic">
+                              Specialisatie beschikbaar bij level-up!
+                            </span>
+                          ) : (
+                            <span className="text-[0.45rem] text-muted-foreground italic">
+                              Spec unlock: Lvl {[3, 5, 7, 9].find(l => l > c.level) || 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-0.5">
                         <div className="flex items-center gap-1">
                           <Heart size={8} className={c.hp < 30 ? 'text-blood' : 'text-emerald'} />
