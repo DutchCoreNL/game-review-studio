@@ -10,13 +10,15 @@ import { FactionCard } from './faction/FactionCard';
 import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
-import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lucide-react';
+import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield, Flag, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 import { GarageView } from './garage/GarageView';
 import { AlliancePactPanel } from './imperium/AlliancePactPanel';
+import { RacingPanel } from './garage/RacingPanel';
+import { DealerPanel } from './garage/DealerPanel';
 
-type SubTab = 'garage' | 'assets' | 'business' | 'families' | 'corruption' | 'war' | 'alliances';
+type SubTab = 'garage' | 'races' | 'dealer' | 'assets' | 'business' | 'families' | 'corruption' | 'war' | 'alliances';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
@@ -31,6 +33,8 @@ export function ImperiumView() {
       <div className="flex gap-1 mb-4 mt-1 flex-wrap">
         {([
           { id: 'garage' as SubTab, label: 'GARAGE', icon: <Car size={12} /> },
+          { id: 'races' as SubTab, label: 'RACES', icon: <Flag size={12} /> },
+          { id: 'dealer' as SubTab, label: 'DEALER', icon: <ShoppingCart size={12} /> },
           { id: 'assets' as SubTab, label: 'BEZIT', icon: <Store size={12} /> },
           { id: 'business' as SubTab, label: 'BEDRIJVEN', icon: <Store size={12} /> },
           { id: 'war' as SubTab, label: 'OORLOG', icon: <Swords size={12} /> },
@@ -53,6 +57,8 @@ export function ImperiumView() {
       </div>
 
       {subTab === 'garage' && <GarageView />}
+      {subTab === 'races' && <RacingPanel />}
+      {subTab === 'dealer' && <DealerPanel />}
       {subTab === 'assets' && <AssetsPanel />}
       {subTab === 'business' && <BusinessPanel />}
       {subTab === 'war' && <DistrictDefensePanel />}

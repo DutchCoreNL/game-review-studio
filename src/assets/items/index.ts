@@ -157,6 +157,11 @@ export const VEHICLE_IMAGES: Record<string, string> = {
   meridiolux: carMeridiolux,
   lupoghini: carLupoghini,
   royaleryce: carRoyaleryce,
+  // Unique vehicles use regular vehicle images as placeholders
+  decker_phantom: carRoyaleryce,
+  cartel_bulldozer: carForgedyer,
+  nemesis_trophy: carLupoghini,
+  gouden_klassiek: carMeridiolux,
 };
 
 export const GOOD_IMAGES: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -73,7 +73,13 @@ export function getPlayerStat(state: GameState, stat: StatId): number {
 export function recalcMaxInv(state: GameState): number {
   let inv = 15;
   const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
-  if (activeV) inv = activeV.storage;
+  if (activeV) {
+    inv = activeV.storage;
+  } else {
+    // Check unique vehicles
+    const uniqueV = UNIQUE_VEHICLES?.find(v => v.id === state.activeVehicle);
+    if (uniqueV) inv = uniqueV.storage;
+  }
   // Vehicle storage upgrades
   const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
   if (activeObj?.upgrades?.storage) {

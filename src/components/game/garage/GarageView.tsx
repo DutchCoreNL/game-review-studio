@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, REKAT_COSTS } from '@/game/constants';
+import { VEHICLES, REKAT_COSTS, UNIQUE_VEHICLES } from '@/game/constants';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { SectionHeader } from '../ui/SectionHeader';
@@ -7,7 +7,7 @@ import { VehicleUpgradePanel } from './VehicleUpgradePanel';
 import { VehiclePreview } from './VehiclePreview';
 import { VehicleComparePanel } from './VehicleComparePanel';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Car, Wrench, Clock, ShieldCheck, AlertTriangle, Gauge, Shield, Gem, Flame, Check } from 'lucide-react';
+import { Car, Wrench, Clock, ShieldCheck, AlertTriangle, Gauge, Shield, Gem, Flame, Check, Lock, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { VEHICLE_IMAGES } from '@/assets/items';
 
@@ -316,6 +316,63 @@ export function GarageView() {
           </div>
         </>
       )}
+
+      {/* ===== D. UNIEKE VOERTUIGEN ===== */}
+      <SectionHeader title="Unieke Voertuigen" icon={<Trophy size={12} />} badge={`${UNIQUE_VEHICLES.filter(uv => state.ownedVehicles.some(ov => ov.id === uv.id)).length}/${UNIQUE_VEHICLES.length}`} badgeColor="gold" />
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {UNIQUE_VEHICLES.map(uv => {
+          const owned = state.ownedVehicles.some(ov => ov.id === uv.id);
+          return (
+            <motion.div
+              key={uv.id}
+              className={`game-card p-0 overflow-hidden ${owned ? 'ring-2 ring-gold border-gold' : 'opacity-60'}`}
+            >
+              <div className={`relative h-20 ${owned ? 'bg-gold/10' : 'bg-muted'}`}>
+                {VEHICLE_IMAGES[uv.id] ? (
+                  <img src={VEHICLE_IMAGES[uv.id]} alt={uv.name} className={`w-full h-full object-cover ${owned ? '' : 'grayscale brightness-50'}`} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    {owned ? (
+                      <span className="text-2xl">{uv.icon}</span>
+                    ) : (
+                      <Lock size={24} className="text-muted-foreground/30" />
+                    )}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
+                {owned && (
+                  <div className="absolute top-1.5 right-1.5 bg-gold text-secondary-foreground text-[0.45rem] font-bold px-1.5 py-0.5 rounded">
+                    👑 UNIEK
+                  </div>
+                )}
+              </div>
+              <div className="p-2">
+                <h4 className="font-bold text-[0.65rem] truncate">{owned ? uv.name : '???'}</h4>
+                {owned ? (
+                  <>
+                    <p className="text-[0.45rem] text-muted-foreground mb-1">{uv.desc}</p>
+                    <p className="text-[0.4rem] text-gold">
+                      S:{uv.storage} · Spd:{uv.speed > 0 ? '+' : ''}{uv.speed} · Arm:+{uv.armor} · Ch:+{uv.charm}
+                    </p>
+                    <GameButton
+                      variant="gold"
+                      size="sm"
+                      fullWidth
+                      className="mt-1.5"
+                      disabled={state.activeVehicle === uv.id}
+                      onClick={() => { dispatch({ type: 'SET_VEHICLE', id: uv.id }); showToast(`${uv.name} geselecteerd`); }}
+                    >
+                      {state.activeVehicle === uv.id ? 'ACTIEF' : 'GEBRUIK'}
+                    </GameButton>
+                  </>
+                ) : (
+                  <p className="text-[0.45rem] text-blood">🔒 {uv.unlockCondition}</p>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

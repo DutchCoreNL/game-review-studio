@@ -451,6 +451,48 @@ export interface CrewMember {
 
 export type VehicleUpgradeType = 'armor' | 'speed' | 'storage';
 
+// ========== RACING TYPES ==========
+export type RaceType = 'street' | 'harbor' | 'neon_gp';
+
+export interface RaceDef {
+  id: RaceType;
+  name: string;
+  desc: string;
+  minBet: number;
+  maxBet: number;
+  heatGain: number;
+  reqDistrict?: DistrictId;
+  reqDay?: number;
+  icon: string;
+}
+
+export interface RaceNPC {
+  name: string;
+  vehicle: string;
+  skill: number; // 1-10
+}
+
+// ========== UNIQUE VEHICLE TYPES ==========
+export interface UniqueVehicle {
+  id: string;
+  name: string;
+  storage: number;
+  speed: number;
+  armor: number;
+  charm: number;
+  desc: string;
+  unlockCondition: string;
+  unlockCheck: string; // key for runtime check
+  icon: string;
+}
+
+// ========== DEALER TYPES ==========
+export interface DealerDeal {
+  vehicleId: string;
+  discount: number; // 0.2 - 0.3
+  expiresDay: number;
+}
+
 export interface VehicleUpgradeLevel {
   type: VehicleUpgradeType;
   level: number; // 0-3
@@ -814,6 +856,13 @@ export interface GameState {
   triggeredAlerts: TriggeredMarketAlert[];
   smartAlarmEnabled?: boolean;
   smartAlarmThreshold?: number; // configurable, default 1000
+
+  // ========== RACING STATE ==========
+  raceUsedToday: boolean;
+
+  // ========== DEALER STATE ==========
+  vehiclePriceModifiers: Record<string, number>; // vehicleId -> multiplier (0.9 - 1.15)
+  dealerDeal: DealerDeal | null;
 
   // ========== AUCTION STATE ==========
   auctionItems?: AuctionItem[];
