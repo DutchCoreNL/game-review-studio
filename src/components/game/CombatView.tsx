@@ -346,6 +346,18 @@ function CombatResult() {
               ? combat.bossPhase === 2 ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
               : '💀 VERSLAGEN'}
           </motion.div>
+          {/* Near-miss feedback on defeat */}
+          {!combat.won && combat.targetHP > 0 && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="text-[0.6rem] text-muted-foreground mb-2 bg-blood/10 border border-blood/20 rounded px-3 py-2">
+              💢 Vijand had nog <span className="text-blood font-bold">{combat.targetHP} HP</span> over
+              {combat.targetHP <= 15
+                ? ' — bijna! Sterkere wapens hadden het verschil gemaakt.'
+                : combat.targetHP <= 30
+                  ? '. Upgrade je gear of gebruik tactische acties.'
+                  : '. Je hebt meer kracht of een beter wapen nodig.'}
+            </motion.p>
+          )}
           {combat.won && combat.bossPhase === 2 && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</motion.p>

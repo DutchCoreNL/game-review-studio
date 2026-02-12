@@ -1,4 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent } from './types';
+import { generateCliffhanger } from './cliffhangers';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
@@ -1175,6 +1176,36 @@ export function endTurn(state: GameState): NightReportData {
 
   if (warnings.length > 0) report.expiryWarnings = warnings;
 
+  // === GOLDEN HOUR LOGIC ===
+  if (state.goldenHour && state.goldenHour.turnsLeft > 0) {
+    // Apply 2x income modifier
+    const goldenBonus = report.districtIncome + report.businessIncome;
+    state.money += goldenBonus;
+    state.stats.totalEarned += goldenBonus;
+    report.goldenHourBonus = goldenBonus;
+    
+    state.goldenHour.turnsLeft--;
+    if (state.goldenHour.turnsLeft <= 0) {
+      state.goldenHour = null;
+      report.goldenHourEnded = true;
+    }
+  } else if (!state.goldenHour && state.day > 5 && Math.random() < 0.08) {
+    // 8% chance to start golden hour after day 5
+    state.goldenHour = { turnsLeft: 3 };
+    report.goldenHourStarted = true;
+    addPhoneMessage(state, 'anonymous', '🌟 GOUDEN UUR! Alle inkomsten x2 voor de komende 3 beurten — maar heat stijgt ook sneller!', 'opportunity');
+  }
+  
+  // Golden hour: extra heat (2x heat gain applied retroactively)
+  if (state.goldenHour || report.goldenHourStarted) {
+    const extraHeat = Math.abs(report.personalHeatChange) > 0 ? Math.floor(Math.abs(report.personalHeatChange) * 0.5) : 3;
+    addPersonalHeat(state, extraHeat);
+    recomputeHeat(state);
+  }
+
+  // === CLIFFHANGER GENERATION ===
+  report.cliffhanger = generateCliffhanger(state);
+
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;
 
@@ -1258,7 +1289,7 @@ export function gainXp(state: GameState, amount: number): boolean {
   return false;
 }
 
-export function performSoloOp(state: GameState, opId: string): { success: boolean; message: string } {
+export function performSoloOp(state: GameState, opId: string): { success: boolean; message: string; nearMiss?: string } {
   const op = SOLO_OPERATIONS.find(o => o.id === opId);
   if (!op) return { success: false, message: "Operatie niet gevonden." };
   if (state.player.level < op.level) return { success: false, message: "Te laag level." };
@@ -1284,7 +1315,13 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   } else {
     splitHeat(state, Math.floor(op.heat * 1.5), 0.3);
     state.stats.missionsFailed++;
-    return { success: false, message: `${op.name} mislukt! Extra heat opgelopen.` };
+    // Near-miss feedback
+    const diff = Math.round(chance);
+    let nearMiss = `Slagingskans was ${diff}%.`;
+    if (diff >= 60) nearMiss += ` Bijna! Upgrade je ${op.stat === 'muscle' ? 'Kracht' : op.stat === 'brains' ? 'Vernuft' : 'Charisma'} voor betere odds.`;
+    else if (diff >= 40) nearMiss += ` Verbeter je ${op.stat === 'muscle' ? 'Kracht' : op.stat === 'brains' ? 'Vernuft' : 'Charisma'} om dit te halen.`;
+    else nearMiss += ` Je hebt meer training nodig.`;
+    return { success: false, message: `${op.name} mislukt! Extra heat opgelopen.`, nearMiss };
   }
 }
 

@@ -207,6 +207,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.raceUsedToday === undefined) loaded.raceUsedToday = false;
       if (!loaded.vehiclePriceModifiers) loaded.vehiclePriceModifiers = {};
       if (loaded.dealerDeal === undefined) loaded.dealerDeal = null;
+      // Migrate: golden hour state
+      if (loaded.goldenHour === undefined) loaded.goldenHour = null;
       return loaded;
     }
 
@@ -653,6 +655,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if ((s.hidingDays || 0) > 0 || s.prison) return s;
       const soloOpDef = SOLO_OPERATIONS.find(o => o.id === action.opId);
       const soloResult = Engine.performSoloOp(s, action.opId);
+      // Store near-miss for toast display (transient)
+      if (soloResult.nearMiss) (s as any)._nearMiss = soloResult.nearMiss;
       Engine.recomputeHeat(s);
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 5);
       Engine.checkAchievements(s);
