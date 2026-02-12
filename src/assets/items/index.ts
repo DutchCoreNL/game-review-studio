@@ -106,6 +106,11 @@ import crewEnforcer from './crew-enforcer.jpg';
 import crewChauffeur from './crew-chauffeur.jpg';
 import crewSmokkelaar from './crew-smokkelaar.jpg';
 
+// Backstory images
+import backstoryWeduwnaar from './backstory-weduwnaar.jpg';
+import backstoryBankier from './backstory-bankier.jpg';
+import backstoryStraatkind from './backstory-straatkind.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -240,4 +245,10 @@ export const CREW_ROLE_IMAGES: Record<string, string> = {
   Enforcer: crewEnforcer,
   Chauffeur: crewChauffeur,
   Smokkelaar: crewSmokkelaar,
+};
+
+export const BACKSTORY_IMAGES: Record<string, string> = {
+  weduwnaar: backstoryWeduwnaar,
+  bankier: backstoryBankier,
+  straatkind: backstoryStraatkind,
 };
