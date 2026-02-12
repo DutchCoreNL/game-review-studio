@@ -4,8 +4,8 @@
  */
 
 import { GameState, CorruptionEvent, NightReportData } from './types';
-import { CORRUPT_CONTACTS, CORRUPTION_BETRAYAL_EVENTS } from './constants';
-import { addPersonalHeat, recomputeHeat } from './engine';
+import { CORRUPT_CONTACTS, CORRUPTION_BETRAYAL_EVENTS, BETRAYAL_ARREST_CHANCE } from './constants';
+import { addPersonalHeat, recomputeHeat, arrestPlayer } from './engine';
 import { addPhoneMessage } from './newFeatures';
 
 /**
@@ -82,6 +82,12 @@ export function processCorruptionNetwork(state: GameState, report: NightReportDa
         effect: `fine_${fine}_heat_${heatPenalty}`,
       };
       state.pendingCorruptionEvent = event;
+
+      // Betrayal can lead to direct arrest (40% chance)
+      if (!state.prison && Math.random() < BETRAYAL_ARREST_CHANCE) {
+        arrestPlayer(state, report);
+        addPhoneMessage(state, 'NHPD', `Gearresteerd door verraad van ${def.name}! Straf: ${state.prison?.daysRemaining} dagen.`, 'threat');
+      }
 
       addPhoneMessage(state, 'anonymous', `⚠️ WAARSCHUWING: ${def.title} ${def.name} is gecompromitteerd! Vernietig alle bewijzen!`, 'threat');
       break; // Only one betrayal per turn

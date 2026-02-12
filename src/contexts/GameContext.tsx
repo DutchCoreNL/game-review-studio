@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
@@ -200,6 +200,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRADE': {
       if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't trade while hiding or in prison
+      // Wanted check before trade
+      if (Engine.isWanted(s) && !s.prison) {
+        if (Engine.checkWantedArrest(s)) {
+          addPhoneMessage(s, 'NHPD', `Gearresteerd tijdens een handelsactie! Je was GEZOCHT. Straf: ${s.prison?.daysRemaining} dagen.`, 'threat');
+          s.screenEffect = 'blood-flash';
+          return s;
+        }
+      }
       const moneyBefore = s.money;
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
       // Heat 2.0: trade heat goes to vehicle (transport of goods)
@@ -229,6 +237,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRAVEL': {
       if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't travel while hiding or in prison
+      // Wanted check before travel
+      if (Engine.isWanted(s) && !s.prison) {
+        if (Engine.checkWantedArrest(s)) {
+          addPhoneMessage(s, 'NHPD', `Gearresteerd tijdens reizen! Je was GEZOCHT. Straf: ${s.prison?.daysRemaining} dagen.`, 'threat');
+          s.screenEffect = 'blood-flash';
+          return s;
+        }
+      }
       const hasChauffeur = s.crew.some(c => c.role === 'Chauffeur');
       const hasRacer = s.crew.some(c => c.specialization === 'racer');
       const isOwned = s.ownedDistricts.includes(action.to);
@@ -1209,6 +1225,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (s.crew.length > 0 && Math.random() < 0.3) {
           const target = s.crew[Math.floor(Math.random() * s.crew.length)];
           target.hp = Math.max(1, target.hp - 10);
+        }
+        // Arrest chance on failed carjack with high heat
+        if ((s.personalHeat || 0) > ARREST_HEAT_THRESHOLD && !s.prison) {
+          if (Math.random() < PRISON_ARREST_CHANCE_CARJACK) {
+            const report: any = {};
+            Engine.arrestPlayer(s, report);
+            addPhoneMessage(s, 'NHPD', `Gearresteerd tijdens een mislukte autodiefstal! Straf: ${s.prison?.daysRemaining} dagen.`, 'threat');
+          }
         }
         s.screenEffect = 'blood-flash';
       }
