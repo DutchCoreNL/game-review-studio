@@ -1,7 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
 import { useCallback, useEffect } from 'react';
-import { setMusicScene, stopMusic } from '@/game/sounds/ambientMusic';
-import { startAmbiance, stopAmbiance } from '@/game/sounds/cityAmbiance';
+import { setVolume } from '@/game/sounds';
+import { setMusicScene, stopMusic, setMusicVolume } from '@/game/sounds/ambientMusic';
+import { startAmbiance, stopAmbiance, setAmbianceVolume } from '@/game/sounds/cityAmbiance';
 import { playPopupOpen } from '@/game/sounds/uiSounds';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
@@ -53,8 +54,17 @@ export function GameLayout() {
     }
   }, [view, state.activeCombat]);
 
-  // Start city ambiance on mount
+  // Load saved audio prefs & start ambiance on mount
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('noxhaven_audio_prefs');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.master != null) setVolume(p.master);
+        if (p.music != null) setMusicVolume(p.music);
+        if (p.ambiance != null) setAmbianceVolume(p.ambiance);
+      }
+    } catch {}
     startAmbiance();
     return () => { stopAmbiance(); stopMusic(); };
   }, []);
