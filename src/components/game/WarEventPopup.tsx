@@ -4,6 +4,7 @@ import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Crosshair, Handshake, Swords, X } from 'lucide-react';
 import { WarTactic } from '@/game/types';
+import warBg from '@/assets/items/event-war.jpg';
 
 export function WarEventPopup() {
   const { state, dispatch, showToast } = useGame();
@@ -32,21 +33,25 @@ export function WarEventPopup() {
         exit={{ opacity: 0 }}
       >
         <motion.div
-          className="game-card border-2 border-blood w-full max-w-md"
+          className="game-card border-2 border-blood w-full max-w-md overflow-hidden"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 20 }}
         >
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-3">
-            <Swords size={20} className="text-blood" />
-            <div className="flex-1">
-              <h2 className="font-black text-sm text-blood uppercase tracking-wider">⚔️ Oorlog!</h2>
-              <p className="text-[0.55rem] text-muted-foreground">{war.attackerName} valt {district?.name} aan!</p>
+          {/* Banner */}
+          <div className="relative h-28 overflow-hidden">
+            <img src={warBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            <div className="absolute bottom-2 left-4 flex items-center gap-2">
+              <Swords size={20} className="text-blood" />
+              <div>
+                <h2 className="font-black text-sm text-blood uppercase tracking-wider">⚔️ Oorlog!</h2>
+                <p className="text-[0.55rem] text-muted-foreground">{war.attackerName} valt {district?.name} aan!</p>
+              </div>
             </div>
           </div>
 
-          {/* Stats */}
+          <div className="p-4">
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-blood/10 border border-blood/30 rounded p-2 text-center">
               <p className="text-[0.45rem] text-muted-foreground uppercase">Aanvalskracht</p>
@@ -77,6 +82,7 @@ export function WarEventPopup() {
                 </div>
               </button>
             ))}
+          </div>
           </div>
         </motion.div>
       </motion.div>
