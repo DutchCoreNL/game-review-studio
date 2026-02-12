@@ -4,6 +4,7 @@ import { EyeOff, ShieldAlert, Clock, XCircle } from 'lucide-react';
 import { GameButton } from './ui/GameButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
+import hidingBg from '@/assets/items/overlay-hiding.jpg';
 
 export function HidingOverlay() {
   const { state, dispatch, showToast } = useGame();
@@ -35,10 +36,14 @@ export function HidingOverlay() {
         className="absolute inset-0 z-40 flex items-center justify-center px-6"
       >
         <div className="w-full max-w-xs bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-ice/10 border-b border-ice/20 px-4 py-3 flex items-center gap-2">
-            <EyeOff size={18} className="text-ice" />
-            <span className="font-bold text-sm uppercase tracking-wider text-ice">Ondergedoken</span>
+          {/* Banner */}
+          <div className="relative h-28 overflow-hidden">
+            <img src={hidingBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            <div className="absolute bottom-2 left-4 flex items-center gap-2">
+              <EyeOff size={18} className="text-ice" />
+              <span className="font-bold text-sm uppercase tracking-wider text-ice">Ondergedoken</span>
+            </div>
           </div>
 
           {/* Body */}

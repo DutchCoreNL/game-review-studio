@@ -7,6 +7,7 @@ import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
 import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car } from 'lucide-react';
+import encounterBg from '@/assets/items/encounter-bg.jpg';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
@@ -65,32 +66,35 @@ export function MissionEncounterView() {
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[10000] bg-background flex flex-col"
     >
-      {/* Header */}
-      <div className="flex-none bg-gradient-to-b from-[hsl(0,0%,6%)] to-card border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin size={14} className="text-gold" />
-            <span className="text-[0.6rem] text-gold font-bold uppercase tracking-widest">{districtName}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[0.55rem] text-muted-foreground">
-              {mission.currentEncounter + 1}/{mission.encounters.length}
-            </span>
-            {/* Progress dots */}
-            <div className="flex gap-1">
-              {mission.encounters.map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full ${
-                  i < mission.currentEncounter ? 'bg-gold' :
-                  i === mission.currentEncounter ? 'bg-gold animate-pulse' : 'bg-muted'
-                }`} />
-              ))}
+      {/* Banner Header */}
+      <div className="flex-none relative h-28 overflow-hidden">
+        <img src={encounterBg} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-gold" />
+              <span className="text-[0.6rem] text-gold font-bold uppercase tracking-widest">{districtName}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[0.55rem] text-muted-foreground">
+                {mission.currentEncounter + 1}/{mission.encounters.length}
+              </span>
+              <div className="flex gap-1">
+                {mission.encounters.map((_, i) => (
+                  <div key={i} className={`w-2 h-2 rounded-full ${
+                    i < mission.currentEncounter ? 'bg-gold' :
+                    i === mission.currentEncounter ? 'bg-gold animate-pulse' : 'bg-muted'
+                  }`} />
+                ))}
+              </div>
             </div>
           </div>
+          <h2 className="font-display text-sm text-foreground mt-1 uppercase tracking-wider">
+            {mission.type === 'solo' ? 'Solo Operatie' : 'Contract Missie'}
+            {mission.crewName && <span className="text-gold ml-2">— {mission.crewName}</span>}
+          </h2>
         </div>
-        <h2 className="font-display text-sm text-foreground mt-1 uppercase tracking-wider">
-          {mission.type === 'solo' ? 'Solo Operatie' : 'Contract Missie'}
-          {mission.crewName && <span className="text-gold ml-2">— {mission.crewName}</span>}
-        </h2>
       </div>
 
       {/* Story content */}

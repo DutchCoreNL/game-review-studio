@@ -5,6 +5,7 @@ import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Gift, Check, Clock, Trophy, Star } from 'lucide-react';
+import challengesBg from '@/assets/items/daily-challenges-bg.jpg';
 
 export function DailyChallengesView() {
   const { state, dispatch, showToast } = useGame();
@@ -25,7 +26,16 @@ export function DailyChallengesView() {
 
   return (
     <div>
-      <SectionHeader title="Dagelijkse Uitdagingen" icon={<Target size={12} />} />
+      {/* Banner */}
+      <div className="relative h-28 overflow-hidden rounded-lg mb-3 -mx-1">
+        <img src={challengesBg} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        <div className="absolute bottom-2 left-3 flex items-center gap-2">
+          <Target size={12} className="text-gold" />
+          <span className="font-display text-sm font-bold text-gold uppercase tracking-wider gold-text-glow">Dagelijkse Uitdagingen</span>
+        </div>
+      </div>
+
 
       {/* Progress summary */}
       <motion.div
