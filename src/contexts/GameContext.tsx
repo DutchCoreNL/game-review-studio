@@ -4,7 +4,7 @@ import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
-import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage } from '../game/newFeatures';
+import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
@@ -161,6 +161,8 @@ type GameAction =
   | { type: 'TOGGLE_SMART_ALARM' }
   | { type: 'SET_SMART_ALARM_THRESHOLD'; threshold: number }
   | { type: 'BID_AUCTION'; itemId: string; amount: number }
+  | { type: 'NEGOTIATE_NEMESIS' }
+  | { type: 'SCOUT_NEMESIS' }
   | { type: 'FORM_ALLIANCE'; familyId: FamilyId }
   | { type: 'BREAK_ALLIANCE'; familyId: FamilyId }
   | { type: 'RESET' };
@@ -713,6 +715,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'START_NEMESIS_COMBAT': {
       const combat = startNemesisCombat(s);
       if (combat) s.activeCombat = combat;
+      return s;
+    }
+
+    case 'NEGOTIATE_NEMESIS': {
+      const result = negotiateNemesis(s);
+      if (!result.success) return s; // toast handled in component
+      return s;
+    }
+
+    case 'SCOUT_NEMESIS': {
+      const result = scoutNemesis(s);
+      if (!result.success) return s;
       return s;
     }
 
@@ -1918,6 +1932,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           name: NEMESIS_NAMES[Math.floor(Math.random() * NEMESIS_NAMES.length)],
           power: 10, location: 'crown', hp: 80, maxHp: 80, cooldown: 0, defeated: 0, lastAction: '',
           generation: 1, alive: true, nextSpawnDay: 0, defeatedNames: [],
+          archetype: (['zakenman', 'brute', 'schaduw', 'strateeg'] as const)[Math.floor(Math.random() * 4)],
+          claimedDistrict: null, alliedFaction: null, truceDaysLeft: 0, lastReaction: '',
+          negotiatedThisGen: false, scoutResult: null,
         };
       }
       // Migrate existing nemesis saves to new successor system
@@ -1925,6 +1942,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (saved.nemesis.alive === undefined) saved.nemesis.alive = saved.nemesis.cooldown === 0;
       if (saved.nemesis.nextSpawnDay === undefined) saved.nemesis.nextSpawnDay = 0;
       if (saved.nemesis.defeatedNames === undefined) saved.nemesis.defeatedNames = [];
+      // Migrate nemesis to archetype system
+      if (!saved.nemesis.archetype) saved.nemesis.archetype = (['zakenman', 'brute', 'schaduw', 'strateeg'] as const)[Math.floor(Math.random() * 4)];
+      if (saved.nemesis.claimedDistrict === undefined) saved.nemesis.claimedDistrict = null;
+      if (saved.nemesis.alliedFaction === undefined) saved.nemesis.alliedFaction = null;
+      if (saved.nemesis.truceDaysLeft === undefined) saved.nemesis.truceDaysLeft = 0;
+      if (saved.nemesis.lastReaction === undefined) saved.nemesis.lastReaction = '';
+      if (saved.nemesis.negotiatedThisGen === undefined) saved.nemesis.negotiatedThisGen = false;
+      if (saved.nemesis.scoutResult === undefined) saved.nemesis.scoutResult = null;
       if (!saved.districtDefenses) {
         saved.districtDefenses = {
           port: { upgrades: [], fortLevel: 0 },

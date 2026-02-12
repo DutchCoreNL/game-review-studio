@@ -129,6 +129,8 @@ export interface CarTheftEncounter {
   district: DistrictId;
 }
 
+export type NemesisArchetype = 'zakenman' | 'brute' | 'schaduw' | 'strateeg';
+
 export interface NemesisState {
   name: string;
   power: number;
@@ -143,6 +145,14 @@ export interface NemesisState {
   alive: boolean;
   nextSpawnDay: number; // day when next successor appears
   defeatedNames: string[]; // names of defeated nemeses for flavor
+  // Archetype & deep integration fields
+  archetype: NemesisArchetype;
+  claimedDistrict: DistrictId | null;
+  alliedFaction: FamilyId | null;
+  truceDaysLeft: number;
+  lastReaction: string;
+  negotiatedThisGen: boolean; // only 1x per generation
+  scoutResult: string | null; // last scout intel, shown in night report
 }
 
 export type DistrictHQUpgradeId = 'patrol' | 'walls' | 'surveillance' | 'turret' | 'command';
@@ -518,6 +528,9 @@ export interface NightReportData {
   smuggleResults?: { routeId: string; good: GoodId; income: number; intercepted: boolean }[];
   defenseResults?: { district: DistrictId; attacked: boolean; won: boolean; details: string; loot?: number; goodsLoot?: { good: GoodId; amount: number } | null }[];
   nemesisAction?: string;
+  nemesisReaction?: string;
+  nemesisScoutResult?: string;
+  nemesisPrisonRevenge?: string;
   ammoFactoryProduction?: number;
   // Villa production
   villaWietProduced?: number;

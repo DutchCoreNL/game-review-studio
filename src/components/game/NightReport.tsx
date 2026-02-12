@@ -325,12 +325,23 @@ export function NightReport() {
 
             {/* Nemesis action */}
             {report.nemesisAction && (
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: nemesisDelay, duration: 0.35 }} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Skull size={14} />
-                  <span>Nemesis</span>
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: nemesisDelay, duration: 0.35 }} className="flex flex-col gap-1 bg-muted/40 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Skull size={14} />
+                    <span>Nemesis</span>
+                  </div>
+                  <span className="text-xs font-bold text-blood">{report.nemesisAction}</span>
                 </div>
-                <span className="text-xs font-bold text-blood">{report.nemesisAction}</span>
+                {report.nemesisReaction && (
+                  <p className="text-[0.5rem] text-blood/70 italic">⚡ {report.nemesisReaction}</p>
+                )}
+                {report.nemesisPrisonRevenge && (
+                  <p className="text-[0.5rem] text-blood font-bold">🔒 {report.nemesisPrisonRevenge}</p>
+                )}
+                {report.nemesisScoutResult && (
+                  <p className="text-[0.5rem] text-ice italic">🔍 {report.nemesisScoutResult}</p>
+                )}
               </motion.div>
             )}
 
