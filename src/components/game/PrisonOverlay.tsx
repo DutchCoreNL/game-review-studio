@@ -3,19 +3,36 @@ import { motion } from 'framer-motion';
 import { Lock, DollarSign, KeyRound, Clock, AlertTriangle, Package, Brain, Swords, Heart, Scale, Users, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { GameButton } from './ui/GameButton';
 import { ConfirmDialog } from './ConfirmDialog';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_LAWYER_BRIBE_DISCOUNT, CORRUPT_CONTACTS } from '@/game/constants';
 import * as Engine from '@/game/engine';
 import prisonBg from '@/assets/items/overlay-prison.jpg';
+import { playCoinSound, playAlarmSound, playVictorySound, playNegativeSound, playDramaticReveal } from '@/game/sounds';
 
 export function PrisonOverlay() {
-  const { state, dispatch, showToast } = useGame();
-  const [confirmBribe, setConfirmBribe] = useState(false);
-  const [confirmEscape, setConfirmEscape] = useState(false);
-  const [showEscapeBreakdown, setShowEscapeBreakdown] = useState(false);
+  const { state } = useGame();
   const prison = state.prison;
 
   if (!prison) return null;
+
+  return <PrisonOverlayInner />;
+}
+
+function PrisonOverlayInner() {
+  const { state, dispatch, showToast } = useGame();
+  const prison = state.prison!;
+  const [confirmBribe, setConfirmBribe] = useState(false);
+  const [confirmEscape, setConfirmEscape] = useState(false);
+  const [showEscapeBreakdown, setShowEscapeBreakdown] = useState(false);
+  const hasPlayedAlarm = useRef(false);
+
+  // Play alarm on mount (arrest)
+  useEffect(() => {
+    if (!hasPlayedAlarm.current) {
+      hasPlayedAlarm.current = true;
+      playAlarmSound();
+    }
+  }, []);
 
   // Lawyer check
   const hasLawyer = state.corruptContacts?.some(c => {
@@ -260,6 +277,7 @@ export function PrisonOverlay() {
         onConfirm={() => {
           setConfirmBribe(false);
           dispatch({ type: 'BRIBE_PRISON' });
+          playCoinSound();
           showToast('Vrijgekocht! Heat blijft actief.');
         }}
         onCancel={() => setConfirmBribe(false)}
@@ -274,7 +292,13 @@ export function PrisonOverlay() {
         variant="warning"
         onConfirm={() => {
           setConfirmEscape(false);
+          playDramaticReveal();
           dispatch({ type: 'ATTEMPT_ESCAPE' });
+          // Delayed result sound after dramatic reveal
+          setTimeout(() => {
+            if (!state.prison) playVictorySound();
+            else playNegativeSound();
+          }, 700);
         }}
         onCancel={() => setConfirmEscape(false)}
       />
