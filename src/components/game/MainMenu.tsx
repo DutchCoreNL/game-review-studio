@@ -78,12 +78,22 @@ export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
             transition={{ duration: 0.4 }}
             className="relative z-10 flex flex-col items-center gap-8 px-6 max-w-[400px] w-full"
           >
+            {/* Logo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={show ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="mb--2"
+            >
+              <img src="/icon-192.png" alt="Noxhaven" className="w-24 h-24 mx-auto rounded-2xl shadow-2xl glow-gold" />
+            </motion.div>
+
             {/* Title */}
             <motion.div
-              initial={{ opacity: 0, y: -30 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={show ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-center"
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-center -mt-2"
             >
               <h1 className="font-display text-5xl sm:text-6xl font-black tracking-wider text-foreground gold-text-glow">
                 NOXHAVEN
@@ -91,7 +101,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={show ? { opacity: 1 } : {}}
-                transition={{ delay: 1 }}
+                transition={{ delay: 1.2 }}
                 className="mt-2 text-xs tracking-[0.3em] uppercase text-muted-foreground font-ui"
               >
                 Elke nacht heeft zijn prijs
@@ -102,7 +112,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={show ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.8 }}
+              transition={{ duration: 0.6, delay: 1.0 }}
               className="flex flex-col gap-3 w-full"
             >
               {hasSave && (
