@@ -95,6 +95,11 @@ import heistDatacenter from './heist-datacenter.jpg';
 import heistConvoy from './heist-convoy.jpg';
 import heistBank from './heist-bank.jpg';
 
+// Story arc images
+import arcInformant from './arc-informant.jpg';
+import arcErfenis from './arc-erfenis.jpg';
+import arcRivaal from './arc-rivaal.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -216,4 +221,10 @@ export const HEIST_IMAGES: Record<string, string> = {
   data_center: heistDatacenter,
   arms_convoy: heistConvoy,
   bank_job: heistBank,
+};
+
+export const STORY_ARC_IMAGES: Record<string, string> = {
+  informant: arcInformant,
+  erfenis: arcErfenis,
+  rivaal: arcRivaal,
 };

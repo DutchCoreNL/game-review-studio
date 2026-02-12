@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { STORY_ARCS } from '@/game/storyArcs';
+import { STORY_ARC_IMAGES } from '@/assets/items';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Zap, Brain, Heart, Lock, Flame, Shield } from 'lucide-react';
@@ -67,22 +68,45 @@ export function StoryArcEvent() {
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-md game-card border-t-[3px] border-t-game-purple p-4 shadow-2xl max-h-[85vh] flex flex-col"
+          className="w-full max-w-md game-card border-t-[3px] border-t-game-purple shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{template.icon}</span>
-              <div>
-                <h2 className="font-display text-sm text-game-purple uppercase tracking-widest">{template.name}</h2>
-                <span className="text-[0.5rem] text-muted-foreground">Stap {currentStepNum}/{stepsTotal}</span>
+          {/* Banner image */}
+          {STORY_ARC_IMAGES[arcId] && (
+            <div className="relative -mx-0 h-28 overflow-hidden">
+              <img src={STORY_ARC_IMAGES[arcId]} alt={template.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+              <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{template.icon}</span>
+                  <div>
+                    <h2 className="font-display text-sm text-game-purple uppercase tracking-widest drop-shadow-lg">{template.name}</h2>
+                    <span className="text-[0.5rem] text-muted-foreground">Stap {currentStepNum}/{stepsTotal}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <BookOpen size={12} className="text-game-purple" />
+                  <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">Verhaalboog</span>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <BookOpen size={12} className="text-game-purple" />
-              <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">Verhaalboog</span>
+          )}
+          <div className="p-4 flex flex-col flex-1 overflow-hidden">
+          {/* Header — only when no banner */}
+          {!STORY_ARC_IMAGES[arcId] && (
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{template.icon}</span>
+                <div>
+                  <h2 className="font-display text-sm text-game-purple uppercase tracking-widest">{template.name}</h2>
+                  <span className="text-[0.5rem] text-muted-foreground">Stap {currentStepNum}/{stepsTotal}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <BookOpen size={12} className="text-game-purple" />
+                <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">Verhaalboog</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Progress dots */}
           <div className="flex gap-1 mb-3">
@@ -229,6 +253,7 @@ export function StoryArcEvent() {
               Doorgaan
             </motion.button>
           )}
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
