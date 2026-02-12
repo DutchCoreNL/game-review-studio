@@ -9,7 +9,7 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target, Skull } from 'lucide-react';
+import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target, Skull, ShieldAlert } from 'lucide-react';
 import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
@@ -245,6 +245,18 @@ export function OperationsView() {
                         <div className="flex items-center gap-0.5">
                           <Star size={8} className="text-gold" />
                           <span className="text-[0.5rem] text-muted-foreground">{c.xp}/{30 * c.level}</span>
+                        </div>
+                        <div className="flex items-center gap-0.5" title={`Loyaliteit: ${c.loyalty ?? 75}`}>
+                          <ShieldAlert size={8} className={
+                            (c.loyalty ?? 75) >= 50 ? 'text-emerald' :
+                            (c.loyalty ?? 75) >= 20 ? 'text-orange-400' : 'text-blood'
+                          } />
+                          <span className={`text-[0.5rem] ${
+                            (c.loyalty ?? 75) >= 50 ? 'text-emerald' :
+                            (c.loyalty ?? 75) >= 20 ? 'text-orange-400' : 'text-blood'
+                          }`}>
+                            {(c.loyalty ?? 75) >= 80 ? 'Trouw' : (c.loyalty ?? 75) >= 50 ? 'OK' : (c.loyalty ?? 75) >= 20 ? '⚠' : '💀'}
+                          </span>
                         </div>
                       </div>
                     </div>

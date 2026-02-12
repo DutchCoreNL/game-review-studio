@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 import { playSlotSpin, playSlotReelStop, playSlotWin, playSlotJackpot, playLoss } from '@/game/sounds/casinoSounds';
-
 interface SlotsGameProps {
   dispatch: (action: any) => void;
   showToast: (msg: string, isError?: boolean) => void;
@@ -25,6 +24,10 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
   const [resultColor, setResultColor] = useState('');
   const [nearMiss, setNearMiss] = useState(false);
 
+  // Refs to avoid stale closure in animation interval
+  const spinningRef = useRef([false, false, false]);
+  const reelsRef = useRef(['🍒', '🍒', '🍒']);
+
   const vipBonus = getTotalVipBonus(state);
   const hasNeon = state.ownedDistricts.includes('neon');
   // Neon bonus: add one extra 7 and diamond (slightly better odds)
@@ -37,7 +40,9 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     if (bet > money || bet < 10) return showToast('Niet genoeg geld!', true);
     dispatch({ type: 'CASINO_BET', amount: bet });
     setResult(''); setNearMiss(false);
-    setSpinning([true, true, true]);
+    const newSpinning = [true, true, true];
+    setSpinning(newSpinning);
+    spinningRef.current = newSpinning;
     playSlotSpin();
 
     // Add to jackpot (persistent via state)
@@ -50,11 +55,13 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
     const stopReel = (index: number) => {
       const sym = symbols[Math.floor(Math.random() * symbols.length)];
       finalReels[index] = sym;
+      reelsRef.current[index] = sym;
       setReels(prev => {
         const next = [...prev];
         next[index] = sym;
         return next;
       });
+      spinningRef.current[index] = false;
       setSpinning(prev => {
         const next = [...prev];
         next[index] = false;
@@ -62,17 +69,18 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       });
     };
 
-    // Reel animation intervals
-    let counter = 0;
+    // Reel animation intervals — use refs to avoid stale closures
     const animInterval = setInterval(() => {
-      const animReels = [...reels];
+      const animReels: string[] = [];
       for (let i = 0; i < 3; i++) {
-        if (spinning[i] || counter < 15) {
+        if (spinningRef.current[i]) {
           animReels[i] = symbols[Math.floor(Math.random() * symbols.length)];
+        } else {
+          animReels[i] = reelsRef.current[i];
         }
       }
+      reelsRef.current = animReels;
       setReels(animReels);
-      counter++;
     }, 80);
 
     // Stop reels sequentially
@@ -82,6 +90,7 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       stopReel(2); playSlotReelStop();
       clearInterval(animInterval);
       setSpinning([false, false, false]);
+      spinningRef.current = [false, false, false];
       setTimeout(() => resolve(finalReels, currentBet), 100);
     }, 2000);
   };

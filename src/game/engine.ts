@@ -6,6 +6,8 @@ import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
 import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
+import { processCrewLoyalty } from './crewLoyalty';
+import { processSafehouseRaids } from './safehouseRaids';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -863,6 +865,12 @@ export function endTurn(state: GameState): NightReportData {
   // Process corruption network (payments, betrayals, passive effects)
   processCorruptionNetwork(state, report);
 
+  // Process crew loyalty (decay, defections)
+  processCrewLoyalty(state, report);
+
+  // Process safehouse raids
+  processSafehouseRaids(state, report);
+
   // Ammo factory production
   if (state.ownedBusinesses.includes('ammo_factory')) {
     const produced = AMMO_FACTORY_DAILY_PRODUCTION;
@@ -1087,7 +1095,7 @@ export function recruit(state: GameState): { success: boolean; message: string }
     : `Agent-${Math.floor(Math.random() * 999)}`;
 
   const role = CREW_ROLES[Math.floor(Math.random() * CREW_ROLES.length)] as CrewRole;
-  state.crew.push({ name, role, hp: 100, xp: 0, level: 1, specialization: null });
+  state.crew.push({ name, role, hp: 100, xp: 0, level: 1, specialization: null, loyalty: 75 });
   state.maxInv = recalcMaxInv(state);
   return { success: true, message: `${name} (${role}) gerekruteerd!` };
 }
