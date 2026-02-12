@@ -432,6 +432,10 @@ export interface Business {
   income: number;
   clean: number;
   desc: string;
+  reqDistrict?: DistrictId;
+  reqRep?: number;
+  reqDay?: number;
+  reqBusinessCount?: number;
 }
 
 export interface CrewMember {

@@ -524,6 +524,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BUY_BUSINESS': {
       const biz = BUSINESSES.find(b => b.id === action.id);
       if (!biz || s.ownedBusinesses.includes(action.id) || s.money < biz.cost) return s;
+      // Validate endgame requirements
+      if (biz.reqDistrict && !s.ownedDistricts.includes(biz.reqDistrict)) return s;
+      if (biz.reqRep && s.rep < biz.reqRep) return s;
+      if (biz.reqDay && s.day < biz.reqDay) return s;
+      if (biz.reqBusinessCount && s.ownedBusinesses.length < biz.reqBusinessCount) return s;
       s.money -= biz.cost;
       s.stats.totalSpent += biz.cost;
       s.ownedBusinesses.push(action.id);
