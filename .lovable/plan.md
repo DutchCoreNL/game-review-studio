@@ -1,65 +1,30 @@
 
-# Garage Verbetering: Eigen Volwaardige View
 
-## Probleem
-De garage zit nu ingeklemd in de DistrictPopup (wanneer je in een district bent) en is deels gedupliceerd in de Imperium > Bezit tab. Dit maakt de popup druk en de garage-ervaring versnipperd.
+# Slim Alarm: Automatische Markt Alerts
 
-## Oplossing
-De garage wordt een eigen sub-tab binnen het Imperium-scherm, met een verbeterd ontwerp dat alle voertuigfunctionaliteit samenbrengt.
+## Wat het doet
+Een "Slim Alarm" feature die automatisch markt-alarmen instelt wanneer de beste handelsroute voor een goed meer dan **EUR 1.000 winst per stuk** oplevert. De speler kan dit met een enkele knop activeren/deactiveren.
 
-## Wat verandert er?
+## Hoe het werkt
 
-### 1. Garage uit de DistrictPopup halen
-De DistrictPopup toont straks alleen district-informatie (reputatie, verdediging, reizen/overnemen). De garage wordt daar verwijderd.
+1. **Nieuwe state**: `smartAlarmEnabled: boolean` in de GameState (default `false`)
+2. **Nachtelijke check**: Tijdens de engine nacht-cyclus, als smart alarm aan staat, worden de beste routes berekend. Voor elk goed met >EUR 1.000 winst wordt automatisch een eenmalig alarm aangemaakt (als er niet al een soortgelijk alarm bestaat)
+3. **UI**: Een opvallende toggle-knop in de Markt Alarmen sectie van het Analyse-paneel
 
-### 2. Nieuwe "GARAGE" sub-tab in Imperium
-De huidige BEZIT-tab wordt opgesplitst:
-- **GARAGE** (nieuw) -- alle voertuigfuncties
-- **BEZIT** -- smokkelroutes, bedrijven-overzicht
+## Technische Wijzigingen
 
-### 3. Verbeterde Garage-layout met sub-secties
+### 1. `src/game/types.ts`
+- Toevoegen: `smartAlarmEnabled?: boolean` aan GameState
 
-De nieuwe garage bevat drie duidelijke secties:
+### 2. `src/contexts/GameContext.tsx`
+- Nieuw reducer action: `TOGGLE_SMART_ALARM`
+- Default waarde in initial state
 
-**A. Actief Voertuig (bovenaan)**
-- Grote VehiclePreview SVG met het actieve voertuig
-- Heat-bar en conditie-balk
-- Omkat-knop met animatie (verplaatst uit GaragePanel)
-- Reparatie-knop
+### 3. `src/game/engine.ts`
+- In de nachtcyclus (bij alert processing): als `smartAlarmEnabled` aan staat, bereken beste routes en maak automatisch alerts aan voor goederen met winst >EUR 1.000 (max 10 alerts totaal, geen duplicaten)
 
-**B. Upgrades (midden)**
-- De bestaande VehicleUpgradePanel, nu met meer ruimte
-- Totale stats-overzicht: base stats + upgrade bonussen
+### 4. `src/components/game/trade/MarketAnalysisPanel.tsx`
+- Toggle-knop "Slim Alarm" boven de handmatige alarm-sectie
+- Korte uitleg: "Automatisch alarm bij routes met >EUR 1.000 winst"
+- Visuele indicator (aan/uit) met gouden styling
 
-**C. Voertuigcollectie (onderaan)**
-- Alle bezeten voertuigen als kaarten met thumbnail-afbeeldingen
-- Actief voertuig gemarkeerd met gouden rand
-- Knop om van voertuig te wisselen
-- Niet-bezeten voertuigen als "te koop"-kaarten met prijs
-
-## Technisch Plan
-
-### Bestanden die worden aangepast:
-
-1. **`src/components/game/ImperiumView.tsx`**
-   - Sub-tabs uitbreiden met "GARAGE" (Car-icoon)
-   - Bestaande AssetsPanel opsplitsen: voertuig-code verplaatst naar nieuwe GarageView
-   - AssetsPanel behhoudt smokkelroutes en eventueel legacy lab
-
-2. **`src/components/game/garage/GarageView.tsx`** (nieuw)
-   - Volledige garage-view met drie secties
-   - Combineert functionaliteit van GaragePanel + AssetsPanel voertuig-deel
-   - Gebruikt bestaande VehiclePreview en VehicleUpgradePanel
-   - Voertuigcollectie met thumbnails uit VEHICLE_IMAGES
-
-3. **`src/components/game/DistrictPopup.tsx`**
-   - GaragePanel import en rendering verwijderen
-   - Eventueel een klein linkje "Ga naar Garage" toevoegen als de speler in het district is
-
-4. **`src/components/game/garage/GaragePanel.tsx`**
-   - Kan blijven bestaan als basis, maar de logica wordt geconsolideerd in GarageView
-
-### Geen wijzigingen nodig aan:
-- Game state/types (geen nieuwe state)
-- Engine/constants (bestaande data wordt hergebruikt)
-- GameNav (garage zit binnen Imperium, geen extra nav-item)
