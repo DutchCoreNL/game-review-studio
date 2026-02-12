@@ -5,6 +5,10 @@ import carBavamotor from './car-bavamotor.jpg';
 import carMeridiolux from './car-meridiolux.jpg';
 import carLupoghini from './car-lupoghini.jpg';
 import carRoyaleryce from './car-royaleryce.jpg';
+import carDeckerPhantom from './car-decker-phantom.jpg';
+import carCartelBulldozer from './car-cartel-bulldozer.jpg';
+import carNemesisTrophy from './car-nemesis-trophy.jpg';
+import carGoudenKlassiek from './car-gouden-klassiek.jpg';
 
 // Trade goods images
 import goodDrugs from './good-drugs.jpg';
@@ -157,11 +161,11 @@ export const VEHICLE_IMAGES: Record<string, string> = {
   meridiolux: carMeridiolux,
   lupoghini: carLupoghini,
   royaleryce: carRoyaleryce,
-  // Unique vehicles use regular vehicle images as placeholders
-  decker_phantom: carRoyaleryce,
-  cartel_bulldozer: carForgedyer,
-  nemesis_trophy: carLupoghini,
-  gouden_klassiek: carMeridiolux,
+  // Unique reward vehicles
+  decker_phantom: carDeckerPhantom,
+  cartel_bulldozer: carCartelBulldozer,
+  nemesis_trophy: carNemesisTrophy,
+  gouden_klassiek: carGoudenKlassiek,
 };
 
 export const GOOD_IMAGES: Record<string, string> = {
