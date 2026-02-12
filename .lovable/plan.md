@@ -1,51 +1,99 @@
 
-# Endgame Bedrijven Toevoegen
+# Auto-systeem Uitbreiding: Straatracen, Unieke Voertuigen & Autohandel
 
-## Probleem
-De huidige bedrijven genereren maximaal **€1.700/dag** aan inkomen, terwijl corruptiekosten alleen al oplopen tot **~€4.600/dag**. Endgame-spelers hebben onvoldoende passief inkomen om hun imperium draaiende te houden.
+## Overzicht
+Drie nieuwe systemen die het voertuig-gameplay flink uitbreiden: illegale straatracen voor snelle winst, unieke beloningsvoertuigen als trofees, en een dynamisch dealerschap om voertuigen te verhandelen.
 
-## Huidige bedrijven
-| Bedrijf | Kosten | Inkomen/dag | Witwas/dag |
-|---------|--------|-------------|------------|
-| Ristorante Nero | €10.000 | €400 | €300 |
-| Club Paradiso | €25.000 | €800 | €600 |
-| Tony's Autogarage | €15.000 | €500 | €400 |
-| Kogelfabriek | €35.000 | €0 | €0 |
+---
 
-**Totaal: €1.700/dag inkomen, €1.300/dag witwassen**
+## 1. Illegale Straatracen
 
-## Nieuwe bedrijven (endgame)
+Een mini-game waarbij je met je actieve voertuig racet tegen NPC-tegenstanders voor geld, reputatie en heat.
 
-| Bedrijf | Kosten | Inkomen/dag | Witwas/dag | Vereiste | Beschrijving |
-|---------|--------|-------------|------------|----------|--------------|
-| Havenpakhuis Import/Export | €50.000 | €1.200 | €800 | Port Nero bezit | Legale import als dekmantel voor smokkelwaar |
-| Goudhandel De Kroon | €75.000 | €1.500 | €1.200 | Crown Heights bezit | Edelmetaal en juwelen — perfecte witwasoperatie |
-| Neon Escort Agency | €60.000 | €1.800 | €500 | Neon Strip bezit, rep 200 | Exclusieve escortservice met rijke klanten |
-| Bouwbedrijf IJzerwerk | €80.000 | €1.000 | €1.500 | Iron Borough bezit | Aannemersbedrijf dat grote sommen witwast via nepfacturen |
-| Cryptobeurs NoxCoin | €100.000 | €2.500 | €2.000 | Rep 300, dag 30+ | Cryptoplatform — hoge opbrengst, digitaal witwassen |
-| Hotel Noxhaven Grand | €150.000 | €3.000 | €2.500 | Rep 400, 3+ bedrijven | Het kroonjuweel — luxehotel met VIP-gasten en maximale dekking |
+### Hoe het werkt
+- Nieuwe sub-tab **"RACES"** in het Imperium-scherm (naast Garage)
+- 3 race-types met oplopende moeilijkheid:
+  - **Straatrace** (inzet €1.000-5.000, heat +5)
+  - **Havenrun** (inzet €5.000-15.000, heat +12, vereist: Port Nero)
+  - **Neon Grand Prix** (inzet €15.000-50.000, heat +20, vereist: Neon Strip, dag 20+)
+- Winstkans gebaseerd op: voertuig speed + upgrades + crew Chauffeur bonus + willekeur
+- Beloningen: inzet x1.5-3x, +rep, +XP
+- Risico bij verlies: inzet kwijt, kans op voertuigschade (-15 tot -30 conditie)
+- Cooldown: 1 race per dag (reset bij END_TURN)
+- NPC-tegenstanders met namen en eigen voertuigen voor flavor
 
-**Met alle nieuwe bedrijven erbij: max €12.400/dag inkomen, €8.800/dag witwassen**
+### Technische wijzigingen
+- **`src/game/types.ts`**: Nieuw `RaceType` en `RaceDef` type, `raceUsedToday: boolean` in GameState
+- **`src/game/constants.ts`**: `RACES` array met 3 races + NPC-namen
+- **`src/game/racing.ts`**: Nieuw bestand — `calculateRaceResult()` functie
+- **`src/contexts/GameContext.tsx`**: `START_RACE` action
+- **`src/components/game/garage/RacingPanel.tsx`**: Nieuw UI-component met race-selectie, NPC-tegenstander, inzet-slider en resultaat-animatie
+- **`src/components/game/garage/GarageView.tsx`**: RacingPanel importeren en tonen onder de bestaande secties
 
-## Technische wijzigingen
+---
 
-### `src/game/types.ts`
-- `Business` interface uitbreiden met optionele velden:
-  - `reqDistrict?: DistrictId` — vereist bezit van een district
-  - `reqRep?: number` — minimale reputatie
-  - `reqDay?: number` — minimale dag
-  - `reqBusinessCount?: number` — minimaal aantal andere bedrijven
+## 2. Unieke Beloningsvoertuigen
 
-### `src/game/constants.ts`
-- 6 nieuwe bedrijven toevoegen aan de `BUSINESSES` array met de bovenstaande waarden en vereisten
+Speciale voertuigen die niet te koop zijn maar alleen verdiend worden via gameplay-mijlpalen.
 
-### `src/components/game/ImperiumView.tsx` (BusinessPanel)
-- Vereisten tonen bij vergrendelde bedrijven (district, rep, dag)
-- Vergrendelde bedrijven worden getoond maar niet koopbaar, met uitleg waarom
-- Bedrijven sorteren: bezit bovenaan, dan beschikbaar, dan vergrendeld
+### Voertuigen (4 stuks)
+| Voertuig | Hoe te verkrijgen | Bonus |
+|----------|-------------------|-------|
+| **Decker's Phantom** | Versla Decker (final boss) | +25 charm, +4 armor, +3 speed |
+| **Cartel Bulldozer** | Verover alle 3 facties | +40 opslag, +5 armor, -2 speed |
+| **Nemesis Trophy Car** | Versla 3 nemesis-generaties | +6 speed, +10 charm, heat daalt 2x sneller |
+| **Gouden Klassiek** | Bezit alle 6 reguliere voertuigen | +15 charm, +3 speed, +3 armor, +20 opslag |
 
-### `src/contexts/GameContext.tsx`
-- `BUY_BUSINESS` action uitbreiden met validatie van de nieuwe vereisten (district, rep, dag, businessCount)
+### Technische wijzigingen
+- **`src/game/constants.ts`**: `UNIQUE_VEHICLES` array (apart van `VEHICLES`) met unlockcondities
+- **`src/game/types.ts`**: `UniqueVehicle` type met `unlockCondition` beschrijving
+- **`src/contexts/GameContext.tsx`**: Check bij `END_TURN` / `RESOLVE_FINAL_BOSS` etc. of een unlock getriggerd moet worden; voegt ze toe aan `ownedVehicles` met een speciaal vlag
+- **`src/components/game/garage/GarageView.tsx`**: Sectie "Unieke Voertuigen" onderaan met vergrendelde items (silhouet + vereiste) en ontgrendelde items met gouden rand
+- **`src/assets/items/index.ts`**: Mapping voor de 4 unieke voertuigen (hergebruik bestaande placeholder-stijl)
 
-### `src/assets/items/index.ts`
-- Geen nieuwe afbeeldingen nodig; bedrijven gebruiken het `Store` icoon uit de bestaande UI
+---
+
+## 3. Autohandel / Dealerschap
+
+Een dynamisch dealerschap waar voertuigprijzen fluctueren en je voertuigen kunt doorverkopen.
+
+### Hoe het werkt
+- Nieuwe sub-tab **"DEALER"** in het Imperium-scherm
+- **Verkopen**: Eigen voertuigen verkopen voor 40-70% van de aankoopprijs (afhankelijk van conditie en upgrades)
+- **Dynamische prijzen**: Voertuigprijzen fluctueren per dag met -10% tot +15% (net als handelsgoederenprijzen)
+- **Speciale deals**: Elke 5 dagen verschijnt er een willekeurig voertuig met 20-30% korting (24 uur geldig)
+- **Trade-in systeem**: Bij aankoop van een nieuw voertuig kun je je huidige inruilen voor een betere prijs dan los verkopen (+10% trade-in bonus)
+
+### Technische wijzigingen
+- **`src/game/types.ts`**: `vehiclePriceModifiers: Record<string, number>` en `dealerDeal: { vehicleId: string; discount: number; expiresDay: number } | null` in GameState
+- **`src/game/constants.ts`**: `VEHICLE_SELL_RATIO = 0.55` base sell-percentage
+- **`src/contexts/GameContext.tsx`**: 
+  - `SELL_VEHICLE` action (verwijdert voertuig, geeft geld, kan niet actieve als enige verkopen)
+  - `TRADE_IN_VEHICLE` action (verkoopt oud + koopt nieuw in 1 transactie)
+  - Prijsfluctuatie-logica in `END_TURN`
+  - Dealer-deal generatie elke 5 dagen
+- **`src/components/game/garage/DealerPanel.tsx`**: Nieuw component met:
+  - Huidige voertuigen met verkoopprijs en "VERKOOP" knop
+  - Te koop staande voertuigen met dynamische prijzen (groen/rood pijlen)
+  - Actieve deal-van-de-dag met timer
+  - Trade-in optie bij aankoop
+- **`src/components/game/ImperiumView.tsx`**: Nieuwe sub-tab "DEALER" toevoegen
+
+---
+
+## Samenvatting nieuwe bestanden
+| Bestand | Doel |
+|---------|------|
+| `src/game/racing.ts` | Race-logica en resultaatberekening |
+| `src/components/game/garage/RacingPanel.tsx` | Race UI-component |
+| `src/components/game/garage/DealerPanel.tsx` | Dealerschap UI-component |
+
+## Samenvatting aangepaste bestanden
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/game/types.ts` | Nieuwe types voor races, unieke voertuigen, dealer state |
+| `src/game/constants.ts` | Race-definities, unieke voertuigen, dealer-constanten |
+| `src/contexts/GameContext.tsx` | Actions: START_RACE, SELL_VEHICLE, TRADE_IN_VEHICLE + unlock checks + prijsfluctuatie |
+| `src/components/game/garage/GarageView.tsx` | RacingPanel + Unieke Voertuigen sectie integreren |
+| `src/components/game/ImperiumView.tsx` | Sub-tabs "RACES" en "DEALER" toevoegen |
+| `src/assets/items/index.ts` | Placeholder-mappings voor unieke voertuigen |
