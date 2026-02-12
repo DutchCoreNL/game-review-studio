@@ -23,6 +23,8 @@ import gearLaptop from './gear-laptop.jpg';
 import gearCartelBlade from './gear-cartel-blade.jpg';
 import gearImplant from './gear-implant.jpg';
 import gearSkullArmor from './gear-skull-armor.jpg';
+import gearShotgun from './gear-shotgun.jpg';
+import gearSniper from './gear-sniper.jpg';
 
 // Stolen car images
 import stolenRustedSedan from './stolen-rusted-sedan.jpg';
@@ -167,9 +169,9 @@ export const GOOD_IMAGES: Record<string, string> = {
 
 export const GEAR_IMAGES: Record<string, string> = {
   glock: gearGlock,
-  shotgun: gearAk47, // reuse AK image for shotgun
+  shotgun: gearShotgun,
   ak47: gearAk47,
-  sniper: gearAk47, // reuse AK image for sniper
+  sniper: gearSniper,
   vest: gearVest,
   suit: gearSuit,
   phone: gearPhone,
