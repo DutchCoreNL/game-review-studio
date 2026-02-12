@@ -38,14 +38,41 @@ export const VILLA_MODULES: VillaModuleDef[] = [
   { id: 'server_room', name: 'Server Room', cost: 25000, icon: '🖥️', desc: '-5 extra heat decay per nacht (voertuig & persoonlijk).', reqLevel: 2 },
 ];
 
-// ========== VILLA STORAGE LIMITS ==========
+// ========== PRESTIGE UPGRADES ==========
 
-export function getVaultMax(villaLevel: number): number {
-  return [0, 50000, 100000, 200000][villaLevel] || 0;
+export interface VillaPrestigeDef {
+  id: VillaModuleId;
+  cost: number;
+  bonus: string; // human-readable bonus description
 }
 
-export function getStorageMax(villaLevel: number): number {
-  return [0, 20, 40, 60][villaLevel] || 0;
+export const VILLA_PRESTIGE_UPGRADES: VillaPrestigeDef[] = [
+  { id: 'kluis', cost: 50000, bonus: 'Kluis capaciteit +50%' },
+  { id: 'opslagkelder', cost: 40000, bonus: 'Opslag capaciteit +50%' },
+  { id: 'wietplantage', cost: 60000, bonus: 'Productie 8-15/nacht (+50%)' },
+  { id: 'coke_lab', cost: 100000, bonus: 'Productie 5-8/nacht (+60%)' },
+  { id: 'synthetica_lab', cost: 30000, bonus: 'Geen heat van productie' },
+  { id: 'crew_kwartieren', cost: 40000, bonus: '+1 extra crew slot (totaal +3)' },
+  { id: 'wapenkamer', cost: 30000, bonus: '+10 extra ammo opslag, +20 verdediging' },
+  { id: 'commandocentrum', cost: 80000, bonus: '+25% missie-succes (totaal)' },
+  { id: 'camera', cost: 90000, bonus: '+15 verdediging, -50% aanvalkans' },
+  { id: 'server_room', cost: 50000, bonus: '-10 extra heat decay (totaal -15/nacht)' },
+  { id: 'zwembad', cost: 70000, bonus: '+10 charm (totaal +15)' },
+  { id: 'helipad', cost: 120000, bonus: '2x per dag reizen i.p.v. 1x' },
+  { id: 'tunnel', cost: 100000, bonus: '100% ontsnapping, 75% verliesreductie' },
+  { id: 'garage_uitbreiding', cost: 30000, bonus: '+20 extra bagage (totaal +30)' },
+];
+
+// ========== VILLA STORAGE LIMITS ==========
+
+export function getVaultMax(villaLevel: number, hasPrestige: boolean = false): number {
+  const base = [0, 50000, 100000, 200000][villaLevel] || 0;
+  return hasPrestige ? Math.floor(base * 1.5) : base;
+}
+
+export function getStorageMax(villaLevel: number, hasPrestige: boolean = false): number {
+  const base = [0, 20, 40, 60][villaLevel] || 0;
+  return hasPrestige ? Math.floor(base * 1.5) : base;
 }
 
 // ========== VILLA PRODUCTION ==========
@@ -64,32 +91,34 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
   const villa = state.villa;
   const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   let space = state.maxInv - currentInv;
+  const prestige = villa.prestigeModules || [];
 
-  // Wietplantage: passive 5-10 drugs/night
+  // Wietplantage: passive 5-10 drugs/night (prestige: 8-15)
   if (villa.modules.includes('wietplantage') && space > 0) {
-    const wietYield = 5 + Math.floor(Math.random() * 6); // 5-10
+    const isPrestige = prestige.includes('wietplantage');
+    const wietYield = isPrestige ? (8 + Math.floor(Math.random() * 8)) : (5 + Math.floor(Math.random() * 6));
     const produced = Math.min(wietYield, space);
     const existing = state.inventory.drugs || 0;
     const existingCost = state.inventoryCosts.drugs || 0;
-    const baseCost = GOODS.find(g => g.id === 'drugs')!.base * 0.3; // low cost since self-produced
+    const baseCost = GOODS.find(g => g.id === 'drugs')!.base * 0.3;
     state.inventory.drugs = existing + produced;
     state.inventoryCosts.drugs = existing + produced > 0
       ? Math.floor(((existing * existingCost) + (produced * baseCost)) / (existing + produced))
       : baseCost;
     result.wietProduced = produced;
     space -= produced;
-    result.heatGenerated += 2; // low heat
+    result.heatGenerated += 2;
   }
 
-  // Coke Lab: 3-5 per night, requires chemicals
+  // Coke Lab: 3-5 per night (prestige: 5-8), requires chemicals
   if (villa.modules.includes('coke_lab') && space > 0 && state.lab.chemicals > 0) {
-    const cokeYield = 3 + Math.floor(Math.random() * 3); // 3-5
-    const chemsNeeded = cokeYield * 2; // costs 2 chems per coke
+    const isPrestige = prestige.includes('coke_lab');
+    const cokeYield = isPrestige ? (5 + Math.floor(Math.random() * 4)) : (3 + Math.floor(Math.random() * 3));
+    const chemsNeeded = cokeYield * 2;
     const chemsAvailable = Math.min(state.lab.chemicals, chemsNeeded);
     const produced = Math.min(Math.floor(chemsAvailable / 2), space);
     if (produced > 0) {
       state.lab.chemicals -= produced * 2;
-      // Store coke as luxury (premium product)
       const existing = state.inventory.luxury || 0;
       const existingCost = state.inventoryCosts.luxury || 0;
       const baseCost = GOODS.find(g => g.id === 'luxury')!.base * 0.6;
@@ -99,12 +128,13 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
         : baseCost;
       result.cokeProduced = produced;
       space -= produced;
-      result.heatGenerated += 5; // higher heat
+      result.heatGenerated += 5;
     }
   }
 
-  // Synthetica Lab (moved to villa): same as HQ lab but from villa
+  // Synthetica Lab: prestige = no heat
   if (villa.modules.includes('synthetica_lab') && space > 0 && state.lab.chemicals > 0) {
+    const isPrestige = prestige.includes('synthetica_lab');
     const batch = Math.min(state.lab.chemicals, 15, space);
     if (batch > 0) {
       state.lab.chemicals -= batch;
@@ -116,7 +146,7 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
         ? Math.floor(((existing * existingCost) + (batch * baseCost)) / (existing + batch))
         : baseCost;
       result.labProduced = batch;
-      result.heatGenerated += 3;
+      result.heatGenerated += isPrestige ? 0 : 3;
     }
   }
 
@@ -127,7 +157,8 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
 
 export function getVillaProtectedMoney(state: GameState): number {
   if (!state.villa || !state.villa.modules.includes('kluis')) return 0;
-  return Math.min(state.villa.vaultMoney, getVaultMax(state.villa.level));
+  const hasPrestige = state.villa.prestigeModules?.includes('kluis') || false;
+  return Math.min(state.villa.vaultMoney, getVaultMax(state.villa.level, hasPrestige));
 }
 
 export function getVillaProtectedGoods(state: GameState): Partial<Record<GoodId, number>> {
@@ -159,7 +190,7 @@ export function getVillaHeatReduction(state: GameState): number {
 
 export function getVillaMaxCrewBonus(state: GameState): number {
   if (!state.villa || !state.villa.modules.includes('crew_kwartieren')) return 0;
-  return 2;
+  return state.villa.prestigeModules?.includes('crew_kwartieren') ? 3 : 2;
 }
 
 export function getVillaCrewHealMultiplier(state: GameState): number {
@@ -171,12 +202,12 @@ export function getVillaCrewHealMultiplier(state: GameState): number {
 
 export function getVillaCharmBonus(state: GameState): number {
   if (!state.villa || !state.villa.modules.includes('zwembad')) return 0;
-  return 5;
+  return state.villa.prestigeModules?.includes('zwembad') ? 15 : 5;
 }
 
 // ========== MISSION SUCCESS BONUS ==========
 
 export function getVillaMissionBonus(state: GameState): number {
   if (!state.villa || !state.villa.modules.includes('commandocentrum')) return 0;
-  return 0.10; // +10%
+  return state.villa.prestigeModules?.includes('commandocentrum') ? 0.25 : 0.10;
 }

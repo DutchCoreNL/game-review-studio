@@ -14,6 +14,7 @@ export type VillaModuleId = 'kluis' | 'opslagkelder' | 'synthetica_lab' | 'wietp
 export interface VillaState {
   level: number; // 1-3
   modules: VillaModuleId[];
+  prestigeModules: VillaModuleId[]; // golden prestige upgrades
   vaultMoney: number; // money stored safely
   storedGoods: Partial<Record<GoodId, number>>; // goods stored safely
   storedAmmo: number;
