@@ -10,6 +10,7 @@ import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import casinoBg from '@/assets/casino-bg.png';
+import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
 export function CasinoView() {
   const { state, dispatch, showToast } = useGame();
@@ -111,10 +112,10 @@ export function CasinoView() {
       <AnimatePresence mode="wait">
         {!activeGame ? (
           <motion.div key="menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
-            <GameCard icon={<Spade size={28} />} name="BLACKJACK" sub="2x Uitbetaling + Double Down" onClick={() => setActiveGame('blackjack')} />
-            <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} />
-            <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} />
-            <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" />
+            <GameCard icon={<Spade size={28} />} name="BLACKJACK" sub="2x Uitbetaling + Double Down" onClick={() => setActiveGame('blackjack')} image={CASINO_GAME_IMAGES.blackjack} />
+            <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
+            <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
+            <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
           </motion.div>
         ) : activeGame === 'blackjack' ? (
           <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money}
@@ -142,14 +143,25 @@ export function CasinoView() {
   );
 }
 
-function GameCard({ icon, name, sub, onClick, color }: { icon: React.ReactNode; name: string; sub: string; onClick: () => void; color?: string }) {
+function GameCard({ icon, name, sub, onClick, color, image }: { icon: React.ReactNode; name: string; sub: string; onClick: () => void; color?: string; image?: string }) {
   return (
     <motion.button onClick={onClick}
-      className="game-card-interactive flex flex-col items-center py-6 gap-2 bg-gradient-to-b from-card to-background"
+      className="game-card-interactive flex flex-col items-center gap-0 bg-gradient-to-b from-card to-background overflow-hidden"
       whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
-      <div className={`${color ? `text-${color}` : 'text-gold'} gold-text-glow`}>{icon}</div>
-      <span className="font-bold text-sm font-display tracking-wider">{name}</span>
-      <span className="text-[0.55rem] text-muted-foreground text-center px-2">{sub}</span>
+      {image && (
+        <div className="relative w-full h-20 overflow-hidden">
+          <img src={image} alt={name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+          <div className={`absolute bottom-1 left-0 right-0 flex justify-center ${color ? `text-${color}` : 'text-gold'} gold-text-glow`}>
+            {icon}
+          </div>
+        </div>
+      )}
+      {!image && <div className={`py-4 ${color ? `text-${color}` : 'text-gold'} gold-text-glow`}>{icon}</div>}
+      <div className="py-2 px-2">
+        <span className="font-bold text-sm font-display tracking-wider block">{name}</span>
+        <span className="text-[0.55rem] text-muted-foreground text-center block mt-0.5">{sub}</span>
+      </div>
     </motion.button>
   );
 }

@@ -123,6 +123,12 @@ import safehouseVault from './safehouse-vault.jpg';
 import safehouseGarage from './safehouse-garage.jpg';
 import safehouseComms from './safehouse-comms.jpg';
 
+// Casino game images
+import casinoBlackjack from './casino-blackjack.jpg';
+import casinoRoulette from './casino-roulette.jpg';
+import casinoSlots from './casino-slots.jpg';
+import casinoHighlow from './casino-highlow.jpg';
+
 // Achievement badge images
 import badgeFirstBlood from './badge-first-blood.jpg';
 import badgeDrugLord from './badge-drug-lord.jpg';
@@ -302,4 +308,11 @@ export const ACHIEVEMENT_IMAGES: Record<string, string> = {
   clean_money: badgeCleanMoney,
   car_collector: badgeCarCollector,
   survivor: badgeSurvivor,
+};
+
+export const CASINO_GAME_IMAGES: Record<string, string> = {
+  blackjack: casinoBlackjack,
+  roulette: casinoRoulette,
+  slots: casinoSlots,
+  highlow: casinoHighlow,
 };
