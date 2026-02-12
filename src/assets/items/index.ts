@@ -100,6 +100,12 @@ import arcInformant from './arc-informant.jpg';
 import arcErfenis from './arc-erfenis.jpg';
 import arcRivaal from './arc-rivaal.jpg';
 
+// Crew role portraits
+import crewHacker from './crew-hacker.jpg';
+import crewEnforcer from './crew-enforcer.jpg';
+import crewChauffeur from './crew-chauffeur.jpg';
+import crewSmokkelaar from './crew-smokkelaar.jpg';
+
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
 import opAtmSkimming from './op-atm-skimming.jpg';
@@ -227,4 +233,11 @@ export const STORY_ARC_IMAGES: Record<string, string> = {
   informant: arcInformant,
   erfenis: arcErfenis,
   rivaal: arcRivaal,
+};
+
+export const CREW_ROLE_IMAGES: Record<string, string> = {
+  Hacker: crewHacker,
+  Enforcer: crewEnforcer,
+  Chauffeur: crewChauffeur,
+  Smokkelaar: crewSmokkelaar,
 };

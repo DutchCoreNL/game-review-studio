@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Shield, Zap, Trash2, Activity } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { CREW_ROLE_IMAGES } from '@/assets/items';
 
 const CONTRACT_ICONS: Record<string, React.ReactNode> = { delivery: <Truck size={16} />, combat: <Swords size={16} />, stealth: <Eye size={16} />, tech: <Cpu size={16} /> };
 const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat: 'text-blood', stealth: 'text-game-purple', tech: 'text-ice' };
@@ -129,8 +130,12 @@ export function MissionsView() {
                 <div key={i} className="game-card">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center relative">
-                        <Users size={14} className="text-gold" />
+                      <div className="w-9 h-9 rounded-full overflow-hidden relative border border-border">
+                        {CREW_ROLE_IMAGES[c.role] ? (
+                          <img src={CREW_ROLE_IMAGES[c.role]} alt={c.role} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center"><Users size={14} className="text-gold" /></div>
+                        )}
                         <span className="absolute -bottom-0.5 -right-0.5 text-[0.45rem] bg-gold text-secondary-foreground rounded px-0.5 font-bold">{c.level}</span>
                       </div>
                       <div>
