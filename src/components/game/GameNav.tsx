@@ -3,6 +3,7 @@ import { GameView } from '@/game/types';
 import { Map, Package, Crosshair, Crown, User, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
+import { useMemo } from 'react';
 
 const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
   { id: 'city', label: 'KAART', icon: Map },
@@ -13,13 +14,41 @@ const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
 ];
 
 export function GameNav() {
-  const { view, setView } = useGame();
+  const { view, setView, state } = useGame();
+
+  // Compute badge counts per tab
+  const badges = useMemo(() => {
+    const b: Partial<Record<GameView, number>> = {};
+
+    // OPS: active contracts + hit contracts
+    const opsCount = (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0);
+    if (opsCount > 0) b.ops = opsCount;
+
+    // EMPIRE: crew members injured (hp < 100) or pending car orders past deadline
+    const injuredCrew = state.crew?.filter(c => c.hp < 100).length || 0;
+    const pendingOrders = state.carOrders?.filter(o => state.day >= o.deadline).length || 0;
+    const empireCount = injuredCrew + pendingOrders;
+    if (empireCount > 0) b.empire = empireCount;
+
+    // TRADE: district with demand spike (districtDemands has a non-null entry)
+    const demandCount = state.districtDemands
+      ? Object.values(state.districtDemands).filter(Boolean).length
+      : 0;
+    if (demandCount > 0) b.trade = demandCount;
+
+    // CITY: pending street events or night report
+    const cityCount = (state.pendingStreetEvent ? 1 : 0) + (state.nightReport ? 1 : 0);
+    if (cityCount > 0) b.city = cityCount;
+
+    return b;
+  }, [state.activeContracts, state.hitContracts, state.crew, state.carOrders, state.day, state.districtDemands, state.pendingStreetEvent, state.nightReport]);
 
   return (
     <nav className="flex-shrink-0 h-[60px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
       {NAV_ITEMS.map(item => {
         const isActive = view === item.id;
         const Icon = item.icon;
+        const badge = badges[item.id];
         return (
           <button
             key={item.id}
@@ -35,7 +64,14 @@ export function GameNav() {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
-            <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+            <div className="relative">
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+              {badge && !isActive && (
+                <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] rounded-full bg-blood text-[0.45rem] text-primary-foreground font-bold flex items-center justify-center px-0.5 leading-none">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </div>
             <span className="tracking-wider">{item.label}</span>
           </button>
         );
