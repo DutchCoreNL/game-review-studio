@@ -309,6 +309,26 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
+      {/* GEZOCHT warning at heat > 80 */}
+      {(personalHeat > 80 || vehicleHeat > 80) && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-[hsl(var(--blood)/0.15)] border border-blood rounded-lg p-3 mt-4 mb-2"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Skull size={16} className="text-blood animate-pulse" />
+            <span className="text-xs font-bold text-blood uppercase tracking-wider">GEZOCHT</span>
+          </div>
+          <p className="text-[0.65rem] text-blood/90 leading-relaxed">
+            Je bent actief gezocht door de politie! Elke actie — handelen, reizen, operaties — draagt nu een hoog arrestatierisico.
+            {personalHeat > 80 && ' Persoonlijke heat boven 80: kans op inval elke dag.'}
+            {vehicleHeat > 80 && ' Voertuig heat boven 80: checkpoints blokkeren routes.'}
+            {' '}Duik onder of koop de politie om om je heat te verlagen.
+          </p>
+        </motion.div>
+      )}
+
       <p className="text-[0.6rem] text-muted-foreground mt-3 italic">
         Voertuig heat stijgt bij handel & reizen. Persoonlijke heat stijgt bij combat, witwassen & mislukte missies. Hoge heat = meer controles, boetes en invallen.
       </p>
