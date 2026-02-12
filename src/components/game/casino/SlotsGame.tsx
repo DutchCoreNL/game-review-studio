@@ -3,6 +3,7 @@ import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
+import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
 interface SlotsGameProps {
   dispatch: (action: any) => void;
@@ -130,8 +131,13 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
   const isSpinning = spinning.some(s => s);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-1 neon-text">NEON SLOTS</h3>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card overflow-hidden">
+      <div className="relative h-24 overflow-hidden">
+        <img src={CASINO_GAME_IMAGES.slots} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+        <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display neon-text">NEON SLOTS</h3>
+      </div>
+      <div className="p-4 pt-1">
 
       {/* Progressive Jackpot */}
       <div className="text-center mb-3">
@@ -185,6 +191,7 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
           {result}
         </motion.p>
       )}
+      </div>
     </motion.div>
   );
 }

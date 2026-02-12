@@ -6,6 +6,7 @@ import { BetControls } from './BetControls';
 import { createDeck, getCardRankValue, getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react';
+import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
 // Rebalanced multiplier ladder (lowered from 1.5/2/3/5/10/20)
 const MULTIPLIER_LADDER = [
@@ -116,8 +117,13 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-4 gold-text-glow">HIGH-LOW</h3>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card overflow-hidden">
+      <div className="relative h-24 overflow-hidden">
+        <img src={CASINO_GAME_IMAGES.highlow} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+        <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">HIGH-LOW</h3>
+      </div>
+      <div className="p-4 pt-2">
 
       {/* Multiplier Ladder */}
       {playing && (
@@ -204,6 +210,7 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
           {result}
         </motion.p>
       )}
+      </div>
     </motion.div>
   );
 }

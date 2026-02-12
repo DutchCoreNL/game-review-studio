@@ -5,6 +5,7 @@ import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
 import { createDeck, getBlackjackScore, CasinoSessionStats, getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
 import { motion } from 'framer-motion';
+import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
 interface BlackjackGameProps {
   dispatch: (action: any) => void;
@@ -106,8 +107,13 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-1 gold-text-glow">BLACKJACK</h3>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card overflow-hidden">
+      <div className="relative h-24 overflow-hidden">
+        <img src={CASINO_GAME_IMAGES.blackjack} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+        <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">BLACKJACK</h3>
+      </div>
+      <div className="p-4 pt-2">
       {sessionStats.currentStreak > 0 && (
         <p className="text-center text-[0.5rem] text-gold mb-2">🔥 Streak: {sessionStats.currentStreak}</p>
       )}
@@ -167,6 +173,7 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
           {result}
         </motion.p>
       )}
+      </div>
     </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
+import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
 type RouletteBet = 'red' | 'black' | 'green' | 'even' | 'odd' | 'low' | 'high';
 
@@ -75,8 +76,13 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card p-4">
-      <h3 className="text-center text-gold font-bold text-lg font-display mb-4 gold-text-glow">ROULETTE</h3>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card overflow-hidden">
+      <div className="relative h-24 overflow-hidden">
+        <img src={CASINO_GAME_IMAGES.roulette} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+        <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">ROULETTE</h3>
+      </div>
+      <div className="p-4 pt-2">
 
       {/* Wheel */}
       <div className="flex justify-center mb-3">
@@ -156,6 +162,7 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
           {result}
         </motion.p>
       )}
+      </div>
     </motion.div>
   );
 }
