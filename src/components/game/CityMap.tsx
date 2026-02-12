@@ -434,6 +434,15 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           const isOwned = ownedDistricts.includes(id);
           const hasDemand = !!districtDemands[id];
 
+          // Perk text — shortened for map display
+          const perkShort: Record<DistrictId, string> = {
+            port: '+10% Smokkel',
+            crown: '-20% Heat/dag',
+            iron: '-20% Heal kosten',
+            low: 'Goedkopere Ops',
+            neon: '+10% Casino',
+          };
+
           return (
             <g key={`label-${id}`} onClick={() => onSelectDistrict(id)} className="cursor-pointer">
               {isOwned && !isSelected && (
@@ -468,6 +477,20 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
                 style={{ textTransform: 'uppercase' }}>
                 {district.name}
               </text>
+              {/* Perk label for owned districts */}
+              {isOwned && (
+                <g>
+                  <rect x={meta.cx - meta.labelW / 2 - 2} y={meta.cy + 10} width={meta.labelW + 4} height="10" rx="2"
+                    fill="hsla(0, 0%, 5%, 0.85)"
+                    stroke="hsla(45, 93%, 40%, 0.25)" strokeWidth="0.5" />
+                  <text x={meta.cx} y={meta.cy + 17} textAnchor="middle"
+                    fill="hsla(45, 93%, 55%, 0.85)"
+                    fontSize="4" fontWeight="600" fontFamily="Inter, system-ui, sans-serif"
+                    letterSpacing="0.2">
+                    {perkShort[id]}
+                  </text>
+                </g>
+              )}
               {isOwned && (
                 <g transform={`translate(${meta.cx + meta.labelW / 2 - 2}, ${meta.cy - 10})`}>
                   <motion.circle r="5" fill="hsl(0 72% 51%)"
