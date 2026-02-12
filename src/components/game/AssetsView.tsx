@@ -1,7 +1,15 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, BUSINESSES, REKAT_COSTS } from '@/game/constants';
+import { VEHICLES, BUSINESSES, REKAT_COSTS, DISTRICTS } from '@/game/constants';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Flame } from 'lucide-react';
+
+function isBusinessUnlocked(b: typeof BUSINESSES[0], state: { ownedDistricts: string[]; rep: number; day: number; ownedBusinesses: string[] }) {
+  if (b.reqDistrict && !state.ownedDistricts.includes(b.reqDistrict)) return false;
+  if (b.reqRep && state.rep < b.reqRep) return false;
+  if (b.reqDay && state.day < b.reqDay) return false;
+  if (b.reqBusinessCount && state.ownedBusinesses.length < b.reqBusinessCount) return false;
+  return true;
+}
 
 export function AssetsView() {
   const { state, dispatch, showToast } = useGame();
@@ -182,16 +190,33 @@ export function AssetsView() {
       {/* Businesses */}
       <SectionHeader title="Dekmantels" />
       <div className="space-y-2">
-        {BUSINESSES.map(b => {
+        {[...BUSINESSES].sort((a, b) => {
+          const aOwned = state.ownedBusinesses.includes(a.id) ? 0 : 1;
+          const bOwned = state.ownedBusinesses.includes(b.id) ? 0 : 1;
+          if (aOwned !== bOwned) return aOwned - bOwned;
+          const aUn = isBusinessUnlocked(a, state) ? 0 : 1;
+          const bUn = isBusinessUnlocked(b, state) ? 0 : 1;
+          return aUn - bUn;
+        }).map(b => {
           const owned = state.ownedBusinesses.includes(b.id);
+          const unlocked = isBusinessUnlocked(b, state);
+          const locked = !owned && !unlocked;
+          const reqs: string[] = [];
+          if (b.reqDistrict) reqs.push(`📍 ${DISTRICTS[b.reqDistrict]?.name || b.reqDistrict}`);
+          if (b.reqRep) reqs.push(`⭐ Rep ${b.reqRep}`);
+          if (b.reqDay) reqs.push(`📅 Dag ${b.reqDay}+`);
+          if (b.reqBusinessCount) reqs.push(`🏪 ${b.reqBusinessCount}+ bedrijven`);
           return (
-            <div key={b.id} className="game-card flex justify-between items-center">
+            <div key={b.id} className={`game-card flex justify-between items-center ${locked ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-2">
-                <Store size={14} className={owned ? 'text-emerald' : 'text-muted-foreground'} />
+                <Store size={14} className={owned ? 'text-emerald' : locked ? 'text-muted-foreground/50' : 'text-muted-foreground'} />
                 <div>
                   <h4 className="font-bold text-xs">{b.name}</h4>
                   <p className="text-[0.55rem] text-muted-foreground">{b.desc}</p>
                   <p className="text-[0.5rem] text-gold">+€{b.income}/dag | Wast €{b.clean}/dag</p>
+                  {locked && reqs.length > 0 && (
+                    <p className="text-[0.45rem] text-blood mt-0.5">🔒 {reqs.join(' · ')}</p>
+                  )}
                 </div>
               </div>
               <button
@@ -199,12 +224,12 @@ export function AssetsView() {
                   dispatch({ type: 'BUY_BUSINESS', id: b.id });
                   showToast(`${b.name} gekocht!`);
                 }}
-                disabled={owned || state.money < b.cost}
+                disabled={owned || locked || state.money < b.cost}
                 className={`px-3 py-1.5 rounded text-[0.6rem] font-bold ${
-                  owned ? 'bg-muted text-muted-foreground' : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30'
+                  owned ? 'bg-muted text-muted-foreground' : locked ? 'bg-muted text-muted-foreground' : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30'
                 }`}
               >
-                {owned ? 'BEZIT' : `€${b.cost.toLocaleString()}`}
+                {owned ? 'BEZIT' : locked ? '🔒' : `€${b.cost.toLocaleString()}`}
               </button>
             </div>
           );
