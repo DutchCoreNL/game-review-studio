@@ -1,6 +1,6 @@
-import { GameState, HitContract, HitTargetType, DistrictId, FamilyId } from './types';
+import { GameState, HitContract, HitTargetType, DistrictId, FamilyId, AmmoType } from './types';
 import { DISTRICTS, FAMILIES } from './constants';
-import { getPlayerStat, gainXp, splitHeat, recomputeHeat } from './engine';
+import { getPlayerStat, gainXp, splitHeat, recomputeHeat, getActiveAmmoType } from './engine';
 import { getKarmaAlignment, getKarmaRepMultiplier } from './karma';
 
 // ========== HIT TARGET NAME POOLS ==========
@@ -187,9 +187,13 @@ export function executeHit(state: GameState, hitId: string): {
   const hit = state.hitContracts?.find(h => h.id === hitId);
   if (!hit) return { success: false, message: 'Contract niet gevonden.', reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
 
-  // Check ammo
-  if ((state.ammo || 0) < hit.ammoCost) {
-    return { success: false, message: `Niet genoeg munitie (${hit.ammoCost} nodig).`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
+  // Check ammo (use active weapon type)
+  const ammoType = getActiveAmmoType(state);
+  if (!state.ammoStock) state.ammoStock = { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  const currentAmmo = state.ammoStock[ammoType] || 0;
+
+  if (currentAmmo < hit.ammoCost) {
+    return { success: false, message: `Niet genoeg ${ammoType} munitie (${hit.ammoCost} nodig, ${currentAmmo} beschikbaar).`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
   }
 
   // Check district
@@ -197,8 +201,9 @@ export function executeHit(state: GameState, hitId: string): {
     return { success: false, message: `Je moet in ${DISTRICTS[hit.district].name} zijn.`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
   }
 
-  // Consume ammo
-  state.ammo = Math.max(0, (state.ammo || 0) - hit.ammoCost);
+  // Consume ammo from specific type
+  state.ammoStock[ammoType] = Math.max(0, currentAmmo - hit.ammoCost);
+  state.ammo = (state.ammoStock['9mm'] || 0) + (state.ammoStock['7.62mm'] || 0) + (state.ammoStock['shells'] || 0);
 
   const chance = calculateHitSuccessChance(state, hit);
   const roll = Math.random() * 100;

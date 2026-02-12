@@ -21,6 +21,18 @@ export const CRUSHER_AMMO_REWARDS: Record<StolenCarRarity, [number, number]> = {
 
 export const AMMO_FACTORY_DAILY_PRODUCTION = 3;
 
+export const AMMO_FACTORY_UPGRADES: { level: number; production: number; cost: number; label: string }[] = [
+  { level: 1, production: 3, cost: 0, label: 'Basis' },
+  { level: 2, production: 5, cost: 25000, label: 'Lvl 2' },
+  { level: 3, production: 8, cost: 50000, label: 'Lvl 3' },
+];
+
+export const AMMO_TYPE_LABELS: Record<import('./types').AmmoType, { label: string; icon: string }> = {
+  '9mm': { label: '9mm', icon: '🔫' },
+  '7.62mm': { label: '7.62mm', icon: '🎯' },
+  'shells': { label: 'Shells', icon: '💥' },
+};
+
 export const DISTRICTS: Record<string, District> = {
   port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 0.7, weapons: 0.6, tech: 1.3, luxury: 1.4, meds: 0.8 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
   crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.6, weapons: 1.4, tech: 0.6, luxury: 1.8, meds: 1.3 }, perk: "-20% Heat Daily & Hacker Efficiency" },
@@ -1016,6 +1028,8 @@ export function createInitialState(): import('./types').GameState {
     keyDecisions: [],
     // Hitman & Ammo state
     ammo: 12,
+    ammoStock: { '9mm': 12, '7.62mm': 0, 'shells': 0 },
+    ammoFactoryLevel: 1,
     hitContracts: [],
     // Prison state
     prison: null,

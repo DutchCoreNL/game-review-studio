@@ -589,6 +589,7 @@ export interface NightReportData {
   prisonCrewDeserted?: string[];
   prisonReleased?: boolean;
   ammoFactoryProduction?: number;
+  ammoFactoryType?: AmmoType; // which type was produced
   // Villa production
   villaWietProduced?: number;
   villaCokeProduced?: number;
@@ -833,7 +834,9 @@ export interface GameState {
   keyDecisions: string[];
 
   // ========== HITMAN & AMMO STATE ==========
-  ammo: number;
+  ammo: number; // legacy — kept for backward compat, equals total of ammoStock
+  ammoStock: Record<AmmoType, number>; // per-type ammo stock
+  ammoFactoryLevel: number; // 1-3
   hitContracts: HitContract[];
 
   // ========== PRISON STATE ==========

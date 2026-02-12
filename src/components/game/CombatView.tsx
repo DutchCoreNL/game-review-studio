@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, GEAR } from '@/game/constants';
+import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
@@ -245,9 +245,13 @@ function ActiveCombat() {
                 </div>
               );
             }
+            const ammoType = equippedWeapon?.ammoType || '9mm';
+            const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+            const typeAmmo = ammoStock[ammoType] || 0;
+            const typeLabel = AMMO_TYPE_LABELS[ammoType]?.label || ammoType;
             return (
-              <div className={`text-center mb-2 text-[0.55rem] font-bold ${(state.ammo || 0) <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
-                🔫 Munitie: {state.ammo || 0} {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
+              <div className={`text-center mb-2 text-[0.55rem] font-bold ${typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
+                🔫 {typeLabel}: {typeAmmo} {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {typeAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
               </div>
             );
           })()}
@@ -255,7 +259,7 @@ function ActiveCombat() {
             <CombatAction
               icon={<Swords size={14} />}
               label={env?.actions.attack.label || "AANVAL"}
-              sub={env?.actions.attack.desc || `Betrouwbaar${(state.ammo || 0) > 0 ? ' (-1 🔫)' : ' (melee)'}`}
+              sub={env?.actions.attack.desc || `Betrouwbaar${((state.ammo || 0) > 0) ? ' (-1 🔫)' : ' (melee)'}`}
               onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }}
               variant="blood"
             />

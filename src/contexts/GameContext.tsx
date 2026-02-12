@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
@@ -125,7 +125,7 @@ type GameAction =
   | { type: 'SELECT_BACKSTORY'; backstoryId: string }
   | { type: 'DISMISS_FLASHBACK' }
   // Hitman & Ammo actions
-  | { type: 'BUY_AMMO'; packId: string }
+  | { type: 'BUY_AMMO'; packId: string; ammoType: import('../game/types').AmmoType }
   | { type: 'EXECUTE_HIT'; hitId: string }
   | { type: 'CRUSH_CAR'; carId: string }
   // Prison actions
@@ -154,6 +154,7 @@ type GameAction =
   | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
   | { type: 'VILLA_THROW_PARTY' }
   | { type: 'PRESTIGE_VILLA_MODULE'; moduleId: VillaModuleId }
+  | { type: 'UPGRADE_AMMO_FACTORY' }
   | { type: 'DISMISS_ACHIEVEMENT' }
   // Market alert actions
    | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
@@ -209,6 +210,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.dealerDeal === undefined) loaded.dealerDeal = null;
       // Migrate: golden hour state
       if (loaded.goldenHour === undefined) loaded.goldenHour = null;
+      // Migrate: ammo stock system
+      if (!loaded.ammoStock) {
+        loaded.ammoStock = { '9mm': loaded.ammo || 0, '7.62mm': 0, 'shells': 0 };
+      }
+      if (loaded.ammoFactoryLevel === undefined) loaded.ammoFactoryLevel = 1;
       return loaded;
     }
 
@@ -1506,9 +1512,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BUY_AMMO': {
       const pack = AMMO_PACKS.find(p => p.id === action.packId);
       if (!pack || s.money < pack.cost) return s;
+      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
+      const aType = action.ammoType;
+      if ((s.ammoStock[aType] || 0) >= 99) return s;
       s.money -= pack.cost;
       s.stats.totalSpent += pack.cost;
-      s.ammo = Math.min(99, (s.ammo || 0) + pack.amount);
+      s.ammoStock[aType] = Math.min(99, (s.ammoStock[aType] || 0) + pack.amount);
+      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
       return s;
     }
 
@@ -1524,6 +1534,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.screenEffect = 'blood-flash';
       }
       Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'UPGRADE_AMMO_FACTORY': {
+      if (!s.ownedBusinesses.includes('ammo_factory')) return s;
+      if (!s.ammoFactoryLevel) s.ammoFactoryLevel = 1;
+      const nextLevel = s.ammoFactoryLevel + 1;
+      const upgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === nextLevel);
+      if (!upgrade || s.money < upgrade.cost) return s;
+      if (!upgrade || s.money < upgrade.cost) return s;
+      s.money -= upgrade.cost;
+      s.stats.totalSpent += upgrade.cost;
+      s.ammoFactoryLevel = nextLevel;
       return s;
     }
 
@@ -1543,10 +1566,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Upgrades: +1 per upgrade
       ammoGain += car.upgrades.length;
 
-      // Apply to state (cap at 99)
-      const oldAmmo = s.ammo || 0;
-      s.ammo = Math.min(99, oldAmmo + ammoGain);
-      const actualGain = s.ammo - oldAmmo;
+      // Apply to state (cap at 99) — crusher gives 9mm by default
+      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
+      const crushType = Engine.getActiveAmmoType(s);
+      const oldCrushAmmo = s.ammoStock[crushType] || 0;
+      s.ammoStock[crushType] = Math.min(99, oldCrushAmmo + ammoGain);
+      const actualGain = s.ammoStock[crushType] - oldCrushAmmo;
+      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
 
       // Remove car
       s.stolenCars = s.stolenCars.filter(c => c.id !== action.carId);

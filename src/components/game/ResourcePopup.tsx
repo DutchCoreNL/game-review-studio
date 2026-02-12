@@ -1,11 +1,11 @@
 import { useGame } from '@/contexts/GameContext';
-import { getRankTitle, getPlayerStat, getActiveVehicleHeat } from '@/game/engine';
-import { REKAT_COSTS, VEHICLES } from '@/game/constants';
+import { getRankTitle, getPlayerStat, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
+import { REKAT_COSTS, VEHICLES, AMMO_PACKS, AMMO_FACTORY_UPGRADES, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench, Crosshair, Heart, Zap } from 'lucide-react';
+import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench, Crosshair, Heart, Zap, Factory } from 'lucide-react';
 import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
-import { AMMO_PACKS } from '@/game/constants';
-import { StatId } from '@/game/types';
+import { AmmoType, StatId } from '@/game/types';
+import { useState } from 'react';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
 
@@ -502,8 +502,15 @@ function LevelPanel() {
 // ========== AMMO PANEL ==========
 function AmmoPanel() {
   const { state, dispatch, showToast } = useGame();
-  const ammo = state.ammo || 0;
-  const hasFactory = state.hqUpgrades.includes('ammofactory');
+  const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  const activeType = getActiveAmmoType(state);
+  const hasFactory = state.ownedBusinesses.includes('ammo_factory');
+  const factoryLevel = state.ammoFactoryLevel || 1;
+  const [selectedType, setSelectedType] = useState<AmmoType>(activeType);
+  const ammoTypes: AmmoType[] = ['9mm', '7.62mm', 'shells'];
+
+  const nextUpgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === factoryLevel + 1);
+  const currentUpgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === factoryLevel);
 
   return (
     <div>
@@ -512,21 +519,47 @@ function AmmoPanel() {
         <h3 className="font-bold text-sm uppercase tracking-wider">Kogels</h3>
       </div>
 
-      <div className="text-center mb-4">
-        <span className={`text-3xl font-bold ${ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}`}>
-          {ammo}
-        </span>
-        <p className="text-xs text-muted-foreground mt-1">kogels op voorraad</p>
+      {/* Ammo Stock per Type */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {ammoTypes.map(type => {
+          const info = AMMO_TYPE_LABELS[type];
+          const stock = ammoStock[type] || 0;
+          const isActive = type === activeType;
+          const isSelected = type === selectedType;
+          return (
+            <button
+              key={type}
+              onClick={() => setSelectedType(type)}
+              className={`py-2.5 px-2 rounded text-center transition-all ${
+                isSelected
+                  ? 'bg-gold/15 border-2 border-gold text-gold'
+                  : 'bg-muted/50 border border-border text-muted-foreground'
+              }`}
+            >
+              <div className="text-lg mb-0.5">{info.icon}</div>
+              <div className="text-[0.55rem] font-bold uppercase">{info.label}</div>
+              <div className={`text-lg font-bold ${stock <= 3 ? 'text-blood' : stock <= 10 ? 'text-gold' : 'text-foreground'}`}>
+                {stock}
+              </div>
+              <div className="text-[0.45rem] text-muted-foreground">/99</div>
+              {isActive && <div className="text-[0.4rem] text-emerald font-bold mt-0.5">ACTIEF</div>}
+            </button>
+          );
+        })}
       </div>
 
-      {ammo <= 3 && (
+      {(ammoStock[activeType] || 0) <= 3 && (
         <div className="bg-[hsl(var(--blood)/0.1)] border border-blood rounded-lg p-2.5 mb-4 text-center">
-          <p className="text-xs text-blood font-bold">⚠️ Bijna geen munitie!</p>
-          <p className="text-[0.6rem] text-muted-foreground">Koop kogels of je kunt niet vechten.</p>
+          <p className="text-xs text-blood font-bold">⚠️ Bijna geen {AMMO_TYPE_LABELS[activeType].label} munitie!</p>
+          <p className="text-[0.6rem] text-muted-foreground">Je wapen gebruikt {AMMO_TYPE_LABELS[activeType].label}. Koop bij.</p>
         </div>
       )}
 
+      {/* Buy for selected type */}
       <div className="space-y-2 mb-4">
+        <p className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-wider">
+          Koop {AMMO_TYPE_LABELS[selectedType].label}
+        </p>
         {AMMO_PACKS.map(pack => (
           <button
             key={pack.id}
@@ -535,24 +568,79 @@ function AmmoPanel() {
                 showToast('Niet genoeg geld!', true);
                 return;
               }
-              dispatch({ type: 'BUY_AMMO', packId: pack.id });
-              showToast(`${pack.name} gekocht! +${pack.amount} kogels`);
+              if ((ammoStock[selectedType] || 0) >= 99) {
+                showToast(`${AMMO_TYPE_LABELS[selectedType].label} is vol!`, true);
+                return;
+              }
+              dispatch({ type: 'BUY_AMMO', packId: pack.id, ammoType: selectedType });
+              showToast(`${pack.name} ${AMMO_TYPE_LABELS[selectedType].label} gekocht!`);
             }}
-            disabled={state.money < pack.cost}
+            disabled={state.money < pack.cost || (ammoStock[selectedType] || 0) >= 99}
             className="w-full flex items-center justify-between py-2.5 px-3 rounded text-xs font-bold bg-muted/50 border border-border hover:border-gold disabled:opacity-30 transition-colors"
           >
             <span className="flex items-center gap-2">
-              <span>{pack.icon}</span>
-              <span>{pack.name}</span>
+              <span>{AMMO_TYPE_LABELS[selectedType].icon}</span>
+              <span>{pack.name} {AMMO_TYPE_LABELS[selectedType].label}</span>
             </span>
             <span className="text-gold">€{pack.cost.toLocaleString()}</span>
           </button>
         ))}
       </div>
 
-      <div className="space-y-1.5 text-[0.6rem] text-muted-foreground">
-        <p>🔫 Kogels worden gebruikt bij gevechten en huurmoorden.</p>
-        <p>🏭 Kogelfabriek: {hasFactory ? <span className="text-emerald font-bold">Actief — produceert automatisch kogels</span> : 'Nog niet gebouwd (HQ upgrade)'}</p>
+      {/* Kogelfabriek section */}
+      <div className="border-t border-border pt-3 mt-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Factory size={14} className="text-gold" />
+          <span className="text-xs font-bold">Kogelfabriek</span>
+          {hasFactory && <span className="text-[0.45rem] text-emerald font-bold">ACTIEF</span>}
+        </div>
+
+        {hasFactory ? (
+          <div className="space-y-2">
+            <div className="flex justify-between text-[0.6rem]">
+              <span className="text-muted-foreground">Level</span>
+              <span className="font-bold text-gold">{currentUpgrade?.label || `Lvl ${factoryLevel}`}</span>
+            </div>
+            <div className="flex justify-between text-[0.6rem]">
+              <span className="text-muted-foreground">Productie</span>
+              <span className="font-bold">{currentUpgrade?.production || 3}/dag ({AMMO_TYPE_LABELS[activeType].label})</span>
+            </div>
+            <p className="text-[0.5rem] text-muted-foreground">
+              Produceert automatisch {AMMO_TYPE_LABELS[activeType].label} munitie (type van je wapen).
+            </p>
+
+            {nextUpgrade && (
+              <button
+                onClick={() => {
+                  if (state.money < nextUpgrade.cost) {
+                    showToast('Niet genoeg geld!', true);
+                    return;
+                  }
+                  dispatch({ type: 'UPGRADE_AMMO_FACTORY' });
+                  showToast(`Kogelfabriek upgraded naar ${nextUpgrade.label}! +${nextUpgrade.production}/dag`);
+                }}
+                disabled={state.money < nextUpgrade.cost}
+                className="w-full py-2.5 rounded text-xs font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30 flex items-center justify-center gap-1.5"
+              >
+                <Zap size={12} /> UPGRADE → {nextUpgrade.label} ({nextUpgrade.production}/dag) — €{nextUpgrade.cost.toLocaleString()}
+              </button>
+            )}
+
+            {!nextUpgrade && (
+              <div className="text-[0.55rem] text-emerald font-bold text-center py-1.5">
+                ✓ Maximaal niveau bereikt
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-[0.55rem] text-muted-foreground">
+            Koop de Kogelfabriek via Imperium → Businesses om automatisch munitie te produceren.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5 text-[0.6rem] text-muted-foreground mt-3">
+        <p>🔫 Elk wapen gebruikt een specifiek munitietype.</p>
         <p>🚗 Sloop auto's in de Crusher voor extra kogels.</p>
       </div>
     </div>
