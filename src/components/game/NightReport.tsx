@@ -346,13 +346,13 @@ export function NightReport() {
               </motion.div>
             )}
 
-            {/* Prison release */}
+            {/* Prison release + summary */}
             {report.prisonReleased && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: prisonReleasedDelay, type: 'spring', stiffness: 400 }}
-                className="bg-[hsl(var(--emerald)/0.15)] border-2 border-emerald rounded-lg p-3"
+                className="bg-[hsl(var(--emerald)/0.15)] border-2 border-emerald rounded-lg p-3 space-y-2"
               >
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-emerald flex-shrink-0" />
@@ -361,6 +361,57 @@ export function NightReport() {
                     <p className="text-[0.55rem] text-muted-foreground">Je hebt je straf uitgezeten. Alle heat is gereset naar 0.</p>
                   </div>
                 </div>
+
+                {report.prisonSummary && (
+                  <div className="border-t border-emerald/20 pt-2 space-y-1.5">
+                    <p className="text-[0.55rem] uppercase tracking-wider text-muted-foreground font-bold">Samenvatting gevangenisstraf</p>
+                    <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                      <span className="text-muted-foreground">Dagen gezeten</span>
+                      <span className="text-foreground font-bold text-right">{report.prisonSummary.totalDaysServed} / {report.prisonSummary.totalSentence}</span>
+                    </div>
+                    {report.prisonSummary.moneyLost > 0 && (
+                      <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                        <span className="text-muted-foreground">Geld verloren</span>
+                        <span className="text-blood font-bold text-right">-€{report.prisonSummary.moneyLost.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {report.prisonSummary.dirtyMoneyLost > 0 && (
+                      <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                        <span className="text-muted-foreground">Dirty money verloren</span>
+                        <span className="text-blood font-bold text-right">-€{report.prisonSummary.dirtyMoneyLost.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {report.prisonSummary.goodsLost.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                        <span className="text-muted-foreground">Geconfisqueerd</span>
+                        <span className="text-blood font-bold text-right">{report.prisonSummary.goodsLost.join(', ')}</span>
+                      </div>
+                    )}
+                    {report.prisonSummary.escapeFailed && (
+                      <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                        <span className="text-muted-foreground">Ontsnapping</span>
+                        <span className="text-blood font-bold text-right">Mislukt</span>
+                      </div>
+                    )}
+                    {report.prisonSummary.crewDeserted.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1 text-[0.55rem]">
+                        <span className="text-muted-foreground">Crew vertrokken</span>
+                        <span className="text-blood font-bold text-right">{report.prisonSummary.crewDeserted.join(', ')}</span>
+                      </div>
+                    )}
+                    {report.prisonSummary.events.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        <p className="text-[0.5rem] uppercase tracking-wider text-muted-foreground">Voorvallen</p>
+                        {report.prisonSummary.events.map((evt, i) => (
+                          <div key={`ps-${i}`} className="bg-muted/30 rounded px-2 py-1 text-[0.5rem]">
+                            <span className="font-bold text-foreground">{evt.title}</span>
+                            <span className="text-muted-foreground ml-1">— {evt.desc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             )}
 
