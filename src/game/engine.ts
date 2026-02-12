@@ -795,6 +795,8 @@ export function endTurn(state: GameState): NightReportData {
   if (state.prison) {
     state.prison.dayServed++;
     state.prison.daysRemaining--;
+    report.prisonDayServed = state.prison.dayServed;
+    report.prisonDaysRemaining = state.prison.daysRemaining;
 
     // Prison daily event
     if (state.prison.daysRemaining > 0) {
@@ -802,6 +804,7 @@ export function endTurn(state: GameState): NightReportData {
       if (roll < 0.6) { // 60% chance of an event
         const evt = PRISON_EVENTS[Math.floor(Math.random() * PRISON_EVENTS.length)];
         state.prison.events.push(evt);
+        report.prisonDailyEvent = evt;
 
         // Apply event effects
         switch (evt.effect) {
@@ -830,13 +833,16 @@ export function endTurn(state: GameState): NightReportData {
 
       // Crew desertion if sentence > threshold
       if (state.prison.dayServed >= PRISON_CREW_DESERT_THRESHOLD) {
+        const deserted: string[] = [];
         for (let i = state.crew.length - 1; i >= 0; i--) {
           const member = state.crew[i];
           if ((member.loyalty || 75) < 20 && Math.random() < 0.3) {
             addPhoneMessage(state, member.name, `Ik wacht niet meer. Je zit vast en ik heb betere opties. Vaarwel.`, 'warning');
+            deserted.push(member.name);
             state.crew.splice(i, 1);
           }
         }
+        if (deserted.length > 0) report.prisonCrewDeserted = deserted;
       }
     }
 
@@ -846,6 +852,7 @@ export function endTurn(state: GameState): NightReportData {
       state.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
       recomputeHeat(state);
       state.prison = null;
+      report.prisonReleased = true;
       addPhoneMessage(state, 'anonymous', 'Je bent vrijgelaten. Schone lei. Begin opnieuw.', 'info');
     }
   }
