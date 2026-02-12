@@ -1,95 +1,109 @@
 
+# Kogelsysteem Verbetering: Munitietypes & Kogelfabriek
 
-# Verslavend Gameplay: 4 Engagement-Systemen
+## Wat verandert er?
 
-## Overzicht
-
-We voegen vier psychologische "hooks" toe die spelers motiveren om door te blijven spelen. De streak multiplier is weggelaten zoals gevraagd.
-
----
-
-## 1. Cliffhanger-systeem in het Night Report
-
-Na het nachtrapport verschijnt een **"Morgen..."** sectie die hints geeft over aankomende gebeurtenissen.
-
-**Voorbeelden:**
-- "Een mysterieuze koper arriveert in Port Nero..." (als er dure goederen in inventory zitten)
-- "Je Nemesis is gezien in Crown Heights..." (als nemesis actief is)
-- "De politie plant iets..." (bij hoge heat)
-- "Een zeldzame deal komt eraan..." (willekeurig)
-- "Een veiling sluit morgen..." (als er actieve veilingen zijn)
-
-**Visueel:** Mysterieus kaartje met pulserende "..." animatie onderaan het Night Report, net voor de "DOORGAAN" knop.
+Het huidige systeem heeft een enkele `ammo` teller. We splitsen dit naar **drie munitietypes** (9mm, 7.62mm, Shells) en upgraden de Kogelfabriek zodat deze het juiste type produceert en upgradebaar is.
 
 ---
 
-## 2. Progress Bars bij Unlock-doelen
+## 1. Munitietypes Splitsen
 
-Overal in de UI tonen we visueel hoever de speler is naar het volgende doel.
+De enkele `ammo: number` wordt vervangen door `ammoStock: Record<AmmoType, number>` met aparte voorraden per type.
 
-**Locaties:**
-- **Header**: Mini XP-balk (2px hoog) onder het level
-- **Garage (Dealer)**: voortgang naar volgende voertuig (geld vs. kosten)
-- **Imperium**: voortgang naar volgende district (rep/geld)
+**Wapen-munitie toewijzing (al gedefinieerd in constants):**
+| Wapen | Type | Clip |
+|-------|------|------|
+| Glock 17 | 9mm | 8 |
+| Sawn-Off Shotgun | shells | 4 |
+| AK-47 | 7.62mm | 15 |
+| Dragunov SVD | 7.62mm | 5 |
+| El Serpiente's Blade | melee | - |
 
-Geen nieuwe state nodig -- alles wordt berekend uit bestaande data.
-
----
-
-## 3. Gouden Uur Event
-
-Een willekeurig "Golden Hour" event dat 3 beurten duurt.
-
-**Mechanisme:**
-- 8% kans per beurt (na dag 5) dat een Gouden Uur begint
-- Tijdens Gouden Uur: alle inkomsten x2, maar heat-gain ook x2
-- Na afloop: samenvatting in het Night Report
-
-**Visueel:**
-- Gouden gloed/rand rond de header wanneer actief
-- Pulserende "GOUDEN UUR" badge met resterende beurten
-- Goud-thema melding in Night Report
+**Wat verandert:**
+- Gevechten verbruiken het type munitie van je uitgeruste wapen
+- Hits vereisen munitie van het type dat past bij je wapen
+- Zonder het juiste type val je automatisch terug op melee (50% schade)
+- Max per type: 99
 
 ---
 
-## 4. Near-Miss Feedback
+## 2. Kogelfabriek Upgraden
 
-Bij mislukte acties tonen we hoe dichtbij succes was.
+De fabriek (business `ammo_factory`) krijgt **3 upgrade-niveaus** die productie verhogen en het type bepalen.
 
-**Waar:**
-- **Solo Operaties** (`performSoloOp`): Bereken verschil tussen roll en slagingskans, toon als percentage: "Je had 62% kans. Upgrade je Muscle voor betere odds."
-- **Gevechten** (`CombatView`): Bij verlies toon resterende vijand-HP: "Vijand had nog 8 HP! Sterkere wapens hadden het verschil gemaakt."
-- **Auto-diefstal** (`ChopShopView`): Bij mislukte diefstal toon skill-tekort: "Je Brains is 2 punten te laag voor deze auto."
+| Level | Productie | Kosten | Effect |
+|-------|-----------|--------|--------|
+| Basis | 3/dag | (al gekocht) | Produceert het type van je actieve wapen |
+| Lvl 2 | 5/dag | 25.000 | Hogere output |
+| Lvl 3 | 8/dag | 50.000 | Maximale output |
 
-Near-miss data wordt berekend in bestaande faal-paden en getoond als extra tekstregel.
+De fabriek produceert automatisch het munitietype van het wapen in je loadout. Zonder wapen of met melee: 9mm als default.
+
+---
+
+## 3. Ammo Packs per Type
+
+De winkelpakketten worden per type verkocht:
+
+| Pak | 9mm | 7.62mm | Shells | Prijs |
+|-----|-----|--------|--------|-------|
+| Klein | 6 | 6 | 6 | 500 |
+| Medium | 12 | 12 | 12 | 900 |
+| Groot | 30 | 30 | 30 | 2.000 |
+
+De speler kiest welk type bij aankoop.
 
 ---
 
 ## Technische Wijzigingen
 
-### Nieuw bestand:
-| Bestand | Doel |
-|---------|------|
-| `src/game/cliffhangers.ts` | Cliffhanger-generatie logica: `generateCliffhanger(state): string` functie die op basis van game state een contextbewuste teaser genereert |
+### `src/game/types.ts`
+- Nieuw veld in `GameState`: `ammoStock: Record<AmmoType, number>` (naast bestaand `ammo` voor migratie)
+- Nieuw veld: `ammoFactoryLevel: number` (1-3)
+- Bestaand `ammo` veld blijft voor backwards-compat, wordt gemigreerd
 
-### Aangepaste bestanden:
+### `src/game/constants.ts`
+- `AMMO_PACKS` aanpassen: elk pack krijgt geen vast type meer, het type wordt gekozen in de UI
+- Nieuwe constante `AMMO_FACTORY_UPGRADES` met level-kosten en productiehoeveelheden
+- `AMMO_FACTORY_DAILY_PRODUCTION` wordt dynamisch op basis van level
 
-| Bestand | Wijziging |
-|---------|-----------|
-| **`src/game/types.ts`** | Nieuwe velden in `GameState`: `goldenHour: { turnsLeft: number } or null`. Nieuw veld in `NightReportData`: `cliffhanger?: string`, `goldenHourBonus?: number`, `goldenHourStarted?: boolean`, `goldenHourEnded?: boolean`. Near-miss veld in soloOp return type: `nearMiss?: string` |
-| **`src/game/constants.ts`** | `createInitialState` uitbreiden: `goldenHour: null` |
-| **`src/game/engine.ts`** | In `endTurn`: golden hour activatie (8% kans na dag 5), golden hour afloop (turnsLeft--), inkomsten x2 modifier, heat x2 modifier, cliffhanger-generatie via `generateCliffhanger()`. In `performSoloOp`: near-miss string toevoegen aan return bij falen (verschil tussen roll en kans) |
-| **`src/contexts/GameContext.tsx`** | `SOLO_OP` case: near-miss message doorgeven aan toast. Migratie: `goldenHour` default toevoegen bij laden oude saves |
-| **`src/components/game/GameHeader.tsx`** | XP mini-balk (2px `Progress` component onder level). Golden hour badge met pulserende gouden gloed wanneer actief |
-| **`src/components/game/NightReport.tsx`** | Cliffhanger-sectie toevoegen net voor "DOORGAAN" knop. Golden hour start/eind melding. Golden hour inkomsten-bonus tonen |
-| **`src/components/game/OperationsView.tsx`** | Near-miss feedback tonen bij mislukte solo ops (toast met tip) |
-| **`src/components/game/CombatView.tsx`** | Bij verlies: toon resterende vijand-HP als near-miss feedback |
-| **`src/components/game/ChopShopView.tsx`** | Bij mislukte diefstal: toon skill-tekort als near-miss feedback |
-| **`src/components/game/garage/DealerPanel.tsx`** | Progress bar per voertuig: `state.money / voertuigKosten * 100` |
+### `src/game/engine.ts`
+- `combatAction`: verbruik het specifieke type van het uitgeruste wapen uit `ammoStock[type]`
+- `endTurn` (fabriek): produceer het type van het uitgeruste wapen, hoeveelheid op basis van `ammoFactoryLevel`
+- Hulpfunctie `getActiveAmmoType(state): AmmoType` die het type van het huidige wapen teruggeeft
+
+### `src/game/hitman.ts`
+- `executeHit`: check en verbruik het juiste munitietype uit `ammoStock`
+
+### `src/contexts/GameContext.tsx`
+- `BUY_AMMO` action uitbreiden met `ammoType: AmmoType` parameter
+- `UPGRADE_AMMO_FACTORY` nieuwe action toevoegen
+- Migratie: oude `ammo` waarde verspreiden over 9mm als default, `ammoFactoryLevel` default 1
+
+### `src/components/game/trade/GearPanel.tsx`
+- Ammo-sectie: type-selector (9mm/7.62mm/Shells tabs) bij aankoop
+- Toon voorraad per type
+
+### `src/components/game/ResourcePopup.tsx` (AmmoPanel)
+- Toon alle drie voorraden apart met iconen
+- Type-selectie bij aankoop
+- Kogelfabriek upgrade-knop met kosten/level
+
+### `src/components/game/GameHeader.tsx`
+- Kogelteller toont het type van je actieve wapen (of totaal)
+
+### `src/components/game/HitsView.tsx`
+- Toon welk munitietype nodig is en of je genoeg hebt
+
+### `src/components/game/CombatView.tsx`
+- Munitie-indicator toont het specifieke type en voorraad
+
+### `src/components/game/NightReport.tsx`
+- Fabriekproductie toont welk type is geproduceerd
 
 ### Wat er NIET verandert:
-- Bestaande game-balans blijft intact (golden hour multipliers zijn tijdelijk en zeldzaam)
-- Alle huidige UI en navigatie blijft identiek
-- Geen nieuwe dependencies nodig
-- Near-miss feedback is puur visueel, geen gameplay-impact
-
+- Bestaande wapendefinities (ammoType en clipSize zijn al gedefinieerd)
+- Melee wapens (El Serpiente's Blade) werken ongewijzigd
+- Villa opslagkelder ammo-opslag werkt per totaal (geen type-onderscheid nodig)
+- Geen nieuwe dependencies
