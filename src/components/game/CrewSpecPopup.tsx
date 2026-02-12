@@ -2,6 +2,8 @@ import { useGame } from '@/contexts/GameContext';
 import { getSpecsForRole } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star } from 'lucide-react';
+import { CREW_ROLE_IMAGES } from '@/assets/items/index';
+import crewSpecBg from '@/assets/items/event-crewspec.jpg';
 
 export function CrewSpecPopup() {
   const { state, dispatch, showToast } = useGame();
@@ -25,17 +27,23 @@ export function CrewSpecPopup() {
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-full max-w-sm game-card border-t-[3px] border-t-gold p-5 shadow-2xl"
+          className="w-full max-w-sm game-card border-t-[3px] border-t-gold shadow-2xl overflow-hidden"
         >
-          <div className="text-center mb-4">
-            <Star size={24} className="text-gold mx-auto mb-2" />
-            <h3 className="font-display text-sm text-gold uppercase tracking-wider">Specialisatie Keuze</h3>
-            <p className="text-[0.6rem] text-muted-foreground mt-1">
-              {crew.name} ({crew.role}) bereikt Level {pending.level}!
-            </p>
+          {/* Banner */}
+          <div className="relative h-24 overflow-hidden">
+            <img src={CREW_ROLE_IMAGES[crew.role] || crewSpecBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            <div className="absolute bottom-2 left-0 right-0 text-center">
+              <Star size={20} className="text-gold mx-auto mb-1" />
+              <h3 className="font-display text-sm text-gold uppercase tracking-wider drop-shadow-lg">Specialisatie Keuze</h3>
+              <p className="text-[0.6rem] text-muted-foreground mt-0.5">
+                {crew.name} ({crew.role}) bereikt Level {pending.level}!
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-2 mb-4">
+          <div className="p-5">
+            <div className="space-y-2 mb-4">
             {specs.map(spec => (
               <motion.button
                 key={spec.id}
@@ -55,14 +63,15 @@ export function CrewSpecPopup() {
                 </div>
               </motion.button>
             ))}
-          </div>
+            </div>
 
-          <button
-            onClick={() => dispatch({ type: 'DISMISS_SPEC_CHOICE' })}
-            className="w-full py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
-          >
-            LATER KIEZEN
-          </button>
+            <button
+              onClick={() => dispatch({ type: 'DISMISS_SPEC_CHOICE' })}
+              className="w-full py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
+            >
+              LATER KIEZEN
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

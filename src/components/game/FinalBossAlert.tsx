@@ -4,6 +4,7 @@ import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, AlertTriangle, Shield, Skull, Crown, Zap } from 'lucide-react';
 import { useState } from 'react';
+import finalBossBg from '@/assets/items/event-finalboss.jpg';
 
 export function FinalBossAlert() {
   const { state, dispatch } = useGame();
@@ -140,6 +141,12 @@ export function FinalBossAlert() {
       className="mb-3"
     >
       <div className="game-card border-2 border-blood relative overflow-hidden">
+        {/* Banner background */}
+        <div className="absolute inset-0">
+          <img src={finalBossBg} alt="" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-background" />
+        </div>
+
         {/* Pulsing background */}
         <motion.div
           animate={{ opacity: [0.05, 0.15, 0.05] }}

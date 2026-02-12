@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback } from 'react';
 import type { EnrichedFlashbackData, FlashbackScene } from '@/game/flashbacks';
 import type { FlashbackData } from '@/game/types';
+import flashbackBg from '@/assets/items/overlay-flashback.jpg';
 
 /** Check if flashback data has enriched scene data */
 function isEnriched(fb: FlashbackData): fb is EnrichedFlashbackData {
@@ -311,6 +312,9 @@ export function FlashbackOverlay() {
           background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(15,10,5,0.98) 50%, rgba(0,0,0,0.95) 100%)',
         }}
       >
+        {/* Background image */}
+        <img src={flashbackBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none" />
+
         {/* Film grain effect */}
         <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{

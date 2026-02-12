@@ -4,6 +4,8 @@ import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, AlertTriangle, Shield, Zap } from 'lucide-react';
 import * as Engine from '@/game/engine';
+import { STOLEN_CAR_IMAGES } from '@/assets/items/index';
+import carTheftBg from '@/assets/items/event-cartheft.jpg';
 
 const RARITY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
   common: { text: 'text-muted-foreground', bg: 'bg-muted/30', border: 'border-border' },
@@ -67,23 +69,29 @@ export function CarTheftPopup() {
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[9001] max-w-[500px] mx-auto"
       >
-        <div className="game-card border-t-[3px] border-t-gold p-4 shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-3">
-            <motion.div
-              className={`w-12 h-12 rounded-lg ${rarity.bg} border ${rarity.border} flex items-center justify-center`}
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <span className="text-2xl">🚗</span>
-            </motion.div>
-            <div>
-              <h3 className="font-bold text-sm font-display tracking-wider">AUTO GESPOT!</h3>
-              <p className="text-[0.55rem] text-muted-foreground">
-                Een onbeheerde auto op straat in {state.pendingCarTheft.district === 'crown' ? 'Crown Heights' : state.pendingCarTheft.district === 'neon' ? 'Neon Strip' : state.pendingCarTheft.district === 'iron' ? 'Iron Borough' : state.pendingCarTheft.district === 'low' ? 'Lowrise' : 'Port Nero'}
-              </p>
+        <div className="game-card border-t-[3px] border-t-gold shadow-2xl overflow-hidden">
+          {/* Banner */}
+          <div className="relative h-28 overflow-hidden">
+            <img src={STOLEN_CAR_IMAGES[carDef.id] || carTheftBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            <div className="absolute bottom-2 left-4 flex items-center gap-3">
+              <motion.div
+                className={`w-10 h-10 rounded-lg ${rarity.bg} border ${rarity.border} flex items-center justify-center backdrop-blur-sm`}
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <span className="text-xl">🚗</span>
+              </motion.div>
+              <div>
+                <h3 className="font-bold text-sm font-display tracking-wider text-foreground drop-shadow-lg">AUTO GESPOT!</h3>
+                <p className="text-[0.55rem] text-muted-foreground">
+                  Een onbeheerde auto op straat in {state.pendingCarTheft.district === 'crown' ? 'Crown Heights' : state.pendingCarTheft.district === 'neon' ? 'Neon Strip' : state.pendingCarTheft.district === 'iron' ? 'Iron Borough' : state.pendingCarTheft.district === 'low' ? 'Lowrise' : 'Port Nero'}
+                </p>
+              </div>
             </div>
           </div>
+
+          <div className="p-4">
 
           {/* Car info */}
           <div className={`${rarity.bg} border ${rarity.border} rounded-lg p-3 mb-3`}>
@@ -149,6 +157,7 @@ export function CarTheftPopup() {
               onClick={handleIgnore}>
               LOOP DOOR
             </GameButton>
+          </div>
           </div>
         </div>
       </motion.div>
