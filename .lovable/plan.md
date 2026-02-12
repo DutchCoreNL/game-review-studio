@@ -1,109 +1,99 @@
 
-# Kogelsysteem Verbetering: Munitietypes & Kogelfabriek
 
-## Wat verandert er?
+# Visual Character Progression System (Paperdoll)
 
-Het huidige systeem heeft een enkele `ammo` teller. We splitsen dit naar **drie munitietypes** (9mm, 7.62mm, Shells) en upgraden de Kogelfabriek zodat deze het juiste type produceert en upgradebaar is.
+## Overzicht
 
----
-
-## 1. Munitietypes Splitsen
-
-De enkele `ammo: number` wordt vervangen door `ammoStock: Record<AmmoType, number>` met aparte voorraden per type.
-
-**Wapen-munitie toewijzing (al gedefinieerd in constants):**
-| Wapen | Type | Clip |
-|-------|------|------|
-| Glock 17 | 9mm | 8 |
-| Sawn-Off Shotgun | shells | 4 |
-| AK-47 | 7.62mm | 15 |
-| Dragunov SVD | 7.62mm | 5 |
-| El Serpiente's Blade | melee | - |
-
-**Wat verandert:**
-- Gevechten verbruiken het type munitie van je uitgeruste wapen
-- Hits vereisen munitie van het type dat past bij je wapen
-- Zonder het juiste type val je automatisch terug op melee (50% schade)
-- Max per type: 99
+Een CharacterAvatar component dat de speler visueel representeert door meerdere lagen over elkaar te stapelen. Het systeem leest direct uit de bestaande GameState (level, karma, loadout, district) en past de visuele representatie dynamisch aan. Omdat er nog geen PNG-assets zijn, gebruiken we gestylede SVG/div placeholders die later eenvoudig vervangen kunnen worden door echte afbeeldingen.
 
 ---
 
-## 2. Kogelfabriek Upgraden
+## Visuele Lagen (van onder naar boven)
 
-De fabriek (business `ammo_factory`) krijgt **3 upgrade-niveaus** die productie verhogen en het type bepalen.
-
-| Level | Productie | Kosten | Effect |
-|-------|-----------|--------|--------|
-| Basis | 3/dag | (al gekocht) | Produceert het type van je actieve wapen |
-| Lvl 2 | 5/dag | 25.000 | Hogere output |
-| Lvl 3 | 8/dag | 50.000 | Maximale output |
-
-De fabriek produceert automatisch het munitietype van het wapen in je loadout. Zonder wapen of met melee: 9mm als default.
-
----
-
-## 3. Ammo Packs per Type
-
-De winkelpakketten worden per type verkocht:
-
-| Pak | 9mm | 7.62mm | Shells | Prijs |
-|-----|-----|--------|--------|-------|
-| Klein | 6 | 6 | 6 | 500 |
-| Medium | 12 | 12 | 12 | 900 |
-| Groot | 30 | 30 | 30 | 2.000 |
-
-De speler kiest welk type bij aankoop.
+| Z-index | Laag | Bron in GameState | Placeholder |
+|---------|------|-------------------|-------------|
+| 0 | Achtergrond | `state.loc` (district) | Gekleurde gradient per district |
+| 1 | Lichaam | Vast (uitbreidbaar) | SVG silhouet |
+| 2 | Cybernetics | `ownedGear` bevat `lotus_implant` | Neon lijnen op silhouet |
+| 3 | Kleding | `player.level` (1-9: vodden, 10-29: casual, 30+: pak) | Gekleurde vormen |
+| 4 | Bovenkleding | `player.loadout.armor` | Vest/pak overlay |
+| 5 | Hoofddeksel | Level 30+ of specifieke gear | Cyber-optics strip |
+| 6 | Wapen | `player.loadout.weapon` | Wapen-silhouet met naam |
+| 7 | Karma Overlay | `state.karma` | Gekleurde glow (rood/blauw/goud) |
 
 ---
 
-## Technische Wijzigingen
+## Componentstructuur
 
-### `src/game/types.ts`
-- Nieuw veld in `GameState`: `ammoStock: Record<AmmoType, number>` (naast bestaand `ammo` voor migratie)
-- Nieuw veld: `ammoFactoryLevel: number` (1-3)
-- Bestaand `ammo` veld blijft voor backwards-compat, wordt gemigreerd
+### Nieuw bestand: `src/components/game/profile/CharacterAvatar.tsx`
 
-### `src/game/constants.ts`
-- `AMMO_PACKS` aanpassen: elk pack krijgt geen vast type meer, het type wordt gekozen in de UI
-- Nieuwe constante `AMMO_FACTORY_UPGRADES` met level-kosten en productiehoeveelheden
-- `AMMO_FACTORY_DAILY_PRODUCTION` wordt dynamisch op basis van level
+Het hoofdcomponent dat alle lagen rendert. Accepteert optionele `size` prop (sm/md/lg) voor hergebruik.
 
-### `src/game/engine.ts`
-- `combatAction`: verbruik het specifieke type van het uitgeruste wapen uit `ammoStock[type]`
-- `endTurn` (fabriek): produceer het type van het uitgeruste wapen, hoeveelheid op basis van `ammoFactoryLevel`
-- Hulpfunctie `getActiveAmmoType(state): AmmoType` die het type van het huidige wapen teruggeeft
+**Props:**
+- `size?: 'sm' | 'md' | 'lg'` (default: 'md')
+- `showPreviewControls?: boolean` (voor het Preview Dashboard)
+- `className?: string`
 
-### `src/game/hitman.ts`
-- `executeHit`: check en verbruik het juiste munitietype uit `ammoStock`
+**Mapping logica:**
+- **District achtergronden**: Mapping van DistrictId naar gradient kleuren (Port Nero = donkerblauw, Crown Heights = goud/zwart, Iron Borough = grijs/oranje, Lowrise = groen/zwart, Neon Strip = paars/roze)
+- **Level tiers**: 1-9 = "Straatrat" (gescheurde kleding), 10-29 = "Soldaat" (donker jasje), 30+ = "Baas" (luxe pak)
+- **Wapen visuals**: Mapping van gear ID naar SVG-vormen (glock = pistool, shotgun = kort geweer, ak47 = groot geweer, sniper = lang geweer, cartel_blade = zwaard)
+- **Armor visuals**: vest = kogelvrij vest overlay, suit = pak overlay, skull_armor = zware plating
+- **Karma glow**: karma < -20 = rode/oranje pulserende glow, karma > 20 = blauwe/gouden glow, neutraal = geen overlay
+- **Cybernetics**: Neural Implant (lotus_implant) in bezit = neon circuit-lijnen op het gezicht
 
-### `src/contexts/GameContext.tsx`
-- `BUY_AMMO` action uitbreiden met `ammoType: AmmoType` parameter
-- `UPGRADE_AMMO_FACTORY` nieuwe action toevoegen
-- Migratie: oude `ammo` waarde verspreiden over 9mm als default, `ammoFactoryLevel` default 1
+**Glitch-animatie**: Bij level-up (detecteerbaar via `player.level` change) speelt een korte CSS glitch-animatie af (horizontal offset + color channel split via CSS filters).
 
-### `src/components/game/trade/GearPanel.tsx`
-- Ammo-sectie: type-selector (9mm/7.62mm/Shells tabs) bij aankoop
-- Toon voorraad per type
+### Nieuw bestand: `src/components/game/profile/AvatarPreviewDashboard.tsx`
 
-### `src/components/game/ResourcePopup.tsx` (AmmoPanel)
-- Toon alle drie voorraden apart met iconen
-- Type-selectie bij aankoop
-- Kogelfabriek upgrade-knop met kosten/level
+Een "Preview Dashboard" panel met sliders/toggles om de avatar live te testen:
+- Level slider (1-50)
+- Karma slider (-100 tot +100)
+- District selector (5 knoppen)
+- Wapen selector (dropdown van beschikbare gear)
+- Armor selector (dropdown)
+- Cybernetics toggle
 
-### `src/components/game/GameHeader.tsx`
-- Kogelteller toont het type van je actieve wapen (of totaal)
+Dit component gebruikt lokale state (niet de echte game state) zodat je vrij kunt experimenteren.
 
-### `src/components/game/HitsView.tsx`
-- Toon welk munitietype nodig is en of je genoeg hebt
+### Aangepast bestand: `src/components/game/ProfileView.tsx`
 
-### `src/components/game/CombatView.tsx`
-- Munitie-indicator toont het specifieke type en voorraad
+- Importeer `CharacterAvatar`
+- Vervang het huidige statische "Boss Card" icoon (de `span` met emoji) door de `CharacterAvatar` component in `size="sm"`
+- Voeg een nieuw profiel-subtab toe: `'avatar'` met label `'AVATAR'`
+- In die tab: toon de CharacterAvatar in groot formaat (size="lg") met het AvatarPreviewDashboard eronder
 
-### `src/components/game/NightReport.tsx`
-- Fabriekproductie toont welk type is geproduceerd
+### Aangepast type: `ProfileTab`
 
-### Wat er NIET verandert:
-- Bestaande wapendefinities (ammoType en clipSize zijn al gedefinieerd)
-- Melee wapens (El Serpiente's Blade) werken ongewijzigd
-- Villa opslagkelder ammo-opslag werkt per totaal (geen type-onderscheid nodig)
+Uitbreiden met `'avatar'` als optie.
+
+---
+
+## Technische Details
+
+### CSS/Styling
+- Container: `relative` met vaste aspect-ratio (3:4), responsief via Tailwind (`w-full max-w-[200px]` voor md)
+- Lagen: `absolute inset-0` met oplopende `z-index`
+- Glitch-effect: CSS keyframe animatie met `clip-path` en `transform: translate` voor RGB-split
+- Karma glow: `box-shadow` met `inset` + radiale gradient overlay
+- Alle placeholders gebruiken Tailwind kleuren en inline SVG
+
+### Responsiviteit
+- `sm`: 48x64px (voor header/boss card)
+- `md`: 150x200px (standaard)
+- `lg`: 250x333px (preview dashboard)
+
+### Performance
+- Geen extra state in GameState nodig
+- Puur visueel component, leest alleen uit bestaande state
+- Framer Motion alleen voor de glitch-animatie bij level-up
 - Geen nieuwe dependencies
+
+---
+
+## Wat er NIET verandert
+- Geen wijzigingen aan game logica, engine, of reducer
+- Geen nieuwe velden in GameState
+- Bestaande profiel-tabs en functionaliteit blijven identiek
+- Geen impact op performance of save-systeem
+
