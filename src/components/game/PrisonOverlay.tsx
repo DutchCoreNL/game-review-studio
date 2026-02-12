@@ -262,6 +262,16 @@ function PrisonOverlayInner() {
                   <span>Ontsnappingspoging mislukt — geen tweede kans</span>
                 </div>
               )}
+
+              <GameButton
+                variant="muted"
+                size="md"
+                fullWidth
+                icon={<Clock size={14} />}
+                onClick={() => dispatch({ type: 'END_TURN' })}
+              >
+                WACHT DE DAG AF
+              </GameButton>
             </div>
           </div>
         </div>
