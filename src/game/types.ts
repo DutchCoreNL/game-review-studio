@@ -217,13 +217,23 @@ export type CorruptContactType = 'agent' | 'detective' | 'judge' | 'politician' 
 
 // ========== PRISON SYSTEM TYPES ==========
 
+export interface PrisonEvent {
+  id: string;
+  title: string;
+  desc: string;
+  effect: 'brains_up' | 'muscle_up' | 'charm_up' | 'hp_loss' | 'rep_up' | 'day_reduce' | 'money_cost' | 'loyalty_up';
+  value: number;
+}
+
 export interface PrisonState {
   daysRemaining: number;
   totalSentence: number;
+  dayServed: number;
   moneyLost: number;
   dirtyMoneyLost: number;
   goodsLost: string[];
   escapeAttempted: boolean;
+  events: PrisonEvent[];
 }
 
 export interface CorruptContactDef {
