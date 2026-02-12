@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES } from '@/game/constants';
+import { FamilyId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { FACTION_IMAGES } from '@/assets/items';
@@ -20,7 +21,7 @@ export function FamiliesView() {
       <div className="space-y-2 mb-4">
         {Object.entries(FAMILIES).map(([id, fam]) => {
           const rel = state.familyRel[id] || 0;
-          const dead = state.leadersDefeated.includes(id as any);
+          const dead = state.leadersDefeated.includes(id as FamilyId);
           const relPct = Math.max(0, Math.min(100, rel + 50));
 
           return (

@@ -7,6 +7,7 @@ import { createDeck, getCardRankValue, getTotalVipBonus, applyVipToWinnings, Cas
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
+import { playCardFlip, playStreakUp, playCashOut, playLoss } from '@/game/sounds/casinoSounds';
 
 // Rebalanced multiplier ladder (lowered from 1.5/2/3/5/10/20)
 const MULTIPLIER_LADDER = [
@@ -67,6 +68,7 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
     setDeck(d);
     setNextCard(next);
     setShowNext(true);
+    playCardFlip();
 
     const currentVal = getCardRankValue(currentCard!.rank);
     const nextVal = getCardRankValue(next.rank);
@@ -80,6 +82,7 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
       if (correct) {
         const newRound = round + 1;
         setRound(newRound);
+        playStreakUp();
         setCurrentCard(next);
         setNextCard(null);
         setShowNext(false);
@@ -98,6 +101,7 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
         setResult(isTie ? 'GELIJK! Verloren.' : 'FOUT! Alles verloren.');
         setResultColor('text-blood');
         onResult(false, -currentBet);
+        playLoss();
       }
     }, 800);
   };
@@ -107,13 +111,13 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
     if (r <= 0) return;
     const mult = MULTIPLIER_LADDER[Math.min(r - 1, MULTIPLIER_LADDER.length - 1)].mult;
     const basePayout = Math.floor(currentBet * mult);
-    // Apply VIP bonus to net profit only
     const winAmount = applyVipToWinnings(basePayout, currentBet, vipBonus);
     dispatch({ type: 'CASINO_WIN', amount: winAmount });
     setPlaying(false);
     setResult(`GECASHED! +€${winAmount.toLocaleString()} (${mult}x)`);
     setResultColor('text-emerald');
     onResult(true, winAmount - currentBet);
+    playCashOut();
   };
 
   return (

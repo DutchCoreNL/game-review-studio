@@ -325,7 +325,7 @@ export function getEndgameEvent(state: GameState): EndgameEvent | null {
   if (Math.random() > 0.3) return null;
 
   const available = ENDGAME_EVENTS.filter(e =>
-    !(state as any).seenEndgameEvents?.includes(e.id)
+    !state.seenEndgameEvents?.includes(e.id)
   );
   if (available.length === 0) return null;
 

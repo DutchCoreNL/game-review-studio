@@ -31,7 +31,7 @@ export function DistrictPopup() {
       dispatch({ type: 'TRAVEL', to: selectedDistrict });
       showToast(`Aangekomen in ${sel.name}`);
     }
-    selectDistrict(null as any);
+    selectDistrict(null);
   };
 
   let btnText = '';
@@ -66,7 +66,7 @@ export function DistrictPopup() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-background/70 z-[9000] backdrop-blur-sm"
-        onClick={() => selectDistrict(null as any)}
+        onClick={() => selectDistrict(null)}
       />
       <motion.div
         key="district-popup"
@@ -85,7 +85,7 @@ export function DistrictPopup() {
             </div>
           )}
           <button
-            onClick={() => selectDistrict(null as any)}
+            onClick={() => selectDistrict(null)}
             className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors z-10"
           >
             <X size={16} />

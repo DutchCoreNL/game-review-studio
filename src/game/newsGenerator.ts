@@ -200,16 +200,15 @@ function marketNews(state: GameState): NewsItem[] {
   let bestSpike: { goodName: string; distName: string; demand: number } | null = null;
 
   for (const distId of Object.keys(state.districtDemands || {})) {
-    const demands = (state.districtDemands as any)?.[distId];
-    if (!demands) continue;
-    for (const [goodId, demand] of Object.entries(demands)) {
-      const d = demand as number;
-      if (d > 1.5) {
-        const good = GOODS.find(g => g.id === goodId);
-        const dist = DISTRICTS[distId as DistrictId];
-        if (good && dist && (!bestSpike || d > bestSpike.demand)) {
-          bestSpike = { goodName: good.name, distName: dist.name, demand: d };
-        }
+    const demandGood = state.districtDemands?.[distId];
+    if (!demandGood) continue;
+    // districtDemands maps district → single demanded good (or null)
+    // We check if there's a demand and report it
+    if (demandGood) {
+      const good = GOODS.find(g => g.id === demandGood);
+      const dist = DISTRICTS[distId as DistrictId];
+      if (good && dist && !bestSpike) {
+        bestSpike = { goodName: good.name, distName: dist.name, demand: 1.6 };
       }
     }
   }
@@ -377,8 +376,8 @@ function crewNews(state: GameState): NewsItem[] {
 
 function corruptionNews(state: GameState): NewsItem[] {
   const items: NewsItem[] = [];
-  const contacts = (state as any).corruptContacts || [];
-  const activeContacts = contacts.filter((c: any) => c.recruited);
+  const contacts = state.corruptContacts || [];
+  const activeContacts = contacts.filter(c => c.active);
 
   if (activeContacts.length >= 3) {
     items.push({
@@ -396,7 +395,7 @@ function corruptionNews(state: GameState): NewsItem[] {
   }
 
   // Mr. Vermeer / advocate
-  if (contacts.some((c: any) => c.recruited && c.id === 'advocate')) {
+  if (contacts.some(c => c.active && c.contactDefId === 'advocate')) {
     items.push({
       text: 'Strafpleiter "Mr. Vermeer" wint opnieuw spraakmakende zaak',
       category: 'corruption', urgency: 'low', icon: '⚖️',

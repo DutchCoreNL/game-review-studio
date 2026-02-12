@@ -1320,7 +1320,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     combat.finished = true;
     combat.won = false;
     combat.logs.push('Je bent verslagen...');
-    state.heat += 20;
+    splitHeat(state, 20, 0.5);
+    recomputeHeat(state);
     state.money = Math.max(0, state.money - Math.floor(state.money * 0.1));
     state.stats.missionsFailed++;
     return;

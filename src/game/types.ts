@@ -746,4 +746,12 @@ export interface GameState {
 
   // ========== ACHIEVEMENT POPUP STATE ==========
   pendingAchievements: string[];
+
+  // ========== ENDGAME EVENT TRACKING ==========
+  seenEndgameEvents: string[];
+
+  // ========== REDUCER META (transient, not persisted) ==========
+  _finalBossWon?: boolean;
+  _lastFactionResult?: any;
+  _completedArcFlashbackId?: string;
 }

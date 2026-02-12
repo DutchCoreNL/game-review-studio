@@ -915,6 +915,7 @@ export function createInitialState(): import('./types').GameState {
     villa: null,
     // Achievement popup state
     pendingAchievements: [],
+    seenEndgameEvents: [],
   };
 }
 
