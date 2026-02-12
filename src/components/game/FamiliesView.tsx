@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { FAMILIES } from '@/game/constants';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
+import { FACTION_IMAGES } from '@/assets/items';
 
 export function FamiliesView() {
   const { state, dispatch, showToast } = useGame();
@@ -25,11 +26,18 @@ export function FamiliesView() {
           return (
             <motion.div
               key={id}
-              className="game-card"
+              className="game-card overflow-hidden"
               style={{ borderLeft: `3px solid ${dead ? '#444' : fam.color}`, opacity: dead ? 0.6 : 1 }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: dead ? 0.6 : 1, x: 0 }}
             >
+              {/* Faction banner */}
+              {FACTION_IMAGES[id] && (
+                <div className="relative h-16 -mx-3 -mt-3 mb-2 overflow-hidden">
+                  <img src={FACTION_IMAGES[id]} alt={fam.name} className={`w-full h-full object-cover ${dead ? 'grayscale' : ''}`} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                </div>
+              )}
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">

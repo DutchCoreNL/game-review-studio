@@ -9,6 +9,7 @@ import { DramaticEventReveal } from './night-report/DramaticEventReveal';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { useEffect, useRef, useState } from 'react';
 import { playCoinSound, playAlarmSound, playNegativeSound, playPositiveSound, isMuted, toggleMute } from '@/game/sounds';
+import nightReportBg from '@/assets/night-report-bg.jpg';
 
 export function NightReport() {
   const { state, dispatch } = useGame();
@@ -147,27 +148,33 @@ export function NightReport() {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="w-full max-w-md game-card border-t-[3px] border-t-gold p-5 shadow-2xl max-h-[85vh] overflow-y-auto game-scroll"
+          className="w-full max-w-md game-card border-t-[3px] border-t-gold shadow-2xl max-h-[85vh] overflow-hidden flex flex-col"
         >
-          {/* Header */}
-          <motion.div
-            className="flex items-center justify-center gap-2 mb-4 relative"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-          >
-            <Moon size={20} className="text-gold" />
-            <h2 className="font-display text-lg text-gold uppercase tracking-widest gold-text-glow">
-              Nacht {report.day}
-            </h2>
-            <button
-              onClick={handleToggleMute}
-              className="absolute right-0 top-0 p-1 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={muted ? 'Geluid aan' : 'Geluid uit'}
+          {/* Night skyline banner */}
+          <div className="relative h-24 overflow-hidden flex-shrink-0">
+            <img src={nightReportBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+            <motion.div
+              className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-2"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
             >
-              {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-            </button>
-          </motion.div>
+              <Moon size={20} className="text-gold" />
+              <h2 className="font-display text-lg text-gold uppercase tracking-widest gold-text-glow">
+                Nacht {report.day}
+              </h2>
+              <button
+                onClick={handleToggleMute}
+                className="absolute right-4 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={muted ? 'Geluid aan' : 'Geluid uit'}
+              >
+                {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+            </motion.div>
+          </div>
+
+          <div className="p-5 overflow-y-auto game-scroll flex-1">
 
           <div className="space-y-2.5">
             {/* Income rows */}
@@ -390,6 +397,7 @@ export function NightReport() {
           >
             DOORGAAN
           </motion.button>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
