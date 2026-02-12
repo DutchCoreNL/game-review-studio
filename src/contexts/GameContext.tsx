@@ -1627,6 +1627,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       } else {
         // Fail
         s.prison.daysRemaining += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
+        s.prison.totalSentence += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
         s.screenEffect = 'blood-flash';
         addPhoneMessage(s, 'NHPD', `Ontsnappingspoging mislukt! +${PRISON_ESCAPE_FAIL_EXTRA_DAYS} extra dagen straf.`, 'threat');
       }
