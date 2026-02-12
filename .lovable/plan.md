@@ -1,99 +1,161 @@
 
 
-# Visual Character Progression System (Paperdoll)
+# Drug Empire Expansion — "El Padrino" System
 
 ## Overzicht
 
-Een CharacterAvatar component dat de speler visueel representeert door meerdere lagen over elkaar te stapelen. Het systeem leest direct uit de bestaande GameState (level, karma, loadout, district) en past de visuele representatie dynamisch aan. Omdat er nog geen PNG-assets zijn, gebruiken we gestylede SVG/div placeholders die later eenvoudig vervangen kunnen worden door echte afbeeldingen.
+Een endgame drugsimperium dat de bestaande villa-productie uitbreidt tot een volwaardige supply chain: inkoop van grondstoffen, verwerking in labs, en distributie via een netwerk van dealers in je districten. Denk aan de opkomst van Tony Montana: je begint met een klein lab en eindigt met een continent-breed imperium.
+
+## Vereisten om te unlocken
+
+- Villa Level 3
+- Minimaal 1 productiemodule (wietplantage, coke_lab, of synthetica_lab)
+- Reputatie 400+
+- Dag 30+
 
 ---
 
-## Visuele Lagen (van onder naar boven)
+## Nieuwe Systemen
 
-| Z-index | Laag | Bron in GameState | Placeholder |
-|---------|------|-------------------|-------------|
-| 0 | Achtergrond | `state.loc` (district) | Gekleurde gradient per district |
-| 1 | Lichaam | Vast (uitbreidbaar) | SVG silhouet |
-| 2 | Cybernetics | `ownedGear` bevat `lotus_implant` | Neon lijnen op silhouet |
-| 3 | Kleding | `player.level` (1-9: vodden, 10-29: casual, 30+: pak) | Gekleurde vormen |
-| 4 | Bovenkleding | `player.loadout.armor` | Vest/pak overlay |
-| 5 | Hoofddeksel | Level 30+ of specifieke gear | Cyber-optics strip |
-| 6 | Wapen | `player.loadout.weapon` | Wapen-silhouet met naam |
-| 7 | Karma Overlay | `state.karma` | Gekleurde glow (rood/blauw/goud) |
+### 1. Supply Chain: Grondstoffen
 
----
+Momenteel heeft het lab alleen `chemicals` als grondstof. We breiden dit uit:
 
-## Componentstructuur
+| Grondstof | Prijs | Bron | Gebruikt door |
+|-----------|-------|------|---------------|
+| Chemicalien (bestaand) | via lab | Bestaand systeem | Synthetica Lab, Coke Lab |
+| Coca Bladeren | €500/batch | Cartel-contact (port) | Coke Lab |
+| Precursoren | €800/batch | Zwarte markt (neon) | Meth Lab (nieuw) |
+| Zaden | €200/batch | Lowrise contact | Wietplantage (boost) |
 
-### Nieuw bestand: `src/components/game/profile/CharacterAvatar.tsx`
+Grondstoffen worden ingekocht via een nieuw "Supply" tabblad in de Villa productie-sectie. De Cartel-relatie geeft korting op coca bladeren.
 
-Het hoofdcomponent dat alle lagen rendert. Accepteert optionele `size` prop (sm/md/lg) voor hergebruik.
+### 2. Nieuwe Productiemodule: Meth Lab
 
-**Props:**
-- `size?: 'sm' | 'md' | 'lg'` (default: 'md')
-- `showPreviewControls?: boolean` (voor het Preview Dashboard)
-- `className?: string`
+| Module | Kosten | Villa Level | Output |
+|--------|--------|-------------|--------|
+| Meth Lab | €75.000 | 3 | 4-7 Synthetica/nacht uit precursoren |
 
-**Mapping logica:**
-- **District achtergronden**: Mapping van DistrictId naar gradient kleuren (Port Nero = donkerblauw, Crown Heights = goud/zwart, Iron Borough = grijs/oranje, Lowrise = groen/zwart, Neon Strip = paars/roze)
-- **Level tiers**: 1-9 = "Straatrat" (gescheurde kleding), 10-29 = "Soldaat" (donker jasje), 30+ = "Baas" (luxe pak)
-- **Wapen visuals**: Mapping van gear ID naar SVG-vormen (glock = pistool, shotgun = kort geweer, ak47 = groot geweer, sniper = lang geweer, cartel_blade = zwaard)
-- **Armor visuals**: vest = kogelvrij vest overlay, suit = pak overlay, skull_armor = zware plating
-- **Karma glow**: karma < -20 = rode/oranje pulserende glow, karma > 20 = blauwe/gouden glow, neutraal = geen overlay
-- **Cybernetics**: Neural Implant (lotus_implant) in bezit = neon circuit-lijnen op het gezicht
+Prestige upgrade: Output +80%, maar heat +50% hoger.
 
-**Glitch-animatie**: Bij level-up (detecteerbaar via `player.level` change) speelt een korte CSS glitch-animatie af (horizontal offset + color channel split via CSS filters).
+### 3. Distributie Netwerk
 
-### Nieuw bestand: `src/components/game/profile/AvatarPreviewDashboard.tsx`
+Het hart van het imperium. Voor elk district dat je bezit, kun je een **Dealer** aanstellen:
 
-Een "Preview Dashboard" panel met sliders/toggles om de avatar live te testen:
-- Level slider (1-50)
-- Karma slider (-100 tot +100)
-- District selector (5 knoppen)
-- Wapen selector (dropdown van beschikbare gear)
-- Armor selector (dropdown)
-- Cybernetics toggle
+- **Dealer toewijzen**: Kies een goed (drugs, meds, of luxury) en een hoeveelheid per nacht
+- **Automatische verkoop**: Dealers verkopen 's nachts tegen 70% van de marktprijs (passief inkomen)
+- **Capaciteit**: 5/10/20 eenheden per nacht per dealer (upgradeable)
+- **Risico**: Elke dealer genereert 2-5 heat/nacht. Bij heat > 60 is er 15% kans dat een dealer wordt opgepakt (verlies van voorraad + heat spike)
+- **Max dealers**: Aantal owned districts (max 5)
 
-Dit component gebruikt lokale state (niet de echte game state) zodat je vrij kunt experimenteren.
+### 4. Lab Upgrade Tiers
 
-### Aangepast bestand: `src/components/game/ProfileView.tsx`
+Bestaande labs krijgen upgrade-levels (Level 1-3) bovenop de prestige-laag:
 
-- Importeer `CharacterAvatar`
-- Vervang het huidige statische "Boss Card" icoon (de `span` met emoji) door de `CharacterAvatar` component in `size="sm"`
-- Voeg een nieuw profiel-subtab toe: `'avatar'` met label `'AVATAR'`
-- In die tab: toon de CharacterAvatar in groot formaat (size="lg") met het AvatarPreviewDashboard eronder
+| Lab | Lvl 1 (basis) | Lvl 2 (€40k) | Lvl 3 (€80k) |
+|-----|---------------|---------------|---------------|
+| Wietplantage | 5-10/nacht | 10-18/nacht | 18-30/nacht |
+| Coke Lab | 3-5/nacht | 6-10/nacht | 10-16/nacht |
+| Synthetica Lab | 15 batch | 25 batch | 40 batch |
+| Meth Lab | 4-7/nacht | 8-12/nacht | 14-20/nacht |
 
-### Aangepast type: `ProfileTab`
+### 5. Drugsimperium Dashboard
 
-Uitbreiden met `'avatar'` als optie.
+Een nieuw subtab "EMPIRE" binnen de Villa, of een apart panel in de Imperium-view, met:
 
----
+- **Productie-overzicht**: Hoeveel elk lab produceert per nacht (grafiek)
+- **Distributie-overzicht**: Welke dealers actief zijn, hun verkoop, en risico
+- **Supply-status**: Hoeveel grondstoffen op voorraad
+- **Imperium-waarde**: Totaal geschatte dagelijkse opbrengst
+- **Heat-indicator**: Hoeveel heat het imperium per nacht genereert
+- **"Imperium Score"**: Een rangschikking (Straatdealer, Wijkbaas, Drugsbaas, Kartelleider, Padrino) gebaseerd op dagelijkse productie-output
 
-## Technische Details
+### 6. Evenementen & Risico's
 
-### CSS/Styling
-- Container: `relative` met vaste aspect-ratio (3:4), responsief via Tailwind (`w-full max-w-[200px]` voor md)
-- Lagen: `absolute inset-0` met oplopende `z-index`
-- Glitch-effect: CSS keyframe animatie met `clip-path` en `transform: translate` voor RGB-split
-- Karma glow: `box-shadow` met `inset` + radiale gradient overlay
-- Alle placeholders gebruiken Tailwind kleuren en inline SVG
+Nieuwe nacht-events specifiek voor het drugsimperium:
 
-### Responsiviteit
-- `sm`: 48x64px (voor header/boss card)
-- `md`: 150x200px (standaard)
-- `lg`: 250x333px (preview dashboard)
-
-### Performance
-- Geen extra state in GameState nodig
-- Puur visueel component, leest alleen uit bestaande state
-- Framer Motion alleen voor de glitch-animatie bij level-up
-- Geen nieuwe dependencies
+- **DEA Inval**: Bij hoge heat, kans dat een lab wordt gesloten (1 nacht downtime + grondstof verlies)
+- **Dealer Verraad**: Dealer steelt voorraad en verdwijnt (lage loyalty)
+- **Turf War**: Rivaliserende dealer verschijnt in je district, verlaagt je verkoop
+- **Bulk Order**: NPC wil grote hoeveelheid kopen tegen premium prijs (timed event)
+- **Lab Explosie**: Kleine kans bij meth lab, verliest productie voor 2 nachten
+- **Cartel Supply Drop**: Als Cartel-relatie > 80, gratis grondstoffen
 
 ---
 
-## Wat er NIET verandert
-- Geen wijzigingen aan game logica, engine, of reducer
-- Geen nieuwe velden in GameState
-- Bestaande profiel-tabs en functionaliteit blijven identiek
-- Geen impact op performance of save-systeem
+## Technische Implementatie
+
+### Nieuwe Types (types.ts)
+
+```text
+DrugSupplyId = 'coca_leaves' | 'precursors' | 'seeds'
+
+interface DrugDealer {
+  district: DistrictId
+  good: GoodId
+  capacity: number        // units per night
+  capacityLevel: number   // 1-3
+  active: boolean
+  arrestedDays: number    // 0 = active
+}
+
+interface DrugEmpireState {
+  unlocked: boolean
+  supplies: Record<DrugSupplyId, number>
+  dealers: DrugDealer[]
+  labLevels: Partial<Record<VillaModuleId, number>>  // lab upgrade levels
+  imperiumScore: number
+  totalProduced: number
+  totalDistributed: number
+  totalDrugIncome: number
+}
+```
+
+### Nieuwe Velden in GameState
+
+- `drugEmpire: DrugEmpireState | null`
+
+### Nieuw Bestand: `src/game/drugEmpire.ts`
+
+Bevat:
+- Supply-inkoop logica
+- Dealer-management functies
+- Lab upgrade definities en kosten
+- Nachtelijke distributie-verwerking (`processDrugDistribution`)
+- Empire score berekening
+- Drug empire events (DEA, verraad, etc.)
+
+### Nieuw Bestand: `src/components/game/villa/DrugEmpirePanel.tsx`
+
+UI-component met subtabs:
+- **Supply**: Grondstoffen inkopen
+- **Labs**: Lab-upgrades bekijken/kopen
+- **Dealers**: Dealers aanstellen/beheren per district
+- **Overzicht**: Dashboard met productie- en verkoopstatistieken
+
+### Aangepaste Bestanden
+
+1. **`src/game/types.ts`**: Nieuwe types toevoegen, GameState uitbreiden
+2. **`src/game/villa.ts`**: `processVillaProduction` aanpassen voor lab-levels
+3. **`src/game/engine.ts`**: Nachtrapport uitbreiden met drug empire resultaten, `processDrugDistribution` aanroepen
+4. **`src/contexts/GameContext.tsx`**: Nieuwe reducer actions (BUY_SUPPLY, ASSIGN_DEALER, REMOVE_DEALER, UPGRADE_LAB, UPGRADE_DEALER)
+5. **`src/components/game/villa/VillaView.tsx`**: Nieuw "Empire" tab toevoegen als drugEmpire unlocked is
+6. **`src/components/game/NightReport.tsx`**: Drug empire secties toevoegen (dealer-verkoop, supply-verbruik, events)
+
+### NightReport Uitbreiding
+
+Nieuwe velden in `NightReportData`:
+- `drugDealerSales`: Array van dealer-verkopen per district
+- `drugDealerArrested`: Naam van opgepakte dealer (indien van toepassing)
+- `drugSupplyUsed`: Grondstoffen verbruikt
+- `drugEmpireEvent`: Speciaal event (DEA, bulk order, etc.)
+- `drugImperiumScore`: Huidige score/rang
+
+### Balans
+
+- Totale passieve drug-income op max level: circa €8.000-€15.000/nacht (vergelijkbaar met endgame businesses)
+- Heat-generatie: 15-30/nacht bij volledig actief imperium (dwingt speler om heat-management te doen)
+- Grondstoffen kosten: circa 30-40% van bruto-opbrengst (netto marge ~60%)
+- DEA-inval kans: 5% per nacht bij heat > 50, 15% bij heat > 80
+- Dit maakt het systeem winstgevend maar riskant, perfect voor endgame
 
