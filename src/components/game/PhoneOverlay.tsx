@@ -1,6 +1,29 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Mail, MailOpen } from 'lucide-react';
+import { NPC_IMAGES, CONTACT_IMAGES, BOSS_IMAGES } from '@/assets/items';
+
+// Map known message senders to their portrait images
+const SENDER_IMAGES: Record<string, string> = {
+  // NPCs
+  'Rosa': NPC_IMAGES.rosa,
+  'Marco': NPC_IMAGES.marco,
+  'Yilmaz': NPC_IMAGES.yilmaz,
+  'Luna': NPC_IMAGES.luna,
+  'Viktor Krow': NPC_IMAGES.krow,
+  // Family contacts / bosses
+  'El Serpiente': BOSS_IMAGES.cartel,
+  'Mr. Wu': BOSS_IMAGES.syndicate,
+  'Hammer': BOSS_IMAGES.bikers,
+  // Corrupt contacts
+  'Agent Brouwer': CONTACT_IMAGES.beat_cop,
+  'Inspecteur De Vries': CONTACT_IMAGES.vice_detective,
+  'Douanier Bakker': CONTACT_IMAGES.customs_officer,
+  'Rechter Van Dijk': CONTACT_IMAGES.district_judge,
+  'Wethouder Jansen': CONTACT_IMAGES.city_councilor,
+  'Havenmeester Krol': CONTACT_IMAGES.harbor_master,
+  'Mr. Vermeer': CONTACT_IMAGES.defense_lawyer,
+};
 
 export function PhoneOverlay() {
   const { state, dispatch } = useGame();
@@ -56,7 +79,13 @@ export function PhoneOverlay() {
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-lg flex-shrink-0">{msg.avatar}</span>
+                    {SENDER_IMAGES[msg.from] ? (
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-border">
+                        <img src={SENDER_IMAGES[msg.from]} alt={msg.from} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <span className="text-lg flex-shrink-0">{msg.avatar}</span>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <span className="text-[0.6rem] font-bold">{msg.from}</span>
