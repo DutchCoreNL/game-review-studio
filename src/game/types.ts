@@ -588,6 +588,16 @@ export interface NightReportData {
   prisonDailyEvent?: PrisonEvent;
   prisonCrewDeserted?: string[];
   prisonReleased?: boolean;
+  prisonSummary?: {
+    totalDaysServed: number;
+    totalSentence: number;
+    moneyLost: number;
+    dirtyMoneyLost: number;
+    goodsLost: string[];
+    events: PrisonEvent[];
+    crewDeserted: string[];
+    escapeFailed: boolean;
+  };
   ammoFactoryProduction?: number;
   ammoFactoryType?: AmmoType; // which type was produced
   // Villa production

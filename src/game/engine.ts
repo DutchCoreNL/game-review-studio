@@ -884,6 +884,17 @@ export function endTurn(state: GameState): NightReportData {
     }
 
     if (state.prison.daysRemaining <= 0) {
+      // Collect summary before clearing prison
+      report.prisonSummary = {
+        totalDaysServed: state.prison.dayServed,
+        totalSentence: state.prison.totalSentence,
+        moneyLost: state.prison.moneyLost,
+        dirtyMoneyLost: state.prison.dirtyMoneyLost,
+        goodsLost: state.prison.goodsLost,
+        events: [...state.prison.events],
+        crewDeserted: report.prisonCrewDeserted || [],
+        escapeFailed: state.prison.escapeAttempted,
+      };
       // Release: reset heat
       state.personalHeat = 0;
       state.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
