@@ -1,5 +1,5 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE } from './constants';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent } from './types';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -540,7 +540,16 @@ export function calculateSentence(personalHeat: number): number {
 }
 
 export function arrestPlayer(state: GameState, report: NightReportData): void {
-  const sentence = calculateSentence(state.personalHeat || 0);
+  let sentence = calculateSentence(state.personalHeat || 0);
+
+  // Lawyer reduces sentence by 1 day
+  const hasLawyer = state.corruptContacts?.some(c => {
+    const def = CORRUPT_CONTACTS.find(cd => cd.id === c.contactDefId);
+    return def?.type === 'lawyer' && c.active && !c.compromised;
+  });
+  if (hasLawyer && sentence > 1) {
+    sentence -= PRISON_LAWYER_SENTENCE_REDUCTION;
+  }
 
   // Confiscate money (villa vault money is protected)
   const protectedMoney = getVillaProtectedMoney(state);
@@ -562,15 +571,16 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
       state.inventoryCosts[gid] = 0;
     }
   });
-  // Villa stored goods are NOT touched (that's the whole point)
 
   state.prison = {
     daysRemaining: sentence,
     totalSentence: sentence,
+    dayServed: 0,
     moneyLost,
     dirtyMoneyLost,
     goodsLost,
     escapeAttempted: false,
+    events: [],
   };
 
   report.imprisoned = true;
@@ -762,7 +772,53 @@ export function endTurn(state: GameState): NightReportData {
 
   // === PRISON: Day countdown ===
   if (state.prison) {
+    state.prison.dayServed++;
     state.prison.daysRemaining--;
+
+    // Prison daily event
+    if (state.prison.daysRemaining > 0) {
+      const roll = Math.random();
+      if (roll < 0.6) { // 60% chance of an event
+        const evt = PRISON_EVENTS[Math.floor(Math.random() * PRISON_EVENTS.length)];
+        state.prison.events.push(evt);
+
+        // Apply event effects
+        switch (evt.effect) {
+          case 'brains_up': state.player.stats.brains += evt.value; break;
+          case 'muscle_up': state.player.stats.muscle += evt.value; break;
+          case 'charm_up': state.player.stats.charm += evt.value; break;
+          case 'hp_loss': state.crew.forEach(c => { if (c.hp > 0) c.hp = Math.max(1, c.hp - evt.value); }); break;
+          case 'rep_up': state.rep += evt.value; break;
+          case 'day_reduce':
+            if (state.prison.daysRemaining > 1) {
+              state.prison.daysRemaining -= evt.value;
+              if (state.money >= 500) state.money -= 500; // small cost
+            }
+            break;
+          case 'money_cost': state.money = Math.max(0, state.money - evt.value); break;
+          case 'loyalty_up': state.crew.forEach(c => { c.loyalty = Math.min(100, (c.loyalty || 75) + evt.value); }); break;
+        }
+      }
+    }
+
+    // Crew loyalty penalty during imprisonment
+    if (state.crew.length > 0) {
+      state.crew.forEach(c => {
+        c.loyalty = Math.max(0, (c.loyalty || 75) - PRISON_CREW_LOYALTY_PENALTY);
+      });
+
+      // Crew desertion if sentence > threshold
+      if (state.prison.dayServed >= PRISON_CREW_DESERT_THRESHOLD) {
+        for (let i = state.crew.length - 1; i >= 0; i--) {
+          const member = state.crew[i];
+          if ((member.loyalty || 75) < 20 && Math.random() < 0.3) {
+            addPhoneMessage(state, member.name, `Ik wacht niet meer. Je zit vast en ik heb betere opties. Vaarwel.`, 'warning');
+            state.crew.splice(i, 1);
+          }
+        }
+      }
+    }
+
     if (state.prison.daysRemaining <= 0) {
       // Release: reset heat
       state.personalHeat = 0;

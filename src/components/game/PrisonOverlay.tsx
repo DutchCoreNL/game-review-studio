@@ -1,10 +1,10 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { Lock, DollarSign, KeyRound, Clock, AlertTriangle, Package } from 'lucide-react';
+import { Lock, DollarSign, KeyRound, Clock, AlertTriangle, Package, Brain, Swords, Heart, Scale, Users, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { GameButton } from './ui/GameButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
-import { PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE } from '@/game/constants';
+import { PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_LAWYER_BRIBE_DISCOUNT, CORRUPT_CONTACTS } from '@/game/constants';
 import * as Engine from '@/game/engine';
 import prisonBg from '@/assets/items/overlay-prison.jpg';
 
@@ -12,20 +12,38 @@ export function PrisonOverlay() {
   const { state, dispatch, showToast } = useGame();
   const [confirmBribe, setConfirmBribe] = useState(false);
   const [confirmEscape, setConfirmEscape] = useState(false);
+  const [showEscapeBreakdown, setShowEscapeBreakdown] = useState(false);
   const prison = state.prison;
 
   if (!prison) return null;
 
-  const bribeCost = prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+  // Lawyer check
+  const hasLawyer = state.corruptContacts?.some(c => {
+    const def = CORRUPT_CONTACTS.find(cd => cd.id === c.contactDefId);
+    return def?.type === 'lawyer' && c.active && !c.compromised;
+  });
+
+  const baseBribeCost = prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+  const bribeCost = hasLawyer ? Math.floor(baseBribeCost * (1 - PRISON_LAWYER_BRIBE_DISCOUNT)) : baseBribeCost;
   const canAffordBribe = state.money >= bribeCost;
 
-  // Calculate escape chance
-  let escapeChance = PRISON_ESCAPE_BASE_CHANCE;
-  escapeChance += Engine.getPlayerStat(state, 'brains') * 0.03;
-  if (state.crew.some(c => c.role === 'Hacker')) escapeChance += 0.10;
+  // Progress
+  const progressPct = prison.totalSentence > 0 ? (prison.dayServed / prison.totalSentence) * 100 : 0;
+
+  // Escape chance breakdown
+  const baseChance = PRISON_ESCAPE_BASE_CHANCE;
+  const brainsBonus = Engine.getPlayerStat(state, 'brains') * 0.03;
+  const hackerBonus = state.crew.some(c => c.role === 'Hacker') ? 0.10 : 0;
   const hasTunnel = state.villa?.modules.includes('tunnel');
-  if (hasTunnel) escapeChance += 0.25;
-  const escapePercent = Math.min(95, Math.round(escapeChance * 100));
+  const tunnelBonus = hasTunnel ? 0.25 : 0;
+  const totalChance = baseChance + brainsBonus + hackerBonus + tunnelBonus;
+  const escapePercent = Math.min(95, Math.round(totalChance * 100));
+
+  // Crew loyalty warning
+  const lowLoyaltyCrew = state.crew.filter(c => (c.loyalty || 75) < 30);
+
+  // Recent events (last 3)
+  const recentEvents = prison.events.slice(-3).reverse();
 
   return (
     <>
@@ -42,11 +60,11 @@ export function PrisonOverlay() {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.15, type: 'spring', stiffness: 200, damping: 20 }}
-        className="absolute inset-0 z-40 flex items-center justify-center px-6"
+        className="absolute inset-0 z-40 flex items-center justify-center px-6 overflow-y-auto py-4"
       >
         <div className="w-full max-w-xs bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
           {/* Banner */}
-          <div className="relative h-28 overflow-hidden">
+          <div className="relative h-24 overflow-hidden">
             <img src={prisonBg} alt="" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
             <div className="absolute bottom-2 left-4 flex items-center gap-2">
@@ -56,69 +74,103 @@ export function PrisonOverlay() {
           </div>
 
           {/* Body */}
-          <div className="px-4 py-4 space-y-4">
-            {/* Countdown */}
-            <div className="flex items-center justify-center gap-3">
-              <motion.div
-                animate={{ scale: [1, 1.15, 1] }}
-                transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                className="w-16 h-16 rounded-full border-2 border-blood/40 bg-blood/5 flex items-center justify-center"
-              >
-                <div className="text-center">
+          <div className="px-4 py-3 space-y-3">
+            {/* Progress ring + countdown */}
+            <div className="flex items-center justify-center gap-4">
+              <div className="relative w-20 h-20">
+                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+                  <motion.circle
+                    cx="40" cy="40" r="34" fill="none"
+                    stroke="hsl(var(--blood))"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 34}`}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 34 }}
+                    animate={{ strokeDashoffset: (2 * Math.PI * 34) * (1 - progressPct / 100) }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-black text-blood leading-none">{prison.daysRemaining}</span>
-                  <p className="text-[0.5rem] text-blood/70 uppercase tracking-wider">
-                    {prison.daysRemaining === 1 ? 'dag' : 'dagen'}
+                  <p className="text-[0.45rem] text-blood/70 uppercase tracking-wider">
+                    {prison.daysRemaining === 1 ? 'dag' : 'dagen'} over
                   </p>
                 </div>
-              </motion.div>
+              </div>
+              <div className="text-[0.6rem] text-muted-foreground space-y-1">
+                <p>Dag <span className="text-foreground font-bold">{prison.dayServed}</span> van {prison.totalSentence}</p>
+                {hasLawyer && (
+                  <div className="flex items-center gap-1 text-gold">
+                    <Scale size={10} />
+                    <span>Advocaat actief</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Confiscation info */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {prison.moneyLost > 0 && (
-                <div className="flex items-start gap-2 text-[0.65rem]">
-                  <DollarSign size={12} className="text-blood mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 text-[0.6rem]">
+                  <DollarSign size={11} className="text-blood mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">
-                    Geld in beslag genomen: <span className="text-blood font-bold">-€{prison.moneyLost.toLocaleString()}</span>
+                    Geld: <span className="text-blood font-bold">-€{prison.moneyLost.toLocaleString()}</span>
                   </span>
                 </div>
               )}
               {prison.dirtyMoneyLost > 0 && (
-                <div className="flex items-start gap-2 text-[0.65rem]">
-                  <DollarSign size={12} className="text-blood mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 text-[0.6rem]">
+                  <DollarSign size={11} className="text-blood mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">
-                    Dirty money verloren: <span className="text-blood font-bold">-€{prison.dirtyMoneyLost.toLocaleString()}</span>
+                    Dirty: <span className="text-blood font-bold">-€{prison.dirtyMoneyLost.toLocaleString()}</span>
                   </span>
                 </div>
               )}
               {prison.goodsLost.length > 0 && (
-                <div className="flex items-start gap-2 text-[0.65rem]">
-                  <Package size={12} className="text-blood mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 text-[0.6rem]">
+                  <Package size={11} className="text-blood mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">
                     Geconfisqueerd: <span className="text-blood font-bold">{prison.goodsLost.join(', ')}</span>
                   </span>
                 </div>
               )}
-              <div className="flex items-start gap-2 text-[0.65rem]">
-                <Clock size={12} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-2 text-[0.6rem]">
+                <Clock size={11} className="text-muted-foreground mt-0.5 flex-shrink-0" />
                 <span className="text-muted-foreground">
-                  Geen handel, reizen of missies mogelijk. Business-inkomsten lopen door.
+                  Geen handel, reizen of missies. Inkomsten lopen door.
                 </span>
               </div>
             </div>
 
-            {/* Day dots */}
-            <div className="flex justify-center gap-2">
-              {Array.from({ length: Math.min(prison.daysRemaining, 7) }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.1 }}
-                  className="w-3 h-3 rounded-full border border-blood/30 bg-blood/20"
-                />
-              ))}
-            </div>
+            {/* Prison Events Log */}
+            {recentEvents.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[0.55rem] uppercase tracking-wider text-muted-foreground font-bold">Recente voorvallen</p>
+                {recentEvents.map((evt, i) => (
+                  <motion.div
+                    key={`${evt.id}-${i}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="bg-muted/30 rounded px-2 py-1.5 text-[0.6rem]"
+                  >
+                    <p className="font-bold text-foreground">{evt.title}</p>
+                    <p className="text-muted-foreground">{evt.desc}</p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Crew Loyalty Warning */}
+            {lowLoyaltyCrew.length > 0 && (
+              <div className="flex items-start gap-2 text-[0.6rem] bg-blood/10 border border-blood/20 rounded px-2 py-1.5">
+                <Users size={12} className="text-blood mt-0.5 flex-shrink-0" />
+                <span className="text-blood">
+                  <span className="font-bold">{lowLoyaltyCrew.map(c => c.name).join(', ')}</span> {lowLoyaltyCrew.length === 1 ? 'overweegt' : 'overwegen'} te vertrekken!
+                </span>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2">
@@ -131,18 +183,60 @@ export function PrisonOverlay() {
                 disabled={!canAffordBribe}
               >
                 OMKOPEN — €{bribeCost.toLocaleString()}
+                {hasLawyer && <span className="text-[0.5rem] ml-1 opacity-70">(-30%)</span>}
               </GameButton>
 
               {!prison.escapeAttempted && (
-                <GameButton
-                  variant="blood"
-                  size="md"
-                  fullWidth
-                  icon={<KeyRound size={14} />}
-                  onClick={() => setConfirmEscape(true)}
-                >
-                  ONTSNAPPEN — {escapePercent}% kans
-                </GameButton>
+                <div>
+                  <GameButton
+                    variant="blood"
+                    size="md"
+                    fullWidth
+                    icon={<KeyRound size={14} />}
+                    onClick={() => setConfirmEscape(true)}
+                  >
+                    ONTSNAPPEN — {escapePercent}% kans
+                  </GameButton>
+                  <button
+                    onClick={() => setShowEscapeBreakdown(!showEscapeBreakdown)}
+                    className="w-full flex items-center justify-center gap-1 text-[0.55rem] text-muted-foreground mt-1 hover:text-foreground transition-colors"
+                  >
+                    {showEscapeBreakdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    Kans breakdown
+                  </button>
+                  {showEscapeBreakdown && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      className="overflow-hidden mt-1 bg-muted/20 rounded px-2 py-1.5 space-y-0.5"
+                    >
+                      <div className="flex justify-between text-[0.55rem]">
+                        <span className="text-muted-foreground">Basis</span>
+                        <span className="text-foreground font-mono">{Math.round(baseChance * 100)}%</span>
+                      </div>
+                      <div className="flex justify-between text-[0.55rem]">
+                        <span className="text-muted-foreground flex items-center gap-1"><Brain size={9} /> Vernuft</span>
+                        <span className="text-ice font-mono">+{Math.round(brainsBonus * 100)}%</span>
+                      </div>
+                      {hackerBonus > 0 && (
+                        <div className="flex justify-between text-[0.55rem]">
+                          <span className="text-muted-foreground flex items-center gap-1"><ShieldCheck size={9} /> Hacker</span>
+                          <span className="text-emerald font-mono">+{Math.round(hackerBonus * 100)}%</span>
+                        </div>
+                      )}
+                      {tunnelBonus > 0 && (
+                        <div className="flex justify-between text-[0.55rem]">
+                          <span className="text-muted-foreground flex items-center gap-1"><KeyRound size={9} /> Villa Tunnel</span>
+                          <span className="text-gold font-mono">+{Math.round(tunnelBonus * 100)}%</span>
+                        </div>
+                      )}
+                      <div className="border-t border-border pt-0.5 flex justify-between text-[0.6rem] font-bold">
+                        <span>Totaal</span>
+                        <span className="text-blood">{escapePercent}%</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               )}
 
               {prison.escapeAttempted && (
@@ -159,7 +253,7 @@ export function PrisonOverlay() {
       <ConfirmDialog
         open={confirmBribe}
         title="Omkoping"
-        message={`Dit kost €${bribeCost.toLocaleString()}. Je wordt direct vrijgelaten, maar je heat wordt NIET gereset. Doorgaan?`}
+        message={`Dit kost €${bribeCost.toLocaleString()}${hasLawyer ? ' (30% advocaat-korting)' : ''}. Je wordt direct vrijgelaten, maar je heat wordt NIET gereset. Doorgaan?`}
         confirmText="BETAAL & VRIJLATEN"
         cancelText="ANNULEREN"
         variant="warning"

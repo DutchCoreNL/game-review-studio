@@ -1469,12 +1469,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BRIBE_PRISON': {
       if (!s.prison) return s;
-      const bribeCost = s.prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+      let bribeCost = s.prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+      // Lawyer discount
+      const hasLawyer = s.corruptContacts?.some(c => {
+        const def = CORRUPT_CONTACTS.find((cd: any) => cd.id === c.contactDefId);
+        return def?.type === 'lawyer' && c.active && !c.compromised;
+      });
+      if (hasLawyer) bribeCost = Math.floor(bribeCost * (1 - 0.30));
       if (s.money < bribeCost) return s;
       s.money -= bribeCost;
       s.stats.totalSpent += bribeCost;
       s.prison = null;
-      // Heat is NOT reset (didn't serve sentence)
       addPhoneMessage(s, 'anonymous', 'Vrijgekocht. Je heat is niet gereset — ze houden je in de gaten.', 'warning');
       return s;
     }
