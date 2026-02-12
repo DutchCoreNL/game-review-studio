@@ -5,6 +5,7 @@ import { getPlayerStat } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameBadge } from '../ui/GameBadge';
 import { PriceSparkline } from './PriceSparkline';
+import { PriceHistoryChart } from './PriceHistoryChart';
 import { motion } from 'framer-motion';
 import { BarChart3, MapPin, TrendingUp, TrendingDown, ArrowRight, Leaf, Navigation } from 'lucide-react';
 import { useState } from 'react';
@@ -205,28 +206,14 @@ export function MarketAnalysisPanel() {
               )}
             </div>
 
-            {/* Price per district with sparklines */}
-            <div className="mt-3 space-y-1">
-              {DISTRICT_IDS.map(did => {
-                const price = state.prices[did]?.[selectedGood] || 0;
-                const sparkData = state.priceHistory?.[did]?.[selectedGood] || [];
-                const demand = state.districtDemands[did] === selectedGood;
-                const isHere = state.loc === did;
-
-                return (
-                  <div key={did} className={`flex items-center justify-between text-[0.55rem] py-0.5 px-1.5 rounded ${isHere ? 'bg-gold/8' : ''}`}>
-                    <div className="flex items-center gap-1.5">
-                      {isHere && <MapPin size={8} className="text-gold" />}
-                      <span className={isHere ? 'text-gold font-bold' : 'text-muted-foreground'}>{DISTRICTS[did].name}</span>
-                      {demand && <span className="text-gold text-[0.45rem]">★ VRAAG</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {sparkData.length >= 2 && <PriceSparkline data={[...sparkData, price]} width={40} height={14} />}
-                      <span className="font-bold text-foreground w-12 text-right">€{price}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Price History Chart */}
+            <div className="mt-3">
+              <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block">Prijsverloop (alle districten)</span>
+              <PriceHistoryChart
+                goodId={selectedGood}
+                priceHistory={state.priceHistory}
+                currentPrices={state.prices}
+              />
             </div>
           </motion.div>
         );

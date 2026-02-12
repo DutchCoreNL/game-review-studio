@@ -827,8 +827,8 @@ export function endTurn(state: GameState): NightReportData {
     Object.keys(state.prices[distId]).forEach(gid => {
       if (!state.priceHistory[distId][gid]) state.priceHistory[distId][gid] = [];
       state.priceHistory[distId][gid].push(state.prices[distId][gid]);
-      if (state.priceHistory[distId][gid].length > 5) {
-        state.priceHistory[distId][gid] = state.priceHistory[distId][gid].slice(-5);
+      if (state.priceHistory[distId][gid].length > 14) {
+        state.priceHistory[distId][gid] = state.priceHistory[distId][gid].slice(-14);
       }
     });
   });
