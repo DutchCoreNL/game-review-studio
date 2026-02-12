@@ -72,6 +72,43 @@ const VEHICLE_PROFILES: Record<string, {
     width: 250,
     height: 78,
   },
+  // Unique vehicles
+  decker_phantom: {
+    bodyPath: 'M10,48 Q10,34 30,28 L55,24 Q78,18 108,16 L170,16 Q198,18 210,24 L230,28 Q248,34 248,48 L248,58 L10,58 Z',
+    roofLine: 'M60,16 Q72,4 108,2 L162,2 Q198,4 210,16',
+    windowPath: 'M66,15 Q76,6 108,4 L160,4 Q192,6 202,15 Z',
+    wheelY: 58,
+    wheelR: 10,
+    width: 258,
+    height: 78,
+  },
+  cartel_bulldozer: {
+    bodyPath: 'M18,44 Q18,30 38,26 L55,24 Q68,22 85,22 L145,22 Q162,22 175,24 L192,26 Q212,30 212,44 L212,58 L18,58 Z',
+    roofLine: 'M55,22 Q60,10 85,8 L145,8 Q170,10 175,22',
+    windowPath: 'M60,21 Q64,12 85,10 L145,10 Q166,12 170,21 Z',
+    wheelY: 58,
+    wheelR: 13,
+    width: 230,
+    height: 82,
+  },
+  nemesis_trophy: {
+    bodyPath: 'M15,56 Q15,48 32,44 L52,40 Q72,34 100,32 L155,32 Q180,32 195,38 L210,42 Q225,48 225,56 L225,58 L15,58 Z',
+    roofLine: 'M80,32 Q90,24 110,22 L148,23 Q165,25 172,32',
+    windowPath: 'M85,31 Q93,26 110,24 L146,25 Q160,27 166,31 Z',
+    wheelY: 58,
+    wheelR: 8,
+    width: 240,
+    height: 74,
+  },
+  gouden_klassiek: {
+    bodyPath: 'M20,50 Q20,38 38,33 L58,28 Q78,22 100,20 L148,20 Q170,22 185,28 L205,33 Q222,38 222,50 L222,58 L20,58 Z',
+    roofLine: 'M62,20 Q72,8 100,6 L140,6 Q168,8 178,20',
+    windowPath: 'M68,19 Q76,10 100,8 L138,8 Q162,10 170,19 Z',
+    wheelY: 58,
+    wheelR: 10,
+    width: 242,
+    height: 78,
+  },
 };
 
 const HEAT_COLORS = {
