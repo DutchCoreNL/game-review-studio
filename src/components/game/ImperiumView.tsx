@@ -10,87 +10,54 @@ import { FactionCard } from './faction/FactionCard';
 import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
-import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield, Flag, ShoppingCart } from 'lucide-react';
+import { AlliancePactPanel } from './imperium/AlliancePactPanel';
+import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lucide-react';
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 import { GarageView } from './garage/GarageView';
-import { AlliancePactPanel } from './imperium/AlliancePactPanel';
-import { RacingPanel } from './garage/RacingPanel';
-import { DealerPanel } from './garage/DealerPanel';
 
-type SubTab = 'garage' | 'races' | 'dealer' | 'assets' | 'business' | 'families' | 'corruption' | 'war' | 'alliances';
+type SubTab = 'garage' | 'business' | 'families' | 'war' | 'corruption';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
   const [subTab, setSubTab] = useState<SubTab>('garage');
+
+  const tabs: { id: SubTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'garage', label: 'GARAGE', icon: <Car size={12} /> },
+    { id: 'business', label: 'BUSINESS', icon: <Store size={12} /> },
+    { id: 'families', label: 'FACTIES', icon: <Users size={12} /> },
+    { id: 'war', label: 'OORLOG', icon: <Swords size={12} /> },
+    { id: 'corruption', label: 'CORRUPTIE', icon: <Handshake size={12} /> },
+  ];
 
   return (
     <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
       <img src={imperiumBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
       <div className="relative z-10">
-      {/* Sub-tabs */}
-      <div className="flex gap-1 mb-4 mt-1 flex-wrap">
-        {([
-          { id: 'garage' as SubTab, label: 'GARAGE', icon: <Car size={12} /> },
-          { id: 'races' as SubTab, label: 'RACES', icon: <Flag size={12} /> },
-          { id: 'dealer' as SubTab, label: 'DEALER', icon: <ShoppingCart size={12} /> },
-          { id: 'assets' as SubTab, label: 'BEZIT', icon: <Store size={12} /> },
-          { id: 'business' as SubTab, label: 'BEDRIJVEN', icon: <Store size={12} /> },
-          { id: 'war' as SubTab, label: 'OORLOG', icon: <Swords size={12} /> },
-          { id: 'families' as SubTab, label: 'FACTIES', icon: <Users size={12} /> },
-          { id: 'corruption' as SubTab, label: 'CORRUPTIE', icon: <Handshake size={12} /> },
-          { id: 'alliances' as SubTab, label: 'PACTEN', icon: <Shield size={12} /> },
-        ]).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            className={`flex-1 py-2 rounded text-[0.5rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-              subTab === tab.id
-                ? 'bg-gold/15 border border-gold text-gold'
-                : 'bg-muted border border-border text-muted-foreground'
-            }`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
+        {/* Sub-tabs — horizontaal scrollbaar */}
+        <div className="flex gap-1.5 mb-4 mt-1 overflow-x-auto scrollbar-hide pb-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSubTab(tab.id)}
+              className={`flex-shrink-0 py-2 px-4 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                subTab === tab.id
+                  ? 'bg-gold/15 border border-gold text-gold'
+                  : 'bg-muted border border-border text-muted-foreground'
+              }`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {subTab === 'garage' && <GarageView />}
+        {subTab === 'business' && <BusinessPanel />}
+        {subTab === 'war' && <DistrictDefensePanel />}
+        {subTab === 'families' && <FamiliesPanel />}
+        {subTab === 'corruption' && <CorruptionView />}
       </div>
-
-      {subTab === 'garage' && <GarageView />}
-      {subTab === 'races' && <RacingPanel />}
-      {subTab === 'dealer' && <DealerPanel />}
-      {subTab === 'assets' && <AssetsPanel />}
-      {subTab === 'business' && <BusinessPanel />}
-      {subTab === 'war' && <DistrictDefensePanel />}
-      {subTab === 'families' && <FamiliesPanel />}
-      {subTab === 'corruption' && <CorruptionView />}
-      {subTab === 'alliances' && <AlliancePactPanel />}
-      </div>
-    </div>
-  );
-}
-
-function AssetsPanel() {
-  const { state } = useGame();
-
-  return (
-    <div>
-      {/* Smuggle Routes */}
-      <div className="mb-4">
-        <SmuggleRoutesPanel />
-      </div>
-
-      {/* Lab (legacy HQ upgrade — still shown if owned, villa lab takes over) */}
-      {state.hqUpgrades.includes('lab') && !state.villa?.modules.includes('synthetica_lab') && (
-        <>
-          <SectionHeader title="Synthetica Lab (Legacy)" icon={<Factory size={12} />} />
-          <div className="game-card border-l-[3px] border-l-game-purple mb-4">
-            <p className="text-[0.5rem] text-muted-foreground">
-              ⚠️ Dit lab wordt vervangen door de villa-module. Koop het Synthetica Lab in je villa voor verbeterde productie.
-            </p>
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -130,6 +97,23 @@ function BusinessPanel() {
 
   return (
     <div>
+      {/* Smuggle Routes (was in Assets tab) */}
+      <div className="mb-4">
+        <SmuggleRoutesPanel />
+      </div>
+
+      {/* Legacy Lab */}
+      {state.hqUpgrades.includes('lab') && !state.villa?.modules.includes('synthetica_lab') && (
+        <>
+          <SectionHeader title="Synthetica Lab (Legacy)" icon={<Factory size={12} />} />
+          <div className="game-card border-l-[3px] border-l-game-purple mb-4">
+            <p className="text-[0.5rem] text-muted-foreground">
+              ⚠️ Dit lab wordt vervangen door de villa-module. Koop het Synthetica Lab in je villa voor verbeterde productie.
+            </p>
+          </div>
+        </>
+      )}
+
       <SectionHeader title="Dekmantels" icon={<Store size={12} />} />
       <div className="space-y-2 mb-4">
         {sorted.map(b => {
@@ -227,6 +211,9 @@ function FamiliesPanel() {
         ))}
       </div>
 
+      {/* Allianties (was separate PACTEN tab) */}
+      <AlliancePactPanel />
+
       {/* Corruptie */}
       <SectionHeader title="Corruptie" icon={<Shield size={12} />} />
       <div className="game-card border-l-[3px] border-l-police">
@@ -241,16 +228,6 @@ function FamiliesPanel() {
           </GameButton>
         </div>
       </div>
-    </div>
-  );
-}
-
-function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="bg-muted/50 rounded p-1.5 text-center">
-      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">{icon}</div>
-      <div className="text-[0.45rem] text-muted-foreground uppercase">{label}</div>
-      <div className="text-xs font-bold">{value}</div>
     </div>
   );
 }

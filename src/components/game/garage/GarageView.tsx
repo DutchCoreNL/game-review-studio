@@ -6,14 +6,54 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { VehicleUpgradePanel } from './VehicleUpgradePanel';
 import { VehiclePreview } from './VehiclePreview';
 import { VehicleComparePanel } from './VehicleComparePanel';
+import { RacingPanel } from './RacingPanel';
+import { DealerPanel } from './DealerPanel';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Car, Wrench, Clock, ShieldCheck, AlertTriangle, Gauge, Shield, Gem, Flame, Check, Lock, Trophy } from 'lucide-react';
+import { Car, Wrench, Clock, ShieldCheck, AlertTriangle, Gauge, Shield, Gem, Flame, Check, Lock, Trophy, Flag, Store } from 'lucide-react';
 import { useState } from 'react';
 import { VEHICLE_IMAGES } from '@/assets/items';
 
+type GarageSection = 'vehicles' | 'races' | 'dealer';
+
 export function GarageView() {
   const { state, dispatch, showToast } = useGame();
+  const [section, setSection] = useState<GarageSection>('vehicles');
   const [isOmkatting, setIsOmkatting] = useState(false);
+
+  const sections: { id: GarageSection; label: string; icon: React.ReactNode }[] = [
+    { id: 'vehicles', label: 'Mijn Auto', icon: <Car size={10} /> },
+    { id: 'races', label: 'Races', icon: <Flag size={10} /> },
+    { id: 'dealer', label: 'Dealer', icon: <Store size={10} /> },
+  ];
+
+  return (
+    <div>
+      {/* Pill navigation */}
+      <div className="flex gap-1 mb-4 bg-muted/50 rounded-lg p-1">
+        {sections.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            className={`flex-1 py-1.5 rounded-md text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+              section === s.id
+                ? 'bg-background text-gold shadow-sm border border-gold/30'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'vehicles' && <VehiclesSection isOmkatting={isOmkatting} setIsOmkatting={setIsOmkatting} />}
+      {section === 'races' && <RacingPanel />}
+      {section === 'dealer' && <DealerPanel />}
+    </div>
+  );
+}
+
+function VehiclesSection({ isOmkatting, setIsOmkatting }: { isOmkatting: boolean; setIsOmkatting: (v: boolean) => void }) {
+  const { state, dispatch, showToast } = useGame();
 
   const activeVehicle = VEHICLES.find(v => v.id === state.activeVehicle);
   const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
@@ -47,7 +87,6 @@ export function GarageView() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        {/* Large Vehicle Preview */}
         <VehiclePreview
           vehicleId={state.activeVehicle}
           vehicleName={activeVehicle.name}
@@ -55,7 +94,6 @@ export function GarageView() {
           heatLevel={heatLevel}
         />
 
-        {/* Stats grid */}
         <div className="grid grid-cols-4 gap-2 mb-3">
           <MiniStat icon={<Car size={10} />} label="Opslag" value={activeVehicle.storage} />
           <MiniStat icon={<Gauge size={10} />} label="Snelheid" value={activeVehicle.speed} />
@@ -63,14 +101,7 @@ export function GarageView() {
           <MiniStat icon={<Gem size={10} />} label="Charm" value={activeVehicle.charm} />
         </div>
 
-        {/* Condition bar */}
-        <StatBar
-          value={activeObj.condition}
-          max={100}
-          color={activeObj.condition > 50 ? 'emerald' : 'blood'}
-          label="Conditie"
-          showLabel
-        />
+        <StatBar value={activeObj.condition} max={100} color={activeObj.condition > 50 ? 'emerald' : 'blood'} label="Conditie" showLabel />
 
         {/* Heat bar */}
         <div className="flex items-center gap-2 text-xs mt-2 mb-2">
@@ -220,10 +251,9 @@ export function GarageView() {
         <VehicleUpgradePanel />
       </div>
 
-      {/* ===== C. VOERTUIGCOLLECTIE ===== */}
+      {/* ===== D. VOERTUIGCOLLECTIE ===== */}
       <SectionHeader title="Voertuigcollectie" icon={<Car size={12} />} />
 
-      {/* Owned vehicles */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         {state.ownedVehicles.map(ov => {
           const vDef = VEHICLES.find(v => v.id === ov.id)!;
@@ -231,9 +261,7 @@ export function GarageView() {
           return (
             <motion.div
               key={ov.id}
-              className={`game-card p-0 overflow-hidden ${
-                isActive ? 'ring-2 ring-gold border-gold' : ''
-              }`}
+              className={`game-card p-0 overflow-hidden ${isActive ? 'ring-2 ring-gold border-gold' : ''}`}
               whileTap={{ scale: 0.97 }}
             >
               <div className="relative h-20 bg-muted">
@@ -274,15 +302,12 @@ export function GarageView() {
       </div>
 
       {/* Vehicles to buy */}
-      {VEHICLES.filter(v => !ownedIds.includes(v.id)).length > 0 && (
+      {VEHICLES.filter(v => !state.ownedVehicles.map(o => o.id).includes(v.id)).length > 0 && (
         <>
           <SectionHeader title="Te Koop" icon={<Car size={12} />} />
           <div className="grid grid-cols-2 gap-2 mb-4">
-            {VEHICLES.filter(v => !ownedIds.includes(v.id)).map(v => (
-              <motion.div
-                key={v.id}
-                className="game-card p-0 overflow-hidden opacity-80"
-              >
+            {VEHICLES.filter(v => !state.ownedVehicles.map(o => o.id).includes(v.id)).map(v => (
+              <motion.div key={v.id} className="game-card p-0 overflow-hidden opacity-80">
                 <div className="relative h-20 bg-muted">
                   {VEHICLE_IMAGES[v.id] ? (
                     <img src={VEHICLE_IMAGES[v.id]} alt={v.name} className="w-full h-full object-cover grayscale" />
@@ -317,7 +342,7 @@ export function GarageView() {
         </>
       )}
 
-      {/* ===== D. UNIEKE VOERTUIGEN ===== */}
+      {/* ===== E. UNIEKE VOERTUIGEN ===== */}
       <SectionHeader title="Unieke Voertuigen" icon={<Trophy size={12} />} badge={`${UNIQUE_VEHICLES.filter(uv => state.ownedVehicles.some(ov => ov.id === uv.id)).length}/${UNIQUE_VEHICLES.length}`} badgeColor="gold" />
       <div className="grid grid-cols-2 gap-2 mb-4">
         {UNIQUE_VEHICLES.map(uv => {
@@ -332,11 +357,7 @@ export function GarageView() {
                   <img src={VEHICLE_IMAGES[uv.id]} alt={uv.name} className={`w-full h-full object-cover ${owned ? '' : 'grayscale brightness-50'}`} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    {owned ? (
-                      <span className="text-2xl">{uv.icon}</span>
-                    ) : (
-                      <Lock size={24} className="text-muted-foreground/30" />
-                    )}
+                    {owned ? <span className="text-2xl">{uv.icon}</span> : <Lock size={24} className="text-muted-foreground/30" />}
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
