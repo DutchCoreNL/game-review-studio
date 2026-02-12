@@ -5,6 +5,7 @@ import { VictoryRank } from '@/game/types';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Trophy, Star, Swords, Calendar, Coins, Target, Dices, Users, MapPin, Skull, Medal, RotateCcw, Play } from 'lucide-react';
+import victoryBg from '@/assets/items/victory-kingpin.jpg';
 
 const RANK_CONFIG: Record<VictoryRank, { label: string; color: string; glow: string; desc: string }> = {
   S: { label: 'LEGENDE', color: 'text-gold', glow: 'glow-gold', desc: 'Perfect gespeeld. Noxhaven knielt.' },
@@ -34,25 +35,22 @@ export function VictoryScreen() {
         transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
         className="w-full max-w-[500px] max-h-[90vh] overflow-y-auto game-scroll"
       >
-        {/* Header */}
-        <motion.div
-          className="text-center mb-6"
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
+        {/* Hero Banner */}
+        <div className="relative h-40 overflow-hidden rounded-t-lg mb-4">
+          <img src={victoryBg} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
           <motion.div
-            className="text-6xl mb-3"
-            animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            className="absolute inset-0 flex flex-col items-center justify-end pb-3"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
           >
-            🌆
+            <h1 className="font-display text-2xl font-bold tracking-wider text-gold gold-text-glow mb-1">
+              NOXHAVEN IS VAN JOU
+            </h1>
+            <p className="text-xs text-muted-foreground">De stad buigt voor haar nieuwe heerser</p>
           </motion.div>
-          <h1 className="font-display text-2xl font-bold tracking-wider text-gold gold-text-glow mb-1">
-            NOXHAVEN IS VAN JOU
-          </h1>
-          <p className="text-xs text-muted-foreground">De stad buigt voor haar nieuwe heerser</p>
-        </motion.div>
+        </div>
 
         {/* Rank Card */}
         <motion.div

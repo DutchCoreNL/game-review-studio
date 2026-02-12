@@ -6,6 +6,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
 import { PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE } from '@/game/constants';
 import * as Engine from '@/game/engine';
+import prisonBg from '@/assets/items/overlay-prison.jpg';
 
 export function PrisonOverlay() {
   const { state, dispatch, showToast } = useGame();
@@ -44,10 +45,14 @@ export function PrisonOverlay() {
         className="absolute inset-0 z-40 flex items-center justify-center px-6"
       >
         <div className="w-full max-w-xs bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-blood/10 border-b border-blood/20 px-4 py-3 flex items-center gap-2">
-            <Lock size={18} className="text-blood" />
-            <span className="font-bold text-sm uppercase tracking-wider text-blood">Gevangenis</span>
+          {/* Banner */}
+          <div className="relative h-28 overflow-hidden">
+            <img src={prisonBg} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+            <div className="absolute bottom-2 left-4 flex items-center gap-2">
+              <Lock size={18} className="text-blood" />
+              <span className="font-bold text-sm uppercase tracking-wider text-blood">Gevangenis</span>
+            </div>
           </div>
 
           {/* Body */}
