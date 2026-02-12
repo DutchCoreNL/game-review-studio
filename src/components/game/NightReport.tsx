@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -420,7 +420,31 @@ export function NightReport() {
               </motion.div>
             )}
 
-            {/* Spoilage */}
+            {/* Expiry Warnings */}
+            {report.expiryWarnings && report.expiryWarnings.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(), type: 'spring', stiffness: 350 }}
+                className="border rounded-lg p-3 bg-[hsl(var(--gold)/0.08)] border-gold/40"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <AlertTriangle size={14} className="text-gold" />
+                  <span className="text-xs font-bold text-gold">WAARSCHUWING</span>
+                </div>
+                {report.expiryWarnings.map((w, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[0.6rem] text-muted-foreground mb-0.5">
+                    {w.type === 'auction' ? <Gavel size={10} className="text-game-purple" /> : <Handshake size={10} className="text-emerald" />}
+                    <span>
+                      {w.type === 'auction'
+                        ? `Veiling "${w.name}" sluit morgen!`
+                        : `Alliantie met ${w.name} verloopt over ${w.daysLeft} ${w.daysLeft === 1 ? 'dag' : 'dagen'}!`}
+                    </span>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
             {report.spoilage && report.spoilage.length > 0 && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-blood/8 border border-blood/20 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-blood mb-0.5">

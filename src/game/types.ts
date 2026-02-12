@@ -524,6 +524,14 @@ export interface NightReportData {
   spoilage?: { good: string; lost: number }[];
   // Market alerts
   triggeredAlerts?: TriggeredMarketAlert[];
+  // Expiry warnings
+  expiryWarnings?: ExpiryWarning[];
+}
+
+export interface ExpiryWarning {
+  type: 'auction' | 'alliance';
+  name: string;
+  daysLeft: number;
 }
 
 export interface RandomEvent {

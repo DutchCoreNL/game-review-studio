@@ -1058,6 +1058,33 @@ export function endTurn(state: GameState): NightReportData {
     }
   }
 
+  // === EXPIRY WARNINGS ===
+  const warnings: import('./types').ExpiryWarning[] = [];
+
+  // Auction expiry warnings (1 day left)
+  if (state.auctionItems) {
+    for (const a of state.auctionItems) {
+      const daysLeft = a.expiresDay - state.day;
+      if (daysLeft === 1) {
+        warnings.push({ type: 'auction', name: a.name, daysLeft: 1 });
+      }
+    }
+  }
+
+  // Alliance expiry warnings (1-2 days left)
+  if (state.alliancePacts) {
+    for (const pact of Object.values(state.alliancePacts)) {
+      if (!pact.active) continue;
+      const daysLeft = pact.expiresDay - state.day;
+      if (daysLeft <= 2 && daysLeft > 0) {
+        const fam = FAMILIES[pact.familyId];
+        warnings.push({ type: 'alliance', name: fam?.name || pact.familyId, daysLeft });
+      }
+    }
+  }
+
+  if (warnings.length > 0) report.expiryWarnings = warnings;
+
   state.maxInv = recalcMaxInv(state);
   state.nightReport = report;
 
