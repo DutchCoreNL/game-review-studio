@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, BUSINESSES, FAMILIES } from '@/game/constants';
+import { BUSINESSES, FAMILIES } from '@/game/constants';
 import { FamilyId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { SectionHeader } from './ui/SectionHeader';
@@ -10,19 +10,16 @@ import { FactionCard } from './faction/FactionCard';
 import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
-import { motion } from 'framer-motion';
-import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords, Flame } from 'lucide-react';
-import { VEHICLE_IMAGES } from '@/assets/items';
+import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lucide-react';
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
-import { VehicleUpgradePanel } from './garage/VehicleUpgradePanel';
-import { REKAT_COSTS } from '@/game/constants';
+import { GarageView } from './garage/GarageView';
 
-type SubTab = 'assets' | 'business' | 'families' | 'corruption' | 'war';
+type SubTab = 'garage' | 'assets' | 'business' | 'families' | 'corruption' | 'war';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
-  const [subTab, setSubTab] = useState<SubTab>('assets');
+  const [subTab, setSubTab] = useState<SubTab>('garage');
 
   return (
     <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
@@ -32,7 +29,8 @@ export function ImperiumView() {
       {/* Sub-tabs */}
       <div className="flex gap-1 mb-4 mt-1 flex-wrap">
         {([
-          { id: 'assets' as SubTab, label: 'BEZIT', icon: <Car size={12} /> },
+          { id: 'garage' as SubTab, label: 'GARAGE', icon: <Car size={12} /> },
+          { id: 'assets' as SubTab, label: 'BEZIT', icon: <Store size={12} /> },
           { id: 'business' as SubTab, label: 'BEDRIJVEN', icon: <Store size={12} /> },
           { id: 'war' as SubTab, label: 'OORLOG', icon: <Swords size={12} /> },
           { id: 'families' as SubTab, label: 'FACTIES', icon: <Users size={12} /> },
@@ -52,6 +50,7 @@ export function ImperiumView() {
         ))}
       </div>
 
+      {subTab === 'garage' && <GarageView />}
       {subTab === 'assets' && <AssetsPanel />}
       {subTab === 'business' && <BusinessPanel />}
       {subTab === 'war' && <DistrictDefensePanel />}
@@ -63,142 +62,10 @@ export function ImperiumView() {
 }
 
 function AssetsPanel() {
-  const { state, dispatch, showToast } = useGame();
-  const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
-  const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
-  const ownedIds = state.ownedVehicles.map(v => v.id);
+  const { state } = useGame();
 
   return (
     <div>
-      {/* Active Vehicle */}
-      <SectionHeader title="Garage" icon={<Car size={12} />} />
-      {activeV && activeObj && (
-        <motion.div className="game-card border-l-[3px] border-l-gold mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 border border-gold/30">
-              {VEHICLE_IMAGES[activeV.id] ? (
-                <img src={VEHICLE_IMAGES[activeV.id]} alt={activeV.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center"><Car size={20} className="text-gold" /></div>
-              )}
-            </div>
-            <div>
-              <h3 className="font-bold text-sm">{activeV.name}</h3>
-              <p className="text-[0.55rem] text-muted-foreground">{activeV.desc}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            <MiniStat icon={<Car size={10} />} label="Store" value={activeV.storage} />
-            <MiniStat icon={<Gauge size={10} />} label="Speed" value={activeV.speed} />
-            <MiniStat icon={<Shield size={10} />} label="Armor" value={activeV.armor} />
-            <MiniStat icon={<Gem size={10} />} label="Charm" value={activeV.charm} />
-          </div>
-
-          <StatBar value={activeObj.condition} max={100} color={activeObj.condition > 50 ? 'emerald' : 'blood'} label="Conditie" showLabel />
-
-          {/* Vehicle Heat bar */}
-          <div className="flex items-center gap-2 text-xs mt-2 mb-2">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <Flame size={10} className="text-blood" /> Heat:
-            </span>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${(activeObj.vehicleHeat || 0) > 70 ? 'bg-blood' : (activeObj.vehicleHeat || 0) > 50 ? 'bg-gold' : 'bg-emerald'}`}
-                style={{ width: `${activeObj.vehicleHeat || 0}%` }}
-              />
-            </div>
-            <span className={`font-bold ${(activeObj.vehicleHeat || 0) > 50 ? 'text-blood' : ''}`}>{activeObj.vehicleHeat || 0}%</span>
-          </div>
-
-          <div className="flex gap-2">
-          {activeObj.condition < 100 && (
-            <GameButton
-              variant="blood"
-              size="sm"
-              fullWidth
-              icon={<Wrench size={12} />}
-              onClick={() => { dispatch({ type: 'REPAIR_VEHICLE' }); showToast('Auto gerepareerd!'); }}
-            >
-              REPAREER (€{(100 - activeObj.condition) * 25})
-            </GameButton>
-          )}
-          {(activeObj.vehicleHeat || 0) > 0 && (
-            <GameButton
-              variant="gold"
-              size="sm"
-              fullWidth
-              icon={<Car size={12} />}
-              disabled={(activeObj.rekatCooldown || 0) > 0 || state.money < (REKAT_COSTS[state.activeVehicle] || 5000)}
-              onClick={() => {
-                dispatch({ type: 'REKAT_VEHICLE', vehicleId: state.activeVehicle });
-                showToast(`${activeV.name} omgekat! Heat → 0`);
-              }}
-            >
-              OMKATTEN (€{(REKAT_COSTS[state.activeVehicle] || 5000).toLocaleString()})
-              {(activeObj.rekatCooldown || 0) > 0 && <span className="text-muted-foreground text-[0.5rem] ml-0.5">({activeObj.rekatCooldown}d)</span>}
-            </GameButton>
-          )}
-          </div>
-
-          {/* Vehicle Upgrades */}
-          <div className="mt-3 pt-3 border-t border-border">
-            <VehicleUpgradePanel />
-          </div>
-        </motion.div>
-      )}
-
-      {/* Other owned vehicles */}
-      {state.ownedVehicles.length > 1 && (
-        <div className="space-y-2 mb-4">
-          {state.ownedVehicles.filter(v => v.id !== state.activeVehicle).map(ov => {
-            const vDef = VEHICLES.find(v => v.id === ov.id)!;
-            return (
-              <div key={ov.id} className="game-card flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-xs">{vDef.name}</h4>
-                  <p className="text-[0.5rem] text-muted-foreground">
-                    Conditie: {ov.condition}% | Heat: <span className={(ov.vehicleHeat || 0) > 50 ? 'text-blood font-bold' : ''}>{ov.vehicleHeat || 0}%</span>
-                  </p>
-                </div>
-                <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'SET_VEHICLE', id: ov.id }); showToast(`${vDef.name} geselecteerd`); }}>
-                  GEBRUIK
-                </GameButton>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Buy Vehicles */}
-      <SectionHeader title="Chop Shop" />
-      <div className="space-y-2 mb-4">
-        {VEHICLES.filter(v => !ownedIds.includes(v.id)).map(v => (
-          <div key={v.id} className="game-card">
-            <div className="flex items-start gap-3">
-              <div className="w-14 h-14 rounded overflow-hidden flex-shrink-0 border border-border">
-                {VEHICLE_IMAGES[v.id] ? (
-                  <img src={VEHICLE_IMAGES[v.id]} alt={v.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center"><Car size={20} className="text-muted-foreground" /></div>
-                )}
-              </div>
-              <div className="flex-1">
-            <h4 className="font-bold text-xs">{v.name}</h4>
-            <p className="text-[0.5rem] text-muted-foreground">
-              Store: {v.storage} | Spd: {v.speed} | Arm: {v.armor} | Charm: {v.charm}
-            </p>
-            <GameButton variant="gold" size="sm" fullWidth disabled={state.money < v.cost}
-              onClick={() => { dispatch({ type: 'BUY_VEHICLE', id: v.id }); showToast(`${v.name} gekocht!`); }} className="mt-2">
-              KOOP €{v.cost.toLocaleString()}
-            </GameButton>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-
       {/* Smuggle Routes */}
       <div className="mb-4">
         <SmuggleRoutesPanel />
