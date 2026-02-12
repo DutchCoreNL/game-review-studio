@@ -14,8 +14,9 @@ import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lu
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 import { GarageView } from './garage/GarageView';
+import { AlliancePactPanel } from './imperium/AlliancePactPanel';
 
-type SubTab = 'garage' | 'assets' | 'business' | 'families' | 'corruption' | 'war';
+type SubTab = 'garage' | 'assets' | 'business' | 'families' | 'corruption' | 'war' | 'alliances';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
@@ -35,6 +36,7 @@ export function ImperiumView() {
           { id: 'war' as SubTab, label: 'OORLOG', icon: <Swords size={12} /> },
           { id: 'families' as SubTab, label: 'FACTIES', icon: <Users size={12} /> },
           { id: 'corruption' as SubTab, label: 'CORRUPTIE', icon: <Handshake size={12} /> },
+          { id: 'alliances' as SubTab, label: 'PACTEN', icon: <Shield size={12} /> },
         ]).map(tab => (
           <button
             key={tab.id}
@@ -56,6 +58,7 @@ export function ImperiumView() {
       {subTab === 'war' && <DistrictDefensePanel />}
       {subTab === 'families' && <FamiliesPanel />}
       {subTab === 'corruption' && <CorruptionView />}
+      {subTab === 'alliances' && <AlliancePactPanel />}
       </div>
     </div>
   );

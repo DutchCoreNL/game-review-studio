@@ -221,24 +221,41 @@ export function MarketAnalysisPanel() {
       <SectionHeader title="Markt Alarmen" icon={<Bell size={12} />} />
 
       {/* Smart Alarm Toggle */}
-      <div className="game-card p-2.5 mb-3 flex items-center justify-between border-l-[3px] border-l-gold">
-        <div className="flex items-center gap-2 min-w-0">
-          <BellRing size={14} className={state.smartAlarmEnabled ? 'text-gold' : 'text-muted-foreground'} />
-          <div>
-            <span className="text-[0.65rem] font-bold text-foreground">Slim Alarm</span>
-            <span className="block text-[0.5rem] text-muted-foreground">Auto alarm bij routes met &gt;€1.000 winst</span>
+      <div className="game-card p-2.5 mb-3 border-l-[3px] border-l-gold">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <BellRing size={14} className={state.smartAlarmEnabled ? 'text-gold' : 'text-muted-foreground'} />
+            <div>
+              <span className="text-[0.65rem] font-bold text-foreground">Slim Alarm</span>
+              <span className="block text-[0.5rem] text-muted-foreground">Auto alarm bij routes met &gt;€{(state.smartAlarmThreshold || 1000).toLocaleString()} winst</span>
+            </div>
           </div>
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_SMART_ALARM' })}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              state.smartAlarmEnabled ? 'bg-gold' : 'bg-muted border border-border'
+            }`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background shadow transition-transform ${
+              state.smartAlarmEnabled ? 'translate-x-4' : 'translate-x-0'
+            }`} />
+          </button>
         </div>
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_SMART_ALARM' })}
-          className={`relative w-9 h-5 rounded-full transition-colors ${
-            state.smartAlarmEnabled ? 'bg-gold' : 'bg-muted border border-border'
-          }`}
-        >
-          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background shadow transition-transform ${
-            state.smartAlarmEnabled ? 'translate-x-4' : 'translate-x-0'
-          }`} />
-        </button>
+        {state.smartAlarmEnabled && (
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[0.5rem] text-muted-foreground whitespace-nowrap">Drempel:</span>
+            <input
+              type="range"
+              min={200}
+              max={5000}
+              step={100}
+              value={state.smartAlarmThreshold || 1000}
+              onChange={e => dispatch({ type: 'SET_SMART_ALARM_THRESHOLD', threshold: parseInt(e.target.value) })}
+              className="flex-1 h-1 accent-[hsl(var(--gold))] bg-muted rounded"
+            />
+            <span className="text-[0.55rem] font-bold text-gold w-14 text-right">€{(state.smartAlarmThreshold || 1000).toLocaleString()}</span>
+          </div>
+        )}
       </div>
 
       {/* Active alerts list */}

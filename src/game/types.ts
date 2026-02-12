@@ -767,6 +767,16 @@ export interface GameState {
   marketAlerts: MarketAlert[];
   triggeredAlerts: TriggeredMarketAlert[];
   smartAlarmEnabled?: boolean;
+  smartAlarmThreshold?: number; // configurable, default 1000
+
+  // ========== AUCTION STATE ==========
+  auctionItems?: AuctionItem[];
+
+  // ========== ALLIANCE PACT STATE ==========
+  alliancePacts?: Record<string, AlliancePact>;
+
+  // ========== STATISTICS HISTORY ==========
+  incomeHistory?: number[];
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
@@ -790,4 +800,28 @@ export interface TriggeredMarketAlert {
   condition: 'below' | 'above';
   threshold: number;
   actualPrice: number;
+}
+
+// ========== AUCTION TYPES ==========
+export interface AuctionItem {
+  id: string;
+  name: string;
+  desc: string;
+  basePrice: number;
+  currentBid: number;
+  npcBidder: string;
+  expiresDay: number;
+  rewardType: 'gear' | 'goods' | 'money' | 'rep';
+  rewardId?: string;
+  rewardGoodId?: GoodId;
+  rewardAmount?: number;
+}
+
+// ========== ALLIANCE PACT TYPES ==========
+export interface AlliancePact {
+  familyId: FamilyId;
+  active: boolean;
+  expiresDay: number;
+  benefit: string;
+  costPerDay: number;
 }

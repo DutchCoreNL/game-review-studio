@@ -909,6 +909,64 @@ export function endTurn(state: GameState): NightReportData {
   });
   if (spoilageReport.length > 0) report.spoilage = spoilageReport;
 
+  // Track income history for charts
+  const dailyIncome = report.districtIncome + report.businessIncome;
+  if (!state.incomeHistory) state.incomeHistory = [];
+  state.incomeHistory.push(dailyIncome);
+  if (state.incomeHistory.length > 30) state.incomeHistory = state.incomeHistory.slice(-30);
+
+  // === ALLIANCE PACT PROCESSING ===
+  if (state.alliancePacts) {
+    Object.keys(state.alliancePacts).forEach(fid => {
+      const pact = state.alliancePacts![fid];
+      if (pact.active && state.day >= pact.expiresDay) {
+        pact.active = false;
+        delete state.alliancePacts![fid];
+        addPhoneMessage(state, FAMILIES[fid as FamilyId].contact, `Ons pact is verlopen. Wil je verlengen?`, 'info');
+      } else if (pact.active) {
+        // Daily alliance cost
+        if (state.money >= pact.costPerDay) {
+          state.money -= pact.costPerDay;
+          state.stats.totalSpent += pact.costPerDay;
+        }
+      }
+    });
+  }
+
+  // === AUCTION GENERATION (every 3 days) ===
+  if (!state.auctionItems) state.auctionItems = [];
+  // Remove expired auctions
+  state.auctionItems = state.auctionItems.filter(a => a.expiresDay > state.day);
+  // Generate new if needed
+  if (state.day % 3 === 0 && state.auctionItems.length < 3 && state.day >= 5) {
+    const auctionPool: Array<{ name: string; desc: string; basePrice: number; rewardType: 'gear' | 'goods' | 'rep'; rewardId?: string; rewardGoodId?: import('./types').GoodId; rewardAmount?: number }> = [
+      { name: 'Zeldzame Glock Mod', desc: 'Aangepaste Glock met silencer. +2 Muscle.', basePrice: 3000, rewardType: 'gear', rewardId: 'glock' },
+      { name: 'Bulk Synthetica', desc: '5 eenheden premium synthetische drugs.', basePrice: 2000, rewardType: 'goods', rewardGoodId: 'drugs', rewardAmount: 5 },
+      { name: 'Gestolen Kunstwerk', desc: '3 eenheden geroofde kunst van museum-kwaliteit.', basePrice: 8000, rewardType: 'goods', rewardGoodId: 'luxury', rewardAmount: 3 },
+      { name: 'Exclusief Intel Pakket', desc: 'Verhoog je reputatie met 75 punten.', basePrice: 5000, rewardType: 'rep', rewardAmount: 75 },
+      { name: 'Medische Lading', desc: '4 eenheden medische voorraad van ziekenhuiskwaliteit.', basePrice: 3500, rewardType: 'goods', rewardGoodId: 'meds', rewardAmount: 4 },
+      { name: 'Wapentransport', desc: '3 eenheden zware wapens uit het buitenland.', basePrice: 6000, rewardType: 'goods', rewardGoodId: 'weapons', rewardAmount: 3 },
+      { name: 'Server Data Dump', desc: '4 eenheden zwarte data van een gehackte overheid.', basePrice: 5500, rewardType: 'goods', rewardGoodId: 'tech', rewardAmount: 4 },
+    ];
+    const npcBidders = ['De Bankier', 'Lady Nox', 'El Fuego', 'The Ghost', 'Mr. Chrome', 'Yuki Tanaka'];
+    const item = auctionPool[Math.floor(Math.random() * auctionPool.length)];
+    const npc = npcBidders[Math.floor(Math.random() * npcBidders.length)];
+    const scaledPrice = Math.floor(item.basePrice * (1 + state.day * 0.03));
+    state.auctionItems.push({
+      id: `auction_${state.day}_${Math.floor(Math.random() * 1000)}`,
+      name: item.name,
+      desc: item.desc,
+      basePrice: scaledPrice,
+      currentBid: scaledPrice,
+      npcBidder: npc,
+      expiresDay: state.day + 3,
+      rewardType: item.rewardType,
+      rewardId: item.rewardId,
+      rewardGoodId: item.rewardGoodId,
+      rewardAmount: item.rewardAmount,
+    });
+  }
+
   generatePrices(state);
   generateContracts(state);
   generateMapEvents(state);
@@ -932,7 +990,8 @@ export function endTurn(state: GameState): NightReportData {
       const sellPrice = Math.floor(expensive * 0.85 * (1 + charmBonus));
       const profit = sellPrice - cheapest;
 
-      if (profit > 1000 && state.marketAlerts.length < 10) {
+      const threshold = state.smartAlarmThreshold || 1000;
+      if (profit > threshold && state.marketAlerts.length < 10) {
         // Check if a similar alert already exists
         const exists = state.marketAlerts.some(a => a.goodId === gid && a.condition === 'below' && a.threshold === cheapest);
         if (!exists) {
