@@ -8,6 +8,7 @@ const Index = () => {
   const [inGame, setInGame] = useState(false);
   const [hasSave, setHasSave] = useState(false);
   const [forceNew, setForceNew] = useState(false);
+  const [gameKey, setGameKey] = useState(0);
 
   useEffect(() => {
     setHasSave(!!loadGame());
@@ -15,18 +16,25 @@ const Index = () => {
 
   const handleContinue = () => {
     setForceNew(false);
+    setGameKey(k => k + 1);
     setInGame(true);
   };
 
   const handleNewGame = () => {
     deleteGame();
     setForceNew(true);
+    setGameKey(k => k + 1);
     setInGame(true);
+  };
+
+  const handleExitToMenu = () => {
+    setHasSave(!!loadGame());
+    setInGame(false);
   };
 
   if (inGame) {
     return (
-      <GameProvider key={forceNew ? 'new' : 'continue'}>
+      <GameProvider key={gameKey} onExitToMenu={handleExitToMenu}>
         <GameLayout />
       </GameProvider>
     );
