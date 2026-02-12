@@ -1,5 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -138,6 +138,27 @@ export function recomputeHeat(state: GameState): void {
 
 export function getAverageHeat(state: GameState): number {
   return Math.round((getActiveVehicleHeat(state) + (state.personalHeat || 0)) / 2);
+}
+
+/** Check if player gets arrested due to "Wanted" status (heat > 80). Returns true if arrested. */
+export function checkWantedArrest(state: GameState): boolean {
+  if (state.prison) return false;
+  if ((state.personalHeat || 0) < WANTED_HEAT_THRESHOLD) return false;
+  if (Math.random() >= WANTED_ARREST_CHANCE) return false;
+  // Lawyer halves chance
+  const hasLawyer = state.corruptContacts?.some(c => {
+    const def = CORRUPT_CONTACTS.find(cd => cd.id === c.contactDefId);
+    return def?.type === 'lawyer' && c.active && !c.compromised;
+  });
+  if (hasLawyer && Math.random() < 0.5) return false;
+  const report: any = {};
+  arrestPlayer(state, report);
+  return true;
+}
+
+/** Check if player is in "Wanted" status */
+export function isWanted(state: GameState): boolean {
+  return (state.personalHeat || 0) >= WANTED_HEAT_THRESHOLD;
 }
 
 export function generatePrices(state: GameState): void {
@@ -697,7 +718,7 @@ export function endTurn(state: GameState): NightReportData {
   state.ownedVehicles.forEach(v => {
     let vDecay = 8;
     if (state.ownedDistricts.includes('crown')) vDecay += 2;
-    if (state.villa?.modules.includes('server_room')) vDecay += 5;
+    if (state.villa?.modules.includes('server_room')) vDecay += 3;
     v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
     // Rekat cooldown countdown
     if (v.rekatCooldown > 0) v.rekatCooldown--;
@@ -706,7 +727,7 @@ export function endTurn(state: GameState): NightReportData {
    // === PERSONAL HEAT DECAY ===
   let pDecay = 2;
   if (state.ownedDistricts.includes('crown')) pDecay += 1;
-  if (state.villa?.modules.includes('server_room')) pDecay += 5;
+  if (state.villa?.modules.includes('server_room')) pDecay += 3;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   // Karma: Eerbaar extra heat decay
   pDecay += getKarmaHeatDecayBonus(state);
@@ -714,8 +735,8 @@ export function endTurn(state: GameState): NightReportData {
   if (state.safehouses) {
     state.safehouses.forEach(sh => {
       if (sh.district === state.loc) {
-        // Being in the same district as safehouse gives extra bonus
-        pDecay += sh.level <= 1 ? 3 : sh.level === 2 ? 5 : 8;
+        // Being in the same district as safehouse gives extra bonus (nerfed)
+        pDecay += sh.level <= 1 ? 2 : sh.level === 2 ? 3 : 5;
       } else {
         // Remote safehouses give small passive bonus
         pDecay += sh.level >= 2 ? 1 : 0;
@@ -737,7 +758,7 @@ export function endTurn(state: GameState): NightReportData {
   const raidProtection = getCorruptionRaidProtection(state);
   const karmaRaidReduction = getKarmaRaidReduction(state);
   const raidChance = 0.3 * (1 - raidProtection / 100) * (1 - karmaRaidReduction);
-  if ((state.personalHeat || 0) > 60 && Math.random() < raidChance && state.policeRel < 50) {
+  if ((state.personalHeat || 0) > POLICE_RAID_HEAT_THRESHOLD && Math.random() < raidChance && state.policeRel < 50) {
     let fine = Math.floor(state.money * 0.1);
     // Armor upgrade reduces police fine
     const armorBonus = getVehicleUpgradeBonus(state, 'armor');
@@ -750,7 +771,7 @@ export function endTurn(state: GameState): NightReportData {
       fine = Math.floor(fine * (1 - fineReduction / 100));
     }
     state.money -= fine;
-    addPersonalHeat(state, -20);
+    addPersonalHeat(state, -10);
     report.policeRaid = true;
     report.policeFine = fine;
 
