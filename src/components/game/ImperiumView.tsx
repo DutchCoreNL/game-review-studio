@@ -11,10 +11,12 @@ import { SmuggleRoutesPanel } from './imperium/SmuggleRoutesPanel';
 import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
 import { motion } from 'framer-motion';
-import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords } from 'lucide-react';
+import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Users, Skull, Handshake, Swords, Flame } from 'lucide-react';
 import { VEHICLE_IMAGES } from '@/assets/items';
 import { useState } from 'react';
 import imperiumBg from '@/assets/imperium-bg.jpg';
+import { VehicleUpgradePanel } from './garage/VehicleUpgradePanel';
+import { REKAT_COSTS } from '@/game/constants';
 
 type SubTab = 'assets' | 'business' | 'families' | 'corruption' | 'war';
 
@@ -95,6 +97,21 @@ function AssetsPanel() {
 
           <StatBar value={activeObj.condition} max={100} color={activeObj.condition > 50 ? 'emerald' : 'blood'} label="Conditie" showLabel />
 
+          {/* Vehicle Heat bar */}
+          <div className="flex items-center gap-2 text-xs mt-2 mb-2">
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Flame size={10} className="text-blood" /> Heat:
+            </span>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${(activeObj.vehicleHeat || 0) > 70 ? 'bg-blood' : (activeObj.vehicleHeat || 0) > 50 ? 'bg-gold' : 'bg-emerald'}`}
+                style={{ width: `${activeObj.vehicleHeat || 0}%` }}
+              />
+            </div>
+            <span className={`font-bold ${(activeObj.vehicleHeat || 0) > 50 ? 'text-blood' : ''}`}>{activeObj.vehicleHeat || 0}%</span>
+          </div>
+
+          <div className="flex gap-2">
           {activeObj.condition < 100 && (
             <GameButton
               variant="blood"
@@ -102,11 +119,32 @@ function AssetsPanel() {
               fullWidth
               icon={<Wrench size={12} />}
               onClick={() => { dispatch({ type: 'REPAIR_VEHICLE' }); showToast('Auto gerepareerd!'); }}
-              className="mt-2"
             >
               REPAREER (€{(100 - activeObj.condition) * 25})
             </GameButton>
           )}
+          {(activeObj.vehicleHeat || 0) > 0 && (
+            <GameButton
+              variant="gold"
+              size="sm"
+              fullWidth
+              icon={<Car size={12} />}
+              disabled={(activeObj.rekatCooldown || 0) > 0 || state.money < (REKAT_COSTS[state.activeVehicle] || 5000)}
+              onClick={() => {
+                dispatch({ type: 'REKAT_VEHICLE', vehicleId: state.activeVehicle });
+                showToast(`${activeV.name} omgekat! Heat → 0`);
+              }}
+            >
+              OMKATTEN (€{(REKAT_COSTS[state.activeVehicle] || 5000).toLocaleString()})
+              {(activeObj.rekatCooldown || 0) > 0 && <span className="text-muted-foreground text-[0.5rem] ml-0.5">({activeObj.rekatCooldown}d)</span>}
+            </GameButton>
+          )}
+          </div>
+
+          {/* Vehicle Upgrades */}
+          <div className="mt-3 pt-3 border-t border-border">
+            <VehicleUpgradePanel />
+          </div>
         </motion.div>
       )}
 
@@ -119,7 +157,9 @@ function AssetsPanel() {
               <div key={ov.id} className="game-card flex justify-between items-center">
                 <div>
                   <h4 className="font-bold text-xs">{vDef.name}</h4>
-                  <p className="text-[0.5rem] text-muted-foreground">Conditie: {ov.condition}%</p>
+                  <p className="text-[0.5rem] text-muted-foreground">
+                    Conditie: {ov.condition}% | Heat: <span className={(ov.vehicleHeat || 0) > 50 ? 'text-blood font-bold' : ''}>{ov.vehicleHeat || 0}%</span>
+                  </p>
                 </div>
                 <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'SET_VEHICLE', id: ov.id }); showToast(`${vDef.name} geselecteerd`); }}>
                   GEBRUIK
