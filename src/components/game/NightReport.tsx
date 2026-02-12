@@ -86,6 +86,14 @@ export function NightReport() {
   const prisonDelay = report.imprisoned ? next(0.3) : d;
   if (report.imprisoned) scheduleSound(prisonDelay, playAlarmSound);
 
+  // Prison daily status (when already in prison, not new arrest)
+  const prisonStatusDelay = (report.prisonDayServed && !report.imprisoned) ? next(0.15) : d;
+  const prisonEventDelay = report.prisonDailyEvent ? next(0.15) : d;
+  const prisonDesertedDelay = (report.prisonCrewDeserted && report.prisonCrewDeserted.length > 0) ? next(0.15) : d;
+  if (report.prisonCrewDeserted && report.prisonCrewDeserted.length > 0) scheduleSound(prisonDesertedDelay, playNegativeSound);
+  const prisonReleasedDelay = report.prisonReleased ? next(0.25) : d;
+  if (report.prisonReleased) scheduleSound(prisonReleasedDelay, playCoinSound);
+
   // Smuggle results
   const smuggleDelays = report.smuggleResults?.map((sr) => {
     const sd = next();
@@ -290,6 +298,68 @@ export function NightReport() {
                   {(report.villaVaultProtected || 0) > 0 && (
                     <p className="text-emerald">🔐 Kluis beschermd: <span className="font-bold">€{report.villaVaultProtected?.toLocaleString()}</span></p>
                   )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Prison daily status (ongoing imprisonment) */}
+            {report.prisonDayServed && !report.imprisoned && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: prisonStatusDelay, duration: 0.35 }}
+                className="bg-[hsl(var(--blood)/0.1)] border border-blood/30 rounded-lg p-3"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Lock size={14} className="text-blood" />
+                  <p className="text-xs font-bold text-blood">GEVANGENIS — Dag {report.prisonDayServed}</p>
+                  {report.prisonDaysRemaining !== undefined && report.prisonDaysRemaining > 0 && (
+                    <span className="text-[0.5rem] text-muted-foreground ml-auto">{report.prisonDaysRemaining} {report.prisonDaysRemaining === 1 ? 'dag' : 'dagen'} over</span>
+                  )}
+                </div>
+
+                {/* Daily event */}
+                {report.prisonDailyEvent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: prisonEventDelay, duration: 0.3 }}
+                    className="bg-muted/30 rounded px-2 py-1.5 mb-1.5"
+                  >
+                    <p className="text-[0.6rem] font-bold text-foreground">{report.prisonDailyEvent.title}</p>
+                    <p className="text-[0.55rem] text-muted-foreground">{report.prisonDailyEvent.desc}</p>
+                  </motion.div>
+                )}
+
+                {/* Crew deserted */}
+                {report.prisonCrewDeserted && report.prisonCrewDeserted.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: prisonDesertedDelay, duration: 0.3 }}
+                    className="flex items-center gap-1.5 text-[0.55rem] text-blood"
+                  >
+                    <UserMinus size={11} />
+                    <span><span className="font-bold">{report.prisonCrewDeserted.join(', ')}</span> heeft je crew verlaten!</span>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Prison release */}
+            {report.prisonReleased && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: prisonReleasedDelay, type: 'spring', stiffness: 400 }}
+                className="bg-[hsl(var(--emerald)/0.15)] border-2 border-emerald rounded-lg p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-emerald flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-emerald uppercase">VRIJGELATEN!</p>
+                    <p className="text-[0.55rem] text-muted-foreground">Je hebt je straf uitgezeten. Alle heat is gereset naar 0.</p>
+                  </div>
                 </div>
               </motion.div>
             )}

@@ -531,6 +531,12 @@ export interface NightReportData {
   nemesisReaction?: string;
   nemesisScoutResult?: string;
   nemesisPrisonRevenge?: string;
+  // Prison daily status
+  prisonDayServed?: number;
+  prisonDaysRemaining?: number;
+  prisonDailyEvent?: PrisonEvent;
+  prisonCrewDeserted?: string[];
+  prisonReleased?: boolean;
   ammoFactoryProduction?: number;
   // Villa production
   villaWietProduced?: number;
