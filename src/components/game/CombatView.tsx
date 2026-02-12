@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES } from '@/game/constants';
+import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, GEAR } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
@@ -234,9 +234,23 @@ function ActiveCombat() {
       {/* Actions */}
       {!combat.finished ? (
         <>
-          <div className={`text-center mb-2 text-[0.55rem] font-bold ${(state.ammo || 0) <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
-            🔫 Munitie: {state.ammo || 0} {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
-          </div>
+          {(() => {
+            const equippedWeaponId = state.player.loadout.weapon;
+            const equippedWeapon = equippedWeaponId ? (GEAR.find(g => g.id === equippedWeaponId) ?? null) : null;
+            const isMeleeWeapon = equippedWeapon?.ammoType === null;
+            if (isMeleeWeapon) {
+              return (
+                <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
+                  ⚔️ {equippedWeapon?.name || 'Melee'} — Geen munitie nodig
+                </div>
+              );
+            }
+            return (
+              <div className={`text-center mb-2 text-[0.55rem] font-bold ${(state.ammo || 0) <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
+                🔫 Munitie: {state.ammo || 0} {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-2">
             <CombatAction
               icon={<Swords size={14} />}
