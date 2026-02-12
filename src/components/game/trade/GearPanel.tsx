@@ -183,7 +183,19 @@ export function GearPanel() {
                     {isEquipped && <GameBadge variant="gold" size="xs">ACTIEF</GameBadge>}
                     {isDeal && !owned && <GameBadge variant="gold" size="xs">DEAL</GameBadge>}
                   </div>
-                  <p className="text-[0.5rem] text-muted-foreground mb-1.5">{item.desc}</p>
+                  <p className="text-[0.5rem] text-muted-foreground mb-1">{item.desc}</p>
+                  {item.type === 'weapon' && (
+                    <div className="flex items-center gap-1 mb-1">
+                      {item.ammoType === null ? (
+                        <GameBadge variant="gold" size="xs">⚔️ MELEE</GameBadge>
+                      ) : item.ammoType ? (
+                        <>
+                          <GameBadge variant="ice" size="xs">🔫 {item.ammoType}</GameBadge>
+                          <GameBadge variant="muted" size="xs">{item.clipSize} rounds</GameBadge>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
 
                   {/* Stat Bars */}
                   <div className="space-y-1">

@@ -118,13 +118,15 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
 export const HQ_UPGRADES: HQUpgrade[] = [];
 
 export const GEAR: GearItem[] = [
-  { id: 'glock', type: 'weapon', name: 'Glock 17', cost: 1500, stats: { muscle: 2 }, desc: '+2 Kracht. Betrouwbaar.', reqRep: null },
-  { id: 'ak47', type: 'weapon', name: 'AK-47', cost: 4500, stats: { muscle: 5 }, desc: '+5 Kracht. Zwaar geschut.', reqRep: null },
+  { id: 'glock', type: 'weapon', name: 'Glock 17', cost: 1500, stats: { muscle: 2 }, desc: '+2 Kracht. Betrouwbaar.', reqRep: null, ammoType: '9mm', clipSize: 8 },
+  { id: 'shotgun', type: 'weapon', name: 'Sawn-Off Shotgun', cost: 3500, stats: { muscle: 4 }, desc: '+4 Kracht. Kort bereik, verwoestend.', reqRep: null, ammoType: 'shells', clipSize: 4 },
+  { id: 'ak47', type: 'weapon', name: 'AK-47', cost: 4500, stats: { muscle: 5 }, desc: '+5 Kracht. Zwaar geschut.', reqRep: null, ammoType: '7.62mm', clipSize: 15 },
+  { id: 'sniper', type: 'weapon', name: 'Dragunov SVD', cost: 9000, stats: { muscle: 7 }, desc: '+7 Kracht. Precisie op afstand. Kleine clip, verwoestende schade.', reqRep: { f: 'bikers', val: 40 }, ammoType: '7.62mm', clipSize: 5 },
   { id: 'vest', type: 'armor', name: 'Kevlar Vest', cost: 2500, stats: { muscle: 1 }, desc: '+1 Kracht & Defense.', reqRep: null },
   { id: 'suit', type: 'armor', name: 'Italiaans Pak', cost: 6000, stats: { charm: 4 }, desc: '+4 Charisma. Klasse.', reqRep: null },
   { id: 'phone', type: 'gadget', name: 'Burner Phone', cost: 1000, stats: { brains: 1 }, desc: '+1 Vernuft.', reqRep: null },
   { id: 'laptop', type: 'gadget', name: 'Hacker Laptop', cost: 5000, stats: { brains: 4 }, desc: '+4 Vernuft. Deep web.', reqRep: null },
-  { id: 'cartel_blade', type: 'weapon', name: 'El Serpiente\'s Blade', cost: 12000, stats: { muscle: 8 }, desc: '+8 Kracht. Legendarisch.', reqRep: { f: 'cartel', val: 60 } },
+  { id: 'cartel_blade', type: 'weapon', name: 'El Serpiente\'s Blade', cost: 12000, stats: { muscle: 8 }, desc: '+8 Kracht. Legendarisch zwaard van El Serpiente. Geen munitie nodig.', reqRep: { f: 'cartel', val: 60 }, ammoType: null, clipSize: 0 },
   { id: 'lotus_implant', type: 'gadget', name: 'Neural Implant', cost: 18000, stats: { brains: 7, charm: 2 }, desc: '+7 Vernuft, +2 Charisma.', reqRep: { f: 'syndicate', val: 60 } },
   { id: 'skull_armor', type: 'armor', name: 'Skull Plate Armor', cost: 15000, stats: { muscle: 5 }, desc: '+5 Kracht. Onbreekbaar.', reqRep: { f: 'bikers', val: 60 } }
 ];

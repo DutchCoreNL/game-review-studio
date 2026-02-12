@@ -47,6 +47,8 @@ export interface HitContract {
   xpReward: number;
 }
 
+export type AmmoType = '9mm' | '7.62mm' | 'shells';
+
 export interface AmmoPack {
   id: string;
   name: string;
@@ -419,6 +421,8 @@ export interface GearItem {
   stats: Partial<Record<StatId, number>>;
   desc: string;
   reqRep: { f: FamilyId; val: number } | null;
+  ammoType?: AmmoType | null; // null = melee, undefined = non-weapon
+  clipSize?: number; // 0 = melee (unlimited)
 }
 
 export interface Business {

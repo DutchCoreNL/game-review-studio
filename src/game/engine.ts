@@ -1474,9 +1474,12 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const fmt = (s: string, vars: Record<string, string | number>) =>
     Object.entries(vars).reduce((r, [k, v]) => r.replace(`{${k}}`, String(v)), s);
 
-  // Ammo system
-  const hasAmmo = (state.ammo || 0) > 0;
-  const hasHeavyAmmo = (state.ammo || 0) >= 2;
+  // Ammo system — check equipped weapon for melee vs ranged
+  const equippedWeaponId = state.player.loadout.weapon;
+  const equippedWeapon = equippedWeaponId ? GEAR.find(g => g.id === equippedWeaponId) : null;
+  const isMelee = equippedWeapon?.ammoType === null; // Blade etc.
+  const hasAmmo = isMelee || (state.ammo || 0) > 0;
+  const hasHeavyAmmo = isMelee || (state.ammo || 0) >= 2;
 
   let playerDamage = 0;
   let playerDefenseBonus = 0;
@@ -1484,7 +1487,15 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
 
   switch (action) {
     case 'attack':
-      if (hasAmmo) {
+      if (isMelee) {
+        // Melee weapon: full damage, no ammo cost
+        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+        if (env) {
+          combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' ⚔️');
+        } else {
+          combat.logs.push(`Je slaat toe met ${equippedWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
+        }
+      } else if (hasAmmo) {
         state.ammo = Math.max(0, (state.ammo || 0) - 1);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
         if (env) {
@@ -1498,7 +1509,19 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       }
       break;
     case 'heavy':
-      if (hasHeavyAmmo) {
+      if (isMelee) {
+        // Melee weapon: full heavy damage, no ammo cost
+        if (Math.random() < 0.6 + (muscle * 0.03)) {
+          playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
+          if (env) {
+            combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' ⚔️');
+          } else {
+            combat.logs.push(`ZWARE KLAP met ${equippedWeapon?.name || 'melee'}! ${playerDamage} schade! ⚔️`);
+          }
+        } else {
+          combat.logs.push(`Je zware melee-aanval mist! ⚔️`);
+        }
+      } else if (hasHeavyAmmo) {
         state.ammo = Math.max(0, (state.ammo || 0) - 2);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
           playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
@@ -1510,7 +1533,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         } else {
           combat.logs.push('Je zware aanval mist! 🔫🔫 (-2 kogels)');
         }
-      } else if (hasAmmo) {
+      } else if ((state.ammo || 0) > 0) {
         state.ammo = Math.max(0, (state.ammo || 0) - 1);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
         combat.logs.push(`⚠️ Te weinig kogels voor zware klap. Normale aanval: ${playerDamage} schade.`);
