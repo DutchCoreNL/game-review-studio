@@ -332,4 +332,22 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* ========== AVATAR GLITCH EFFECT ========== */
+
+  .avatar-glitch {
+    animation: avatarGlitch 0.6s ease-out;
+  }
+
+  @keyframes avatarGlitch {
+    0% { transform: translate(0); filter: none; }
+    10% { transform: translate(-3px, 1px); filter: hue-rotate(90deg); }
+    20% { transform: translate(2px, -1px); clip-path: inset(20% 0 40% 0); }
+    30% { transform: translate(-1px, 2px); filter: hue-rotate(-90deg); }
+    40% { transform: translate(3px, -2px); clip-path: inset(60% 0 10% 0); }
+    50% { transform: translate(-2px, 0); filter: saturate(2); }
+    60% { transform: translate(1px, 1px); clip-path: inset(0); }
+    70% { transform: translate(0); filter: none; }
+    100% { transform: translate(0); filter: none; }
+  }
 }

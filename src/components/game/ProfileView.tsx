@@ -22,6 +22,8 @@ import { ReputationLeaderboard } from './profile/ReputationLeaderboard';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
+import { CharacterAvatar, AvatarState } from './profile/CharacterAvatar';
+import { AvatarPreviewDashboard } from './profile/AvatarPreviewDashboard';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
   { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
@@ -35,7 +37,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'avatar';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -53,9 +55,14 @@ export function ProfileView() {
       {/* Boss Card */}
       <div className="game-card border-l-[3px] border-l-gold mb-4 mt-1">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center border border-gold">
-            <span className="text-xl">👤</span>
-          </div>
+          <CharacterAvatar size="sm" state={{
+            level: state.player.level,
+            karma: state.karma,
+            district: state.loc,
+            weapon: state.player.loadout.weapon,
+            armor: state.player.loadout.armor,
+            hasCybernetics: state.ownedGear.includes('lotus_implant'),
+          }} />
           <div className="flex-1">
             <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
             <div className="flex items-center gap-1.5">
@@ -88,6 +95,7 @@ export function ProfileView() {
           { id: 'charts' as ProfileTab, label: '📊 CHARTS' },
           { id: 'leaderboard' as ProfileTab, label: '🏆 RANKING' },
           { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
+          { id: 'avatar' as ProfileTab, label: '🧍 AVATAR' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
             className={`shrink-0 px-3 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
@@ -230,6 +238,22 @@ export function ProfileView() {
       {profileTab === 'charts' && <StatisticsCharts />}
 
       {profileTab === 'leaderboard' && <ReputationLeaderboard />}
+
+      {profileTab === 'avatar' && (
+        <div className="flex flex-col items-center gap-4">
+          <CharacterAvatar size="lg" state={{
+            level: state.player.level,
+            karma: state.karma,
+            district: state.loc,
+            weapon: state.player.loadout.weapon,
+            armor: state.player.loadout.armor,
+            hasCybernetics: state.ownedGear.includes('lotus_implant'),
+          }} />
+          <div className="w-full">
+            <AvatarPreviewDashboard />
+          </div>
+        </div>
+      )}
 
       {profileTab === 'districts' && (
         <>
