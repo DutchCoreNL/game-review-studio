@@ -5,6 +5,7 @@ import { StatBar } from '../ui/StatBar';
 import { SectionHeader } from '../ui/SectionHeader';
 import { VehicleUpgradePanel } from './VehicleUpgradePanel';
 import { VehiclePreview } from './VehiclePreview';
+import { VehicleComparePanel } from './VehicleComparePanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Wrench, Clock, ShieldCheck, AlertTriangle, Gauge, Shield, Gem, Flame, Check } from 'lucide-react';
 import { useState } from 'react';
@@ -210,7 +211,10 @@ export function GarageView() {
         )}
       </motion.div>
 
-      {/* ===== B. UPGRADES ===== */}
+      {/* ===== B. VERGELIJK ===== */}
+      <VehicleComparePanel />
+
+      {/* ===== C. UPGRADES ===== */}
       <SectionHeader title="Voertuig Upgrades" icon={<Wrench size={12} />} />
       <div className="game-card mb-4">
         <VehicleUpgradePanel />

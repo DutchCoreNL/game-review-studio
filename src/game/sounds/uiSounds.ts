@@ -110,3 +110,48 @@ export function playSlideSound() {
   gain.connect(getMaster());
   source.start();
 }
+
+// Alert/alarm trigger — urgent double beep
+export function playAlertTrigger() {
+  playToneQuick(880, 0.08, 'sine', 0.1);
+  setTimeout(() => playToneQuick(1100, 0.1, 'sine', 0.08), 100);
+  setTimeout(() => playToneQuick(1320, 0.12, 'sine', 0.06), 220);
+}
+
+// Combat hit — impact thud
+export function playCombatHit() {
+  if (isMuted()) return;
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(80, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.12, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(getMaster());
+  osc.start();
+  osc.stop(ctx.currentTime + 0.18);
+}
+
+// Reward — ascending triumphant arpeggio
+export function playRewardSound() {
+  playToneQuick(523, 0.1, 'sine', 0.07);
+  setTimeout(() => playToneQuick(659, 0.1, 'sine', 0.06), 80);
+  setTimeout(() => playToneQuick(784, 0.12, 'sine', 0.07), 160);
+  setTimeout(() => playToneQuick(1047, 0.15, 'sine', 0.05), 260);
+}
+
+// Auction bid — gavel tap
+export function playAuctionBid() {
+  playToneQuick(300, 0.04, 'triangle', 0.08);
+  setTimeout(() => playToneQuick(600, 0.06, 'triangle', 0.06), 60);
+}
+
+// Alliance formed — warm chord
+export function playAllianceFormed() {
+  playToneQuick(440, 0.2, 'sine', 0.06);
+  playToneQuick(554, 0.2, 'sine', 0.05);
+  playToneQuick(659, 0.2, 'sine', 0.04);
+}

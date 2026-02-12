@@ -159,6 +159,10 @@ type GameAction =
   | { type: 'REMOVE_MARKET_ALERT'; id: string }
   | { type: 'CLEAR_TRIGGERED_ALERTS' }
   | { type: 'TOGGLE_SMART_ALARM' }
+  | { type: 'SET_SMART_ALARM_THRESHOLD'; threshold: number }
+  | { type: 'BID_AUCTION'; itemId: string; amount: number }
+  | { type: 'FORM_ALLIANCE'; familyId: FamilyId }
+  | { type: 'BREAK_ALLIANCE'; familyId: FamilyId }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1796,6 +1800,60 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TOGGLE_SMART_ALARM': {
       return { ...s, smartAlarmEnabled: !s.smartAlarmEnabled };
+    }
+
+    case 'SET_SMART_ALARM_THRESHOLD': {
+      return { ...s, smartAlarmThreshold: action.threshold };
+    }
+
+    case 'BID_AUCTION': {
+      if (!s.auctionItems) return s;
+      const itemIdx = s.auctionItems.findIndex(a => a.id === action.itemId);
+      if (itemIdx === -1) return s;
+      const item = s.auctionItems[itemIdx];
+      if (action.amount <= item.currentBid || s.money < action.amount) return s;
+      s.money -= action.amount;
+      s.stats.totalSpent += action.amount;
+      // Award the item
+      if (item.rewardType === 'gear' && item.rewardId) {
+        if (!s.ownedGear.includes(item.rewardId)) s.ownedGear.push(item.rewardId);
+      } else if (item.rewardType === 'goods' && item.rewardGoodId) {
+        const currentInv = Object.values(s.inventory).reduce((a, b) => a + (b || 0), 0);
+        const space = s.maxInv - currentInv;
+        const added = Math.min(item.rewardAmount || 1, space);
+        s.inventory[item.rewardGoodId] = (s.inventory[item.rewardGoodId] || 0) + added;
+      } else if (item.rewardType === 'rep') {
+        s.rep += item.rewardAmount || 50;
+      }
+      s.auctionItems.splice(itemIdx, 1);
+      return s;
+    }
+
+    case 'FORM_ALLIANCE': {
+      const fid = action.familyId;
+      const rel = s.familyRel[fid] || 0;
+      if (rel < 30) return s; // Need minimum relation
+      const cost = Math.max(5000, 15000 - rel * 100);
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      if (!s.alliancePacts) s.alliancePacts = {};
+      s.alliancePacts[fid] = {
+        familyId: fid as FamilyId,
+        active: true,
+        expiresDay: s.day + 10,
+        benefit: fid === 'cartel' ? '-15% Marktprijzen Drugs' : fid === 'syndicate' ? '+20% Hack Inkomsten' : '+15% Combat Bonus',
+        costPerDay: Math.floor(cost / 10),
+      };
+      s.familyRel[fid] = Math.min(100, rel + 10);
+      return s;
+    }
+
+    case 'BREAK_ALLIANCE': {
+      if (!s.alliancePacts?.[action.familyId]) return s;
+      delete s.alliancePacts[action.familyId];
+      s.familyRel[action.familyId] = Math.max(-100, (s.familyRel[action.familyId] || 0) - 20);
+      return s;
     }
 
     default:
