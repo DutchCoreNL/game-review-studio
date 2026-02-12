@@ -2,7 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useCallback, useEffect } from 'react';
 import { setVolume } from '@/game/sounds';
 import { setMusicScene, stopMusic, setMusicVolume } from '@/game/sounds/ambientMusic';
-import { startAmbiance, stopAmbiance, setAmbianceVolume } from '@/game/sounds/cityAmbiance';
+import { startAmbiance, stopAmbiance, setAmbianceVolume, setWeather } from '@/game/sounds/cityAmbiance';
 import { playPopupOpen } from '@/game/sounds/uiSounds';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
@@ -54,6 +54,10 @@ export function GameLayout() {
     }
   }, [view, state.activeCombat]);
 
+  // Weather-specific ambiance
+  useEffect(() => {
+    setWeather(state.weather);
+  }, [state.weather]);
   // Load saved audio prefs & start ambiance on mount
   useEffect(() => {
     try {
