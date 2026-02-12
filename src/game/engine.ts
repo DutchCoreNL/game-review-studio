@@ -1,5 +1,5 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState } from './types';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -143,18 +143,42 @@ export function getAverageHeat(state: GameState): number {
 export function generatePrices(state: GameState): void {
   state.prices = {};
   state.districtDemands = {};
+  if (!state.marketPressure) state.marketPressure = {};
+  
+  // Get active market event effects
+  const eventEffects = state.activeMarketEvent?.effects || {};
+  
   Object.keys(DISTRICTS).forEach(id => {
     state.prices[id] = {};
     state.districtDemands[id] = Math.random() > 0.8 ? GOODS[Math.floor(Math.random() * GOODS.length)].id : null;
+    if (!state.marketPressure[id]) state.marketPressure[id] = {};
+    
     GOODS.forEach(g => {
-      const volatility = 0.6 + (Math.random() * 0.8);
+      // Wider volatility for cheaper goods, narrower for expensive
+      const volRange = g.base < 500 ? 0.9 : g.base < 1200 ? 0.7 : 0.5;
+      const volatility = (1 - volRange / 2) + (Math.random() * volRange);
+      
       let demandMod = (state.districtDemands[id] === g.id) ? 1.6 : 1.0;
-      // Only apply cartel discount if cartel is still active (leader alive & not conquered)
       if (g.faction === 'cartel' && id === 'port' && isFactionActive(state, 'cartel') && (state.familyRel['cartel'] || 0) > 60) {
         demandMod = 0.6;
       }
-      state.prices[id][g.id] = Math.floor(g.base * volatility * DISTRICTS[id].mods[g.id as GoodId] * demandMod);
+      
+      // Apply market pressure (supply/demand from player trading)
+      const pressure = state.marketPressure[id]?.[g.id] || 0;
+      const pressureMod = 1 + (pressure * 0.15); // ±15% per pressure point
+      
+      // Apply market event effects
+      const eventMod = eventEffects[g.id as GoodId] || 1.0;
+      
+      state.prices[id][g.id] = Math.floor(g.base * volatility * DISTRICTS[id].mods[g.id as GoodId] * demandMod * pressureMod * eventMod);
       state.priceTrends[g.id] = Math.random() > 0.5 ? 'up' : 'down';
+    });
+    
+    // Decay market pressure toward 0 each day
+    GOODS.forEach(g => {
+      const p = state.marketPressure[id]?.[g.id] || 0;
+      if (p > 0) state.marketPressure[id][g.id] = Math.max(0, p - 0.3);
+      else if (p < 0) state.marketPressure[id][g.id] = Math.min(0, p + 0.3);
     });
   });
 }
@@ -855,6 +879,36 @@ export function endTurn(state: GameState): NightReportData {
     }
   });
 
+  // === MARKET EVENTS ===
+  if (state.activeMarketEvent && state.activeMarketEvent.daysLeft > 0) {
+    state.activeMarketEvent.daysLeft--;
+    if (state.activeMarketEvent.daysLeft <= 0) state.activeMarketEvent = null;
+  }
+  // 25% chance of new event if none active
+  if (!state.activeMarketEvent && Math.random() < 0.25) {
+    const evt = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
+    state.activeMarketEvent = { id: evt.id, name: evt.name, desc: evt.desc, effects: evt.effects, daysLeft: evt.duration };
+    report.marketEvent = { name: evt.name, desc: evt.desc };
+  }
+
+  // === SPOILAGE ===
+  const spoilageReport: { good: string; lost: number }[] = [];
+  (Object.keys(GOOD_SPOILAGE) as GoodId[]).forEach(gid => {
+    const rate = GOOD_SPOILAGE[gid];
+    if (rate <= 0) return;
+    const owned = state.inventory[gid] || 0;
+    if (owned <= 0) return;
+    // Villa opslagkelder halves spoilage
+    const hasStorage = state.villa?.modules.includes('opslagkelder');
+    const effectiveRate = hasStorage ? rate * 0.5 : rate;
+    const lost = Math.max(1, Math.floor(owned * effectiveRate));
+    state.inventory[gid] = owned - lost;
+    if (state.inventory[gid]! <= 0) { state.inventory[gid] = 0; state.inventoryCosts[gid] = 0; }
+    const goodName = GOODS.find(g => g.id === gid)?.name || gid;
+    spoilageReport.push({ good: goodName, lost });
+  });
+  if (spoilageReport.length > 0) report.spoilage = spoilageReport;
+
   generatePrices(state);
   generateContracts(state);
   generateMapEvents(state);
@@ -919,6 +973,11 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     state.inventory[gid] = totalQty;
     state.stats.tradesCompleted += actualQty;
 
+    // Market pressure: buying raises prices in this district
+    if (!state.marketPressure) state.marketPressure = {};
+    if (!state.marketPressure[state.loc]) state.marketPressure[state.loc] = {};
+    state.marketPressure[state.loc][gid] = Math.min(3, (state.marketPressure[state.loc][gid] || 0) + actualQty * 0.1);
+
     return { success: true, message: `${actualQty}x ${GOODS.find(g => g.id === gid)?.name} gekocht voor €${totalCost}` };
   } else {
     const owned = state.inventory[gid] || 0;
@@ -938,6 +997,11 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     state.rep += repGain;
     gainXp(state, 2 * actualQty);
     state.stats.tradesCompleted += actualQty;
+
+    // Market pressure: selling lowers prices in this district
+    if (!state.marketPressure) state.marketPressure = {};
+    if (!state.marketPressure[state.loc]) state.marketPressure[state.loc] = {};
+    state.marketPressure[state.loc][gid] = Math.max(-3, (state.marketPressure[state.loc][gid] || 0) - actualQty * 0.1);
 
     return { success: true, message: `${actualQty}x verkocht voor €${totalRevenue}` };
   }

@@ -519,6 +519,9 @@ export interface NightReportData {
   crewDefections?: { name: string; reason: string }[];
   // Safehouse raids
   safehouseRaid?: { district: DistrictId; attackerName: string; won: boolean; details: string; loot?: number };
+  // Market dynamics
+  marketEvent?: { name: string; desc: string } | null;
+  spoilage?: { good: string; lost: number }[];
 }
 
 export interface RandomEvent {
@@ -654,6 +657,9 @@ export interface GameState {
   prices: Record<string, Record<string, number>>;
   priceTrends: Record<string, string>;
   districtDemands: Record<string, GoodId | null>;
+  // Market dynamics
+  marketPressure: Record<string, Record<string, number>>; // district -> good -> pressure (-1 to +1)
+  activeMarketEvent: { id: string; name: string; desc: string; effects: Partial<Record<GoodId, number>>; daysLeft: number } | null;
   activeContracts: ActiveContract[];
   lab: { chemicals: number };
   activeCombat: CombatState | null;
