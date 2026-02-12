@@ -522,6 +522,8 @@ export interface NightReportData {
   // Market dynamics
   marketEvent?: { name: string; desc: string } | null;
   spoilage?: { good: string; lost: number }[];
+  // Market alerts
+  triggeredAlerts?: TriggeredMarketAlert[];
 }
 
 export interface RandomEvent {
@@ -761,8 +763,30 @@ export interface GameState {
   // ========== ENDGAME EVENT TRACKING ==========
   seenEndgameEvents: string[];
 
+  // ========== MARKET ALERTS STATE ==========
+  marketAlerts: MarketAlert[];
+  triggeredAlerts: TriggeredMarketAlert[];
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
   _completedArcFlashbackId?: string;
+}
+
+// ========== MARKET ALERT TYPES ==========
+export interface MarketAlert {
+  id: string;
+  goodId: GoodId;
+  district: DistrictId | 'any';
+  condition: 'below' | 'above';
+  threshold: number;
+  oneShot: boolean; // remove after triggering
+}
+
+export interface TriggeredMarketAlert {
+  goodName: string;
+  districtName: string;
+  condition: 'below' | 'above';
+  threshold: number;
+  actualPrice: number;
 }

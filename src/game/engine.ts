@@ -913,6 +913,33 @@ export function endTurn(state: GameState): NightReportData {
   generateContracts(state);
   generateMapEvents(state);
 
+  // === PROCESS MARKET ALERTS ===
+  if (state.marketAlerts && state.marketAlerts.length > 0) {
+    const triggered: import('./types').TriggeredMarketAlert[] = [];
+    const remaining = state.marketAlerts.filter(alert => {
+      const districts = alert.district === 'any' ? Object.keys(DISTRICTS) : [alert.district];
+      for (const did of districts) {
+        const price = state.prices[did]?.[alert.goodId] || 0;
+        const hit = alert.condition === 'below' ? price <= alert.threshold : price >= alert.threshold;
+        if (hit) {
+          const good = GOODS.find(g => g.id === alert.goodId);
+          triggered.push({
+            goodName: good?.name || alert.goodId,
+            districtName: DISTRICTS[did]?.name || did,
+            condition: alert.condition,
+            threshold: alert.threshold,
+            actualPrice: price,
+          });
+          return !alert.oneShot; // keep if not one-shot
+        }
+      }
+      return true; // not triggered, keep
+    });
+    state.marketAlerts = remaining;
+    state.triggeredAlerts = triggered;
+    if (triggered.length > 0) report.triggeredAlerts = triggered;
+  }
+
   // Apply all new feature logic (weather, district rep, nemesis, defense, smuggling, phone)
   applyNewFeatures(state, report);
 

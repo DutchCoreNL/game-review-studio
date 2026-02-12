@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -400,6 +400,23 @@ export function NightReport() {
                   <TrendingUp size={12} /> {report.marketEvent.name}
                 </div>
                 <p className="text-[0.55rem] text-muted-foreground">{report.marketEvent.desc}</p>
+              </motion.div>
+            )}
+
+            {/* Triggered Market Alerts */}
+            {report.triggeredAlerts && report.triggeredAlerts.length > 0 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-gold/8 border border-gold/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-gold mb-1">
+                  <BellRing size={12} /> Markt Alarm
+                </div>
+                {report.triggeredAlerts.map((t, i) => (
+                  <p key={i} className="text-[0.55rem] text-muted-foreground">
+                    <span className="font-bold text-foreground">{t.goodName}</span> in {t.districtName}: €{t.actualPrice}
+                    <span className={t.condition === 'below' ? ' text-emerald' : ' text-blood'}>
+                      {' '}({t.condition === 'below' ? '≤' : '≥'} €{t.threshold})
+                    </span>
+                  </p>
+                ))}
               </motion.div>
             )}
 
