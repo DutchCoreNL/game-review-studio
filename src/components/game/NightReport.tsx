@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS } from '@/game/constants';
+import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
@@ -201,7 +201,7 @@ export function NightReport() {
 
             {/* Ammo factory production */}
             {report.ammoFactoryProduction && report.ammoFactoryProduction > 0 && (
-              <AnimatedReportRow icon={<Crosshair size={14} />} label="Kogelfabriek" value={report.ammoFactoryProduction} prefix="+" suffix=" kogels" positive color="text-blood" delay={ammoFactoryDelay} />
+              <AnimatedReportRow icon={<Crosshair size={14} />} label={`Kogelfabriek (${report.ammoFactoryType ? AMMO_TYPE_LABELS[report.ammoFactoryType]?.label : 'kogels'})`} value={report.ammoFactoryProduction} prefix="+" suffix={` ${report.ammoFactoryType ? AMMO_TYPE_LABELS[report.ammoFactoryType]?.label : 'kogels'}`} positive color="text-blood" delay={ammoFactoryDelay} />
             )}
 
             {/* Villa production */}

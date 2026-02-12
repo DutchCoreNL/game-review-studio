@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { getRankTitle, getActiveVehicleHeat } from '@/game/engine';
-import { WEATHER_EFFECTS } from '@/game/constants';
+import { getRankTitle, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
+import { WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
 import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
@@ -45,7 +45,10 @@ export function GameHeader() {
   const karma = state.karma || 0;
   const karmaAlign = getKarmaAlignment(karma);
   const karmaLbl = getKarmaLabel(karma);
-  const ammo = state.ammo || 0;
+  const activeAmmoType = getActiveAmmoType(state);
+  const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  const ammo = ammoStock[activeAmmoType] || 0;
+  const ammoLabel = AMMO_TYPE_LABELS[activeAmmoType]?.label || 'KOGELS';
   const xpPct = state.player.nextXp > 0 ? (state.player.xp / state.player.nextXp) * 100 : 0;
   const isGoldenHour = !!state.goldenHour;
 
@@ -135,12 +138,12 @@ export function GameHeader() {
         </div>
 
         <ResourceTile
-          label="KOGELS"
+          label={ammoLabel}
           value={ammo}
           color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
           icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
           pulse={ammo <= 3}
-          tooltip="Kogels zijn nodig voor gevechten en huurmoorden."
+          tooltip={`${ammoLabel} munitie voor je actieve wapen.`}
           onTap={() => setPopup('ammo')}
         />
 

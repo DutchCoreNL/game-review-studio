@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
-import { GEAR, FAMILIES, AMMO_PACKS } from '@/game/constants';
-import { GearSlot } from '@/game/types';
-import { getDailyDeal } from '@/game/engine';
+import { GEAR, FAMILIES, AMMO_PACKS, AMMO_TYPE_LABELS } from '@/game/constants';
+import { GearSlot, AmmoType } from '@/game/types';
+import { getDailyDeal, getActiveAmmoType } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -38,12 +38,16 @@ const STAT_LABELS: Record<string, string> = {
   charm: 'Charisma',
 };
 
+const AMMO_TYPES: AmmoType[] = ['9mm', '7.62mm', 'shells'];
+
 export function GearPanel() {
   const { state, dispatch, showToast } = useGame();
   const [filter, setFilter] = useState<GearFilter>('all');
+  const [selectedAmmoType, setSelectedAmmoType] = useState<AmmoType>(getActiveAmmoType(state));
   const dailyDeal = getDailyDeal(state);
 
   const filteredGear = GEAR.filter(g => filter === 'all' || g.type === filter);
+  const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
 
   const getEquippedStat = (slot: GearSlot, statKey: string): number => {
     const equippedId = state.player.loadout[slot];
@@ -56,23 +60,49 @@ export function GearPanel() {
     <div>
       {/* Ammo Purchase Section */}
       <SectionHeader title="Munitie" icon={<Crosshair size={12} />} />
+
+      {/* Ammo Stock Overview */}
+      <div className="flex gap-2 mb-3">
+        {AMMO_TYPES.map(type => {
+          const info = AMMO_TYPE_LABELS[type];
+          const stock = ammoStock[type] || 0;
+          const isActive = type === selectedAmmoType;
+          return (
+            <button
+              key={type}
+              onClick={() => setSelectedAmmoType(type)}
+              className={`flex-1 py-2 px-2 rounded text-center transition-all ${
+                isActive
+                  ? 'bg-gold/15 border border-gold text-gold'
+                  : 'bg-muted border border-border text-muted-foreground'
+              }`}
+            >
+              <div className="text-sm mb-0.5">{info.icon}</div>
+              <div className="text-[0.5rem] font-bold uppercase">{info.label}</div>
+              <div className={`text-xs font-bold ${stock <= 3 ? 'text-blood' : ''}`}>{stock}/99</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Buy packs for selected type */}
       <div className="flex gap-2 mb-4">
         {AMMO_PACKS.map(pack => (
           <motion.button
             key={pack.id}
             onClick={() => {
-              if (state.money >= pack.cost && (state.ammo || 0) < 99) {
-                dispatch({ type: 'BUY_AMMO', packId: pack.id });
-                showToast(`+${pack.amount} kogels gekocht!`);
-              } else if ((state.ammo || 0) >= 99) {
-                showToast('Munitie is vol (max 99)', true);
+              if (state.money >= pack.cost && (ammoStock[selectedAmmoType] || 0) < 99) {
+                dispatch({ type: 'BUY_AMMO', packId: pack.id, ammoType: selectedAmmoType });
+                showToast(`+${pack.amount} ${AMMO_TYPE_LABELS[selectedAmmoType].label} gekocht!`);
+              } else if ((ammoStock[selectedAmmoType] || 0) >= 99) {
+                showToast(`${AMMO_TYPE_LABELS[selectedAmmoType].label} is vol (max 99)`, true);
               } else {
                 showToast('Niet genoeg geld', true);
               }
             }}
-            disabled={state.money < pack.cost || (state.ammo || 0) >= 99}
+            disabled={state.money < pack.cost || (ammoStock[selectedAmmoType] || 0) >= 99}
             className={`flex-1 game-card p-2.5 text-center transition-all ${
-              state.money >= pack.cost && (state.ammo || 0) < 99
+              state.money >= pack.cost && (ammoStock[selectedAmmoType] || 0) < 99
                 ? 'border-gold/30 hover:border-gold cursor-pointer'
                 : 'opacity-50 cursor-not-allowed'
             }`}
@@ -85,8 +115,7 @@ export function GearPanel() {
         ))}
       </div>
       <div className="text-[0.5rem] text-muted-foreground text-center mb-4">
-        🔫 Munitie: <span className={(state.ammo || 0) <= 3 ? 'text-blood font-bold' : 'text-foreground font-bold'}>{state.ammo || 0}/99</span>
-        {' '}— Nodig voor gevechten en huurmoorden
+        🔫 Koop {AMMO_TYPE_LABELS[selectedAmmoType].label} munitie — Nodig voor gevechten en huurmoorden
       </div>
 
       <SectionHeader title="Zwarte Markt" icon={<ShieldCheck size={12} />} />

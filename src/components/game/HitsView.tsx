@@ -1,7 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS } from '@/game/constants';
+import { DISTRICTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { HitContract } from '@/game/types';
 import { calculateHitSuccessChance, HIT_TYPE_LABELS } from '@/game/hitman';
+import { getActiveAmmoType } from '@/game/engine';
 import { getKarmaAlignment } from '@/game/karma';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -22,9 +23,14 @@ export function HitsView() {
   const isMeedogenloos = karmaAlign === 'meedogenloos';
   const isEerbaar = karmaAlign === 'eerbaar';
 
+  const activeAmmoType = getActiveAmmoType(state);
+  const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  const currentAmmo = ammoStock[activeAmmoType] || 0;
+  const ammoTypeLabel = AMMO_TYPE_LABELS[activeAmmoType]?.label || activeAmmoType;
+
   const executeHitAction = (hit: HitContract) => {
-    if ((state.ammo || 0) < hit.ammoCost) {
-      showToast(`Niet genoeg munitie (${hit.ammoCost} nodig)`, true);
+    if (currentAmmo < hit.ammoCost) {
+      showToast(`Niet genoeg ${ammoTypeLabel} munitie (${hit.ammoCost} nodig, ${currentAmmo} beschikbaar)`, true);
       return;
     }
     if (state.loc !== hit.district) {
@@ -65,7 +71,7 @@ export function HitsView() {
             const typeInfo = HIT_TYPE_LABELS[hit.targetType];
             const successChance = calculateHitSuccessChance(state, hit);
             const inDistrict = state.loc === hit.district;
-            const hasAmmo = (state.ammo || 0) >= hit.ammoCost;
+            const hasAmmo = currentAmmo >= hit.ammoCost;
             const canExecute = inDistrict && hasAmmo;
             const daysLeft = hit.deadline - state.day;
 
@@ -137,7 +143,7 @@ export function HitsView() {
                   <span className="text-gold font-bold">⭐ +{hit.repReward} REP</span>
                   <span className="text-ice font-bold">✨ +{hit.xpReward} XP</span>
                   <span className={`font-bold ${hasAmmo ? 'text-muted-foreground' : 'text-blood'}`}>
-                    🔫 {hit.ammoCost} kogels
+                    🔫 {hit.ammoCost} {ammoTypeLabel}
                   </span>
                   <span className="text-blood font-bold">
                     <Flame size={8} className="inline" /> +{hit.heatGain}
@@ -169,7 +175,7 @@ export function HitsView() {
                 )}
                 {!hasAmmo && (
                   <div className="mt-1 text-[0.45rem] text-blood flex items-center gap-0.5">
-                    🔫 Niet genoeg munitie ({state.ammo || 0}/{hit.ammoCost})
+                    🔫 Niet genoeg {ammoTypeLabel} ({currentAmmo}/{hit.ammoCost})
                   </div>
                 )}
               </motion.div>

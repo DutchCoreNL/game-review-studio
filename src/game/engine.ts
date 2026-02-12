@@ -1,6 +1,6 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent } from './types';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType } from './types';
 import { generateCliffhanger } from './cliffhangers';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -11,6 +11,36 @@ import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 
 const SAVE_KEY = 'noxhaven_save_v11';
+
+// ========== AMMO HELPERS ==========
+
+/** Returns the ammo type of the currently equipped weapon, or '9mm' as default */
+export function getActiveAmmoType(state: GameState): AmmoType {
+  const weaponId = state.player.loadout.weapon;
+  if (!weaponId) return '9mm';
+  const weapon = GEAR.find(g => g.id === weaponId);
+  if (!weapon || weapon.ammoType === null || weapon.ammoType === undefined) return '9mm';
+  return weapon.ammoType;
+}
+
+/** Get total ammo across all types */
+export function getTotalAmmo(state: GameState): number {
+  if (!state.ammoStock) return state.ammo || 0;
+  return (state.ammoStock['9mm'] || 0) + (state.ammoStock['7.62mm'] || 0) + (state.ammoStock['shells'] || 0);
+}
+
+/** Sync legacy ammo field with ammoStock total */
+function syncAmmoTotal(state: GameState): void {
+  state.ammo = getTotalAmmo(state);
+}
+
+/** Ensure ammoStock exists (migration helper) */
+function ensureAmmoStock(state: GameState): void {
+  if (!state.ammoStock) {
+    state.ammoStock = { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  }
+  if (state.ammoFactoryLevel === undefined) state.ammoFactoryLevel = 1;
+}
 
 // ========== FACTION ACTIVE HELPER ==========
 
@@ -1140,12 +1170,18 @@ export function endTurn(state: GameState): NightReportData {
 
   // Ammo factory production
   if (state.ownedBusinesses.includes('ammo_factory')) {
-    const produced = AMMO_FACTORY_DAILY_PRODUCTION;
-    const oldAmmo = state.ammo || 0;
-    state.ammo = Math.min(99, oldAmmo + produced);
-    const actualProduced = state.ammo - oldAmmo;
+    ensureAmmoStock(state);
+    const factoryLevel = state.ammoFactoryLevel || 1;
+    const upgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === factoryLevel);
+    const produced = upgrade?.production || AMMO_FACTORY_DAILY_PRODUCTION;
+    const ammoType = getActiveAmmoType(state);
+    const oldVal = state.ammoStock[ammoType] || 0;
+    state.ammoStock[ammoType] = Math.min(99, oldVal + produced);
+    const actualProduced = state.ammoStock[ammoType] - oldVal;
+    syncAmmoTotal(state);
     if (actualProduced > 0) {
       report.ammoFactoryProduction = actualProduced;
+      report.ammoFactoryType = ammoType;
     }
   }
 
@@ -1521,8 +1557,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const equippedWeaponId = state.player.loadout.weapon;
   const equippedWeapon = equippedWeaponId ? GEAR.find(g => g.id === equippedWeaponId) : null;
   const isMelee = equippedWeapon?.ammoType === null; // Blade etc.
-  const hasAmmo = isMelee || (state.ammo || 0) > 0;
-  const hasHeavyAmmo = isMelee || (state.ammo || 0) >= 2;
+  ensureAmmoStock(state);
+  const activeAmmoType = getActiveAmmoType(state);
+  const currentTypeAmmo = state.ammoStock[activeAmmoType] || 0;
+  const hasAmmo = isMelee || currentTypeAmmo > 0;
+  const hasHeavyAmmo = isMelee || currentTypeAmmo >= 2;
 
   let playerDamage = 0;
   let playerDefenseBonus = 0;
@@ -1539,7 +1578,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
           combat.logs.push(`Je slaat toe met ${equippedWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
         }
       } else if (hasAmmo) {
-        state.ammo = Math.max(0, (state.ammo || 0) - 1);
+        state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
+        syncAmmoTotal(state);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
         if (env) {
           combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' 🔫');
@@ -1565,7 +1605,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
           combat.logs.push(`Je zware melee-aanval mist! ⚔️`);
         }
       } else if (hasHeavyAmmo) {
-        state.ammo = Math.max(0, (state.ammo || 0) - 2);
+        state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 2);
+        syncAmmoTotal(state);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
           playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
           if (env) {
@@ -1576,8 +1617,9 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         } else {
           combat.logs.push('Je zware aanval mist! 🔫🔫 (-2 kogels)');
         }
-      } else if ((state.ammo || 0) > 0) {
-        state.ammo = Math.max(0, (state.ammo || 0) - 1);
+      } else if (currentTypeAmmo > 0) {
+        state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
+        syncAmmoTotal(state);
         playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
         combat.logs.push(`⚠️ Te weinig kogels voor zware klap. Normale aanval: ${playerDamage} schade.`);
       } else {
