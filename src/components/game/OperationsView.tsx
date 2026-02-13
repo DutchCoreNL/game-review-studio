@@ -38,7 +38,7 @@ export function OperationsView() {
     const member = state.crew[crewIndex];
     if (!contract || !member) return;
 
-    const encounters = generateMissionEncounters('contract', contract.name, contract.type);
+    const encounters = generateMissionEncounters('contract', contract.name, contract.type, state.loc);
     const mission: ActiveMission = {
       type: 'contract',
       missionId: contract.name,
