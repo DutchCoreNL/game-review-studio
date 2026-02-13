@@ -64,6 +64,8 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         crown: 'De heler is geen gewone crimineel — het is een galeriehouder die overdag kunst verkoopt aan de elite van Crown Heights. \'s Nachts handelt hij in gestolen spullen. Zijn kantoor ruikt naar dure wijn en verborgen zonden. "Interessant stuk," mompelt hij. "Maar mijn klanten verwachten kwaliteit."',
         neon: 'De barman van de Velvet Room leunt over de bar en fluistert boven de dreunende muziek uit: "Ik ken iemand die dat wil hebben. Discreet. Vanavond nog." Hij schuift een servet naar je toe met een telefoonnummer. "Maar ik wil twintig procent. Voor de introductie."',
         low: 'Een oude vrouw in een rommelwinkel vol stoffige snuisterijen bekijkt je buit met een vergrootglas. Haar ogen zijn scherp ondanks haar leeftijd. "Niet slecht, niet slecht," mompelt ze. "Ik geef je de helft van wat het waard is. Nee, niet onderhandelen. Mijn prijs is mijn prijs." Ze legt een stapeltje biljetten op de toonbank.',
+        port: 'In een roestig kantoor boven een vissersloods zit een havensmokkkelaar achter een bureau vol zeekaarten. Hij ruikt naar diesel en tabak. "Ik kan dit meenemen op het volgende schip naar Rotterdam," zegt hij, terwijl hij je buit weegt in zijn hand. "Maar mijn commissie is stevig — de haven vraagt zijn tol."',
+        iron: 'De smid van Iron Borough — een berg van een man met handen als kolenschoppen — bekijkt je buit onder een werkplaatslamp. Hij smelt goud om tot onherkenbare staven in zijn illegale smelterij achter de staalfabriek. "Ik geef je vijftig procent," gromt hij. "En wees blij dat ik niet vraag waar het vandaan komt."',
       },
       choices: [
         {
@@ -89,6 +91,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         port: 'Het nummer op de sleutel komt overeen met een kluisje in het havenkantoor — je herkent de serie. Wat voor geheimen verbergt de haven? En belangrijker: is iemand bereid te betalen om ze terug te krijgen?',
         iron: 'Het briefje verwijst naar een verlaten fabriek aan de rand van Iron Borough. "Verdieping -2, deur 14." Een locatie die officieel niet bestaat. Dit ruikt naar een val — of naar een kans die je leven kan veranderen.',
+        crown: 'De sleutel past op een bankkluis bij Meridian Trust — de meest exclusieve bank van Crown Heights. Het briefje bevat een rekeningnummer en een naam die je herkent van het journaal. Dit is materiaal waarmee je een politicus kunt laten vallen. Of chanteren.',
+        neon: 'Het adres op het briefje leidt naar een VIP-kluis achter de Velvet Room — een plek waar gokkers hun winst verbergen voor de belasting. De sleutel is zwaar en oud, het soort dat bij een kluis van voor de digitalisering hoort. Wat er ook in zit, iemand wilde niet dat het online stond.',
+        low: 'Een krakersjochie in Lowrise herkent het nummer op de sleutel — het hoort bij een opslagbox in de kelder van het oude postkantoor, nu een illegaal depot voor gestolen goederen. "Daar bewaren de grote jongens hun shit," fluistert hij. "Maar als ze erachter komen dat jij erbij was..."',
       },
       choices: [
         {
@@ -113,6 +118,8 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         crown: 'De ATM in Crown Heights is van het nieuwste model — touchscreen, gezichtsherkenning, NFC-detectie. Het beveiligingssysteem is gekoppeld aan een privébeveiligingsbedrijf dat binnen drie minuten ter plaatse is. Maar de transactielimieten hier zijn tien keer hoger dan elders. Hoog risico, astronomische beloning.',
         port: 'De ATM bij het havenkantoor is minstens tien jaar oud — het scherm heeft dode pixels en de software draait waarschijnlijk nog op Windows XP. Makkelijker te hacken dan een kinderspeeltje. Maar de buurt is een ander verhaal: havenratten en junks die in de schaduw van de containers leven.',
         neon: 'De ATM naast de Velvet Room wordt constant gebruikt door gokkers die cash nodig hebben. Elke vijf minuten een nieuwe kaart, elke transactie honderden euro\'s. Meer data dan je ooit kunt verwerken — maar ook meer ogen. De uitsmijter staat tien meter verderop.',
+        iron: 'De ATM bij de fabriekspoort is verweerd en vol krassen — het toetsenbord is vettig van de smeerolie van honderden arbeiders. Geen camera\'s, geen bewaking, maar de Iron Skulls beschouwen elke machine in deze wijk als hun eigendom. Als ze je zien, betaal je "beschermingsgeld" — met je tanden.',
+        low: 'De ATM in Lowrise staat in een telefooncel waarvan de deur al jaren ontbreekt. Het scherm flikkert en de helft van de knoppen werkt nauwelijks. Maar de gebruikers — uitkeringstrekkers, alleenstaande moeders, pensionado\'s — pinnen hier hun hele maandinkomen in één keer. Makkelijke data, maar het voelt vies.',
       },
       choices: [
         {
@@ -138,6 +145,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         crown: 'Het is geen politie — het is erger. Een privébeveiliger op een elektrische scooter nadert, gekleed in het zwart met een bodycam op zijn borst. Hij controleert systematisch elke ATM in het blok. Dit is Crown Heights; hier betaal je voor beveiliging die de politie beschaamd maakt.',
         low: 'Een stel verslaafden nadert de ATM met wankele stappen. Ze zien de skimmer en denken dat het iets waardvols is — misschien drugs, misschien elektronica. Een van hen begint eraan te trekken. Als ze hem eraf halen, is al je werk voor niets geweest.',
+        port: 'Een douane-inspecteur in een fluorescerend hesje loopt over het haventerrein met een scanner in zijn hand. Hij controleert niet alleen containers vanavond — hij checkt alles wat elektronisch is. De skimmer zendt een signaal uit dat zijn scanner kan oppikken.',
+        iron: 'Twee Iron Skulls op motoren rijden langzaam voorbij, hun koplampen glijdend over de gevels. Een van hen stopt bij de ATM en stapt af. Hij haalt een biertje uit zijn binnenzak en leunt tegen de machine — precies waar je skimmer zit. Eén blik naar beneden en het is voorbij.',
+        neon: 'De manager van het casino aan de overkant staat buiten een sigaar te roken. Hij kent elke ATM in de buurt — ze voeden zijn klanten met cash. Als hij iets vreemds ziet aan de kaartleuf, belt hij niet de politie maar zijn eigen beveiliging. En die zijn een stuk minder vriendelijk.',
       },
       choices: [
         {
@@ -158,6 +168,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         neon: 'De rivaal is geen amateur — je herkent zijn digitale handtekening van het dark web. Een bekende hacker van de Neon Strip die eerder beveiligingssystemen van casino\'s heeft gekraakt. Hij weet wie je bent, en jij weet wie hij is. Dit kan twee kanten op.',
         iron: 'Het signaal komt uit een verroest busje met het logo van de Iron Skulls op de zijkant — half overgespoten maar nog herkenbaar. Dit is hun terrein, en ze dulden geen concurrentie. De vraag is niet óf ze je vinden, maar wanneer.',
+        port: 'Het tweede signaal komt van een vissersboot die afgemeerd ligt aan Dok 12. De antenne is vermomd als een radio-antenne. Slim — havenpersoneel let niet op één antenne meer of minder. De schipper is waarschijnlijk een smokkelaar die zijn technische vaardigheden diversifieert.',
+        crown: 'De rivaal blijkt een ex-bankmedewerker te zijn die vanuit zijn Audi Q7 opereert — complete mobiele werkstation in de kofferbak, dubbel scherm, 5G-verbinding. Hij is professioneel, methodisch, en hij skimmt de rijkste ATM\'s van Crown Heights al maanden zonder betrapt te worden.',
+        low: 'Het signaal komt uit een flatgebouw boven de wasserette — derde verdieping, raam op een kier. Een tiener, hooguit zeventien, met meer talent dan ervaring. Hij heeft je skimmer gekopieerd met onderdelen van AliExpress. Goedkoop maar effectief. De jeugd van tegenwoordig.',
       },
       choices: [
         {
@@ -216,6 +229,7 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         crown: 'Een beveiligingsdrone — klein, snel, onvermoeibaar — volgt je met een schijnwerper die alles in een koud wit licht baadt. De GPS-tracking van de auto is waarschijnlijk al geactiveerd. Privébeveiliging is onderweg. Dit is Crown Heights; hier hebben ze budgetten die de politie beschaamd maken.',
         iron: 'Twee motoren — zwaar, Harley-achtig — verschijnen in je spiegels. De rijders dragen leren vesten met het Iron Skulls-embleem. Ze komen van twee kanten, ze proberen je in te sluiten. Dit is hun terrein en ze kennen elke straat, elke steeg, elke doodlopende weg.',
         neon: 'De valet parking-jongen — jonger dan je dacht, maar sneller — rent achter je auto aan terwijl hij schreeuwt in zijn portofoon. "HIJ GAAT RICHTING BOULEVARD! RODE BMW! BLOKKEER DE KRUISING!" Hij heeft vrienden, en ze zijn georganiseerd.',
+        low: 'Een groep jongeren op scooters — de Lowrise Runners — heeft je zien vertrekken en ruikt een kans. Ze zwermen om je auto als wespen, trappend tegen de portieren en filmend met hun telefoons. Een van hen gooit een baksteen naar je voorruit. Dit is geen achtervolging, dit is een straatoorlog.',
       },
       choices: [
         {
@@ -241,6 +255,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         iron: 'De Iron Skulls beweren dat de auto van een van hun kapiteins was — een cadeau van Hammer persoonlijk. Ze willen gecompenseerd worden: dubbele waarde van de auto, of je knieën. "Dit is Iron Borough," zegt de boodschapper. "Hier stelen we niet van onze eigen mensen."',
         crown: 'De eigenaar blijkt een gemeenteraadslid te zijn — iemand met connecties, advocaten, en een budget voor privédetectives. Ze zijn je al op het spoor: binnen 24 uur hebben ze een foto van je gezicht, je adres, je telefoonnummer. De druk stijgt met elk uur.',
+        port: 'De havenbaas wiens Porsche je hebt gestolen heeft connecties met het Cartel. Een boodschapper — kalm, beleefd, met een litteken over zijn wang — klopt op je deur. "Meneer Alvarez wil zijn auto terug. Of een compensatie die hem... tevredenstelt." De implicatie is kristalhelder.',
+        neon: 'De influencer wiens Ferrari je hebt gejat heeft het hele verhaal op Instagram gezet — compleet met beveiligingsbeelden en een beloning van tienduizend euro voor informatie. Zijn twee miljoen volgers zijn nu amateur-detectives. Je gezicht circuleert in elke DM-groep op de Strip.',
+        low: 'De underground-racescene is een kleine wereld. Binnen een dag weet iedereen in Lowrise dat jij de Type R hebt gestolen. De eigenaar — een lokale held die drie straatracetitels heeft gewonnen — heeft zijn crew gemobiliseerd. Ze kennen elke steeg, elke doorgang, elke schuilplaats.',
       },
       choices: [
         {
@@ -266,6 +283,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         neon: 'Het is een bekende van de Strip — een racer met een reputatie voor snelheid en roekeloos rijgedrag. Hij grijnst uitdagend. "Race? Eerste die de motor start, wint." Zijn vingers trommelen ongeduldig op zijn broek.',
         port: 'Een havenrat — breed, gespierd, met een sloophammer over zijn schouder — loopt op dezelfde auto af. Hij is niet van plan om hem te stelen; hij wil hem strippen voor onderdelen. Als hij begint, is de auto niks meer waard.',
+        crown: 'Een professionele autodief in een driedelig pak — handschoenen van lamsleer, relay-device in zijn borstzak. Hij werkt voor een internationale ring die luxe auto\'s verscheept naar het Midden-Oosten. "Ik stel voor dat we dit beschaafd oplossen," zegt hij met een accent dat je niet kunt plaatsen.',
+        iron: 'Een Iron Skulls-prospect — jong, hongerig, met iets te bewijzen. Hij heeft een koevoet en geen geduld. "Die auto is voor mijn initiatie," gromt hij. "Zoek een andere of ik gebruik dit ding op jou in plaats van het slot."',
+        low: 'Een straatjoch van hooguit vijftien met een hoodie en een slim-jim die groter is dan zijn arm. Hij is snel, brutaal, en heeft niets te verliezen. "First come first served, ouwe," zegt hij met een grijnslach. De jeugd van Lowrise kent geen angst.',
       },
       choices: [
         {
@@ -296,6 +316,7 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         iron: 'Een pandjesbaas in Iron Borough — vitrines vol gestolen goud en tweedehands sieraden. De beveiliging is minimaal, maar de buurt kijkt mee. Iedereen kent iedereen hier, en iemand zal praten.',
         low: 'Een goudhandelaar in Lowrise met een simpele vitrine en een hangslot. Maar de eigenaar — een veteraan met grijs haar en koude ogen — heeft een afgekorte shotgun onder de toonbank en dertig jaar ervaring met overvallers. Onderschat hem niet.',
         neon: 'Een luxe horlogewinkel op de Strip, glanzend en modern. Het is druk met toeristen die foto\'s maken en prijzen vergelijken. Perfecte dekking — in de chaos van twintig mensen die rondlopen, valt één paar snelle handen niet op.',
+        port: 'Een smokkelkantoor bij Dok 9 dat dienst doet als dekmantel voor een illegale goudsmelterij. De vitrines staan vol "souvenirs" — in werkelijkheid ongedeclareerd goud uit West-Afrika. De bewaker is een gepensioneerde zeeman met één oog en een matrozennes. Maar achter de toonbank zit voor tweehonderdduizend aan edelmetaal.',
       },
       choices: [
         {
@@ -322,6 +343,8 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
         port: 'De havenpolitie nadert van twee kanten tegelijk — gecoördineerd, professioneel. Boven je hoofd hoor je het onmiskenbare geluid van rotorbladen. Een helikopter. Dit is geen standaard respons — iemand heeft serieuze middelen ingezet.',
         crown: 'Geen politie — erger. Twee zwarte SUV\'s van een privébeveiligingsbedrijf blokkeren beide uitgangen. Mannen in kogelvrije vesten stappen uit met de efficiëntie van een militaire operatie. In Crown Heights betaal je voor het beste.',
         low: 'De buurt is wakker geschud door het alarm. Mensen komen uit hun huizen en blokkeren de straat — niet om je te helpen, maar om het spektakel te zien. Een muur van gezichten en telefoons die filmen. Je bent trending op TikTok voordat je de hoek om bent.',
+        iron: 'De fabrieksirene van de staalfabriek begint te loeien — iemand heeft het noodalarm geactiveerd. Binnen seconden stromen arbeiders de straat op, verward en boos. De chaos is perfect camouflage, maar de Iron Skulls patrouille heeft de sirene ook gehoord en komt deze kant op.',
+        neon: 'De neonreclames van de Strip reflecteren in de natte straat terwijl zware bassen uit elke club pompen. Een uitsmijter bij de Velvet Room ziet je rennen en belt onmiddellijk de stripbeveiliging — een privénetwerk dat sneller reageert dan de politie. Binnen dertig seconden zijn alle uitgangen van het blok geblokkeerd.',
       },
       choices: [
         {
@@ -342,6 +365,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         crown: 'De schreeuwende klant is de vrouw van een gemeenteraadslid — dat zie je aan de ring. Als haar iets overkomt, heb je niet alleen de politie maar het hele stadsbestuur op je dak. Maar als je haar kalmeert, heb je misschien een diplomatiek voordeel dat meer waard is dan diamanten.',
         neon: 'De paniek trekt een menigte voor het raam. Smartphones worden opgeheven. Camera\'s flitsen. Iemand is al aan het livestreamen. Je gezicht — of wat ervan zichtbaar is achter je masker — is nu live te zien voor duizenden kijkers. De klok tikt.',
+        port: 'De bewaker blijkt een oud-marineman te zijn die nog steeds traint alsof hij in dienst is. Hij heeft zijn wapen al getrokken en staat in een perfecte schiethouding. De klant — een havenarbeider met armen als boomstammen — kijkt je aan alsof hij overweegt je zelf aan te pakken. De haven kent zijn eigen gerechtigheid.',
+        iron: 'De pandjesbaas drukt niet op een alarmknop — hij pakt een honkbalknuppel van onder de toonbank en loopt op je af. "In Iron Borough lossen we dit zelf op," gromt hij. Buiten hoor je het gerommel van motoren — de Iron Skulls hebben het kabaal gehoord en komen poolshoogte nemen.',
+        low: 'Een groep buurtbewoners verzamelt zich voor de winkel — niet om te helpen, maar om te kijken of er iets te graaien valt in de chaos. De eigenaar schreeuwt in het Turks naar iemand aan de telefoon. Zijn neven wonen drie straten verderop en ze staan bekend om hun korte lontje. Je hebt misschien twee minuten.',
       },
       choices: [
         {
@@ -370,6 +396,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         crown: 'De serverruimte van een hedgefund in Crown Heights — drie lagen beveiliging, biometrische deuren, en een team van cybersecurity-experts die 24/7 het netwerk monitoren. De beloning is astronomisch, maar één fout en je wordt gevonden voordat je het gebouw uit bent.',
         neon: 'Een illegaal crypto-wisselkantoor achter een club op de Strip — de beveiliging is menselijk, niet digitaal. Twee bewakers bij de deur, één camera die waarschijnlijk niet eens opneemt. Maar de walletbeheerder is een paranoïde genie die zijn systeem dagelijks verandert.',
+        port: 'Een offshore server op een vrachtschip dat afgemeerd ligt aan Dok 14. Het schip beweegt zachtjes op de deining terwijl je via een roestige ladder aan boord klimt. De serverruimte is een omgebouwde container onder het dek — koud, vochtig, en buiten elke jurisdictie. De bemanning is in de stad aan het drinken.',
+        iron: 'Een verlaten staalfabriek omgebouwd tot illegale mining-farm. Honderden GPU\'s gonzen achter provisorische muren van golfplaat. De warmte is ondraaglijk — vijfenveertig graden. De eigenaar is een ex-ingenieur van de fabriek die de stroomaansluiting nooit heeft opgezegd. Gratis elektriciteit, miljoenen aan crypto.',
+        low: 'Een woonkamer op de derde verdieping van een flatgebouw in Lowrise. De "serverruimte" is een IKEA-kast vol tweedehands laptops die als nodes draaien. De eigenaar — een zelfgeleerde tiener — slaapt in de kamer ernaast. Zijn wallet bevat verrassend veel geld voor zo\'n amateuristische setup.',
       },
       choices: [
         {
@@ -394,6 +423,10 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       text: 'De transfer is bezig. Het voortgangsbalkon kruipt omhoog: 40%... 55%... 72%... De seconden tikken weg als druppels in een infuus. Dan, op 83%, flikkert het scherm. Foutmelding. Iemand probeert de transfer te stoppen — een counter-hack, real-time. Iemand aan de andere kant van de verbinding is wakker geworden, heeft de ongeautoriseerde toegang gezien, en vecht nu terug. De progressiebalk stottert: 84%... 84%... 83%... Ze pushen je terug.',
       districtVariants: {
         crown: 'Hun counter-hacker is geen amateur — het is een door de staat opgeleid cybersecurity-team. Ze proberen je IP te traceren terwijl ze de transfer blokkeren. Je hebt misschien twee minuten voordat ze je locatie hebben gepinpoint.',
+        port: 'Het vrachtschip begint onverwacht zijn motoren te starten — de kapitein is teruggekomen van de kroeg. De vibraties verstoren je verbinding en de transfer stottert. Je laptop schuift over het bureau terwijl het schip langzaam van de kade wegdraait. Je moet dit afronden voordat je op open zee zit.',
+        iron: 'De mining-farm trekt zoveel stroom dat de zekeringen beginnen te knetteren. Een van de GPU-racks begint te roken — de koeling kan het niet meer aan. Als de stroom uitvalt, verlies je alles. De temperatuur stijgt met elke seconde.',
+        neon: 'De walletbeheerder is wakker geworden — je hoort zijn voetstappen boven het gebonk van de bass uit de club. Hij schreeuwt iets in het Mandarijn en je hoort het geluid van een kluis die opengaat. Hij haalt waarschijnlijk een backup-device. Of een wapen.',
+        low: 'De tiener in de kamer ernaast is wakker geworden van het geluid van je toetsenbord. Door de dunne muur hoor je hem mompelen en zijn bed kraken. Als hij zijn kamer uitkomt en jou achter zijn laptops ziet...',
       },
       choices: [
         {
@@ -414,6 +447,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         crown: 'De insider is de persoonlijke assistent van de CFO — iemand met toegang tot elk systeem, elke kluis, elke vergadering. Hij kan het hele beveiligingssysteem platleggen met één telefoontje. Maar zijn prijs stijgt met elke minuut die je aarzelt.',
         neon: 'Je contact blijkt voor twee partijen te werken — hij verkoopt informatie aan de hoogste bieder. Het bericht dat hij je stuurde, heeft hij waarschijnlijk ook naar je concurrenten gestuurd. De klok tikt sneller dan je dacht.',
+        port: 'Je insider is een scheepselektricien die het servernetwerk van het vrachtschip onderhoudt. Hij wil geen geld — hij wil een nieuw paspoort en een ticket naar Buenos Aires. "Ik heb dingen gezien op dit schip die ik wil vergeten," fluistert hij. "Help me verdwijnen en ik geef je alles."',
+        iron: 'De ex-ingenieur die de mining-farm heeft opgezet wil terug in het spel. Hij biedt je de master-key in ruil voor dertig procent van de opbrengst — permanent. "Ik heb dat systeem gebouwd," zegt hij. "Zonder mij kom je er niet in. Met mij verdelen we een fortuin."',
+        low: 'Je contact is de buurjongen van de tiener — ze zitten samen op school. Hij weet het wachtwoord omdat ze ooit samen hebben gegamed op dezelfde laptops. "Hij verandert het elke week," zegt hij. "Maar hij gebruikt altijd de naam van zijn kat plus een getal. De kat heet Pixel."',
       },
       choices: [
         {
@@ -439,6 +475,9 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
       districtVariants: {
         crown: 'Het penthouse heeft een helikopterplatform op het dak — drieëntwintig verdiepingen boven je. De liften zijn uitgeschakeld, maar het trappenhuis zou nog open moeten zijn. Als je het dak haalt voordat zij het gebouw omsingelen...',
         neon: 'De nooduitgang leidt niet naar buiten maar naar de dansvloer van de club ernaast — driehonderd mensen, knallende muziek, stroboscooplichten. In die menigte verdwijn je als een druppel in de oceaan. Als je er komt.',
+        port: 'Het vrachtschip is losgeraakt van de kade en drijft langzaam de haven uit. De gangway is al ingetrokken. Je enige optie is springen — drie meter naar de kademuur, met je laptop onder je arm en miljoenen aan crypto in je broekzak. Het zwarte water klotst dreigend onder je.',
+        iron: 'De stroom is uitgevallen en de mining-farm staat in het pikkedonker. De enige uitgang is door een labyrint van golfplaten muren en slingerende kabels. Ergens in het donker hoor je voetstappen — de eigenaar, of erger. Je telefoonlicht is je enige gids.',
+        low: 'De voordeur van het flatgebouw zit op een elektronisch slot dat niet opengaat zonder de code. De ramen op de derde verdieping zijn te hoog om te springen. Maar de buurvrouw op de tweede verdieping heeft een balkon dat uitkomt op een brandtrap — als ze haar raam openlaat.',
       },
       choices: [
         {
