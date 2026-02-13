@@ -177,6 +177,7 @@ type GameAction =
   | { type: 'START_CONQUEST_PHASE'; familyId: FamilyId; phase: 1 | 2 }
   | { type: 'DISMISS_CONQUEST_POPUP' }
   | { type: 'ACCEPT_CONQUEST_POPUP' }
+  | { type: 'HEAL_PLAYER'; amount: number; cost: number }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -524,6 +525,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.player.skillPoints <= 0) return s;
       s.player.stats[action.stat]++;
       s.player.skillPoints--;
+      // Sync max HP when muscle changes
+      if (action.stat === 'muscle') {
+        const oldMax = s.playerMaxHP;
+        Engine.syncPlayerMaxHP(s);
+        const hpGain = s.playerMaxHP - oldMax;
+        if (hpGain > 0) s.playerHP = Math.min(s.playerMaxHP, s.playerHP + hpGain);
+      }
       return s;
     }
 
@@ -846,6 +854,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'END_COMBAT': {
+      // Persist remaining HP back to state
+      if (s.activeCombat) {
+        if (s.activeCombat.won) {
+          // Won: keep remaining HP (min 1)
+          s.playerHP = Math.max(1, s.activeCombat.playerHP);
+        } else {
+          // Lost: set HP to 10% of max (barely survived)
+          s.playerHP = Math.max(1, Math.floor(s.playerMaxHP * 0.1));
+        }
+      }
       const wasFinalBoss = s._finalBossWon;
       delete s._finalBossWon;
       s.activeCombat = null;
@@ -861,6 +879,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.heat = 0;
         s.personalHeat = 0;
         s.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
+        // Full heal on final boss victory
+        s.playerHP = s.playerMaxHP;
         s.victoryData = buildVictoryData(s);
         addPhoneMessage(s, 'anonymous', 'Commissaris Decker is verslagen. Noxhaven is van jou. De stad knielt.', 'opportunity');
       }
@@ -897,6 +917,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_CONQUEST_POPUP': {
       s.pendingConquestPopup = null;
+      return s;
+    }
+
+    case 'HEAL_PLAYER': {
+      if (s.money < action.cost) return s;
+      s.money -= action.cost;
+      s.stats.totalSpent += action.cost;
+      s.playerHP = Math.min(s.playerMaxHP, s.playerHP + action.amount);
       return s;
     }
 
@@ -2132,6 +2160,12 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.stats.blackjackStreak === undefined) saved.stats.blackjackStreak = 0;
       if (saved.stats.highLowMaxRound === undefined) saved.stats.highLowMaxRound = 0;
       if (saved.casinoJackpot === undefined) saved.casinoJackpot = 10000;
+      // Player HP migration
+      if (saved.playerHP === undefined || saved.playerMaxHP === undefined) {
+        const maxHP = 80 + ((saved.player?.level || 1) * 5) + ((saved.player?.stats?.muscle || 1) * 3);
+        saved.playerMaxHP = maxHP;
+        saved.playerHP = maxHP;
+      }
       if (saved.nightReport === undefined) saved.nightReport = null;
       if (!saved.priceHistory) saved.priceHistory = {};
       if (saved.washUsedToday === undefined) saved.washUsedToday = 0;

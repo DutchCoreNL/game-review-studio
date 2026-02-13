@@ -1304,6 +1304,8 @@ export function createInitialState(): import('./types').GameState {
     heat: 0,
     personalHeat: 0,
     hidingDays: 0,
+    playerHP: 100,
+    playerMaxHP: 100,
     loc: 'low' as DistrictId,
     player: {
       level: 1,

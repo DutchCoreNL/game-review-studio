@@ -13,9 +13,9 @@ import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles, Heart } from 'lucide-react';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
+type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,
@@ -106,6 +106,16 @@ export function GameHeader() {
 
       {/* Row 2: Resource chips — labeled, compact tiles */}
       <div className="flex items-stretch gap-1.5 overflow-x-auto no-scrollbar">
+        <ResourceTile
+          label="HP"
+          value={`${state.playerHP}/${state.playerMaxHP}`}
+          color={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : state.playerHP < state.playerMaxHP * 0.6 ? 'text-gold' : 'text-emerald'}
+          icon={<Heart size={8} className={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : 'text-emerald'} />}
+          pulse={state.playerHP < state.playerMaxHP * 0.3}
+          tooltip="Jouw gezondheid. Genees bij het ziekenhuis in Crown Heights."
+          onTap={() => setPopup('hp')}
+        />
+
         <ResourceTile
           label="REP"
           value={state.rep}

@@ -4,7 +4,7 @@
  */
 
 import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, NemesisArchetype, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
-import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat, arrestPlayer } from './engine';
+import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat, arrestPlayer, syncPlayerMaxHP } from './engine';
 import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
@@ -428,7 +428,9 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
   if (!nem || !nem.alive || nem.cooldown > 0 || state.loc !== nem.location) return null;
 
   const muscle = state.player.stats.muscle;
-  const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
+  // Sync persistent HP
+  syncPlayerMaxHP(state);
+  const playerMaxHP = state.playerMaxHP;
 
   // Enemy attack capped relative to player's muscle
   const rawAttack = Math.floor(12 + nem.power * 0.15 + nem.generation * 3);
@@ -443,7 +445,7 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
     targetHP: cappedHp,
     enemyMaxHP: cappedMaxHp,
     enemyAttack: cappedAttack,
-    playerHP: playerMaxHP,
+    playerHP: state.playerHP,
     playerMaxHP,
     logs: [`Je staat tegenover ${nem.name}...`, `Power Level: ${nem.power}`, `Generatie #${nem.generation}`],
     isBoss: false,
