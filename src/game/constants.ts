@@ -107,11 +107,49 @@ export const FAMILIES: Record<string, Family> = {
 
 export const SOLO_OPERATIONS: SoloOperation[] = [
   { id: 'pickpocket', name: "Zakkenrollen", level: 1, stat: 'charm', risk: 15, heat: 5, reward: 300, desc: "Zakkenrollen bij de metro." },
-  { id: 'atm_skimming', name: "ATM Skimming", level: 3, stat: 'brains', risk: 25, heat: 10, reward: 1200, desc: "Plaats skimmers in Crown Heights." },
+  { id: 'atm_skimming', name: "ATM Skimming", level: 3, stat: 'brains', risk: 25, heat: 10, reward: 1200, desc: "Plaats skimmers op een ATM." },
   { id: 'car_theft', name: "Auto Diefstal", level: 5, stat: 'brains', risk: 40, heat: 20, reward: 2500, desc: "Steel een luxe wagen voor export." },
   { id: 'store_robbery', name: "Juwelier Overval", level: 7, stat: 'muscle', risk: 55, heat: 35, reward: 5000, desc: "Gewapende overval op klaarlichte dag." },
   { id: 'crypto_heist', name: "Crypto Heist", level: 10, stat: 'brains', risk: 70, heat: 15, reward: 12000, desc: "Hack een cold storage wallet." }
 ];
+
+export const SOLO_OP_DISTRICT_DESC: Record<string, Record<string, string>> = {
+  pickpocket: {
+    neon: 'Beroof dronken gokkers bij de clubs op de Strip.',
+    port: 'Rol aangeschoten havenarbeiders na hun shift.',
+    crown: 'Besteel onoplettende investeerders bij het penthouse.',
+    iron: 'Grijp het weekgeld van fabrieksarbeiders bij het hek.',
+    low: 'Beroof dealers in de steegjes van Lowrise.',
+  },
+  atm_skimming: {
+    neon: 'Skim gokkers-ATMs naast de Velvet Room.',
+    port: 'Plaats skimmers op de verouderde haven-ATM.',
+    crown: 'Hack de high-tech ATMs van Crown Heights.',
+    iron: 'Skim de onbewaakte ATM bij de fabriekspoort.',
+    low: 'Tap de uitkerings-ATM in de telefooncel.',
+  },
+  car_theft: {
+    neon: 'Steel een Ferrari van een feestende influencer.',
+    port: 'Jack de Porsche van een havenbaas bij Dok 7.',
+    crown: 'Grijp een Lamborghini bij de valet parking.',
+    iron: 'Steel Hammers gepantserde Mercedes-AMG.',
+    low: 'Jack een opgevoerde Civic uit de racescene.',
+  },
+  store_robbery: {
+    neon: 'Overval de luxe horlogewinkel op de Strip.',
+    port: 'Beroof het smokkelkantoor bij Dok 9.',
+    crown: 'Kraak de exclusieve juwelier met laserbeveiliging.',
+    iron: 'Overval de pandjesbaas van Iron Borough.',
+    low: 'Beroof de goudhandelaar op de hoek.',
+  },
+  crypto_heist: {
+    neon: 'Hack het illegale wisselkantoor achter de club.',
+    port: 'Kraak de offshore server op een vrachtschip.',
+    crown: 'Breek in bij het datacenter van een hedgefund.',
+    iron: 'Plunder de illegale mining-farm in de fabriek.',
+    low: 'Steel de wallet van een tiener-cryptominer.',
+  },
+};
 
 export const SOLO_OP_BRIEFINGS: Record<string, Record<string, { targetDesc: string; locationDesc: string; intel: string }>> = {
   pickpocket: {

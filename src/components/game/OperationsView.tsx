@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { SOLO_OPERATIONS, FAMILIES } from '@/game/constants';
+import { SOLO_OPERATIONS, FAMILIES, SOLO_OP_DISTRICT_DESC } from '@/game/constants';
 import { GameState, ActiveContract, ActiveMission, SoloOperation } from '@/game/types';
 import { generateMissionEncounters } from '@/game/missions';
 import { calculateOperationRewardRange, rollActualReward } from '@/game/operationRewards';
@@ -120,7 +120,7 @@ export function OperationsView() {
                             {locked && <Lock size={10} className="text-muted-foreground" />}
                             {!locked && <GameBadge variant="muted" size="xs">Lvl {op.level}+</GameBadge>}
                           </div>
-                          <p className="text-[0.5rem] text-muted-foreground drop-shadow">{op.desc}</p>
+                          <p className="text-[0.5rem] text-muted-foreground drop-shadow">{SOLO_OP_DISTRICT_DESC[op.id]?.[state.loc] || op.desc}</p>
                         </div>
                         <GameButton variant="gold" size="sm" disabled={locked}
                           icon={<Crosshair size={12} />}
