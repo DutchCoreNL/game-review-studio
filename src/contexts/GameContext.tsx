@@ -976,16 +976,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const prefix = result.result === 'success' ? '✓' : result.result === 'partial' ? '△' : '✗';
       mission.log.push(`${prefix} ${choice?.label || ''}: ${result.outcomeText}`);
 
+      // Track choice results for timeline
+      if (!mission.choiceResults) mission.choiceResults = [];
+      mission.choiceResults.push(result.result);
+
+      // Approach multipliers
+      const approachRewardMult = mission.approach === 'cautious' ? 0.8 : mission.approach === 'aggressive' ? 1.3 : 1;
+      const approachHeatMult = mission.approach === 'cautious' ? 0.7 : mission.approach === 'aggressive' ? 1.3 : 1;
+
       if (result.result === 'success') {
-        mission.totalReward += result.effects.bonusReward;
-        mission.totalHeat += Math.max(0, result.effects.heat);
+        mission.totalReward += Math.floor(result.effects.bonusReward * approachRewardMult);
+        mission.totalHeat += Math.max(0, Math.floor(result.effects.heat * approachHeatMult));
         mission.totalCrewDamage += result.effects.crewDamage;
       } else if (result.result === 'partial') {
-        mission.totalReward += Math.floor(result.effects.bonusReward * 0.5);
-        mission.totalHeat += Math.max(0, result.effects.heat + 2);
+        mission.totalReward += Math.floor(result.effects.bonusReward * 0.5 * approachRewardMult);
+        mission.totalHeat += Math.max(0, Math.floor((result.effects.heat + 2) * approachHeatMult));
         mission.totalCrewDamage += Math.floor(result.effects.crewDamage * 0.5);
       } else {
-        mission.totalHeat += Math.max(0, result.effects.heat + 5);
+        mission.totalHeat += Math.max(0, Math.floor((result.effects.heat + 5) * approachHeatMult));
         mission.totalCrewDamage += result.effects.crewDamage + 5;
       }
 

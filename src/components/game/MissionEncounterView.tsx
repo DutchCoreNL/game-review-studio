@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { getEncounterText, getEffectiveDifficulty } from '@/game/missions';
 import { getPlayerStat } from '@/game/engine';
@@ -6,8 +7,9 @@ import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
-import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car } from 'lucide-react';
+import { SOLO_OP_IMAGES } from '@/assets/items';
 import encounterBg from '@/assets/items/encounter-bg.jpg';
+import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
@@ -41,23 +43,47 @@ const WEATHER_ICONS: Record<string, React.ReactNode> = {
   storm: <CloudLightning size={10} />,
 };
 
+const FEEDBACK_COLORS: Record<string, string> = {
+  success: 'from-emerald/30',
+  partial: 'from-gold/30',
+  fail: 'from-blood/30',
+};
+
 export function MissionEncounterView() {
   const { state, dispatch } = useGame();
   const mission = state.activeMission;
+  const [feedbackFlash, setFeedbackFlash] = useState<'success' | 'partial' | 'fail' | null>(null);
+
+  // Clear flash after animation
+  useEffect(() => {
+    if (feedbackFlash) {
+      const t = setTimeout(() => setFeedbackFlash(null), 800);
+      return () => clearTimeout(t);
+    }
+  }, [feedbackFlash]);
 
   if (!mission) return null;
 
   const encounter = mission.encounters[mission.currentEncounter];
   const isFinished = mission.finished;
 
-  if (isFinished) {
-    return <MissionResult />;
-  }
-
+  if (isFinished) return <MissionResult />;
   if (!encounter) return null;
 
   const text = getEncounterText(encounter, state.loc);
   const districtName = DISTRICTS[state.loc].name;
+  const opBg = mission.type === 'solo' ? SOLO_OP_IMAGES[mission.missionId] : null;
+
+  const handleChoice = (choiceId: string) => {
+    dispatch({ type: 'MISSION_CHOICE', choiceId });
+    // Determine result from the last choice
+    setTimeout(() => {
+      const m = state.activeMission;
+      if (m && m.choiceResults && m.choiceResults.length > 0) {
+        setFeedbackFlash(m.choiceResults[m.choiceResults.length - 1]);
+      }
+    }, 50);
+  };
 
   return (
     <motion.div
@@ -66,26 +92,70 @@ export function MissionEncounterView() {
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[10000] bg-background flex flex-col"
     >
-      {/* Banner Header */}
-      <div className="flex-none relative h-28 overflow-hidden">
-        <img src={encounterBg} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+      {/* Feedback flash overlay */}
+      <AnimatePresence>
+        {feedbackFlash && (
+          <motion.div
+            key="flash"
+            initial={{ opacity: 0.8 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className={`absolute inset-0 z-50 bg-gradient-to-b ${FEEDBACK_COLORS[feedbackFlash]} to-transparent pointer-events-none`}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Banner Header with op-specific bg */}
+      <div className="flex-none relative h-32 overflow-hidden">
+        <img src={opBg || encounterBg} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          {/* Phase label */}
+          {encounter.phase && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2 mb-1.5"
+            >
+              <span className="text-[0.5rem] font-bold text-gold uppercase tracking-[0.2em] bg-gold/10 border border-gold/30 px-2 py-0.5 rounded">
+                FASE {mission.currentEncounter + 1}: {encounter.phase}
+              </span>
+            </motion.div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-gold" />
               <span className="text-[0.6rem] text-gold font-bold uppercase tracking-widest">{districtName}</span>
+              {mission.approach && mission.approach !== 'standard' && (
+                <span className={`text-[0.45rem] font-bold px-1.5 py-0.5 rounded border ${
+                  mission.approach === 'cautious' ? 'text-ice border-ice/30 bg-ice/10' : 'text-blood border-blood/30 bg-blood/10'
+                }`}>
+                  {mission.approach === 'cautious' ? '🛡️ VOORZICHTIG' : '🔥 AGRESSIEF'}
+                </span>
+              )}
             </div>
+            {/* Phase progress dots */}
             <div className="flex items-center gap-2">
               <span className="text-[0.55rem] text-muted-foreground">
                 {mission.currentEncounter + 1}/{mission.encounters.length}
               </span>
               <div className="flex gap-1">
-                {mission.encounters.map((_, i) => (
-                  <div key={i} className={`w-2 h-2 rounded-full ${
-                    i < mission.currentEncounter ? 'bg-gold' :
-                    i === mission.currentEncounter ? 'bg-gold animate-pulse' : 'bg-muted'
-                  }`} />
+                {mission.encounters.map((enc, i) => (
+                  <div key={i} className="flex flex-col items-center gap-0.5">
+                    <div className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      i < mission.currentEncounter ? 'bg-gold' :
+                      i === mission.currentEncounter ? 'bg-gold animate-pulse ring-2 ring-gold/30' : 'bg-muted'
+                    }`} />
+                    {enc.phase && (
+                      <span className={`text-[0.35rem] uppercase tracking-wider ${
+                        i <= mission.currentEncounter ? 'text-gold' : 'text-muted-foreground/50'
+                      }`}>
+                        {enc.phase.slice(0, 4)}
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -129,6 +199,18 @@ export function MissionEncounterView() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4 }}
           >
+            {/* Atmosphere intro */}
+            {encounter.atmosphere && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="text-[0.6rem] text-muted-foreground italic mb-3 leading-relaxed pl-3 border-l-2 border-l-muted"
+              >
+                {encounter.atmosphere}
+              </motion.p>
+            )}
+
             <div className="game-card border-l-[3px] border-l-gold p-4 mb-5">
               <p className="text-sm text-foreground leading-relaxed font-light">
                 <TypewriterText text={text} speed={20} />
@@ -147,7 +229,7 @@ export function MissionEncounterView() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.1 + 0.3 }}
-                    onClick={() => dispatch({ type: 'MISSION_CHOICE', choiceId: choice.id })}
+                    onClick={() => handleChoice(choice.id)}
                     className="w-full game-card-interactive p-3 text-left"
                   >
                     {(() => {
@@ -201,7 +283,7 @@ export function MissionEncounterView() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Running totals with heat split */}
+        {/* Running totals */}
         <div className="flex gap-3 mt-5 text-[0.55rem] text-muted-foreground justify-center">
           {mission.totalReward > 0 && (
             <span className="text-gold font-semibold">+€{mission.totalReward}</span>
@@ -245,103 +327,158 @@ function MissionResult() {
   const successCount = mission.log.filter(l => l.includes('✓')).length;
   const partialCount = mission.log.filter(l => l.includes('△')).length;
   const failCount = mission.log.filter(l => l.includes('✗')).length;
+  const opBg = mission.type === 'solo' ? SOLO_OP_IMAGES[mission.missionId] : null;
+
+  const RESULT_ICONS = {
+    success: <CheckCircle size={14} className="text-emerald" />,
+    partial: <AlertCircle size={14} className="text-gold" />,
+    fail: <XCircle size={14} className="text-blood" />,
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[10000] bg-background flex flex-col items-center justify-center px-6"
+      className="fixed inset-0 z-[10000] bg-background flex flex-col"
     >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.2, type: 'spring' }}
-        className="w-full max-w-md"
-      >
-        {/* Result icon */}
-        <div className="text-center mb-6">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-            className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 ${
-              mission.success ? 'bg-gold/20' : 'bg-blood/20'
-            }`}
-          >
-            {mission.success ? (
-              <Trophy size={32} className="text-gold" />
-            ) : (
-              <Skull size={32} className="text-blood" />
-            )}
-          </motion.div>
-          <h2 className={`font-display text-2xl uppercase tracking-wider ${
-            mission.success ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'
-          }`}>
-            {mission.success ? 'MISSIE VOLTOOID' : 'MISSIE MISLUKT'}
-          </h2>
-        </div>
+      {/* Background */}
+      <div className="absolute inset-0">
+        {opBg && <img src={opBg} alt="" className="w-full h-full object-cover opacity-15" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/50" />
+      </div>
 
-        {/* Stats */}
-        <div className="game-card p-4 mb-4 space-y-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Resultaat</span>
-            <div className="flex gap-2">
-              <span className="text-emerald font-bold">✓ {successCount}</span>
-              <span className="text-gold font-bold">△ {partialCount}</span>
-              <span className="text-blood font-bold">✗ {failCount}</span>
+      <div className="relative z-10 flex flex-col h-full items-center justify-center px-6">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.2, type: 'spring' }}
+          className="w-full max-w-md"
+        >
+          {/* Result icon */}
+          <div className="text-center mb-5">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
+              className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 ${
+                mission.success ? 'bg-gold/20' : 'bg-blood/20'
+              }`}
+            >
+              {mission.success ? (
+                <Trophy size={32} className="text-gold" />
+              ) : (
+                <Skull size={32} className="text-blood" />
+              )}
+            </motion.div>
+            <h2 className={`font-display text-2xl uppercase tracking-wider ${
+              mission.success ? 'text-gold gold-text-glow' : 'text-blood blood-text-glow'
+            }`}>
+              {mission.success ? 'MISSIE VOLTOOID' : 'MISSIE MISLUKT'}
+            </h2>
+            {mission.approach && mission.approach !== 'standard' && (
+              <p className={`text-[0.5rem] mt-1 font-bold uppercase tracking-wider ${
+                mission.approach === 'cautious' ? 'text-ice' : 'text-blood'
+              }`}>
+                {mission.approach === 'cautious' ? '🛡️ Voorzichtige Aanpak' : '🔥 Agressieve Aanpak'}
+              </p>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="game-card p-4 mb-4 space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Resultaat</span>
+              <div className="flex gap-2">
+                <span className="text-emerald font-bold">✓ {successCount}</span>
+                <span className="text-gold font-bold">△ {partialCount}</span>
+                <span className="text-blood font-bold">✗ {failCount}</span>
+              </div>
+            </div>
+            {mission.totalReward > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Bonus Beloning</span>
+                <span className="text-gold font-bold">+€{mission.totalReward}</span>
+              </div>
+            )}
+            {(() => {
+              const totalHeat = mission.totalHeat + mission.baseHeat;
+              const contract = mission.contractId != null ? state.activeContracts.find(c => c.id === mission.contractId) : null;
+              const isTransport = mission.type === 'contract' && contract?.type === 'delivery';
+              const vehicleHeatPart = isTransport ? Math.ceil(totalHeat * 0.7) : Math.ceil(totalHeat * 0.3);
+              const personalHeatPart = totalHeat - vehicleHeatPart;
+              return (
+                <>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1"><Car size={10} className="text-ice" /> Voertuig Heat</span>
+                    <span className="text-ice font-bold">+{vehicleHeatPart}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1"><Flame size={10} className="text-blood" /> Persoonlijke Heat</span>
+                    <span className="text-blood font-bold">+{personalHeatPart}</span>
+                  </div>
+                </>
+              );
+            })()}
+            {mission.totalCrewDamage > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Crew Schade</span>
+                <span className="text-blood font-bold">-{mission.totalCrewDamage} HP</span>
+              </div>
+            )}
+          </div>
+
+          {/* Timeline of choices */}
+          <div className="game-card p-3 mb-5 max-h-44 overflow-y-auto game-scroll">
+            <h4 className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider mb-2">TIJDLIJN</h4>
+            <div className="space-y-2">
+              {mission.encounters.map((enc, i) => {
+                const result = mission.choiceResults?.[i];
+                const logEntry = mission.log[i];
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-start gap-2"
+                  >
+                    {/* Phase indicator */}
+                    <div className="flex flex-col items-center gap-0.5 flex-shrink-0 mt-0.5">
+                      {result ? RESULT_ICONS[result] : <div className="w-3.5 h-3.5 rounded-full bg-muted" />}
+                      {i < mission.encounters.length - 1 && (
+                        <div className={`w-0.5 h-4 ${result ? (result === 'success' ? 'bg-emerald/30' : result === 'partial' ? 'bg-gold/30' : 'bg-blood/30') : 'bg-muted'}`} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {enc.phase && (
+                        <span className={`text-[0.4rem] font-bold uppercase tracking-wider ${
+                          result === 'success' ? 'text-emerald' : result === 'partial' ? 'text-gold' : result === 'fail' ? 'text-blood' : 'text-muted-foreground'
+                        }`}>
+                          {enc.phase}
+                        </span>
+                      )}
+                      {logEntry && (
+                        <p className={`text-[0.55rem] leading-relaxed ${
+                          logEntry.includes('✓') ? 'text-emerald/80' :
+                          logEntry.includes('△') ? 'text-gold/80' :
+                          logEntry.includes('✗') ? 'text-blood/80' :
+                          'text-muted-foreground'
+                        }`}>
+                          {logEntry.replace(/^[✓△✗]\s*/, '')}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
-          {mission.totalReward > 0 && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Bonus Beloning</span>
-              <span className="text-gold font-bold">+€{mission.totalReward}</span>
-            </div>
-          )}
-          {(() => {
-            const totalHeat = mission.totalHeat + mission.baseHeat;
-            const contract = mission.contractId != null ? state.activeContracts.find(c => c.id === mission.contractId) : null;
-            const isTransport = mission.type === 'contract' && contract?.type === 'delivery';
-            const vehicleHeatPart = isTransport ? Math.ceil(totalHeat * 0.7) : Math.ceil(totalHeat * 0.3);
-            const personalHeatPart = totalHeat - vehicleHeatPart;
-            return (
-              <>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1"><Car size={10} className="text-ice" /> Voertuig Heat</span>
-                  <span className="text-ice font-bold">+{vehicleHeatPart}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1"><Flame size={10} className="text-blood" /> Persoonlijke Heat</span>
-                  <span className="text-blood font-bold">+{personalHeatPart}</span>
-                </div>
-              </>
-            );
-          })()}
-          {mission.totalCrewDamage > 0 && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Crew Schade</span>
-              <span className="text-blood font-bold">-{mission.totalCrewDamage} HP</span>
-            </div>
-          )}
-        </div>
 
-        {/* Story log */}
-        <div className="game-card p-3 mb-5 max-h-36 overflow-y-auto game-scroll">
-          {mission.log.map((entry, i) => (
-            <p key={i} className={`text-[0.6rem] py-0.5 ${
-              entry.includes('✓') ? 'text-emerald' :
-              entry.includes('△') ? 'text-gold' :
-              entry.includes('✗') ? 'text-blood' :
-              'text-muted-foreground'
-            }`}>
-              {entry}
-            </p>
-          ))}
-        </div>
-
-        <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_MISSION' })}>
-          DOORGAAN
-        </GameButton>
-      </motion.div>
+          <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_MISSION' })}>
+            DOORGAAN
+          </GameButton>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

@@ -113,6 +113,34 @@ export const SOLO_OPERATIONS: SoloOperation[] = [
   { id: 'crypto_heist', name: "Crypto Heist", level: 10, stat: 'brains', risk: 70, heat: 15, reward: 12000, desc: "Hack een cold storage wallet." }
 ];
 
+export const SOLO_OP_BRIEFINGS: Record<string, { targetDesc: string; locationDesc: string; intel: string }> = {
+  pickpocket: {
+    targetDesc: 'Drukke metrostations en winkelstraten vol onoplettende burgers.',
+    locationDesc: 'Het centrum van Noxhaven — mensenmassa\'s, smalle steegjes, snelle ontsnappingsroutes.',
+    intel: 'De beste zakkenrollers observeren hun doelwit minstens 5 minuten. Geduld is alles.',
+  },
+  atm_skimming: {
+    targetDesc: 'Geldautomaten in rijke wijken met hoge doorstroming.',
+    locationDesc: 'Crown Heights financieel district — beveiligingscamera\'s overal, maar de opbrengst is enorm.',
+    intel: 'Nieuwe ATM-modellen hebben NFC-detectie. Gebruik een signaalblokker voor extra dekking.',
+  },
+  car_theft: {
+    targetDesc: 'Een luxe voertuig geparkeerd in een onbewaakte straat.',
+    locationDesc: 'Residentiële wijken met dure auto\'s — bewakers lopen rondes van 15 minuten.',
+    intel: 'Moderne auto\'s hebben GPS-trackers. Schakel die uit binnen 10 minuten of je wordt gevolgd.',
+  },
+  store_robbery: {
+    targetDesc: 'Een high-end juwelier met vitrines vol diamanten en goud.',
+    locationDesc: 'Het commerciële hart van de stad — druk overdag, bewaakt \'s nachts.',
+    intel: 'De juwelier heeft een stille alarmknop onder de toonbank. Neutraliseer die eerst.',
+  },
+  crypto_heist: {
+    targetDesc: 'Een cold storage wallet met miljoenen aan cryptocurrency.',
+    locationDesc: 'Een beveiligde serverruimte in een kantoorgebouw — air-gapped systemen, biometrische toegang.',
+    intel: 'Het systeem heeft een 10-minuten timeout. Als je niet binnen die tijd klaar bent, gaat alles in lockdown.',
+  },
+};
+
 export const CONTRACT_TEMPLATES: ContractTemplate[] = [
   { name: "Koeriersdienst", risk: 15, heat: 8, rewardBase: 1200, type: 'delivery' },
   { name: "Rivalen Intimideren", risk: 45, heat: 25, rewardBase: 3500, type: 'combat' },

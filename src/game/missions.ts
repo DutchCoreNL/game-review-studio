@@ -835,6 +835,42 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
+const SOLO_PHASE_LABELS = ['VERKENNING', 'INFILTRATIE', 'UITVOERING', 'ONTSNAPPING'];
+const CONTRACT_PHASE_LABELS = ['VOORBEREIDING', 'UITVOERING', 'AFRONDING', 'AFLEVERING'];
+
+const SOLO_ATMOSPHERES: Record<string, string[]> = {
+  pickpocket: [
+    'De menigte stroomt langs je heen. Geluiden van de stad dempen je hartslag.',
+    'Neonreclames flikkeren boven de straat. Een perfecte afleiding.',
+    'De geur van streetfood mengt met uitlaatgassen. Niemand let op je.',
+    'Regendruppels tikken op je capuchon. Het perfecte weer voor een zakkenroller.',
+  ],
+  atm_skimming: [
+    'Het scherm van de ATM baadt de steeg in een blauwgroen licht.',
+    'Je vingers trillen licht terwijl je de skimmer uit je jaszak haalt.',
+    'De beveiligingscamera draait langzaam. Je telt de seconden.',
+    'Een politiesirene loeit in de verte. Je adem stokt even.',
+  ],
+  car_theft: [
+    'De straatlantaarns werpen lange schaduwen over het glanzende koetswerk.',
+    'De motor van de auto tikt nog na — de eigenaar is net weg.',
+    'Regen glijdt over de motorkap. Het slot glimt onder het licht.',
+    'De geur van nieuw leer drijft uit het halfopen raam.',
+  ],
+  store_robbery: [
+    'De diamanten schitteren achter kogelvrij glas. Je hart bonkt.',
+    'De bewaker leunt tegen de deurpost, verveeld. Dat verandert zo.',
+    'Buiten raast het verkeer voorbij. Binnen is het stil. Te stil.',
+    'Je handschoenen zitten strak. Het masker kriebelt. Geen weg terug.',
+  ],
+  crypto_heist: [
+    'Serverfans zoemen in de duisternis. Groene LED\'s flikkeren als vuurvliegjes.',
+    'De airco blaast ijskoude lucht over je nek. Focus.',
+    'Kabels kronkelen als slangen over de vloer. Het doelwit is dichtbij.',
+    'Je laptop scherm werpt schaduwen op de muur. De klok tikt.',
+  ],
+};
+
 export function generateMissionEncounters(
   missionType: 'solo' | 'contract',
   missionId: string,
@@ -844,10 +880,20 @@ export function generateMissionEncounters(
     ? (SOLO_ENCOUNTERS[missionId] || SOLO_ENCOUNTERS['pickpocket'])
     : (CONTRACT_ENCOUNTERS[contractType || 'delivery'] || CONTRACT_ENCOUNTERS['delivery']);
 
-  // Shuffle the pool and pick 2-3 encounters (min 2, max pool size)
+  // Shuffle the pool and pick 3-4 encounters (was 2-3)
   const shuffled = shuffleArray(pool);
-  const count = Math.min(shuffled.length, Math.max(2, 2 + Math.floor(Math.random() * 2))); // 2-3
-  return shuffled.slice(0, count);
+  const count = Math.min(shuffled.length, Math.max(3, 3 + Math.floor(Math.random() * 2))); // 3-4
+  const selected = shuffled.slice(0, count);
+
+  // Add phase labels and atmosphere
+  const phaseLabels = missionType === 'solo' ? SOLO_PHASE_LABELS : CONTRACT_PHASE_LABELS;
+  const atmospheres = missionType === 'solo' ? (SOLO_ATMOSPHERES[missionId] || SOLO_ATMOSPHERES['pickpocket']) : [];
+
+  return selected.map((enc, i) => ({
+    ...enc,
+    phase: phaseLabels[i] || phaseLabels[phaseLabels.length - 1],
+    atmosphere: atmospheres[i % atmospheres.length] || undefined,
+  }));
 }
 
 export function resolveMissionChoice(
@@ -876,6 +922,10 @@ export function resolveMissionChoice(
 
   // Base difficulty
   let effectiveDifficulty = isLowrise ? Math.floor(choice.difficulty * 0.7) : choice.difficulty;
+
+  // Approach modifier
+  if (mission.approach === 'cautious') effectiveDifficulty -= 5;
+  else if (mission.approach === 'aggressive') effectiveDifficulty += 5;
 
   // Weather modifier
   const weatherMods = WEATHER_DIFFICULTY_MOD[state.weather] || {};
@@ -1042,6 +1092,10 @@ export function getEffectiveDifficulty(
   let difficulty = choice.difficulty;
   const isLowrise = state.ownedDistricts.includes('low') && mission.type === 'solo';
   if (isLowrise) difficulty = Math.floor(difficulty * 0.7);
+
+  // Approach modifier
+  if (mission.approach === 'cautious') difficulty -= 5;
+  else if (mission.approach === 'aggressive') difficulty += 5;
 
   // Weather
   const weatherMods = WEATHER_DIFFICULTY_MOD[state.weather] || {};
