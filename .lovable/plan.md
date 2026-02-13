@@ -1,35 +1,67 @@
 
 
-# Gevangenis Verbeteringen: Dag Afsluiten + Bug Fix
+# Ziekenhuisopname & Game Over Systeem
 
-## Probleem 1: Geen manier om verder te spelen
-Je zit vast in de gevangenis zonder mogelijkheid om dagen door te spoelen. De enige opties zijn omkopen of ontsnappen.
+## Overzicht
+Wanneer je HP op 0 komt na een gevecht, word je automatisch opgenomen in het ziekenhuis. Dit kost tijd (dagen) en geld. Als dit 3 keer gebeurt, is het **Game Over** en moet je opnieuw beginnen.
 
-## Probleem 2: Verkeerde dagweergave na mislukte ontsnapping
-Bij een 7-dagen straf + mislukte ontsnapping (+2 dagen) toont het scherm "9 dagen over" en "dag 0 van 7". Dit komt doordat `totalSentence` niet wordt bijgewerkt wanneer extra strafdagen worden toegevoegd.
+## Wat verandert er voor de speler?
 
----
+### Bij verloren gevecht (HP naar 0):
+- Je wordt automatisch opgenomen in het **Crown Heights Ziekenhuis**
+- Je bent **3 dagen** buiten spel (vergelijkbaar met gevangenis — nachten tikken door, je kunt niks doen)
+- Je betaalt **ziekenhuiskosten** (gebaseerd op je max HP, bijv. €500-2000)
+- Je HP wordt hersteld naar **50%** na ontslag
+- Je verliest een deel van je **reputatie** (-50 REP)
+- Je `hospitalizations`-teller gaat +1 omhoog
 
-## Oplossing
-
-### 1. "Dag Afsluiten" knop in gevangenis
-Een nieuwe knop "WACHT DE DAG AF" die dezelfde `END_TURN` actie triggert als de normale dag-afsluiting op de kaart. Dit zorgt ervoor dat:
-- De gevangenis-countdown 1 dag afneemt
-- Nachtelijke events (district-inkomen, crew loyalty, prison events) normaal verwerkt worden
-- Je het nachtrapport te zien krijgt na elke dag
-
-### 2. Bug fix: totalSentence bijwerken
-Wanneer de ontsnapping mislukt en extra dagen worden toegevoegd, wordt `totalSentence` ook verhoogd zodat de progress ring en dagweergave correct blijven.
-
----
+### Bij 3e ziekenhuisopname: Game Over
+- Een speciaal **Game Over scherm** verschijnt met je statistieken
+- Je kunt kiezen: **Terug naar hoofdmenu** (save wordt gewist)
 
 ## Technische Details
 
-### Bestand: `src/contexts/GameContext.tsx`
-- In de `ATTEMPT_ESCAPE` case (regel 1629): na `s.prison.daysRemaining += PRISON_ESCAPE_FAIL_EXTRA_DAYS` ook `s.prison.totalSentence += PRISON_ESCAPE_FAIL_EXTRA_DAYS` toevoegen
+### 1. State uitbreiden (`src/game/types.ts`)
+- Nieuw veld `hospitalizations: number` op `GameState` (telt het aantal keer dat je bent opgenomen)
+- Nieuw type `HospitalState` (vergelijkbaar met `PrisonState`):
+  ```
+  { daysRemaining: number, totalDays: number, cost: number }
+  ```
+- Nieuw veld `hospital: HospitalState | null` op `GameState`
+- Nieuw veld `gameOver: boolean` op `GameState`
 
-### Bestand: `src/components/game/PrisonOverlay.tsx`
-- Een nieuwe "WACHT DE DAG AF" knop toevoegen onder de bestaande acties
-- Gebruikt een `Clock` icoon en dispatcht `END_TURN`
-- Altijd zichtbaar als primaire actie om door je straf heen te komen
+### 2. Constants toevoegen (`src/game/constants.ts`)
+- `HOSPITAL_STAY_DAYS = 3`
+- `HOSPITAL_ADMISSION_COST_PER_MAXHP = 10` (dus bij 100 max HP = €1000)
+- `HOSPITAL_REP_LOSS = 50`
+- `MAX_HOSPITALIZATIONS = 3` (game over drempel)
 
+### 3. Combat defeat logic aanpassen (`src/contexts/GameContext.tsx`)
+- In de `END_COMBAT` case: als het gevecht verloren is, in plaats van HP naar 10% zetten:
+  - `hospitalizations += 1`
+  - Als `hospitalizations >= 3`: zet `gameOver = true`
+  - Anders: maak een `HospitalState` aan en zet `hospital` op die waarde
+  - Trek ziekenhuiskosten af van geld (minimum €0)
+  - Trek reputatie af
+
+### 4. Ziekenhuisopname Overlay maken (`src/components/game/HospitalStayOverlay.tsx`)
+- Vergelijkbaar met `PrisonOverlay` — een fullscreen overlay die de game blokkeert
+- Toont: resterende dagen, kosten, en een boodschap
+- Geen interactie mogelijk behalve wachten (nachten tikken automatisch door)
+- Na laatste dag: HP hersteld naar 50%, overlay verdwijnt
+
+### 5. Night-report integratie (`src/game/engine.ts`)
+- In `advanceNight`: als `hospital` actief is, tel dagen af
+- Na ontslag: zet `hospital = null`, herstel HP naar 50%
+- Voeg hospital-info toe aan het night report
+
+### 6. Game Over scherm maken (`src/components/game/GameOverScreen.tsx`)
+- Toont statistieken (dagen gespeeld, geld verdiend, missies voltooid, etc.)
+- "Terug naar Hoofdmenu" knop die save wist en teruggaat
+
+### 7. GameLayout aanpassen (`src/components/game/GameLayout.tsx`)
+- `HospitalStayOverlay` toevoegen (vergelijkbaar met hoe `PrisonOverlay` wordt getoond)
+- `GameOverScreen` toevoegen wanneer `state.gameOver === true`
+
+### 8. Migratie voor bestaande saves (`src/contexts/GameContext.tsx`)
+- Default waarden toevoegen: `hospitalizations: 0`, `hospital: null`, `gameOver: false`
