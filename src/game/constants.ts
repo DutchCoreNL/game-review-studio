@@ -113,31 +113,141 @@ export const SOLO_OPERATIONS: SoloOperation[] = [
   { id: 'crypto_heist', name: "Crypto Heist", level: 10, stat: 'brains', risk: 70, heat: 15, reward: 12000, desc: "Hack een cold storage wallet." }
 ];
 
-export const SOLO_OP_BRIEFINGS: Record<string, { targetDesc: string; locationDesc: string; intel: string }> = {
+export const SOLO_OP_BRIEFINGS: Record<string, Record<string, { targetDesc: string; locationDesc: string; intel: string }>> = {
   pickpocket: {
-    targetDesc: 'Drukke metrostations en winkelstraten vol onoplettende burgers.',
-    locationDesc: 'Het centrum van Noxhaven — mensenmassa\'s, smalle steegjes, snelle ontsnappingsroutes.',
-    intel: 'De beste zakkenrollers observeren hun doelwit minstens 5 minuten. Geduld is alles.',
+    port: {
+      targetDesc: 'Aangeschoten havenarbeiders die net hun weekgeld in contanten hebben ontvangen bij de loonbalie van Dok 7.',
+      locationDesc: 'De havenkade van Port Nero — olievlekken op het asfalt, roestige kranen, en arbeiders die na hun shift naar de kroeg strompelen.',
+      intel: 'De loonuitbetaling is elke vrijdag om 18:00. De meeste arbeiders stoppen hun envelop in hun achterzak zonder te tellen. Makkelijke prooien.',
+    },
+    crown: {
+      targetDesc: 'Welgestelde investeerders en bankiers die achteloos met hun portemonnee omgaan na zakenlunches.',
+      locationDesc: 'De financiële boulevard van Crown Heights — marmeren gevels, privéchauffeurs, en mensen die te belangrijk zijn om op te letten.',
+      intel: 'De beste kans is tussen 13:00 en 14:00, wanneer de bankiers terugkeren van hun driegangenlunch. Dure wijn maakt onvoorzichtig.',
+    },
+    iron: {
+      targetDesc: 'Fabrieksvoormannen die hun weekgeld in dikke enveloppen bij zich dragen na de dagshift.',
+      locationDesc: 'Het industrieterrein van Iron Borough — roet in de lucht, stampende machines, en arbeiders die te moe zijn om op te letten.',
+      intel: 'De bewakingscamera\'s bij de fabriekshekken zijn al maanden kapot. Niemand repareert ze — te duur, zeggen ze.',
+    },
+    low: {
+      targetDesc: 'Straatdealers en kleine criminelen die hun dagomzet in contanten bij zich dragen.',
+      locationDesc: 'De achterafsteegjes van Lowrise — wasserettes, kapotte lantaarnpalen, en portieken waar altijd iemand staat.',
+      intel: 'Dealers hier tellen hun geld in het openbaar — arrogantie of domheid, maakt niet uit. Pas op voor hun pistool in de broeksband.',
+    },
+    neon: {
+      targetDesc: 'Dronken gokkers die de casino\'s verlaten met zakken vol chips en contant geld.',
+      locationDesc: 'De Neon Strip — neonlichten, dreunende bassen, en wankelende figuren die niet meer weten hoeveel ze bij zich hebben.',
+      intel: 'Na middernacht zijn de beste kansen: gokkers die net hebben gewonnen zijn euforisch en onoplettend. Verliezers zijn wanhopig en afgeleid.',
+    },
   },
   atm_skimming: {
-    targetDesc: 'Geldautomaten in rijke wijken met hoge doorstroming.',
-    locationDesc: 'Crown Heights financieel district — beveiligingscamera\'s overal, maar de opbrengst is enorm.',
-    intel: 'Nieuwe ATM-modellen hebben NFC-detectie. Gebruik een signaalblokker voor extra dekking.',
+    port: {
+      targetDesc: 'Verouderde geldautomaten bij het havenkantoor die nog op Windows XP draaien.',
+      locationDesc: 'De verlaten kade bij Dok 12 — één TL-buis, geen bewaking, en software van tien jaar oud.',
+      intel: 'De ATM\'s hier worden zelden gecontroleerd. Een skimmer kan dagen onontdekt blijven. Maar pas op voor de havenratten die in de schaduw leven.',
+    },
+    crown: {
+      targetDesc: 'High-end geldautomaten met torenhoge transactielimieten in het financieel district.',
+      locationDesc: 'Crown Heights Premier Banking — touchscreen ATM\'s met gezichtsherkenning, NFC, en een directe lijn naar privébeveiliging.',
+      intel: 'De transactielimieten zijn tien keer hoger dan elders. Maar het beveiligingsbedrijf is binnen drie minuten ter plaatse. Precisie is alles.',
+    },
+    iron: {
+      targetDesc: 'Industriële geldautomaten bij de staalfabriek die door honderden arbeiders per week worden gebruikt.',
+      locationDesc: 'Het fabriekscomplex van Iron Borough — roestige hekken, bewakershuisjes, en ATM\'s die nooit worden geüpdatet.',
+      intel: 'De arbeiders gebruiken dezelfde pincode als hun werknemersnummer. Het volume aan transacties maakt deze ATM een goudmijn voor skimming.',
+    },
+    low: {
+      targetDesc: 'De enige werkende geldautomaat in vijf blokken, constant in gebruik door de hele buurt.',
+      locationDesc: 'Een betonnen hokje aan de rand van Lowrise — graffiti op de muren, gebroken verlichting, maar altijd een rij.',
+      intel: 'Iedereen in de buurt gebruikt deze ATM. Het volume is enorm maar de bedragen per transactie zijn klein. Kwantiteit boven kwaliteit.',
+    },
+    neon: {
+      targetDesc: 'Casino-ATM\'s die door gokkers worden gebruikt om snel cash op te nemen voor de speeltafels.',
+      locationDesc: 'Naast de Velvet Room op de Strip — elke vijf minuten een nieuwe kaart, honderden euro\'s per transactie.',
+      intel: 'Gokkers letten niet op hun omgeving. Maar de uitsmijter van het casino staat tien meter verderop en hij mist niets.',
+    },
   },
   car_theft: {
-    targetDesc: 'Een luxe voertuig geparkeerd in een onbewaakte straat.',
-    locationDesc: 'Residentiële wijken met dure auto\'s — bewakers lopen rondes van 15 minuten.',
-    intel: 'Moderne auto\'s hebben GPS-trackers. Schakel die uit binnen 10 minuten of je wordt gevolgd.',
+    port: {
+      targetDesc: 'Een Porsche Cayenne van een havenbaas, geparkeerd bij Dok 7 met de motor nog warm.',
+      locationDesc: 'Het containerterrein van Port Nero — zoeklichten, beveiligingshekken, maar ook dode hoeken en ontsnappingsroutes via het water.',
+      intel: 'De havenbaas is binnen aan het onderhandelen. Zijn chauffeur drinkt koffie in de portiersloge. De sleutel zit soms nog in het contact.',
+    },
+    crown: {
+      targetDesc: 'Een Lamborghini achtergelaten door de valet parking voor een penthouse in het financieel district.',
+      locationDesc: 'Crown Heights residentieel — privébewaking, drone-surveillance, maar ook de arrogantie van de rijken die hun sleutel in het contact laten.',
+      intel: 'De valet parking is de zwakste schakel. Twee minuten pauze voor een telefoontje — dat is je window. Maar de GPS-tracking activeert binnen seconden.',
+    },
+    iron: {
+      targetDesc: 'Een gepantserde Mercedes-AMG van Hammer, de baas van de Iron Skulls, geparkeerd bij de staalfabriek.',
+      locationDesc: 'De zijingang van het fabriekscomplex in Iron Borough — bewaakt door Skulls-leden, maar niet onmogelijk.',
+      intel: 'Suïcidaal of briljant. De auto is €150.000 waard. Maar als de Iron Skulls je pakken, vind je jezelf terug op de bodem van de rivier.',
+    },
+    low: {
+      targetDesc: 'Een opgevoerde Honda Civic Type R met custom turbo en nitrous, geparkeerd achter de kapper.',
+      locationDesc: 'De achterstraten van Lowrise — onverlicht, onbewaakt, maar vol met ogen achter de gordijnen.',
+      intel: 'Niet de duurste auto, maar de underground-racescene betaalt grof voor dit soort machines. En niemand komt klagen bij de politie.',
+    },
+    neon: {
+      targetDesc: 'Een Ferrari 488 fout geparkeerd voor de VIP-ingang van de club, waarschuwingslichten nog aan.',
+      locationDesc: 'De boulevard van de Neon Strip — drukte, neonlichten, en een influencer-eigenaar die uren aan het feesten is.',
+      intel: 'Check zijn Instagram — als hij stories post, is hij nog binnen. Je hebt alle tijd. Maar de Strip heeft ogen overal.',
+    },
   },
   store_robbery: {
-    targetDesc: 'Een high-end juwelier met vitrines vol diamanten en goud.',
-    locationDesc: 'Het commerciële hart van de stad — druk overdag, bewaakt \'s nachts.',
-    intel: 'De juwelier heeft een stille alarmknop onder de toonbank. Neutraliseer die eerst.',
+    port: {
+      targetDesc: 'Een smokkelaarskantoor bij de haven vol contant geld en ongeregistreerde goederen.',
+      locationDesc: 'Dok 3, Port Nero — een vervallen kantoor achter de containers, bewaakt door één man met een walkietalkie.',
+      intel: 'Het kantoor wordt gebruikt als tussenstation voor illegale handel. Cash wordt hier niet op de bank gezet maar in kluisjes bewaard. Minimale beveiliging, maximale buit.',
+    },
+    crown: {
+      targetDesc: 'Een exclusieve juwelier met kogelvrij glas, laserbeveiliging en een directe lijn naar privébeveiliging.',
+      locationDesc: 'De gouden mijl van Crown Heights — vitrines vol diamanten en platina, beveiligd als een fort.',
+      intel: 'De buit is het dubbele waard van elke andere locatie. Maar de beveiliging is drie niveaus hoger. Één fout en je hebt een SWAT-team op je dak.',
+    },
+    iron: {
+      targetDesc: 'Een pandjesbaas met vitrines vol gestolen goud en tweedehands sieraden in een grauwe winkelstraat.',
+      locationDesc: 'Het handelsblok van Iron Borough — grijs beton, rolluiken, en een eigenaar die iedereen kent.',
+      intel: 'Minimale beveiliging, maar de hele buurt kijkt mee. Iedereen kent iedereen hier. Snelheid is essentieel — binnen en buiten in drie minuten.',
+    },
+    low: {
+      targetDesc: 'Een goudhandelaar met een simpele vitrine, een hangslot, en een veteraan-eigenaar met een shotgun onder de toonbank.',
+      locationDesc: 'Een hoekpand in Lowrise — stoffig, rommelig, maar achter de toonbank liggen duizenden euro\'s aan goud.',
+      intel: 'De eigenaar heeft dertig jaar ervaring met overvallers en een afgekorte shotgun binnen handbereik. Onderschat hem niet.',
+    },
+    neon: {
+      targetDesc: 'Een luxe horlogewinkel op de Strip, vol met toeristen en dure collecties achter minimaal glas.',
+      locationDesc: 'De Neon Strip — glanzend, modern, druk met toeristen die foto\'s maken en prijzen vergelijken.',
+      intel: 'In de chaos van twintig rondlopende mensen valt één paar snelle handen niet op. Maar de Strip heeft overal camera\'s.',
+    },
   },
   crypto_heist: {
-    targetDesc: 'Een cold storage wallet met miljoenen aan cryptocurrency.',
-    locationDesc: 'Een beveiligde serverruimte in een kantoorgebouw — air-gapped systemen, biometrische toegang.',
-    intel: 'Het systeem heeft een 10-minuten timeout. Als je niet binnen die tijd klaar bent, gaat alles in lockdown.',
+    port: {
+      targetDesc: 'Een illegale crypto-mijnbouwoperatie in een omgebouwd containerschip bij Dok 9.',
+      locationDesc: 'De buitenste kade van Port Nero — een containerschip vol servers, gekoeld door zeelucht, bewaakt door twee man.',
+      intel: 'Het schip draait op gestolen stroom van de haven. De beveiliging is fysiek, niet digitaal. Maar de wallets bevatten miljoenen aan Ethereum.',
+    },
+    crown: {
+      targetDesc: 'De cold storage wallet van een hedgefund met drie lagen biometrische beveiliging.',
+      locationDesc: 'Het penthouse van een financieel kantoor in Crown Heights — 23 verdiepingen, keycard-toegang, en een cybersecurity-team dat 24/7 monitort.',
+      intel: 'De beloning is astronomisch, maar één fout en je wordt gevonden voordat je het gebouw uit bent. Het wachtwoord roteert elke 10 minuten.',
+    },
+    iron: {
+      targetDesc: 'Een Bitcoin-wasserij verborgen in de kelder van een verlaten staalfabriek.',
+      locationDesc: 'Het verlaten industriecomplex van Iron Borough — roestige machines, lege hallen, en ergens in de kelder een server die miljoenen verwerkt.',
+      intel: 'De Iron Skulls runnen deze operatie. Fysieke beveiliging is zwaar, maar de digitale kant is amateuristisch. Hack de software, niet de deur.',
+    },
+    low: {
+      targetDesc: 'Een darknet-marktplaats beheerd vanuit een appartement boven een wasserette.',
+      locationDesc: 'Een anoniem flatgebouw in Lowrise — drie sloten op de deur, maar de WiFi is onbeveiligd en het netwerk lekt als een mandje.',
+      intel: 'De beheerder is een eenling die zelden buiten komt. Zijn systeem is kwetsbaar via een bekende exploit. Maar hij heeft een alarmsysteem dat de hele buurt wakker maakt.',
+    },
+    neon: {
+      targetDesc: 'Een illegaal crypto-wisselkantoor achter een club op de Strip, vol met hot wallets.',
+      locationDesc: 'Achter de Velvet Room op de Neon Strip — twee bewakers bij de deur, één camera, en een paranoïde beheerder die zijn systeem dagelijks verandert.',
+      intel: 'De walletbeheerder is een genie maar ook een gokker. Na een goede avond in het casino is hij afgeleid. Dat is je moment.',
+    },
   },
 };
 
