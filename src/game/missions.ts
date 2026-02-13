@@ -8,99 +8,97 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   pickpocket: [
     {
       id: 'pp_1',
-      text: 'Je ziet een zakenman met een dikke portemonnee bij het station. Hij staat te bellen en let niet op.',
+      text: 'Het station is stampvol tijdens het spitsuur. Tussen de haastige forensen spot je een zakenman in een duur pak — hij staat met zijn rug naar je toe, druk bellend via zijn AirPods. Zijn leren aktetas hangt halfopen aan zijn schouder en je ziet de glans van een zware portemonnee in het buitenvak. Hij heeft geen idee dat jij al vijf minuten naar hem kijkt. De menigte schuift onrustig heen en weer. Dit is je moment — of je laat hem gaan.',
       districtVariants: {
-        port: 'Bij de containers staat een dronken havenarbeider. Zijn loonzakje steekt uit zijn achterzak.',
-        crown: 'Een rijke investeerder stapt uit een taxi bij het penthouse. Zijn Rolex schittert in het licht.',
-        iron: 'Een voorman van de fabriek telt zijn weekgeld bij de poort. Hij is alleen.',
-        low: 'Een dealer telt zijn cash in een steegje. Hij is afgeleid door zijn telefoon.',
-        neon: 'Een dronken gokker wankelt uit het casino. Zijn zakken puilen uit.',
+        port: 'Bij de containeroverslag staat een havenarbeider tegen een paal geleund, duidelijk aangeschoten na zijn shift. Zijn loonzakje — een bruine envelop dik van de biljetten — steekt uit zijn achterzak alsof het erom smeekt gepakt te worden. Zijn collega\'s zijn al vertrokken. De kranen piepen boven jullie hoofden.',
+        crown: 'Een investeerder in een kasjmieren overjas stapt uit een zwarte Mercedes bij het penthouse. Zijn Rolex vangt het licht van de straatlantaarn terwijl hij zijn telefoon wegstopt. De chauffeur rijdt weg. Even is hij alleen op het trottoir — tien seconden, misschien vijftien.',
+        iron: 'De voorman van de staalfabriek telt zijn weekgeld bij het hek, bladerend door een stapel briefjes van vijftig. De bewakingscamera boven de poort is al weken kapot — dat weet je, want je hebt het gecheckt. Zijn aandacht is volledig bij het geld. De fabriekssirene loeit.',
+        low: 'In het steegje achter de wasserette telt een dealer zijn dagomzet. Zijn telefoon licht op met berichten die hij niet beantwoordt — hij is te druk met het sorteren van briefjes. Een stapel van minstens vijfhonderd euro ligt open en bloot op een kratje naast hem. Zijn pistool zit in zijn broeksband, maar zijn handen zijn bezet.',
+        neon: 'Een gokker wankelt uit de Velvet Room, zijn ogen glazig van de drank en het verlies. Maar vanavond heeft hij gewonnen — zijn zakken puilen uit van de chips die hij vergat in te wisselen en het contante geld dat hij wel kreeg. Hij leunt tegen de muur en probeert een sigaret aan te steken met trillende handen.',
       },
       choices: [
         {
           id: 'pp_1a', label: 'AFLEIDEN & GRAAIEN', stat: 'charm', difficulty: 30,
-          outcomes: { success: 'Je vraagt de weg en pikt zijn portemonnee zonder dat hij het merkt. Smooth.', partial: 'Je grijpt de portemonnee maar hij voelt het. Je rent weg voordat hij reageert.', fail: 'Hij trapt er niet in en roept om hulp. Je moet vluchten.' },
+          outcomes: { success: 'Je loopt op hem af met je meest vertrouwenwekkende glimlach. "Sorry, weet u misschien hoe ik bij de Kerkstraat kom?" Terwijl hij nadenkt, glijden je vingers als water langs zijn zak. De portemonnee verdwijnt in je mouw. Hij merkt niets. Smooth.', partial: 'Je afleiding werkt, maar op het moment dat je de portemonnee pakt, voelt hij de beweging. Zijn ogen worden groot. Je rukt je los en verdwijnt in de menigte voordat hij kan reageren — net op tijd.', fail: '"Wat doe je?!" Hij grijpt je pols met verrassende kracht. Mensen kijken om. Een beveiliger komt aangelopen. Je rukt je los en rent — zonder buit.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 50 },
         },
         {
           id: 'pp_1b', label: 'SNELLE VINGERS', stat: 'brains', difficulty: 35,
-          outcomes: { success: 'Met chirurgische precisie lift je zijn portemonnee. Hij merkt niets.', partial: 'Je hebt de portemonnee maar laat bijna je telefoon vallen. Net op tijd weg.', fail: 'Hij voelt je hand en grijpt je pols. Je trekt je los maar bent leeg.' },
+          outcomes: { success: 'Je hebt zijn looppatroon bestudeerd, zijn gewoontes geanalyseerd. Op het exacte moment dat de trein arriveert en de menigte naar voren dringt, glijdt je hand in zijn zak. Twee vingers, een lichte draai, en de portemonnee is van jou. Hij loopt door alsof er niets is gebeurd. Chirurgische precisie.', partial: 'De portemonnee is in je hand, maar je eigen telefoon glijdt bijna uit je andere zak. Je hart slaat over. Je vangt hem net op tijd — maar de beweging trekt een blik. Je duikt weg in de stroom reizigers.', fail: 'Zijn zak is dieper dan verwacht. Je vingers raken de portemonnee maar je krijgt geen grip. Hij voelt de aanraking en draait zich bliksemsnel om. Zijn hand sluit zich om je pols. "Dief!" schreeuwt hij door het station.' },
           effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 80 },
         },
         {
           id: 'pp_1c', label: 'DUWTRUC', stat: 'muscle', difficulty: 25,
-          outcomes: { success: 'Je botst tegen hem aan en pikt alles in één beweging. Klassiek.', partial: 'Je duwt te hard — hij valt. Je grijpt de portemonnee en rent.', fail: 'Hij duwt terug en schreeuwt. Voorbijgangers kijken. Weg hier.' },
+          outcomes: { success: 'Je loopt met vaart tegen hem aan — "Oh, sorry!" — en in dezelfde beweging trek je de portemonnee mee. Hij mompelt iets en loopt door. Klassieke duwtruc. De oudste en beste methode.', partial: 'Je duwt harder dan gepland. Hij struikelt en valt bijna. Mensen kijken. Je grijpt de portemonnee terwijl je hem "overeind helpt" en verdwijnt snel in de drukte. Slordig, maar effectief.', fail: 'Hij is steviger dan hij eruitziet. Je duw kaatst terug en hij duwt jou opzij. "Kijk uit, man!" Omstanders staren. Een bewaker komt je richting op. Tijd om te vertrekken — leeghandig.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 30 },
         },
       ],
     },
     {
       id: 'pp_2',
-      text: 'Je hebt buit! Maar een beveiliger heeft je zien lopen. Hij praat in zijn radio.',
+      text: 'De portemonnee zit veilig in je binnenzak en je adrenalinespiegel daalt langzaam. Maar dan vang je een glimp op in de reflectie van een etalageruit — een beveiliger in een donker uniform spreekt in zijn portofoon. Zijn blik is op jou gericht. Hij heeft je gezien, of tenminste: hij vermoedt het. De uitgang van het station is nog vijftig meter verderop. De menigte wordt dunner.',
       districtVariants: {
-        port: 'Een havenbewaker wijst naar je. De hekken gaan dicht.',
-        crown: 'Beveiligingscamera\'s draaien. Een drone komt dichterbij.',
-        iron: 'Een grote kerel met een honkbalknuppel verspert de uitgang.',
-        low: 'Een groepje straatjochies heeft je gezien. Ze willen een deel.',
-        neon: 'De uitsmijter van het casino blokkeert de steeg. "Geef terug."',
+        port: 'Een havenbewaker met een zaklamp wijst in jouw richting terwijl hij iets schreeuwt in zijn radio. De automatische hekken bij de uitgang beginnen langzaam dicht te gaan. Het geluid van kettingen die spannen klinkt als een waarschuwing.',
+        crown: 'Hoog in de hoek draait een bewakingscamera je richting op — de rode LED knippert. Ergens boven je hoofd zoemt een beveiligingsdrone dichterbij. De privébeveiliging van Crown Heights neemt geen risico\'s.',
+        iron: 'Een beer van een kerel — kaalgeschoren hoofd, tatoegaes op zijn knokkels — verspert de enige uitgang. Hij tikt een honkbalknuppel tegen zijn handpalm. "Je gaat nergens heen, vriendje."',
+        low: 'Een groepje van vier straatjochies heeft je operatie gezien vanuit een portiek. Ze stappen de stoep op en blokkeren je pad. De oudste, misschien zestien, grijnst breed. "Mooie vangst. Wij willen de helft. Of we beginnen te schreeuwen."',
+        neon: 'De uitsmijter van het casino — een berg van een man met littekens op zijn gezicht — blokkeert de smalle steeg. Hij vouwt zijn armen over elkaar. "Ik heb het gezien. Geef terug wat je hebt gepikt, of ik breek iets van je."',
       },
       choices: [
         {
           id: 'pp_2a', label: 'WEGRENNEN', stat: 'muscle', difficulty: 20,
-          outcomes: { success: 'Je sprint door de steegjes en bent ze kwijt. Schone ontsnapping.', partial: 'Je ontsnapt maar bent buiten adem. Een deel van de buit valt uit je zak.', fail: 'Je wordt ingehaald. Ze pakken de helft van je buit.' },
+          outcomes: { success: 'Je zet het op een sprinten — door de steegjes, over een hek, onder een rolluik door. Na drie minuten vol gas ben je ze kwijt. Je leunt hijgend tegen een muur. Schone ontsnapping.', partial: 'Je rent alsof je leven ervan afhangt. Je ontsnapt, maar in de haast valt een deel van de buit uit je zak. Je durft niet om te keren. Beter iets dan niets.', fail: 'Je sprint is goed, maar zij kennen de steegjes beter. Na twee bochten word je ingehaald. Ze graaien de helft van je buit weg voordat je je losrukt en verdwijnt.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 0 },
         },
         {
           id: 'pp_2b', label: 'VERSTOPPEN', stat: 'brains', difficulty: 30,
-          outcomes: { success: 'Je duikt een winkel in en wacht tot het veilig is. Niemand ziet je.', partial: 'Je verstopt je achter een container. Ze lopen voorbij, maar het was close.', fail: 'Je verstopplek wordt gevonden. Extra heat opgelopen.' },
+          outcomes: { success: 'Je duikt zonder aarzeling een kledingwinkel in, pakt een jas van het rek, en loopt met een draagtas naar buiten alsof je net hebt gewinkeld. Ze rennen recht langs je heen. Onzichtbaar.', partial: 'Je duikt achter een rij vuilcontainers in het steegje. Voetstappen naderen... en gaan voorbij. Je hart bonkt zo hard dat je zeker weet dat ze het kunnen horen. Maar ze lopen door. Close call.', fail: 'Je denkt slim te zijn door in een portiek te duiken, maar een bewoner opent de deur. "He! Wat doe jij hier?!" Het geschreeuw trekt je achtervolgers recht naar je toe.' },
           effects: { heat: -2, relChange: 0, crewDamage: 0, bonusReward: 20 },
         },
       ],
     },
-    // NEW encounter — negotiation with a fence
     {
       id: 'pp_3',
-      text: 'Een heler in een achterafgelegen kroeg biedt je aan om de buit op te kopen. Maar zijn prijs is laag.',
+      text: 'In een achterafgelegen kroeg, verscholen achter een gordijn van kralensnaren, zit een heler die je kent als "De Wezel". Hij bestudeert je buit door een juwelierloep, draait het leer om, controleert de inhoud. Dan leunt hij achterover en noemt een bedrag dat beledigend laag is. "Neem het of laat het," zegt hij, terwijl hij een sigaar opsteekt. "Maar je vindt geen betere prijs vanavond."',
       districtVariants: {
-        crown: 'De heler is een galeriehouder die "speciale stukken" verkoopt aan rijke verzamelaars.',
-        neon: 'De barman van de Velvet Room fluistert: "Ik ken iemand die dat wil hebben."',
-        low: 'Een oude vrouw in een rommelwinkel bekijkt je buit met een loep. "Ik geef je de helft."',
+        crown: 'De heler is geen gewone crimineel — het is een galeriehouder die overdag kunst verkoopt aan de elite van Crown Heights. \'s Nachts handelt hij in gestolen spullen. Zijn kantoor ruikt naar dure wijn en verborgen zonden. "Interessant stuk," mompelt hij. "Maar mijn klanten verwachten kwaliteit."',
+        neon: 'De barman van de Velvet Room leunt over de bar en fluistert boven de dreunende muziek uit: "Ik ken iemand die dat wil hebben. Discreet. Vanavond nog." Hij schuift een servet naar je toe met een telefoonnummer. "Maar ik wil twintig procent. Voor de introductie."',
+        low: 'Een oude vrouw in een rommelwinkel vol stoffige snuisterijen bekijkt je buit met een vergrootglas. Haar ogen zijn scherp ondanks haar leeftijd. "Niet slecht, niet slecht," mompelt ze. "Ik geef je de helft van wat het waard is. Nee, niet onderhandelen. Mijn prijs is mijn prijs." Ze legt een stapeltje biljetten op de toonbank.',
       },
       choices: [
         {
           id: 'pp_3a', label: 'ONDERHANDELEN', stat: 'charm', difficulty: 35,
-          outcomes: { success: 'Je praat de prijs omhoog. De heler grijnst — hij respecteert je lef.', partial: 'Hij geeft iets meer, maar niet wat het waard is. Beter dan niets.', fail: 'Hij trekt zijn aanbod in. "Te veel gedoe. Ga maar weg."' },
+          outcomes: { success: 'Je leunt achterover, glimlacht, en begint te praten. Over de markt, over zijn reputatie, over wat er zou gebeuren als zijn klanten wisten hoe weinig hij betaalde. Na tien minuten is de prijs verdubbeld. De Wezel grijnst — hij respecteert lef.', partial: 'Je dringt aan en hij geeft iets meer, maar het is nog steeds geen eerlijke prijs. "Dit is mijn laatste bod," zegt hij met een blik die geen tegenspraak duldt. Je neemt het aan. Beter dan niets.', fail: 'Je pusht te hard. Hij schuift de buit terug over de tafel. "Te veel gedoe met jou. Ik ken twintig anderen die wél tevreden zijn met wat ik bied. De deur is daar."' },
           effects: { heat: 0, relChange: 2, crewDamage: 0, bonusReward: 120 },
         },
         {
           id: 'pp_3b', label: 'ZELF VERKOPEN', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'Je vindt online een koper die het dubbele betaalt. Slim.', partial: 'De deal duurt langer maar je krijgt een redelijke prijs.', fail: 'De koper is een undercover agent. Je dumpt alles en rent.' },
+          outcomes: { success: 'Je bedankt De Wezel beleefd en gaat naar huis. Online vind je via een versleuteld forum een koper die het dubbele betaalt. De transactie verloopt via crypto, clean en onherleidbaar. Slim gespeeld.', partial: 'Het online zoeken duurt langer dan verwacht en de uiteindelijke prijs is redelijk — niet spectaculair. Maar je hebt geen tussenpersoon nodig gehad.', fail: 'De "koper" op het forum blijkt een undercover agent. Je ruikt het net op tijd en dumpt alles in een vuilcontainer. Geen opbrengst, maar ook geen arrestatie.' },
           effects: { heat: 4, relChange: 0, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'pp_3c', label: 'DREIGEN', stat: 'muscle', difficulty: 30,
-          outcomes: { success: '"Betaal wat het waard is, of ik zoek een andere heler — en vertel iedereen over jou."', partial: 'Hij betaalt meer uit angst, maar je hebt een vijand gemaakt.', fail: 'Hij trekt een mes onder de toonbank. "Wegwezen."' },
+          outcomes: { success: 'Je buigt je naar hem toe. Je stem is kalm maar je ogen zijn dat niet. "Betaal wat het waard is, of ik zoek een andere heler — en ik vertel iedereen in deze stad over jouw marges." Hij slikte. Het geld verschijnt.', partial: 'De dreiging werkt — hij betaalt meer uit pure angst. Maar je ziet het in zijn ogen: je hebt vandaag een vijand gemaakt. Dat gaat je ooit opbreken.', fail: 'Hij reikt onder de toonbank en haalt een broodmes tevoorschijn. Langzaam, bijna nonchalant. "Ik draai al dertig jaar mee, jochie. Wegwezen." Je vertrekt zonder een cent.' },
           effects: { heat: 3, relChange: -3, crewDamage: 5, bonusReward: 150 },
         },
       ],
     },
-    // NEW encounter — unexpected twist
     {
       id: 'pp_4',
-      text: 'In de gestolen portemonnee vind je een briefje: "Ontmoet me bij de brug. Middernacht. Breng het pakket." Er zit een sleutel bij.',
+      text: 'Terwijl je de inhoud van de gestolen portemonnee doorzoekt, vind je iets onverwachts: een gevouwen briefje, geschreven in haastig handschrift. "Ontmoet me bij de brug. Middernacht. Breng het pakket." Ernaast zit een kleine koperen sleutel — oud, zwaar, met een nummer erin gegraveerd. Dit is meer dan een gewone diefstal. Iemand gebruikte deze portemonnee als droppunt. De vraag is: wat zit er achter slot en grendel?',
       districtVariants: {
-        port: 'De sleutel past op een kluisje in het havenkantoor. Wat zit erin?',
-        iron: 'Het briefje verwijst naar een verlaten fabriek. Een val of een kans?',
+        port: 'Het nummer op de sleutel komt overeen met een kluisje in het havenkantoor — je herkent de serie. Wat voor geheimen verbergt de haven? En belangrijker: is iemand bereid te betalen om ze terug te krijgen?',
+        iron: 'Het briefje verwijst naar een verlaten fabriek aan de rand van Iron Borough. "Verdieping -2, deur 14." Een locatie die officieel niet bestaat. Dit ruikt naar een val — of naar een kans die je leven kan veranderen.',
       },
       choices: [
         {
           id: 'pp_4a', label: 'ONDERZOEKEN', stat: 'brains', difficulty: 45,
-          outcomes: { success: 'Het kluisje bevat documenten die duizenden waard zijn op de zwarte markt.', partial: 'Je vindt het kluisje maar het alarm gaat af. Je grijpt wat je kunt.', fail: 'Het is een val van de politie. Je ontsnapt maar net.' },
+          outcomes: { success: 'Je volgt de aanwijzingen en vindt het kluisje. Binnenin: een USB-stick met versleutelde bedrijfsdocumenten en een envelop met vijfduizend in contanten. Dit is goud waard op de zwarte markt — en niemand weet dat jij het hebt.', partial: 'Je vindt het kluisje, maar zodra je het opent gaat er een stil alarm af. Je grijpt wat je kunt — een stapel documenten en wat cash — en rent. Niet de grote score, maar niet slecht.', fail: 'Het blijkt een lokval van de politie. Twee agenten in burger wachten je op bij het kluisje. Je ziet ze net op tijd en duikt weg, maar de kans is verkeken. En nu weten ze je gezicht.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
         {
           id: 'pp_4b', label: 'NEGEREN', stat: 'charm', difficulty: 15,
-          outcomes: { success: 'Je gooit het briefje weg. Niet jouw probleem. Veilige keuze.', partial: 'Je aarzelt maar besluit het te laten. Toch blijft het knagen.', fail: 'Je aarzeling trekt aandacht. Iemand heeft je de sleutel zien pakken.' },
+          outcomes: { success: 'Je verscheurt het briefje en gooit de sleutel in een putdeksel. Niet jouw probleem, niet jouw risico. Soms is de slimste zet om niet te spelen. Je loopt door met je oorspronkelijke buit, veilig en onopgemerkt.', partial: 'Je probeert het te negeren, maar de rest van de avond knaagt het. Wat als het miljoenen waard was? Maar nee — je hebt de juiste keuze gemaakt. Waarschijnlijk.', fail: 'Je gooit het briefje weg, maar iemand heeft gezien dat je de sleutel pakte. Een onbekende belt je de volgende dag. "Ik weet wat je hebt gevonden. We moeten praten." Meer heat dan nodig.' },
           effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 0 },
         },
       ],
@@ -110,72 +108,71 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   atm_skimming: [
     {
       id: 'atm_1',
-      text: 'De ATM staat op een rustige hoek. Je hebt je skimmer-apparaat klaar. Maar er hangt een camera boven.',
+      text: 'De ATM staat op een rustige hoek, verlicht door een enkel TL-buis dat zachtjes zoemt. Het is na middernacht en de straat is bijna uitgestorven — een enkel stel loopt hand in hand voorbij, een taxi passeert. Je skimmer-apparaat zit in je binnenzak: een plastic behuizing die perfect over de kaartsleuf past, een minuscuul cameraatje, en een Bluetooth-zender. Maar er is een probleem: boven de ATM hangt een beveiligingscamera, het rode lampje knipperend als een waakzaam oog.',
       districtVariants: {
-        crown: 'De ATM in Crown Heights heeft een geavanceerd beveiligingssysteem. Maar de beloning is groter.',
-        port: 'De ATM bij de haven is oud en roestig. Makkelijker te hacken, maar de buurt is gevaarlijk.',
-        neon: 'De ATM naast het casino wordt druk bezocht. Meer slachtoffers, maar ook meer ogen.',
+        crown: 'De ATM in Crown Heights is van het nieuwste model — touchscreen, gezichtsherkenning, NFC-detectie. Het beveiligingssysteem is gekoppeld aan een privébeveiligingsbedrijf dat binnen drie minuten ter plaatse is. Maar de transactielimieten hier zijn tien keer hoger dan elders. Hoog risico, astronomische beloning.',
+        port: 'De ATM bij het havenkantoor is minstens tien jaar oud — het scherm heeft dode pixels en de software draait waarschijnlijk nog op Windows XP. Makkelijker te hacken dan een kinderspeeltje. Maar de buurt is een ander verhaal: havenratten en junks die in de schaduw van de containers leven.',
+        neon: 'De ATM naast de Velvet Room wordt constant gebruikt door gokkers die cash nodig hebben. Elke vijf minuten een nieuwe kaart, elke transactie honderden euro\'s. Meer data dan je ooit kunt verwerken — maar ook meer ogen. De uitsmijter staat tien meter verderop.',
       },
       choices: [
         {
           id: 'atm_1a', label: 'CAMERA UITSCHAKELEN', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'Je hackt de camera-feed. Niemand zal het bewijs zien.', partial: 'De camera loopt nog maar je draait hem weg. Deels effectief.', fail: 'Het alarm gaat af als je de camera aanraakt. Snel handelen!' },
+          outcomes: { success: 'Met je laptop en een WiFi-adapter hackt je de camerafeed. Het beeld bevriest op een leeg frame — niemand zal de opname ooit terugkijken en iets verdachts zien. De perfecte dekking.', partial: 'Je kunt de camera niet hacken, maar je slaagt erin om hem fysiek weg te draaien. Niet elegant, maar effectief — voor nu. Iemand zal het morgen merken.', fail: 'Zodra je de camerakabel aanraakt, gaat er een stil alarm af. Een hoge pieptoon die alleen jij kunt horen — en de beveiligingsdienst. Je hebt misschien twee minuten.' },
           effects: { heat: -5, relChange: 0, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'atm_1b', label: 'GEZICHT BEDEKKEN', stat: 'charm', difficulty: 25,
-          outcomes: { success: 'Met je hoodie en zonnebril ben je onherkenbaar. Camera is geen probleem.', partial: 'Je vermomming is matig. Een deel van je gezicht is zichtbaar.', fail: 'Je hoodie waait af op het verkeerde moment. Perfect op camera.' },
+          outcomes: { success: 'Je trekt je hoodie diep over je gezicht, zet een zonnebril op en verandert je looppatroon. Op camera ben je een schim — onherkenbaar, onvindbaar. De perfecte vermomming voor een imperfecte wereld.', partial: 'Je vermomming is redelijk, maar een windvlaag trekt je hoodie even opzij. Een fractie van een seconde, maar genoeg voor een gedeeltelijk beeld. Hopelijk kijkt niemand het terug.', fail: 'Op het slechtst mogelijke moment waait je hoodie af. Je staat vol in beeld, recht in de camera kijkend. Drie seconden, kristalhelder. Perfect bewijs.' },
           effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 50 },
         },
         {
           id: 'atm_1c', label: 'SNEL HANDELEN', stat: 'muscle', difficulty: 35,
-          outcomes: { success: 'In 30 seconden is de skimmer geplaatst. Record tijd.', partial: 'Je bent snel maar niet snel genoeg. Een voorbijganger kijkt vreemd.', fail: 'Je vingers trillen. De skimmer valt en breekt. Missie mislukt.' },
+          outcomes: { success: 'Snelheid is je wapen. In dertig seconden is de skimmer geplaatst, het cameraatje uitgelijnd, en de Bluetooth-verbinding actief. Record tijd. Je loopt weg voordat de camera ook maar één frame van je gezicht kan vastleggen.', partial: 'Je bent snel, maar niet snel genoeg. Een voorbijganger stopt en kijkt je vreemd aan terwijl je bij de ATM knielt. Je doet alsof je je veters strikt en loopt snel weg. De skimmer zit, maar je bent gezien.', fail: 'De stress maakt je vingers onhandig. De skimmer glijdt uit je handen, stuitert op het trottoir en breekt in twee stukken. Het plastic klinkt als een geweerschot in de stille straat. Missie voorbij.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 100 },
         },
       ],
     },
     {
       id: 'atm_2',
-      text: 'De skimmer draait. Na een uur heb je al data van tientallen kaarten. Dan stopt er een politieauto.',
+      text: 'De skimmer draait al een uur en de data stroomt binnen op je telefoon — tientallen kaartnummers, pincodes, expiration dates. Je zit in je auto aan de overkant van de straat, half verscholen achter een bestelbusje. Dan, in je buitenspiegel: het onmiskenbare silhouet van een politieauto die langzaam de hoek om komt. De koplampen zwaaien over het asfalt. Ze stoppen bij de ATM.',
       districtVariants: {
-        crown: 'Een privébeveiliger op een segway nadert. Hij controleert de ATM.',
-        low: 'Een stel junks wil je skimmer stelen. Ze denken dat het drugs bevat.',
+        crown: 'Het is geen politie — het is erger. Een privébeveiliger op een elektrische scooter nadert, gekleed in het zwart met een bodycam op zijn borst. Hij controleert systematisch elke ATM in het blok. Dit is Crown Heights; hier betaal je voor beveiliging die de politie beschaamd maakt.',
+        low: 'Een stel verslaafden nadert de ATM met wankele stappen. Ze zien de skimmer en denken dat het iets waardvols is — misschien drugs, misschien elektronica. Een van hen begint eraan te trekken. Als ze hem eraf halen, is al je werk voor niets geweest.',
       },
       choices: [
         {
           id: 'atm_2a', label: 'RUSTIG WEGWANDELEN', stat: 'charm', difficulty: 35,
-          outcomes: { success: 'Je wandelt ontspannen weg alsof je een normale burger bent. Niemand verdenkt je.', partial: 'Je loopt weg maar vergeet de skimmer op te halen. Minder data.', fail: 'De agent roept je. Je moet rennen. De skimmer is verloren.' },
+          outcomes: { success: 'Je stapt ontspannen uit je auto, steekt een sigaret op, en wandelt het blok rond alsof je een avondwandeling maakt. De agenten controleren de ATM, zien niets verdachts, en rijden door. Je keert tien minuten later terug om de skimmer op te halen. Professionaliteit.', partial: 'Je loopt weg met gespeelde nonchalance, maar in de haast vergeet je de skimmer op te halen. Als je terugkomt is hij weg — iemand anders heeft hem gevonden. Je hebt de data die al was verzonden, maar niet de volledige buit.', fail: 'De agent stapt uit en roept je. "Meneer! Even wachten!" Je hart staat stil. Wegrennen of blijven? Je kiest het eerste en verdwijnt in een sprint. De skimmer is verloren, en ze hebben je signalement.' },
           effects: { heat: -3, relChange: 0, crewDamage: 0, bonusReward: 150 },
         },
         {
           id: 'atm_2b', label: 'SKIMMER SNEL VERWIJDEREN', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'Je verwijdert de skimmer in seconden en loopt weg met alle data. Perfect.', partial: 'Je haalt de skimmer eruit maar verliest een deel van de data.', fail: 'De skimmer zit vast. Je trekt te hard en de ATM piept alarm.' },
+          outcomes: { success: 'Je loopt ontspannen naar de ATM alsof je geld wilt opnemen. Met een vloeiende beweging verwijder je de skimmer en stopt hem in je zak — het ziet eruit alsof je gewoon je kaart terugpakt. De agenten kijken even en rijden door. Alle data veilig.', partial: 'Je haalt de skimmer eraf, maar in de haast verlies je de SD-kaart met de helft van de opgeslagen data. De Bluetooth-data heb je nog wel. Half werk, maar geen bewijs achtergelaten.', fail: 'De skimmer zit vast — de lijm is te goed. Je trekt harder en de hele kaartleuf van de ATM breekt af. Het alarm gaat schel af. De agenten springen uit hun auto. Rennen.' },
           effects: { heat: 0, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
       ],
     },
-    // NEW — rival hacker encounter
     {
       id: 'atm_3',
-      text: 'Als je de data bekijkt, merk je dat iemand anders ook aan het skimmen is — dezelfde ATM, andere frequentie.',
+      text: 'Terwijl je thuis de data analyseert, valt je iets op: er is een tweede signaal actief op dezelfde ATM — een andere frequentie, een ander protocol. Iemand anders is ook aan het skimmen. Jouw skimmer en de zijne zitten op dezelfde machine, en zijn data overlapt met de jouwe. Je volgt het signaal naar een grijs busje dat geparkeerd staat aan de overkant van de straat, de ramen geblindeerd.',
       districtVariants: {
-        neon: 'De rivaal is een bekende hacker van de Neon Strip. Hij weet wie je bent.',
-        iron: 'Het signaal komt uit een busje aan de overkant. Iron Skulls-logo op de zijkant.',
+        neon: 'De rivaal is geen amateur — je herkent zijn digitale handtekening van het dark web. Een bekende hacker van de Neon Strip die eerder beveiligingssystemen van casino\'s heeft gekraakt. Hij weet wie je bent, en jij weet wie hij is. Dit kan twee kanten op.',
+        iron: 'Het signaal komt uit een verroest busje met het logo van de Iron Skulls op de zijkant — half overgespoten maar nog herkenbaar. Dit is hun terrein, en ze dulden geen concurrentie. De vraag is niet óf ze je vinden, maar wanneer.',
       },
       choices: [
         {
           id: 'atm_3a', label: 'SIGNAAL KAPEN', stat: 'brains', difficulty: 50,
-          outcomes: { success: 'Je kapt zijn signaal en steelt ook zijn data. Dubbele buit!', partial: 'Je blokkeert zijn signaal maar hij merkt het. Hij is boos maar machteloos.', fail: 'Hij is beter dan jij. Hij kapt jouw data en verdwijnt.' },
+          outcomes: { success: 'Je bent beter dan hij. Met een man-in-the-middle attack kaap je niet alleen zijn data, maar ook zijn volledige kaartenbestand van de afgelopen maand. Dubbele buit — en hij heeft geen idee wie het was.', partial: 'Je slaagt erin zijn signaal te blokkeren, maar kunt zijn data niet stelen. Hij merkt de verstoring en is woedend, maar kan niets doen. Jouw data is veilig, de zijne niet.', fail: 'Hij is beter dan jij dacht. Terwijl jij zijn signaal probeert te kapen, draait hij het om — en steelt jouw complete dataset. Je scherm wordt zwart. "Bedankt voor de data," verschijnt er in je terminal.' },
           effects: { heat: 3, relChange: -2, crewDamage: 0, bonusReward: 400 },
         },
         {
           id: 'atm_3b', label: 'SAMENWERKEN', stat: 'charm', difficulty: 35,
-          outcomes: { success: '"We splitsen de opbrengst. Geen gedoe." Hij stemt in. Nieuwe contactpersoon.', partial: 'Hij is wantrouwig maar gaat akkoord. Beperkte samenwerking.', fail: 'Hij vertrouwt niemand. Hij pakt zijn spullen en vertrekt — met jouw skimmer.' },
+          outcomes: { success: 'Je klopt op het raam van het busje. Na een gespannen moment gaat het open. "We splitsen de opbrengst. Geen gedoe, geen ruzie." Na een lange stilte knikt hij. Nieuwe contactpersoon erbij — en een grotere buit dan alleen.', partial: 'Hij is wantrouwig en wil garanties. Jullie komen tot een ongemakkelijk akkoord: 60/40, zijn kant. Niet eerlijk, maar beter dan een oorlog beginnen die je niet kunt winnen.', fail: 'Hij vertrouwt niemand — "Ik werk alleen." Het raam gaat dicht. En als je terugkomt bij de ATM, is je skimmer verdwenen. Hij heeft hem meegenomen als waarschuwing.' },
           effects: { heat: 0, relChange: 3, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'atm_3c', label: 'CONFRONTEREN', stat: 'muscle', difficulty: 30,
-          outcomes: { success: 'Je loopt naar het busje en klopt op het raam. "Dit is mijn plek." Hij rijdt weg.', partial: 'Hij schreeuwt maar maakt zich uit de voeten. Wel wat tumult.', fail: 'Hij heeft een taser. Je ligt op de grond voordat je het weet.' },
+          outcomes: { success: 'Je loopt naar het busje en slaat op het raam. Hard. "Dit is mijn ATM, mijn wijk, mijn operatie. Opsodemieteren." De motor start en het busje scheurt weg. Boodschap ontvangen.', partial: 'Hij opent het raam en er volgt een schreeuwpartij. Uiteindelijk rijdt hij weg, maar niet voordat de halve straat heeft meegekeken. Meer aandacht dan je wilde.', fail: 'Het raam gaat open en je kijkt in de loop van een taser. Vijftigduizend volt door je lichaam. Je ligt op het trottoir en kijkt hoe hij wegrijdt. Alles doet pijn.' },
           effects: { heat: 5, relChange: -3, crewDamage: 8, bonusReward: 100 },
         },
       ],
@@ -185,107 +182,105 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   car_theft: [
     {
       id: 'ct_1',
-      text: 'De zwarte BMW staat geparkeerd in een verlaten straat. Een bewaker loopt zijn ronde. Het regent.',
+      text: 'De auto staat geparkeerd in een verlaten zijstraat, glinsterend onder het licht van een eenzame straatlantaarn. Een zwarte BMW M5, dit jaar\'s model — minstens honderdduizend waard op de zwarte markt. De regen tikt zachtjes op het dak, waardoor de lak schittert als obsidiaan. Een bewaker — privé, niet politie — loopt zijn ronde aan de andere kant van het blok. Je hebt zijn patroon bestudeerd: elke acht minuten passeert hij dit punt. Je hebt er vijf.',
       districtVariants: {
-        port: 'Een Porsche Cayenne staat bij Dok 7 tussen de containers. De eigenaar is binnen aan het onderhandelen.',
-        crown: 'Een Lamborghini staat voor het penthouse. Valet parking is even weg. De sleutel zit misschien nog in het contact.',
-        iron: 'Een gepantserde Mercedes staat bij de fabriek. De eigenaar is de Iron Skulls baas.',
-        low: 'Een opgevoerde Honda Civic staat in het steegje. Niet duur maar snel — perfect voor een snelle klus.',
-        neon: 'Een Ferrari staat fout geparkeerd bij de club. De eigenaar is binnen aan het feesten.',
+        port: 'Een Porsche Cayenne staat tussen de containers bij Dok 7, de motor nog warm. De eigenaar — een havenbaas met banden met het Cartel — is binnen in het kantoor aan het onderhandelen over een zending. Zijn chauffeur zit in de portiersloge koffie te drinken. De sleutel zit in het contact.',
+        crown: 'Een Lamborghini Huracán staat voor het penthouse, afgeleverd door de valet parking die net naar binnen is gegaan om een telefoontje te plegen. De sleutel steekt nog in het contact — arrogantie van de rijken. Je hebt misschien twee minuten voordat hij terugkomt.',
+        iron: 'Een gepantserde Mercedes-AMG staat bij de zijingang van de staalfabriek. De eigenaar is Hammer, de baas van de Iron Skulls. Dit is suïcidaal — of briljant. De auto is honderdvijftigduizend waard, maar als ze je pakken, vind je jezelf terug op de bodem van de rivier.',
+        low: 'Een opgevoerde Honda Civic Type R staat in het steegje achter de kapper — niet de duurste auto, maar met custom turbo, Recaro-stoelen en een nitrous-systeem dat hem sneller maakt dan de meeste supercars. De underground-racescene betaalt grof voor zo\'n machine.',
+        neon: 'Een Ferrari 488 staat fout geparkeerd voor de VIP-ingang van de club, de waarschuwingsknipperlichten nog aan. De eigenaar — een of andere influencer met meer geld dan hersens — is binnen aan het feesten. Instagram-verhalen laten zien dat hij minstens nog twee uur bezig is.',
       },
       choices: [
         {
           id: 'ct_1a', label: 'FORCEER HET SLOT', stat: 'muscle', difficulty: 45,
-          outcomes: { success: 'Het slot breekt open. Je glijdt achter het stuur.', partial: 'Het slot breekt maar het alarm gaat kort af. Je moet snel zijn.', fail: 'Het slot zit muurvast. Je maakt te veel lawaai.' },
+          outcomes: { success: 'Je haalt je slim-jim uit je jas en glijdt hem langs het raam naar beneden. Een klik, een draai — het slot springt open. Je glijdt achter het stuur alsof de auto van jou is. Snelle vingers aan de draden onder het dashboard. De motor brult tot leven.', partial: 'Het slot breekt open, maar het alarm gaat kort af — een scherpe piep die door de stille straat snijdt voordat je het systeem uitschakelt. Je hart bonkt. Snel de motor starten en wegwezen voordat iemand komt kijken.', fail: 'Het slot is versterkt — een nieuw model dat je gereedschap niet aankan. Je duwt harder en het metaal piept en krast. Te veel lawaai. In een raam verderop gaat een lamp aan. Tijd om te vertrekken.' },
           effects: { heat: 8, relChange: 0, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'ct_1b', label: 'HACK DE SLEUTEL', stat: 'brains', difficulty: 50,
-          outcomes: { success: 'Je relay-device pikt het signaal op. De auto opent geluidloos. Elegant.', partial: 'Het signaal is zwak maar je krijgt de auto open na meerdere pogingen.', fail: 'Het signaal wordt geblokkeerd. Nieuwer model dan verwacht.' },
+          outcomes: { success: 'Je relay-device vangt het signaal op van de sleutel die binnen op de keukentafel ligt. De auto denkt dat de eigenaar ernaast staat. De portieren ontgrendelen geluidloos, de motor start op afstand. Elegant, efficiënt, onzichtbaar. Toekomst van autodiefstal.', partial: 'Het signaal is zwak — de sleutel ligt te ver weg. Na drie pogingen krijg je eindelijk een verbinding. De auto opent, maar je systeem heeft waarschijnlijk een digitaal spoor achtergelaten in het computersysteem van de auto.', fail: 'Het signaal wordt geblokkeerd door een Faraday-kooi — de eigenaar bewaart zijn sleutel in een signaal-blokkerende box. Nieuwer model, slimmere eigenaar. Je relay-device piept machteloos.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 500 },
         },
         {
           id: 'ct_1c', label: 'LEID DE BEWAKER AF', stat: 'charm', difficulty: 40,
-          outcomes: { success: '"He! Daar wordt iemand beroofd!" De bewaker rent weg. Je hebt alle tijd.', partial: 'De bewaker aarzelt maar loopt uiteindelijk weg. Je hebt weinig tijd.', fail: 'De bewaker gelooft er niks van. Hij belt de politie.' },
+          outcomes: { success: 'Je belt 112 vanaf een wegwerptelefoon en meldt een inbraak twee straten verderop. De bewaker sprint weg om te kijken. Je hebt alle tijd van de wereld. Dank je, nooddiensten.', partial: 'Je afleiding werkt — de bewaker loopt weg, maar aarzelt en kijkt nog een keer achterom. Je hebt minder tijd dan gepland. Snel, snel, snel.', fail: '"Mooi geprobeerd," zegt de bewaker in zijn portofoon, "maar ik trap er niet in. Stuur versterking naar sector 7." Hij belt de politie terwijl hij op je afloopt.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
       ],
     },
     {
       id: 'ct_2',
-      text: 'Je zit achter het stuur. De motor ronkt. Maar in je spiegel zie je koplampen — iemand achtervolgt je.',
+      text: 'De motor ronkt onder je handen, het stuur trilt licht, de geur van nieuw leer vult je neusgaten. De straat glijdt voorbij terwijl je de eerste bocht neemt — soepel, beheerst. Dan check je de achteruitkijkspiegel en je maag draait om: koplampen. Twee stuks, dichtbij en snel dichterbij komend. Ze knipperen met hun grootlicht. Iemand achtervolgt je, en ze zijn niet van plan om op te geven.',
       districtVariants: {
-        port: 'De havenpolitie blokkeert de uitgang. Zoeklichten zwaaien over het terrein.',
-        crown: 'Een drone volgt je met een felle schijnwerper. Privébeveiliging.',
-        iron: 'Twee motoren van de Iron Skulls zitten achter je aan.',
-        neon: 'De valet parking-jongen rent achter je aan, schreeuwend in zijn radio.',
+        port: 'De havenpolitie heeft de uitgang geblokkeerd met een barrière van betonblokken. Zoeklichten van de wachttorens zwaaien over het terrein en vinden je auto. Een stem door een megafoon: "STOP HET VOERTUIG. ONMIDDELLIJK." Je hebt misschien één ontsnappingsroute over.',
+        crown: 'Een beveiligingsdrone — klein, snel, onvermoeibaar — volgt je met een schijnwerper die alles in een koud wit licht baadt. De GPS-tracking van de auto is waarschijnlijk al geactiveerd. Privébeveiliging is onderweg. Dit is Crown Heights; hier hebben ze budgetten die de politie beschaamd maken.',
+        iron: 'Twee motoren — zwaar, Harley-achtig — verschijnen in je spiegels. De rijders dragen leren vesten met het Iron Skulls-embleem. Ze komen van twee kanten, ze proberen je in te sluiten. Dit is hun terrein en ze kennen elke straat, elke steeg, elke doodlopende weg.',
+        neon: 'De valet parking-jongen — jonger dan je dacht, maar sneller — rent achter je auto aan terwijl hij schreeuwt in zijn portofoon. "HIJ GAAT RICHTING BOULEVARD! RODE BMW! BLOKKEER DE KRUISING!" Hij heeft vrienden, en ze zijn georganiseerd.',
       },
       choices: [
         {
           id: 'ct_2a', label: 'SCHEUR WEG', stat: 'muscle', difficulty: 40,
-          outcomes: { success: 'Je trapt het gaspedaal in en laat ze achter je. De stad is een blur.', partial: 'Je ontsnapt maar schampt een lantaarnpaal. De auto heeft een deuk.', fail: 'Je verliest de controle en crasht bijna. Ze halen je in.' },
+          outcomes: { success: 'Je trapt het gaspedaal tot de bodem. De motor schreeuwt, de banden roken, en de stad wordt een waas van lichten. Door rood, over de stoep, door een parkeergarage heen — en ze zijn weg. Je hart bonkt in je keel. Puur adrenaline.', partial: 'Je ontsnapt, maar in een scherpe bocht schamp je een lantaarnpaal. De zijspiegel vliegt eraf en er zit een lelijke deuk in het portier. De heler zal minder betalen, maar je bent vrij.', fail: 'De auto is snel, maar jouw rijvaardigheid is niet genoeg. In een te scherpe bocht verlies je de controle — de achterkant breekt uit en je schuift zijwaarts een steeg in. Ze halen je in voordat je de motor opnieuw kunt starten.' },
           effects: { heat: 10, relChange: 0, crewDamage: 5, bonusReward: 0 },
         },
         {
           id: 'ct_2b', label: 'NEEM DE SLUIPROUTE', stat: 'brains', difficulty: 45,
-          outcomes: { success: 'Je kent een steegje dat te smal is voor hun auto. Verdwenen als een geest.', partial: 'De sluiproute werkt maar je moet langzaam rijden. Het kost je tijd.', fail: 'Het steegje is geblokkeerd door bouwwerken. Doodlopend.' },
+          outcomes: { success: 'Je herinnert je een steegje dat je vorige week hebt verkend — net breed genoeg voor een auto, maar te smal voor hun SUV. Je duikt erin, de spiegels scheren langs de muren. Aan de andere kant ben je vrij. Verdwenen als een geest.', partial: 'De sluiproute werkt, maar het steegje is smaller dan je dacht. Je moet stapvoets rijden terwijl je achtervolgers te voet langs het steegje rennen. Je ontsnapt, maar het kost kostbare minuten.', fail: 'Je draait het steegje in en — bouwsteigers. Het is geblokkeerd door renovatiewerkzaamheden die er vorige week nog niet waren. Doodlopend. De koplampen verschijnen achter je.' },
           effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'ct_2c', label: 'BEL EEN CONTACT', stat: 'charm', difficulty: 35,
-          outcomes: { success: 'Je belt een vriend die de weg blokkeert. Je achtervolgers zijn gestrand.', partial: 'Je contact is laat maar komt net op tijd. Nipte ontsnapping.', fail: 'Geen gehoor. Je staat er alleen voor.' },
+          outcomes: { success: 'Eén telefoontje naar een vriend die bij de kruising woont. "Zet je bestelbus dwars op de weg. Nu." Dertig seconden later is de weg geblokkeerd. Je achtervolgers staan muurvast. Je rijdt grijnzend weg.', partial: 'Je contact neemt op maar is laat. Net op het moment dat je achtervolgers je bijna hebben, blokkeert hij de weg. Je schiet door een gat dat net groot genoeg is. Nipte ontsnapping, trillende handen.', fail: 'Geen gehoor. Voicemail. Je probeert een tweede nummer — bezet. Je staat er alleen voor op een rechte weg met steeds dichterbij komende koplampen. Dit wordt improviseren.' },
           effects: { heat: 0, relChange: 5, crewDamage: 0, bonusReward: 100 },
         },
       ],
     },
-    // NEW — betrayal encounter
     {
       id: 'ct_3',
-      text: 'De auto is afgeleverd bij de heler, maar hij zegt dat de eigenaar een bounty op je hoofd heeft gezet. Iemand heeft gepraat.',
+      text: 'De auto is afgeleverd bij de heler in een garage ergens aan de rand van de stad. Hij inspecteert het voertuig met de blik van een chirurg — elke kras, elke deuk, het kilometerteller. Dan leunt hij tegen de werkbank en kruist zijn armen. "Er is een probleem," zegt hij. "De eigenaar heeft een bounty op je hoofd gezet. Tienduizend euro. En iemand heeft gepraat — ze weten hoe je eruitziet."',
       districtVariants: {
-        iron: 'De Iron Skulls beweren dat de auto van hen was. Ze willen gecompenseerd worden.',
-        crown: 'De eigenaar is een politicus. Hij heeft privédetectives ingehuurd om je te vinden.',
+        iron: 'De Iron Skulls beweren dat de auto van een van hun kapiteins was — een cadeau van Hammer persoonlijk. Ze willen gecompenseerd worden: dubbele waarde van de auto, of je knieën. "Dit is Iron Borough," zegt de boodschapper. "Hier stelen we niet van onze eigen mensen."',
+        crown: 'De eigenaar blijkt een gemeenteraadslid te zijn — iemand met connecties, advocaten, en een budget voor privédetectives. Ze zijn je al op het spoor: binnen 24 uur hebben ze een foto van je gezicht, je adres, je telefoonnummer. De druk stijgt met elk uur.',
       },
       choices: [
         {
-          id: 'ct_3a', label: 'HET LIJK VERBERGEN', stat: 'brains', difficulty: 45,
-          outcomes: { success: 'Je wist alle sporen. De auto was nooit gestolen. Forensisch schoon.', partial: 'De meeste sporen zijn weg, maar er is nog een getuige.', fail: 'De politie heeft al DNA-materiaal. Te laat.' },
+          id: 'ct_3a', label: 'SPOREN WISSEN', stat: 'brains', difficulty: 45,
+          outcomes: { success: 'Je gaat methodisch te werk: cameradbeelden wissen, vingerafdrukken vernietigen, DNA met bleek behandelen. Je verandert je uiterlijk, dumpt je telefoon, en verdwijnt voor twee weken. Als de storm is gaan liggen, bestaat er geen enkel bewijs dat jij het was. De auto was nooit gestolen.', partial: 'Je wist de meeste sporen, maar er is nog een getuige — een buurvrouw die je heeft gezien vanuit haar raam. Ze kan je niet identificeren, maar haar verklaring houdt het dossier open. Extra voorzichtigheid de komende weken.', fail: 'Te laat. De forensische afdeling heeft al DNA-materiaal van het stuur en een vingerafdruk van de binnenspiegel. Je sporen wissen heeft geen zin meer — het bewijs is al verzameld. De druk neemt toe.' },
           effects: { heat: -5, relChange: 0, crewDamage: 0, bonusReward: 100 },
         },
         {
           id: 'ct_3b', label: 'DE VERRADER VINDEN', stat: 'muscle', difficulty: 40,
-          outcomes: { success: 'Je vindt degene die heeft gepraat. Na een "gesprek" zal hij zwijgen.', partial: 'Je vindt hem maar hij is al gevlucht. Tenminste weet je wie het was.', fail: 'Het was een val. De verrader had backup.' },
+          outcomes: { success: 'Het kostte je twee dagen en drie gesprekken met de juiste mensen, maar je vindt degene die heeft gepraat — een garageknecht die dacht snel geld te verdienen. Na een stevig "gesprek" in een verlaten pakhuis zal hij nooit meer praten. Over wat dan ook.', partial: 'Je vindt de verrader, maar hij is al gevlucht naar een andere stad. Tenminste weet je nu wie het was — en zijn adres bij zijn moeder. Dat kan later nog van pas komen.', fail: 'Het was een val. De verrader had twee mannen meegenomen voor het geval je zou komen. Het wordt een onaangenaam gesprek met vuisten als argumenten. Je trekt je terug — bont en blauw.' },
           effects: { heat: 8, relChange: -5, crewDamage: 10, bonusReward: 0 },
         },
         {
           id: 'ct_3c', label: 'DEAL SLUITEN', stat: 'charm', difficulty: 35,
-          outcomes: { success: 'Je biedt de eigenaar een deel van de opbrengst aan. Hij trekt de bounty in.', partial: 'Hij wil meer dan verwacht, maar uiteindelijk bereiken jullie een akkoord.', fail: 'Hij wil alles terug plus schadevergoeding. Geen deal.' },
+          outcomes: { success: 'Via een tussenpersoon benader je de eigenaar. "Twintig procent van de waarde, cash, en dit verdwijnt." Na een dag onderhandelen trekt hij de bounty in. Business is business, zelfs in de onderwereld.', partial: 'Hij wil meer dan verwacht — dertig procent plus een verontschuldiging. Je slikt je trots in en betaalt. De bounty verdwijnt, maar je portemonnee bloedt.', fail: 'Hij wil alles terug: de auto, de opbrengst, plus vijftigduizend schadevergoeding. "Of ik stuur mijn mensen." Geen deal mogelijk. De bounty staat nog steeds.' },
           effects: { heat: -3, relChange: 2, crewDamage: 0, bonusReward: -100 },
         },
       ],
     },
-    // NEW — chase encounter
     {
       id: 'ct_4',
-      text: 'Een rivaliserende autodief heeft dezelfde auto op het oog. Jullie staan oog in oog op de parkeerplaats.',
+      text: 'Je bent niet de enige die vanavond op jacht is. Op de parkeerplaats, halverwege je sprint naar de auto, sta je oog in oog met een ander: een rivaliserende autodief, gekleed in het zwart, handschoenen aan, dezelfde gereedschappen in zijn handen als jij. Jullie staren elkaar een moment aan — twee roofdieren die hetzelfde prooi hebben gekozen. De auto staat precies tussen jullie in. De spanning is tastbaar.',
       districtVariants: {
-        neon: 'Het is een bekende racer van de Strip. Hij daagt je uit: wie eerst bij de auto is.',
-        port: 'Een havenrat met een sloophammer loopt op de auto af. Hij wil hem strippen.',
+        neon: 'Het is een bekende van de Strip — een racer met een reputatie voor snelheid en roekeloos rijgedrag. Hij grijnst uitdagend. "Race? Eerste die de motor start, wint." Zijn vingers trommelen ongeduldig op zijn broek.',
+        port: 'Een havenrat — breed, gespierd, met een sloophammer over zijn schouder — loopt op dezelfde auto af. Hij is niet van plan om hem te stelen; hij wil hem strippen voor onderdelen. Als hij begint, is de auto niks meer waard.',
       },
       choices: [
         {
           id: 'ct_4a', label: 'RACE ERNAARTOE', stat: 'muscle', difficulty: 35,
-          outcomes: { success: 'Je bent sneller. De sleutel is in je hand voor hij halverwege is.', partial: 'Jullie komen tegelijk aan. Een kort gevecht, maar jij wint.', fail: 'Hij is sneller en groter. De auto is van hem.' },
+          outcomes: { success: 'Je zet het op een sprint. Je bent sneller — de sleutel is in je hand en de motor draait voordat hij halverwege is. Je zwaait als je wegrijdt. Tot ziens.', partial: 'Jullie komen tegelijk aan bij het portier. Een kort maar intens gevecht — duwend, trekkend. Je wint op pure wilskracht en rijdt weg met een gescheurde mouw en een brede grijns.', fail: 'Hij is groter, sneller, en sterker. Hij duwt je opzij alsof je een kind bent en rijdt weg in de auto die van jou had moeten zijn. Je staat in de regen, leeghandig.' },
           effects: { heat: 5, relChange: 0, crewDamage: 5, bonusReward: 150 },
         },
         {
           id: 'ct_4b', label: 'SLIM SPELEN', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'Je hebt het alarm al uitgeschakeld terwijl hij nog staat te kijken. De auto start.', partial: 'Je hackt het slot maar hij probeert in te stappen. Je rijdt weg met een open deur.', fail: 'Je techniek faalt onder druk. Hij lacht en rijdt weg.' },
+          outcomes: { success: 'Terwijl hij staat te poseren, heb jij het alarm al uitgeschakeld via je relay-device. De auto start op afstand. Je stapt in en rijdt weg terwijl hij nog staat te kijken. Brains beats brawn.', partial: 'Je hackt het slot open maar hij probeert tegelijkertijd het andere portier te openen. Je rijdt weg met een open passagiersdeur die tegen een lantaarnpaal klapt. Niet elegant, maar effectief.', fail: 'De spanning maakt je vingers onhandig. Je techniek faalt op het slechtste moment. Hij lacht, trekt het portier open met een koevoet, en rijdt weg. Je staat als een amateur in de kou.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
         {
           id: 'ct_4c', label: 'ONDERHANDELEN', stat: 'charm', difficulty: 30,
-          outcomes: { success: '"Er zijn genoeg auto\'s. Neem jij de Audi, ik neem de BMW." Deal.', partial: 'Hij wil een percentage. Minder winst, maar geen problemen.', fail: 'Hij vertrouwt je niet. Het escaleert.' },
+          outcomes: { success: '"Hé. Er staan genoeg auto\'s hier. Jij neemt de Audi, ik neem de BMW. Iedereen blij, niemand gewond." Hij denkt na, knikt, en jullie gaan elk een kant op. Professioneel onder professionals.', partial: 'Hij wil een percentage van jouw opbrengst — dertig procent om weg te lopen. Minder winst, maar ook geen blauwe plekken. Soms is diplomatie de beste investering.', fail: 'Hij vertrouwt je niet — en eigenlijk heb je daar gelijk in. De onderhandeling escaleert naar een schreeuwpartij en dan naar vuisten. Niemand krijgt de auto vanavond.' },
           effects: { heat: 0, relChange: 3, crewDamage: 0, bonusReward: 50 },
         },
       ],
@@ -295,74 +290,73 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   store_robbery: [
     {
       id: 'sr_1',
-      text: 'De juwelier is bijna leeg. Eén klant, één bewaker, drie vitrines vol diamanten.',
+      text: 'De juwelier is bijna leeg — het is kwart voor sluitingstijd. Eén klant bladert door een catalogus bij de toonbank. Eén bewaker — jong, verveeld, scrollend op zijn telefoon — leunt tegen de deurpost. Achter het kogelvrije glas van drie vitrines liggen diamanten, gouden ringen en platina horloges die samen meer waard zijn dan sommige huizen. Het alarmsysteem heeft een vertraging van dertig seconden — dat heb je gecheckt. De nooduitgang is links achterin. Je ademt diep in. Hier gaat het om.',
       districtVariants: {
-        crown: 'De exclusieve juwelier in Crown Heights. Kogelvrij glas, laserbeveiliging, maar de buit is het dubbele waard.',
-        iron: 'Een pandjesbaas in Iron Borough. Minder beveiliging, maar de buurt let op.',
-        low: 'Een goudhandelaar in Lowrise. Simpele vitrine, maar de eigenaar heeft een shotgun onder de toonbank.',
-        neon: 'Een luxe horlogewinkel op de Strip. Druk met toeristen — perfect dekking.',
+        crown: 'De exclusieve juwelier in Crown Heights is een fort: kogelvrij glas, laserbeveiliging, infraroodsensoren en een directe lijn naar een privébeveiligingsbedrijf. De buit is het dubbele waard van elke andere locatie — maar de beveiliging is drie niveaus hoger.',
+        iron: 'Een pandjesbaas in Iron Borough — vitrines vol gestolen goud en tweedehands sieraden. De beveiliging is minimaal, maar de buurt kijkt mee. Iedereen kent iedereen hier, en iemand zal praten.',
+        low: 'Een goudhandelaar in Lowrise met een simpele vitrine en een hangslot. Maar de eigenaar — een veteraan met grijs haar en koude ogen — heeft een afgekorte shotgun onder de toonbank en dertig jaar ervaring met overvallers. Onderschat hem niet.',
+        neon: 'Een luxe horlogewinkel op de Strip, glanzend en modern. Het is druk met toeristen die foto\'s maken en prijzen vergelijken. Perfecte dekking — in de chaos van twintig mensen die rondlopen, valt één paar snelle handen niet op.',
       },
       choices: [
         {
           id: 'sr_1a', label: 'WAPEN TREKKEN', stat: 'muscle', difficulty: 50,
-          outcomes: { success: '"IEDEREEN OP DE GROND!" Paniek. De bewaker bevriest. Je hebt controle.', partial: 'De bewaker aarzelt maar gehoorzaamt. De klant probeert te vluchten.', fail: 'De bewaker trekt zijn wapen. Dit wordt een vuurgevecht.' },
+          outcomes: { success: '"IEDEREEN OP DE GROND! NU!" Je stem galmt door de winkel als een donderslag. De klant duikt meteen. De bewaker bevriest — zijn hand halverwege zijn holster, maar zijn ogen zeggen dat hij het niet aandurft. In twintig seconden heb je de controle over de hele situatie.', partial: 'De bewaker aarzelt maar legt uiteindelijk zijn wapen neer. De klant begint echter naar de uitgang te kruipen. Je hebt de situatie niet volledig onder controle — er zijn te veel variabelen. Snel handelen.', fail: 'De bewaker is sneller dan je dacht — een veteraan, geen amateur. Hij trekt zijn wapen in één vloeiende beweging. Jullie staan oog in oog, twee gewapende mensen in een kleine ruimte vol diamanten. Dit wordt gevaarlijk.' },
           effects: { heat: 15, relChange: 0, crewDamage: 10, bonusReward: 500 },
         },
         {
           id: 'sr_1b', label: 'AFLEIDINGSMANEUVER', stat: 'charm', difficulty: 45,
-          outcomes: { success: 'Je creëert een scène buiten. Terwijl iedereen kijkt, grijp je de buit.', partial: 'De afleiding werkt half. De bewaker is afgeleid maar de eigenaar niet.', fail: 'Niemand trapt erin. De bewaker wordt juist alerter.' },
+          outcomes: { success: 'Je hebt een handlanger buiten geposteerd die precies op het juiste moment een scène trapt — geschreeuw, een neppistool, paniek. De bewaker en de klant rennen naar het raam. In de chaos heb je precies dertig seconden om de vitrine leeg te halen. Meer dan genoeg.', partial: 'De afleiding werkt half — de bewaker kijkt naar buiten maar de eigenaar niet. Hij staat achter de toonbank en kijkt je recht aan met een blik die zegt: "Ik weet wat je van plan bent." Je hebt minder tijd dan gepland.', fail: 'Niemand trapt erin. De handlanger buiten is te overdreven, te nep. De bewaker kijkt even en keert terug naar zijn post — alerter dan voorheen. Je window is gesloten.' },
           effects: { heat: 8, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
         {
           id: 'sr_1c', label: 'GLAS HACKEN', stat: 'brains', difficulty: 55,
-          outcomes: { success: 'Je schakelt het alarm uit en snijdt het glas. Chirurgische precisie.', partial: 'Het alarm gaat af na 30 seconden. Je grijpt wat je kunt.', fail: 'Het beveiligingssysteem is te geavanceerd. Het alarm gilt door de straat.' },
+          outcomes: { success: 'Je hebt het alarmsysteem bestudeerd: een draadloos signaal op 433 MHz. Met een jammer schakkel je het uit. Dan een glassnijder — precies, stil, chirurgisch. Een perfect rond gat in de vitrine. Je hand glijdt erin en pakt de diamanten alsof ze van jou zijn. Niemand merkt iets tot morgenochtend.', partial: 'Het alarm is uitgeschakeld maar het glas is sterker dan verwacht. Na dertig seconden snijden heb je een gat dat net groot genoeg is om je hand door te steken. Je grijpt wat je kunt — het is minder dan gehoopt, maar het is iets.', fail: 'Het beveiligingssysteem is van een generatie die je niet herkent — gelaagde encryptie, anti-tamper detectie. Zodra je jammer actief wordt, schreeuwt het alarm door de hele straat. Rood-blauw licht reflecteert al op de etalageruit.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 800 },
         },
       ],
     },
     {
       id: 'sr_2',
-      text: 'Je hebt de buit! Maar buiten hoor je sirenes. De politie is snel vandaag.',
+      text: 'De buit zit in je tas — zwaar, hoekig, en meer waard dan je in een maand verdient. Je hart bonkt terwijl je naar de uitgang loopt. Maar dan hoor je het: sirenes. Eerst zacht, dan snel luider wordend. De politie is onderweg, en ze zijn snel vandaag — te snel. Iemand moet een stil alarm hebben geactiveerd. Door het raam zie je al blauwe lichten de hoek om komen. Je hebt misschien zestig seconden.',
       districtVariants: {
-        port: 'De havenpolitie nadert. Je hoort een helikopter.',
-        crown: 'Privébeveiliging blokkeert beide uitgangen. Professioneel.',
-        low: 'De buurt is opgezet. Mensen blokkeren de straat.',
+        port: 'De havenpolitie nadert van twee kanten tegelijk — gecoördineerd, professioneel. Boven je hoofd hoor je het onmiskenbare geluid van rotorbladen. Een helikopter. Dit is geen standaard respons — iemand heeft serieuze middelen ingezet.',
+        crown: 'Geen politie — erger. Twee zwarte SUV\'s van een privébeveiligingsbedrijf blokkeren beide uitgangen. Mannen in kogelvrije vesten stappen uit met de efficiëntie van een militaire operatie. In Crown Heights betaal je voor het beste.',
+        low: 'De buurt is wakker geschud door het alarm. Mensen komen uit hun huizen en blokkeren de straat — niet om je te helpen, maar om het spektakel te zien. Een muur van gezichten en telefoons die filmen. Je bent trending op TikTok voordat je de hoek om bent.',
       },
       choices: [
         {
           id: 'sr_2a', label: 'ACHTERUITGANG', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'Je vindt de nooduitgang en verdwijnt in de steegjes. Spoorloos.', partial: 'De nooduitgang is op slot. Je forceert hem maar verliest tijd.', fail: 'De nooduitgang leidt naar een doodlopende steeg. Je zit vast.' },
+          outcomes: { success: 'Je herinnert je de plattegrond die je vorige week hebt bestudeerd: achter de opslagruimte is een branddeur die uitkomt op een netwerk van steegjes. Je glipt naar achteren, duwt de deur open, en verdwijnt in het donker. Spoorloos.', partial: 'De branddeur is op slot — een hangslot dat er vorige week nog niet was. Je forceert het met een koevoet uit de opslag, maar het kost kostbare seconden. De sirenes zijn nu oorverdovend dichtbij.', fail: 'De branddeur opent naar een kleine binnenplaats — volledig omringd door muren van drie meter hoog. Doodlopend. De sirenes komen dichterbij. Je zit in de val als een rat.' },
           effects: { heat: -5, relChange: 0, crewDamage: 0, bonusReward: 200 },
         },
         {
           id: 'sr_2b', label: 'DOORBRÉKEN', stat: 'muscle', difficulty: 50,
-          outcomes: { success: 'Je rent door de politielinie alsof ze er niet staan. Puur adrenaline.', partial: 'Je breekt door maar raakt gewond. De buit is veilig.', fail: 'Je wordt getackeld. Een deel van de buit valt op straat.' },
+          outcomes: { success: 'Je rent de voordeur uit en recht op de naderende agenten af. Ze verwachten dat je stopt — maar je stopt niet. Met een sprong over een motorkap en een sprint door de menigte ben je verdwenen voordat ze kunnen reageren. Puur adrenaline en onverwachte brutaliteit.', partial: 'Je breekt door de linie maar een agent grijpt je jas. Je trekt je los — de stof scheurt — en rent verder. Een straatsteen snijdt in je knie. Maar je bent vrij, en de buit is veilig.', fail: 'De eerste agent is te snel. Hij tackelt je op het trottoir. Diamanten rollen over het asfalt terwijl omstanders gapen. Je trekt je los maar de helft van de buit ligt verspreid op straat.' },
           effects: { heat: 12, relChange: 0, crewDamage: 15, bonusReward: 0 },
         },
       ],
     },
-    // NEW — hostage negotiation encounter
     {
       id: 'sr_3',
-      text: 'De bewaker heeft de noodknop ingedrukt. De politie is onderweg. Een klant begint te schreeuwen. Dit escaleert snel.',
+      text: 'Het plan ontspoort. De bewaker — sneller dan verwacht — heeft de noodknop onder de toonbank ingedrukt. Een rood lampje knippert boven de deur. De politie is onderweg, ETA drie minuten. En dan begint de klant te schreeuwen — een hoge, panische gil die door de hele winkel snijdt. De eigenaar duikt achter de toonbank. De bewaker grijpt naar zijn holster. Dit escaleert snel en je hebt seconden om een beslissing te nemen die alles kan veranderen.',
       districtVariants: {
-        crown: 'De klant is de vrouw van een raadslid. Dit kan diplomatiek interessant zijn — of een nachtmerrie.',
-        neon: 'De paniek trekt een menigte. Camera\'s flitsen. Je bent live op sociale media.',
+        crown: 'De schreeuwende klant is de vrouw van een gemeenteraadslid — dat zie je aan de ring. Als haar iets overkomt, heb je niet alleen de politie maar het hele stadsbestuur op je dak. Maar als je haar kalmeert, heb je misschien een diplomatiek voordeel dat meer waard is dan diamanten.',
+        neon: 'De paniek trekt een menigte voor het raam. Smartphones worden opgeheven. Camera\'s flitsen. Iemand is al aan het livestreamen. Je gezicht — of wat ervan zichtbaar is achter je masker — is nu live te zien voor duizenden kijkers. De klok tikt.',
       },
       choices: [
         {
           id: 'sr_3a', label: 'GIJZELINGSSITUATIE', stat: 'muscle', difficulty: 55,
-          outcomes: { success: 'Je neemt de controle. De politie durft niet binnen te komen. Je dicteert de voorwaarden.', partial: 'De situatie stabiliseert maar de spanning is om te snijden. Je hebt weinig tijd.', fail: 'De SWAT-eenheid is sneller dan verwacht. Ze stormen binnen.' },
+          outcomes: { success: 'Je neemt de controle met een kalmte die zelfs jou verrast. "Iedereen rustig. De politie komt, en ze zullen luisteren naar wat ik te zeggen heb." Je barricadeert de deur, positioneert iedereen bij het raam als levend schild. De SWAT-onderhandelaar belt binnen drie minuten. Jij dicteert de voorwaarden.', partial: 'Je krijgt de situatie onder controle, maar de spanning is om te snijden. De bewaker kijkt je aan met ogen vol haat. De klant huilt zachtjes. Je hebt misschien twintig minuten voordat iemand iets stoms doet.', fail: 'De SWAT-eenheid was al in de buurt — een toevallige patrouille. Ze stormen binnen met flashbangs en precisie. Het is voorbij in seconden. Je ligt op de grond met een knie in je rug.' },
           effects: { heat: 20, relChange: -5, crewDamage: 15, bonusReward: 600 },
         },
         {
           id: 'sr_3b', label: 'IEDEREEN KALMEREN', stat: 'charm', difficulty: 45,
-          outcomes: { success: '"Luister, niemand hoeft gewond te raken. Jullie laten mij gaan, en dat is het." Ze gehoorzamen.', partial: 'De klant kalmeert maar de bewaker is nog steeds een probleem.', fail: 'De paniek escaleert. Iemand probeert je wapen af te pakken.' },
+          outcomes: { success: 'Je laat je wapen zakken. "Luister. Niemand hoeft gewond te raken. Ik loop naar buiten, jullie doen alsof ik er nooit was. De verzekering dekt alles." Je stem is kalm, redelijk, bijna vriendelijk. De bewaker aarzelt. De klant stopt met schreeuwen. Ze gehoorzamen. Je loopt naar buiten alsof er niets is gebeurd.', partial: 'De klant kalmeert, maar de bewaker is een probleem — hij wil een held zijn. Je praat, kalmeert, overtuigt. Uiteindelijk laat hij je gaan, maar niet zonder een lange blik die zegt: "Ik zal je herinneren."', fail: 'De paniek escaleert in plaats van te verdwijnen. De klant grijpt naar je wapen, de bewaker sprint naar de deur. In de chaos raakt iemand gewond. Dit was niet het plan.' },
           effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 300 },
         },
         {
           id: 'sr_3c', label: 'ROOKBOM GOOIEN', stat: 'brains', difficulty: 40,
-          outcomes: { success: 'De rook vult de winkel. In de chaos glijp je naar buiten met de buit.', partial: 'De rook werkt maar je botst tegen een vitrine. Minder buit.', fail: 'De rookbom ontploft niet. Iedereen staart je aan.' },
+          outcomes: { success: 'Je trekt de pin en gooit. De rookbom vult de winkel in seconden met een dikke, grijze mist. Hoestend, struikelend, totaal gedesoriënteerd — iedereen grijpt naar hun ogen. In de chaos glijp je naar buiten met de tas vol diamanten. Als de rook optrekt, ben je drie blokken verderop.', partial: 'De rook werkt maar je oriëntatie is minder goed dan verwacht in de mist. Je botst tegen een vitrine — glas breekt, een deel van de buit valt. Je grijpt wat je kunt en verdwijnt. Minder dan gepland, maar je bent vrij.', fail: 'De rookbom sist, sputtert... en ontploft niet. Een dunne sliert rook kringelt omhoog. Iedereen in de winkel staart je aan. De bewaker grijpt zijn wapen. De klant begint weer te schreeuwen. Dit is een nachtmerrie.' },
           effects: { heat: 10, relChange: 0, crewDamage: 0, bonusReward: 400 },
         },
       ],
@@ -372,96 +366,94 @@ const SOLO_ENCOUNTERS: Record<string, MissionEncounter[]> = {
   crypto_heist: [
     {
       id: 'ch_1',
-      text: 'De cold storage wallet is verbonden met een air-gapped systeem in een serverruimte. Je hebt 10 minuten.',
+      text: 'De serverruimte is koud — ijskoud. De airco blaast op volle kracht om de rijen servers gekoeld te houden. Groene en blauwe LED\'s flikkeren als honderden kleine ogen in het halfduister. Ergens in deze ruimte staat het doelwit: een air-gapped systeem met een cold storage wallet die miljoenen waard is aan cryptocurrency. Het is niet verbonden met het internet — fysieke toegang is de enige manier. Je hebt tien minuten voordat het wachtwoord automatisch roteert en het systeem in lockdown gaat.',
       districtVariants: {
-        crown: 'De serverruimte van een hedgefund in Crown Heights. State-of-the-art beveiliging.',
-        neon: 'Een illegaal crypto-kantoor achter een club. Minder beveiliging, maar meer bewakers.',
+        crown: 'De serverruimte van een hedgefund in Crown Heights — drie lagen beveiliging, biometrische deuren, en een team van cybersecurity-experts die 24/7 het netwerk monitoren. De beloning is astronomisch, maar één fout en je wordt gevonden voordat je het gebouw uit bent.',
+        neon: 'Een illegaal crypto-wisselkantoor achter een club op de Strip — de beveiliging is menselijk, niet digitaal. Twee bewakers bij de deur, één camera die waarschijnlijk niet eens opneemt. Maar de walletbeheerder is een paranoïde genie die zijn systeem dagelijks verandert.',
       },
       choices: [
         {
           id: 'ch_1a', label: 'EXPLOIT DRAAIEN', stat: 'brains', difficulty: 65,
-          outcomes: { success: 'Je zero-day exploit breekt de firewall. De wallet is open. Transferring...', partial: 'De exploit werkt half. Je krijgt toegang maar het systeem logt alles.', fail: 'De firewall detecteert de exploit. Lockdown geactiveerd.' },
+          outcomes: { success: 'Je laptop is verbonden via een Ethernet-kabel die je rechtstreeks in de server hebt geplugd. Je zero-day exploit — drie maanden research — breekt de firewall in achtenveertig seconden. De wallet opent. Transferring... 100%. Miljoenen in crypto, onherleidbaar overgemaakt naar je eigen cold wallet.', partial: 'De exploit breekt de eerste laag, maar het systeem detecteert onregelmatigheden en begint alles te loggen. Je krijgt de transfer erdoor, maar ze hebben een digitaal spoor naar je MAC-adres. Hopelijk heb je het goed gespoofed.', fail: 'De firewall detecteert je exploit binnen milliseconden — dit systeem is geüpdatet sinds je laatste reconnaissance. Een rood scherm flitst op: "INTRUSION DETECTED." Het hele gebouw gaat in lockdown. De deuren vergrendelen met een zware klik.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 3000 },
         },
         {
           id: 'ch_1b', label: 'SOCIAL ENGINEERING', stat: 'charm', difficulty: 55,
-          outcomes: { success: 'Je belt de systeembeheerder en doet je voor als IT-support. Hij geeft je het wachtwoord.', partial: 'Hij is wantrouwig maar geeft je een hint. Genoeg om binnen te komen.', fail: 'Hij doorziet je en belt de politie.' },
+          outcomes: { success: 'Je belt de systeembeheerder op zijn privénummer — verkregen via drie weken research. "Met de CTO. We hebben een beveiligingslek. Ik heb je admin-wachtwoord nodig om een patch te draaien. Nu." Zijn stem trilt maar hij geeft het. Mensen zijn altijd de zwakste schakel.', partial: 'Hij is wantrouwig maar geeft je uiteindelijk een hint — genoeg om de rest zelf te bruteforcen. Het kost je extra minuten die je niet hebt, maar je komt binnen.', fail: '"Ik bel je terug via het officiele nummer," zegt hij. Verdomme. Tien seconden later gaat je telefoon — het is de politie. Hij heeft ze gebeld terwijl jullie nog aan het praten waren.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 2000 },
         },
         {
           id: 'ch_1c', label: 'USB DRIVE PLAATSEN', stat: 'muscle', difficulty: 50,
-          outcomes: { success: 'Je sluipt de serverruimte in en plugt de USB in. De malware doet de rest.', partial: 'Je wordt bijna betrapt maar de USB is geplaatst. Haastig werk.', fail: 'Een bewaker ziet je en trekt zijn wapen. Missie afgebroken.' },
+          outcomes: { success: 'Je sluipt de serverruimte in via een ventilatieschacht en plugt een USB-drive met custom malware in de juiste server. De software doet de rest: het installeert een rootkit, extraheert de private keys, en wist zijn eigen sporen. Schoon, efficiënt, onzichtbaar.', partial: 'Je bereikt de server en plugt de USB in, maar een bewaker hoort iets en opent de deur. Je rolt achter een serverkast en houdt je adem in. Hij kijkt rond, haalt zijn schouders op, en loopt weg. Maar je hart klopt in je keel.', fail: 'Halverwege de schacht hoor je een stem: "Wat doe je hier?" Een bewaker met een zaklamp schijnt in je gezicht. Zijn hand gaat naar zijn wapen. De missie is voorbij — en dit gesprek wordt onplezierig.' },
           effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 1500 },
         },
       ],
     },
     {
       id: 'ch_2',
-      text: 'De transfer loopt. 80%... 90%... Dan flikkert het scherm. Iemand probeert de transfer te stoppen.',
+      text: 'De transfer is bezig. Het voortgangsbalkon kruipt omhoog: 40%... 55%... 72%... De seconden tikken weg als druppels in een infuus. Dan, op 83%, flikkert het scherm. Foutmelding. Iemand probeert de transfer te stoppen — een counter-hack, real-time. Iemand aan de andere kant van de verbinding is wakker geworden, heeft de ongeautoriseerde toegang gezien, en vecht nu terug. De progressiebalk stottert: 84%... 84%... 83%... Ze pushen je terug.',
       districtVariants: {
-        crown: 'Hun counter-hacker is online. Hij probeert je IP te tracen.',
+        crown: 'Hun counter-hacker is geen amateur — het is een door de staat opgeleid cybersecurity-team. Ze proberen je IP te traceren terwijl ze de transfer blokkeren. Je hebt misschien twee minuten voordat ze je locatie hebben gepinpoint.',
       },
       choices: [
         {
           id: 'ch_2a', label: 'COUNTER-HACK', stat: 'brains', difficulty: 60,
-          outcomes: { success: 'Je overvleugelt hun hacker en voltooit de transfer. 100%. Winnaar.', partial: 'Je houdt hem tegen maar verliest een deel van de transfer.', fail: 'Hij tracet je locatie. De politie is onderweg.' },
+          outcomes: { success: 'Je vingers vliegen over het toetsenbord. DDoS op hun monitoring, spoof je IP drie keer, en druk de transfer door via een alternatief protocol. 90%... 95%... 100%. De verbinding verbreekt. Je leunt achterover, zwetend maar zegevierend. Alles is van jou.', partial: 'Je houdt ze af maar kunt de volledige transfer niet doordrukken. Op 91% verbreek je de verbinding om detectie te voorkomen. Niet alles, maar 91% van miljoenen is nog steeds een fortuin.', fail: 'Ze zijn beter dan jij. Terwijl jij probeert de transfer te redden, hebben zij je IP getraced, je VPN doorboord, en je fysieke locatie bepaald. Een bericht verschijnt op je scherm: "We weten waar je bent. De politie is onderweg." De transfer is geannuleerd.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 2000 },
         },
         {
           id: 'ch_2b', label: 'STROOM ERUIT TREKKEN', stat: 'muscle', difficulty: 35,
-          outcomes: { success: 'Je trekt de stekker uit hun server. Transfer bevroren op 95% — genoeg.', partial: 'De server heeft een UPS. Je hebt meer tijd nodig.', fail: 'Je trekt de verkeerde kabel. Je eigen verbinding valt uit.' },
+          outcomes: { success: 'Fuck digitaal. Je staat op, loopt naar de serverkast, en trekt de stroomkabels eruit. De monitor wordt zwart. Hun counter-hack is dood. De transfer is bevroren op 95% — en crypto-transfers op de blockchain zijn onomkeerbaar. Vijfennegentig procent is van jou.', partial: 'De server heeft een UPS — een noodstroomvoorziening die aanslaat zodra de stroom wegvalt. De counter-hack gaat door op batterijstroom. Je hebt meer tijd nodig om de UPS te vinden en ook die uit te schakelen.', fail: 'In de haast trek je de verkeerde kabel. Je eigen verbinding valt uit — niet de hunne. De transfer wordt geannuleerd en zij hebben nog steeds stroom. Het enige dat je hebt bereikt is een kapotte ethernet-kabel en een groeiend gevoel van paniek.' },
           effects: { heat: 5, relChange: 0, crewDamage: 0, bonusReward: 500 },
         },
       ],
     },
-    // NEW — insider betrayal
     {
       id: 'ch_3',
-      text: 'Je insider-contact stuurt een bericht: "Plans zijn veranderd. Er is een extra beveiligingslaag. Ik wil meer geld."',
+      text: 'Je burner-telefoon trilt. Een bericht van je insider-contact — de medewerker die je de toegangscodes had beloofd: "Plans zijn veranderd. Er is een extra beveiligingslaag sinds gisteren. Tweefactorauthenticatie via een fysiek token dat om de nek van de CEO hangt. Ik kan het regelen — maar ik wil meer geld. Vijf keer meer." Hij weet dat je geen andere optie hebt. Of wel?',
       districtVariants: {
-        crown: 'De insider werkt voor de CFO. Hij kan het hele systeem platleggen — voor de juiste prijs.',
-        neon: 'Je contact blijkt voor twee partijen te werken. Hij verkoopt info aan de hoogste bieder.',
+        crown: 'De insider is de persoonlijke assistent van de CFO — iemand met toegang tot elk systeem, elke kluis, elke vergadering. Hij kan het hele beveiligingssysteem platleggen met één telefoontje. Maar zijn prijs stijgt met elke minuut die je aarzelt.',
+        neon: 'Je contact blijkt voor twee partijen te werken — hij verkoopt informatie aan de hoogste bieder. Het bericht dat hij je stuurde, heeft hij waarschijnlijk ook naar je concurrenten gestuurd. De klok tikt sneller dan je dacht.',
       },
       choices: [
         {
           id: 'ch_3a', label: 'EXTRA BETALEN', stat: 'charm', difficulty: 40,
-          outcomes: { success: 'Het extra geld overtuigt hem. Hij schakelt de beveiliging uit. Doorgang vrij.', partial: 'Hij wil meer, maar uiteindelijk geeft hij je gedeeltelijke toegang.', fail: 'Hij neemt het geld en verdwijnt. Geen informatie, geen toegang.' },
+          outcomes: { success: 'Het is meer dan je wilde betalen, maar je overtuigt hem om voor de helft van zijn nieuwe prijs te werken — met de belofte van toekomstige klussen. Hij schakelt de extra beveiliging uit, levert het token af bij je drop-locatie, en verdwijnt. De doorgang is vrij. Geld goed besteed.', partial: 'Hij wil het volledige bedrag. Je betaalt tandenknarsend. In ruil geeft hij je gedeeltelijke toegang — genoeg om de heist uit te voeren, maar niet op de manier die je had gepland. Improviseren dus.', fail: 'Je maakt het geld over. Hij leest het bericht, typt "bedankt", en verdwijnt. Geen codes, geen token, geen antwoord meer. Hij heeft je geld gestolen en is in de wind. Je staat met lege handen en een lege portemonnee.' },
           effects: { heat: 2, relChange: 0, crewDamage: 0, bonusReward: 1500 },
         },
         {
           id: 'ch_3b', label: 'DREIGEN', stat: 'muscle', difficulty: 45,
-          outcomes: { success: '"Ik weet waar je woont. Doe wat je moet doen." Hij gehoorzaamt trillend.', partial: 'Hij doet het, maar je weet dat hij je gaat verraden zodra het kan.', fail: 'Hij belt de beveiliging. "Er is een indringer."' },
+          outcomes: { success: 'Je stuurt hem een foto van zijn huis. Daaronder één woord: "Nu." Drie minuten stilte. Dan een bericht met de codes en een verzoek om hem nooit meer te contacteren. Soms is angst het goedkoopste betaalmiddel.', partial: 'Je dreiging werkt — hij levert de codes. Maar je weet dat hij je zal verraden zodra hij de kans krijgt. Deze relatie heeft een houdbaarheidsdatum, en die is net begonnen af te tellen.', fail: 'Hij belt niet jou, maar de beveiliging. "Er is een indringer in het pand." Hij heeft je beschrijving, je locatie, je werkwijze. De dreiging sloeg om in verraad.' },
           effects: { heat: 5, relChange: -5, crewDamage: 5, bonusReward: 2000 },
         },
         {
           id: 'ch_3c', label: 'ZELF HACKEN', stat: 'brains', difficulty: 55,
-          outcomes: { success: 'Wie heeft hem nodig? Je kraakt de extra laag zelf. Pure vaardigheid.', partial: 'Het kost je meer tijd maar je komt erdoor. Net op tijd.', fail: 'De extra beveiliging is te complex. Zonder de insider kom je er niet in.' },
+          outcomes: { success: 'Wie heeft hem nodig? De tweefactorauthenticatie is gebaseerd op een TOTP-algoritme dat je kunt reverse-engineeren als je de seed kent. Na twintig minuten intensief werk heb je hem gekraakt. Geen insider nodig. Pure vaardigheid, pure onafhankelijkheid.', partial: 'Het duurt langer dan verwacht en je mist bijna het tijdvenster. Op de valreep kom je door de extra laag heen. Het is slordig, haastig, maar het werkt. Net.', fail: 'De extra beveiligingslaag is complexer dan je dacht — hardware-gebaseerd, niet software. Zonder het fysieke token kom je er simpelweg niet doorheen. Wiskundig onmogelijk. Je hebt de insider nodig, en hij weet het.' },
           effects: { heat: 3, relChange: 0, crewDamage: 0, bonusReward: 2500 },
         },
       ],
     },
-    // NEW — post-heist chase
     {
       id: 'ch_4',
-      text: 'De crypto is overgemaakt maar het gebouw gaat in lockdown. Alle deuren sluiten. Er zijn 60 seconden tot de politie arriveert.',
+      text: 'De crypto is overgemaakt — miljoenen, onherleidbaar, van jou. Maar het gebouw denkt daar anders over. Stalen luiken schuiven voor de ramen. De deuren vergrendelen met hydraulische klemmen. Rode alarmlichten pulseren door de gangen. Een digitale stem herhaalt monotoon: "Lockdown geactiveerd. Alle uitgangen geblokkeerd." Je hebt misschien zestig seconden voordat de eerste responders arriveren. De crypto is waardeloos als je in een cel zit.',
       districtVariants: {
-        crown: 'Het penthouse heeft een helikopterplatform op het dak. Als je daar komt...',
-        neon: 'De nooduitgang leidt naar de dansvloer van de club. Verdwijn in de menigte.',
+        crown: 'Het penthouse heeft een helikopterplatform op het dak — drieëntwintig verdiepingen boven je. De liften zijn uitgeschakeld, maar het trappenhuis zou nog open moeten zijn. Als je het dak haalt voordat zij het gebouw omsingelen...',
+        neon: 'De nooduitgang leidt niet naar buiten maar naar de dansvloer van de club ernaast — driehonderd mensen, knallende muziek, stroboscooplichten. In die menigte verdwijn je als een druppel in de oceaan. Als je er komt.',
       },
       choices: [
         {
           id: 'ch_4a', label: 'VENTILATIESCHACHT', stat: 'brains', difficulty: 45,
-          outcomes: { success: 'Je kruipt door de ventilatie naar het dak. Vrije val naar de brandtrap. Vrij.', partial: 'De schacht is smaller dan verwacht. Je komt erdoor maar bent geschaafd.', fail: 'Je zit vast in de schacht. De beveiliging vindt je.' },
+          outcomes: { success: 'Je herinnert je de bouwtekening die je hebt bestudeerd: de ventilatieschacht in de serverruimte leidt naar het dak. Je trekt het rooster eraf, hijst jezelf omhoog, en kruipt door het metalen labyrint. Op het dak spring je naar de brandtrap van het naastgelegen gebouw. Vrij. Met miljoenen in je digitale portemonnee.', partial: 'De schacht is smaller dan op de tekening — je schoudrs schuren langs het metaal, je kleren scheuren. Halverwege raak je vast en moet je achteruit kruipen en een andere route nemen. Je komt eruit, maar geschaafd, bezweet, en met minder tijd dan je dacht.', fail: 'Je kruipt vijf meter de schacht in en realiseert je dat hij doodloopt — een T-stuk dat niet op de originele bouwtekening staat. Er is een ventilator die je niet kunt passeren. Als je achteruit kruipt, hoor je voetstappen in de serverruimte. Ze vinden je.' },
           effects: { heat: 0, relChange: 0, crewDamage: 3, bonusReward: 500 },
         },
         {
           id: 'ch_4b', label: 'DEUR FORCEREN', stat: 'muscle', difficulty: 50,
-          outcomes: { success: 'De deur geeft mee na drie schoppen. Je rent de straat op en verdwijnt.', partial: 'De deur buigt maar breekt niet helemaal. Je wurmt je erdoor.', fail: 'De deur is versterkt staal. Je voet doet pijn en je zit nog steeds vast.' },
+          outcomes: { success: 'De hydraulische klemmen zijn sterk, maar de deur zelf is van standaard staal. Drie schoppen — voluit, met alles wat je hebt. De scharnieren buigen. Eén meer. De deur vliegt open. Je rent de straat op, mengt je met het nachtelijke verkeer, en verdwijnt.', partial: 'De deur buigt maar breekt niet volledig. Je wurmt je door een gat dat net groot genoeg is — je jas scheurt, je arm bloedt. Maar je bent buiten. De koude nachtlucht voelt als vrijheid.', fail: 'De deur is versterkt staal met titanium scharnieren. Je voet doet pijn na de eerste schop en de deur heeft niet eens een deuk. Je zit nog steeds vast, met een mogelijke gebroken teen en naderende sirenes.' },
           effects: { heat: 8, relChange: 0, crewDamage: 5, bonusReward: 0 },
         },
         {
           id: 'ch_4c', label: 'BLUF JE ERUIT', stat: 'charm', difficulty: 40,
-          outcomes: { success: '"Ik ben van IT! Er was een beveiligingslek, ik heb het gefixt." Ze laten je gaan.', partial: 'Ze geloven je half. Een escorte naar de uitgang — ongemakkelijk maar je bent vrij.', fail: '"Laat je ID zien." Je hebt geen ID. De handboelen klikken.' },
+          outcomes: { success: 'Je trekt je jas recht, bergt je laptop op, en loopt naar de eerste bewaker die je tegenkomt. "IT-support. Er was een beveiligingslek — ik heb het gefixt. De lockdown kan worden opgeheven." Je badge is nep maar je zelfvertrouwen is echt. Ze laten je gaan. Ongelooflijk.', partial: 'Ze geloven je half — genoeg om je te escorteren naar de uitgang in plaats van je vast te houden. Twee bewakers lopen naast je, en je zweet als een rund. Maar je bent buiten. Nooit meer terugkomen.', fail: '"Laat je ID-badge zien." Je badge is nep en zij weten het. De bewaker pakt zijn radio: "We hebben de indringer." De handboei klikt om je pols voordat je kunt reageren.' },
           effects: { heat: -3, relChange: 0, crewDamage: 0, bonusReward: 300 },
         },
       ],
