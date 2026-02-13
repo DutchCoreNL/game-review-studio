@@ -1053,7 +1053,7 @@ export const RANDOM_EVENTS = [
 ];
 
 export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'first_blood', name: 'First Blood', desc: 'Voltooi een solo operatie', icon: 'Swords', condition: (s) => s.rep >= 10 && s.player.level >= 1 },
+  { id: 'first_blood', name: 'First Blood', desc: 'Voltooi een solo operatie', icon: 'Swords', condition: (s) => (s.stats?.missionsCompleted || 0) >= 1 },
   { id: 'drug_lord', name: 'Drug Lord', desc: 'Bezit het Synthetica Lab (villa)', icon: 'Pipette', condition: (s) => s.villa?.modules.includes('synthetica_lab') || s.hqUpgrades.includes('lab') },
   { id: 'landlord', name: 'Vastgoed Baron', desc: 'Bezit 3 districten', icon: 'Building2', condition: (s) => s.ownedDistricts.length >= 3 },
   { id: 'millionaire', name: 'Miljonair', desc: 'Bezit €1.000.000', icon: 'BadgeDollarSign', condition: (s) => s.money >= 1000000 },
