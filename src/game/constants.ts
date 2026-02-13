@@ -572,6 +572,293 @@ export const CONQUEST_MIN_SABOTAGE = 2;
 /** Days cooldown between conquest phases */
 export const CONQUEST_PHASE_COOLDOWN = 1;
 
+// ========== CONQUEST SUB-BOSS COMBAT OVERRIDES ==========
+
+export const CONQUEST_COMBAT_OVERRIDES: Record<FamilyId, Record<1 | 2, BossCombatOverride>> = {
+  cartel: {
+    1: {
+      introLines: [
+        'Capitán Fuego staat wijdbeens voor de containerpoort. Twee gouden pistolen glinsteren.',
+        '"Ik heb meer honden als jij begraven dan je kunt tellen, gringo."',
+      ],
+      scenePhrases: [
+        'Rookgranaten walmen tussen de pallets. Fuego beweegt door de nevel als een geest — je hoort alleen zijn laarzen op het beton.',
+        'Kogelgaten versieren de containers om je heen. Fuego lacht. Dit is zijn schietbaan.',
+        'De geur van cordiet en hasj. Fuego\'s gouden tanden glinsteren in het maanlicht terwijl hij herlaadt.',
+        'Ergens schreeuwt een nachtwaker. Fuego schiet achteloos in die richting. Stilte. "Waar waren we?"',
+        'Ratten vluchten tussen de containers. Fuego trapt een leeg magazijn weg en trekt een nieuw.',
+      ],
+      enemyAttackLogs: [
+        'Fuego vuurt met beide pistolen tegelijk — gouden hulzen rinkelen op de grond! {dmg} schade!',
+        '"¡Fuego!" — hij steekt een molotovcocktail aan en slingert hem! {dmg} schade!',
+        'Fuego duikt op achter een pallet en schiet je in de flank! {dmg} schade!',
+        'Een snelle schop tegen je knie, gevolgd door een pistoolslag! {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'DOOR DE ROOK', desc: 'Schiet door de nevel', logs: [
+          'Je vuurt door de rook — Fuego\'s schreeuw bevestigt een treffer! {dmg} schade!',
+          'Je hoort zijn laarzen links — je draait en vuurt. Raak! {dmg} schade!',
+          'Door de nevel zie je gouden glinstering. Je schiet. Fuego wankelt. {dmg} schade!',
+        ]},
+        heavy: { label: 'PALLET ONTPLOFFEN', desc: 'Schiet op de chemicaliën', logs: [
+          'Je schiet op een drum met oplosmiddel — de explosie slingert Fuego weg! {dmg} schade!',
+          'De pallet met vuurwerk explodeert als je er doorheen schiet — {dmg} schade!',
+          'Je trapt een brandende oliedrum naar Fuego — BOEM! {dmg} schade!',
+        ]},
+        defend: { label: 'ACHTER CONTAINERS', desc: 'Gebruik de containers als dekking', logs: [
+          'Je duikt achter een zeecontainer. Fuego\'s kogels ketsen af op het staal. +{heal} HP.',
+          'De dikke containerwand absorbeert alles. Even ademen. +{heal} HP.',
+          'Je rolt onder een trailer — Fuego\'s schoten missen op centimeters. +{heal} HP.',
+        ]},
+        environment: { label: 'KRAANLADING LOSSEN', desc: 'Laat een containerlading vallen', logs: [
+          'Je haalt de vergrendeling van de kraan — dozen donderen op Fuego! STUNNED!',
+          'Een netten vol contrabande slingert los en bedekt Fuego volledig! STUNNED!',
+          'Je trekt aan de hijskabel — de pallet slingert en raakt Fuego vol! STUNNED!',
+        ]},
+        tactical: { label: 'SIGNAAL STOREN', desc: 'Blokkeer zijn radio', stat: 'brains', logs: [
+          'Je hackt zijn walkietalkie. Fuego hoort vals alarm en draait zich om — opening!',
+          'Statische ruis vult zijn oortje. Fuego grijpt verward naar zijn oor...',
+          'Je stuurt een nepbericht via zijn kanaal. "Retreat!" Fuego aarzelt — dat is jouw moment.',
+        ]},
+      },
+    },
+    2: {
+      introLines: [
+        'Drie Elite Guards verschijnen uit de schaduwen, gewapend met gouden machetes en automatische wapens.',
+        '"El Serpiente\'s laatste linie. Jullie sterven hier — samen."',
+      ],
+      scenePhrases: [
+        'De Elite Guard beweegt als één organisme. Ze communiceren met handgebaren — militaire precisie in criminele verpakking.',
+        'Achter hen glinstert de deur naar El Serpiente\'s troonzaal. Zo dichtbij, maar eerst moeten zij vallen.',
+        'De geur van wierook en wapenpoetsolie. De Guard bidt niet — zij vechten.',
+        'Patronen rinkelen op de marmeren vloer. De muren zijn versierd met kogelgaten en bloedvlekken.',
+        'Eén guard dekt, de ander flankeert. Ze kennen elke truc. Bijna elke truc.',
+      ],
+      enemyAttackLogs: [
+        'De guards openen tegelijk het vuur — een kruisvuur van lood! {dmg} schade!',
+        'Een guard tackelt je terwijl een ander slaat met een gouden machete! {dmg} schade!',
+        'Flashbang! Je bent verblind terwijl een guard je van achteren raakt! {dmg} schade!',
+        '"¡Por El Serpiente!" Een guard springt van een balkon en trapt je neer! {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'ISOLEER ÉÉN', desc: 'Focus op één guard', logs: [
+          'Je isoleert de voorste guard en vuurt — hij valt! De anderen aarzelen. {dmg} schade!',
+          'Door precies te mikken schakel je de aanvoerder uit. Paniek in de rangen! {dmg} schade!',
+          'Je lokt er één in een hinderlaag achter een pilaar — raak! {dmg} schade!',
+        ]},
+        heavy: { label: 'GRANAAT SLINGEREN', desc: 'Explosief antwoord', logs: [
+          'Je slingert een granaat tussen de drie — de explosie versplintert hun formatie! {dmg} schade!',
+          'Een rookgranaat gevolgd door blind vuur — je hoort ze schreeuwen! {dmg} schade!',
+          'Je schiet op hun munitiekist — de secundaire explosie is verwoestend! {dmg} schade!',
+        ]},
+        defend: { label: 'TACTISCH TERUGTREKKEN', desc: 'Dwing ze in een smalle gang', logs: [
+          'Je trekt terug naar een smalle doorgang — ze kunnen niet meer flaneren. +{heal} HP.',
+          'Achter een omgevallen tafel hergroepeer je. Even ademen. +{heal} HP.',
+          'Je gebruikt een spiegel om hun posities te checken zonder bloot te staan. +{heal} HP.',
+        ]},
+        environment: { label: 'LICHTEN DOVEN', desc: 'Schakel de verlichting uit', logs: [
+          'Je schiet de zekeringkast aan flarden — totale duisternis! De guards botsen tegen elkaar! STUNNED!',
+          'Noodverlichting flikkert. Je gooit een rookgranaat erbij — totale chaos! STUNNED!',
+          'Je hackt het alarmsysteem — oorverdovende sirenes en stroboscopen! STUNNED!',
+        ]},
+        tactical: { label: 'VERDEEL EN HEERS', desc: 'Zet ze tegen elkaar op', stat: 'charm', logs: [
+          '"Jullie baas heeft al een deal met mij!" De guards kijken elkaar wantrouwig aan...',
+          'Je gooit een valse radiomelding de ruimte in. Eén guard twijfelt. Dat is genoeg.',
+          '"Wie van jullie wordt de volgende Capitán?" Ze aarzelen — ambitie is hun zwakte.',
+        ]},
+      },
+    },
+  },
+  syndicate: {
+    1: {
+      introLines: [
+        'Ghost materialiseert uit het niets. Een mes in elke hand, ogen koud als kwik.',
+        '"Je hebt me niet zien aankomen. Dat doen ze nooit."',
+      ],
+      scenePhrases: [
+        'Ghost verplaatst zich door de schaduwen alsof hij er deel van uitmaakt. Je ziet alleen de glinstering van zijn messen.',
+        'Hologramprojectoren creëren tientallen valse Ghost-silhouetten. Welke is echt?',
+        'De lucht is ijskoud in deze serverruimte. Koelventilatoren brommen. Ghost ademt niet eens hoorbaar.',
+        'Camerasystemen glitchen één voor één uit. Ghost wist zijn eigen sporen terwijl hij vecht.',
+        'Een dun draadje bloed op de grond — het enige bewijs dat Ghost menselijk is.',
+      ],
+      enemyAttackLogs: [
+        'Ghost verschijnt achter je en snijdt met een razormes! {dmg} schade!',
+        'Een werpster flitst door de lucht — je voelt het pas als het bloed komt! {dmg} schade!',
+        'Ghost verdwijnt en verschijnt naast je — een mes in je zij! {dmg} schade!',
+        '"Boe." Ghost\'s fluistering is het laatste wat je hoort voor de klap. {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'SCHADUW DOORBREKEN', desc: 'Schiet waar hij verschijnt', logs: [
+          'Je anticipeert zijn verschijning — als Ghost uit de schaduw stapt, schiet je raak! {dmg} schade!',
+          'Door op de reflecties te letten vind je de echte Ghost. Raak! {dmg} schade!',
+          'Je schiet op de schaduw die net iets te snel beweegt — Ghost sist van pijn! {dmg} schade!',
+        ]},
+        heavy: { label: 'SERVERRACK OMDUWEN', desc: 'Vernietig zijn dekking', logs: [
+          'Je duwt een rij serverracks als dominostenen om — Ghost wordt bedolven! {dmg} schade!',
+          'Een brandblusserschot in zijn gezicht, gevolgd door een trap — {dmg} schade!',
+          'Je smijt een UPS-eenheid naar Ghost\'s positie — vonken en impact! {dmg} schade!',
+        ]},
+        defend: { label: 'THERMISCHE SCAN', desc: 'Gebruik warmte om hem te vinden', logs: [
+          'Je activeert je telefoon\'s warmtedetectie — Ghost kan zich niet meer verstoppen. +{heal} HP.',
+          'Door meel in de lucht te gooien zie je zijn silhouet. Even ademen. +{heal} HP.',
+          'Je trapt een brandblusser aan — het schuim verraadt Ghost\'s voetstappen. +{heal} HP.',
+        ]},
+        environment: { label: 'EMP ONTLADING', desc: 'Schakel zijn camouflage uit', logs: [
+          'Je kort de stroomkabels — een EMP-puls schakelt Ghost\'s stealth-tech uit! STUNNED!',
+          'De noodverlichting floept aan — Ghost staat bevroren in het felle licht! STUNNED!',
+          'Je overvolt de serverkoeling — ijskoude CO2 bevriest Ghost halverwege een sprint! STUNNED!',
+        ]},
+        tactical: { label: 'SPIEGELTRUC', desc: 'Gebruik reflecties tegen hem', stat: 'brains', logs: [
+          'Je plaatst je telefoon als spiegel. Ghost valt zijn eigen reflectie aan — jouw kans!',
+          'Met de glazen wanden als periscoop volg je Ghost zonder dat hij het weet.',
+          'Je projecteert een hologram van jezelf. Ghost valt het aan — maar jij staat achter hem.',
+        ]},
+      },
+    },
+    2: {
+      introLines: [
+        'De Jade Wachters blokkeren de deur in ceremonieel gevechtstenue. Hun zwaarden gloeien blauw.',
+        '"Duizend jaar traditie beschermt deze drempel. Jij bent het niet waard."',
+      ],
+      scenePhrases: [
+        'De Jade Wachters bewegen in perfecte synchronisatie — een dodelijke dans gepolijst door decennia training.',
+        'Wierook kringelt rond hun gevechtsstances. Elk gebaar is berekend, elk slaan is fataal.',
+        'De troonzaal is een mix van oude traditie en ultramoderne tech. De Wachters zijn het beste van beide.',
+        'Hun ceremoniële pantser absorbeert kogels als papier. Dit zijn geen gewone vechters.',
+        'Kalligrafie op de muren vertelt verhalen van vorige indringers. Geen van hen overleefde.',
+      ],
+      enemyAttackLogs: [
+        'Een Jade Wachter slingert zijn gloeiende zwaard in een perfecte boog! {dmg} schade!',
+        'Beide Wachters vallen synchroon aan — links en rechts tegelijk! {dmg} schade!',
+        'Een Wachter werpt sterren met dodelijke precisie! {dmg} schade!',
+        '"Onwaardig!" Een kniestoot gevolgd door een zwaardslag! {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'PANTSER BREKEN', desc: 'Zoek de zwakke plekken', logs: [
+          'Je schiet op de verbindingen van het ceremoniële pantser — het scheurt! {dmg} schade!',
+          'Een gerichte trap op het kniegewricht — zelfs een Jade Wachter wankelt! {dmg} schade!',
+          'Je vindt de naad tussen helm en borstplaat. Eén precies schot. {dmg} schade!',
+        ]},
+        heavy: { label: 'TROONZAAL SLOPEN', desc: 'Gebruik het meubilair als wapen', logs: [
+          'Je slingert de jade troon naar de Wachters — het ding explodeert in scherven! {dmg} schade!',
+          'Een gouden kandelaar als knuppel — de Wachters verwachtten geen brute kracht! {dmg} schade!',
+          'Je trapt de ceremoniële vitrine om — glas en artefacten vliegen naar de Wachters! {dmg} schade!',
+        ]},
+        defend: { label: 'PILAARWALTZ', desc: 'Dans tussen de pilaren', logs: [
+          'De pilaren van de troonzaal breken hun formatie. Je ademt even. +{heal} HP.',
+          'Je glijdt achter een jade standbeeld — hun zwaarden raken alleen steen. +{heal} HP.',
+          'Door in cirkels te bewegen blokkeren ze elkaars aanvalslijn. +{heal} HP.',
+        ]},
+        environment: { label: 'WIEROOKBOM', desc: 'Gebruik de wierookbranders', logs: [
+          'Je trapt de gigantische wierookbrander om — verstikkende rook vult de zaal! STUNNED!',
+          'De zijden ceremoniële gordijnen vallen als je ze doorsnijdt — de Wachters raken verstrikt! STUNNED!',
+          'Je gooit ritueel poeder in het vuur — een verblindende groene vlam! STUNNED!',
+        ]},
+        tactical: { label: 'TRADITIE UITDAGEN', desc: 'Provoceer hun eer', stat: 'charm', logs: [
+          '"Jullie meester heeft ons al een deal aangeboden." De Wachters kijken elkaar onzeker aan...',
+          'Je buigt diep — een grove belediging in hun traditie. Woede vertroebelt hun focus.',
+          '"Eén tegen twee? Dat is niet eerlijk... voor jullie." Hun trots laat hen aarzelen.',
+        ]},
+      },
+    },
+  },
+  bikers: {
+    1: {
+      introLines: [
+        'Chainsaw Pete start zijn kettingzaag. Het geluid snijdt door de nacht als een banshee.',
+        '"NIEMAND! KOMT! LANGS! PETE!" Elk woord geaccentueerd met een zwaai van de zaag.',
+      ],
+      scenePhrases: [
+        'De kettingzaag jankt en bloed spat op Pete\'s leren vest. Hij lacht. Dit is zijn avondje uit.',
+        'Motorolie maakt de vloer glibberig. Pete stampvoet erdoorheen als een tank door modder.',
+        'De muren trillen van de bastonen uit het clubhuis. Pete beweegt op het ritme van heavy metal.',
+        'Kapotte bierflesjes knarsen onder Pete\'s staalneuzen. Hij draait zijn zaag op vol toerental.',
+        'Posters van dode rivalen versieren de muren. Pete grijnst. "Jij wordt de volgende."',
+      ],
+      enemyAttackLogs: [
+        'Pete slingert zijn kettingzaag horizontaal — het geluid alleen al bevriest je bloed! {dmg} schade!',
+        'Een keiharde kopstoot — Pete\'s schedel is harder dan beton! {dmg} schade!',
+        'Pete smijt een motorblok naar je hoofd! {dmg} schade!',
+        '"ZAAG ZAAG ZAAG!" Pete hackt wild om zich heen! {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'ACHTER DE ZAAG', desc: 'Schiet als hij zwaait', logs: [
+          'Pete\'s zwaai laat hem open — je schiet raak in zijn zij! {dmg} schade!',
+          'De kettingzaag zit vast in een tafel. Je maakt gebruik van het moment! {dmg} schade!',
+          'Je duikt onder de zaag en stampt op zijn voet — als hij bukt, sla je toe! {dmg} schade!',
+        ]},
+        heavy: { label: 'MOTOR RAMMEN', desc: 'Rij een motor tegen hem aan', logs: [
+          'Je start een geparkeerde Harley en laat hem rollen — hij ramt Pete vol! {dmg} schade!',
+          'Je trapt de stoelhijser om — Pete wordt geraakt door 200 kilo metaal! {dmg} schade!',
+          'De jukebox vliegt door de lucht na je trap — Pete vangt hem met zijn gezicht! {dmg} schade!',
+        ]},
+        defend: { label: 'ACHTER DE BAR', desc: 'Gebruik de bar als barricade', logs: [
+          'Je duikt achter de eikenhouten bar. Pete\'s zaag bijt in het hout maar stopt. +{heal} HP.',
+          'Tussen de tapkranen door herpak je je adem. Pete snijdt door de bar heen. +{heal} HP.',
+          'Je gooit barkrukken in zijn pad — het vertraagt hem net genoeg. +{heal} HP.',
+        ]},
+        environment: { label: 'BENZINE MORSEN', desc: 'Maak de vloer onbegaanbaar', logs: [
+          'Je schiet een gat in de benzinetank van een motor — Pete glijdt uit in de plas! STUNNED!',
+          'Je smijt een fles whiskey tegen Pete\'s zaag — vonken en vlammen! STUNNED!',
+          'De biertap ontploft als je erin schiet — schuim en glas overspoelen Pete! STUNNED!',
+        ]},
+        tactical: { label: 'ZAAG BLOKKEREN', desc: 'Stop de ketting', stat: 'muscle', logs: [
+          'Je gooit een kettingslot in de zaag — de ketting blokkeert en de motor sterft!',
+          'Met een ijzeren pijp forceer je de zaag tot stilstand. Pete staat met een nutteloos stuk metaal.',
+          'Je trapt een stalen plaat tussen de tanden. De zaag gilt en sterft. Pete\'s ogen worden groot.',
+        ]},
+      },
+    },
+    2: {
+      introLines: [
+        'De Road Captains stappen af hun motoren. Vier veteranen, elk met meer littekens dan herinneringen.',
+        '"Pete was onze broeder. Jij hebt zijn zaag gestopt. Nu stoppen wij jou."',
+      ],
+      scenePhrases: [
+        'De Road Captains omsingelen je in een perfecte V-formatie. Jaren op de weg hebben ze tot één eenheid gesmeed.',
+        'Uitlaatgassen hangen als mist over de oprit. De motoren grommen als wolven die hun prooi omsingelen.',
+        'Vier gezichten — vier oorlogen — vier legendes van de weg. Dit zijn geen amateurs.',
+        'De Captains communiceren met handgebaren. Ze hebben dit eerder gedaan. Veel vaker.',
+        'Het embleem van de Iron Skulls gloeit op hun ruggen. Voor hen is dit heilige grond.',
+      ],
+      enemyAttackLogs: [
+        'Twee Captains tackelen je tegelijk van beide kanten! {dmg} schade!',
+        'Een Captain slingert een ketting als een zweep — het raakt je vol! {dmg} schade!',
+        '"Ride or die!" Een Captain ramt je met zijn motor! {dmg} schade!',
+        'De Captains vormen een menselijke muur en beuken vooruit! {dmg} schade!',
+      ],
+      actions: {
+        attack: { label: 'ZWAKSTE SCHAKEL', desc: 'Breek hun formatie', logs: [
+          'Je richt op de jongste Captain — als hij valt, wankelt de formatie! {dmg} schade!',
+          'Een precies schot op de voorste motor — benzine lekt. De Captain springt weg. {dmg} schade!',
+          'Je forceert een opening en slaat de leider in zijn gezicht! {dmg} schade!',
+        ]},
+        heavy: { label: 'KETTIINGREACTIE', desc: 'Laat de motoren vallen als dominostenen', logs: [
+          'Je duwt de eerste motor om — een kettingreactie van vallend staal! {dmg} schade!',
+          'Je gooit een moersleutel in het wiel van de voorste motor — chaos! {dmg} schade!',
+          'Een brandende lap in de tank van de dichtstbijzijnde motor — BOEM! {dmg} schade!',
+        ]},
+        defend: { label: 'CIRKEL BREKEN', desc: 'Doorbreek hun omsingeling', logs: [
+          'Je sprint naar de smalste opening — twee Captains botsen tegen elkaar. +{heal} HP.',
+          'Door laag te blijven ontwijk je hun zwaaien. Even hergroeperen. +{heal} HP.',
+          'Je rolt onder een motor door — ze kunnen niet volgen in hun zware leren jassen. +{heal} HP.',
+        ]},
+        environment: { label: 'MOTOR STARTEN', desc: 'Gebruik hun eigen machines', logs: [
+          'Je start een achtergelaten motor en ramt ermee door hun linie! STUNNED!',
+          'De uitlaat van een draaiende motor spuit hete gassen — twee Captains deinzen terug! STUNNED!',
+          'Je schopt een motor in zijn vrij — hij rolt de heuvel af naar de Captains! STUNNED!',
+        ]},
+        tactical: { label: 'BROEDERSCHAP TESTEN', desc: 'Zaai twijfel', stat: 'charm', logs: [
+          '"Hammer heeft Pete laten vallen. Wie is de volgende?" De Captains wisselen onzekere blikken.',
+          '"Jullie VP heeft me betaald om dit te doen." Een leugen — maar ze geloven het even.',
+          '"Een echte Captain zou één-op-één vechten." Hun trots is hun achilleshiel.',
+        ]},
+      },
+    },
+  },
+};
+
 export interface BossCombatOverride {
   introLines: string[];
   scenePhrases: string[];
