@@ -536,6 +536,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= price;
       s.stats.totalSpent += price;
       s.ownedGear.push(action.id);
+      Engine.checkAchievements(s);
       return s;
     }
 
@@ -558,6 +559,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= v.cost;
       s.stats.totalSpent += v.cost;
       s.ownedVehicles.push({ id: action.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+      Engine.checkAchievements(s);
       return s;
     }
 
@@ -1801,6 +1803,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         lastPartyDay: 0,
       };
       addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
+      Engine.checkAchievements(s);
       return s;
     }
 
@@ -1826,6 +1829,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.stats.totalSpent += modDef.cost;
       s.villa.modules.push(action.moduleId);
       s.maxInv = Engine.recalcMaxInv(s);
+      Engine.checkAchievements(s);
       return s;
     }
 
