@@ -927,6 +927,22 @@ export function endTurn(state: GameState): NightReportData {
     }
   }
 
+  // === HOSPITAL: Day countdown ===
+  if (state.hospital) {
+    state.hospital.daysRemaining--;
+    report.hospitalDaysRemaining = state.hospital.daysRemaining;
+    report.hospitalDayServed = state.hospital.totalDays - state.hospital.daysRemaining;
+    report.hospitalCost = state.hospital.cost;
+
+    if (state.hospital.daysRemaining <= 0) {
+      // Release: restore HP to 50%
+      state.playerHP = Math.floor(state.playerMaxHP * 0.5);
+      state.hospital = null;
+      report.hospitalReleased = true;
+      addPhoneMessage(state, 'Crown Heights Ziekenhuis', 'Je bent ontslagen uit het ziekenhuis. Rust goed uit — je hebt nog maar de helft van je kracht.', 'info');
+    }
+  }
+
   // Debt interest
   if (state.debt > 0) {
     report.debtInterest = Math.floor(state.debt * 0.03);

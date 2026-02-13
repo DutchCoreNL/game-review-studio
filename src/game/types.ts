@@ -256,6 +256,12 @@ export interface PrisonState {
   events: PrisonEvent[];
 }
 
+export interface HospitalState {
+  daysRemaining: number;
+  totalDays: number;
+  cost: number;
+}
+
 export interface CorruptContactDef {
   id: string;
   type: CorruptContactType;
@@ -598,6 +604,11 @@ export interface NightReportData {
   prisonDailyEvent?: PrisonEvent;
   prisonCrewDeserted?: string[];
   prisonReleased?: boolean;
+  // Hospital status
+  hospitalDayServed?: number;
+  hospitalDaysRemaining?: number;
+  hospitalReleased?: boolean;
+  hospitalCost?: number;
   prisonSummary?: {
     totalDaysServed: number;
     totalSentence: number;
@@ -865,6 +876,11 @@ export interface GameState {
 
   // ========== PRISON STATE ==========
   prison: PrisonState | null;
+
+  // ========== HOSPITAL & GAME OVER STATE ==========
+  hospital: HospitalState | null;
+  hospitalizations: number;
+  gameOver: boolean;
 
   // ========== HEIST STATE ==========
   activeHeist: import('../game/heists').ActiveHeist | null;

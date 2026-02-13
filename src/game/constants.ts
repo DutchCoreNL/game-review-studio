@@ -1427,6 +1427,10 @@ export function createInitialState(): import('./types').GameState {
     hitContracts: [],
     // Prison state
     prison: null,
+    // Hospital & game over state
+    hospital: null,
+    hospitalizations: 0,
+    gameOver: false,
     // Heist state
     activeHeist: null,
     heistCooldowns: {},
@@ -1450,6 +1454,12 @@ export function createInitialState(): import('./types').GameState {
     goldenHour: null,
   };
 }
+
+// ========== HOSPITAL CONSTANTS ==========
+export const HOSPITAL_STAY_DAYS = 3;
+export const HOSPITAL_ADMISSION_COST_PER_MAXHP = 10;
+export const HOSPITAL_REP_LOSS = 50;
+export const MAX_HOSPITALIZATIONS = 3;
 
 // ========== PRISON CONSTANTS ==========
 
