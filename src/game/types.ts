@@ -551,6 +551,8 @@ export interface Achievement {
   desc: string;
   icon: string;
   condition: (state: GameState) => boolean;
+  /** Returns { current, target } for progress display. If omitted, achievement is binary (0% or 100%). */
+  progress?: (state: GameState) => { current: number; target: number };
 }
 
 export interface PlayerState {

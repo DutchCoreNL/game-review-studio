@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { getPlayerStat, getRankTitle } from '@/game/engine';
 import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/constants';
+import { ACHIEVEMENT_IMAGES } from '@/assets/items';
 import { ENDGAME_PHASES, getPhaseIndex } from '@/game/endgame';
 import { StatId, DistrictId } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
@@ -320,16 +321,51 @@ export function ProfileView() {
             </div>
           </div>
 
-          <SectionHeader title="Achievements" icon={<Trophy size={12} />} />
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          <SectionHeader title={`Achievements (${state.achievements.length}/${ACHIEVEMENTS.length})`} icon={<Trophy size={12} />} />
+          <div className="grid grid-cols-1 gap-2 mb-4">
             {ACHIEVEMENTS.map(a => {
               const unlocked = state.achievements.includes(a.id);
+              const prog = !unlocked && a.progress ? a.progress(state) : null;
+              const pct = prog ? Math.floor((prog.current / prog.target) * 100) : (unlocked ? 100 : 0);
+              const imgSrc = ACHIEVEMENT_IMAGES[a.id];
               return (
-                <div key={a.id} className={`game-card flex items-center gap-2 ${unlocked ? 'border-gold glow-gold' : 'opacity-40'}`}>
-                  <Trophy size={14} className={unlocked ? 'text-gold' : 'text-muted-foreground'} />
-                  <div>
-                    <div className="text-[0.55rem] font-bold">{a.name}</div>
-                    <div className="text-[0.45rem] text-muted-foreground">{a.desc}</div>
+                <div key={a.id} className={`game-card flex items-center gap-2.5 ${unlocked ? 'border-gold/60' : 'border-border'}`}>
+                  <div className={`w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 ${unlocked ? 'border-gold' : 'border-muted'}`}>
+                    {imgSrc ? (
+                      <img src={imgSrc} alt={a.name} className={`w-full h-full object-cover ${unlocked ? '' : 'grayscale opacity-50'}`} />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center ${unlocked ? 'bg-gold/15' : 'bg-muted'}`}>
+                        <Trophy size={14} className={unlocked ? 'text-gold' : 'text-muted-foreground'} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[0.6rem] font-bold truncate ${unlocked ? 'text-gold' : ''}`}>{a.name}</span>
+                      {unlocked && <span className="text-[0.45rem] text-gold">✓</span>}
+                    </div>
+                    <div className="text-[0.45rem] text-muted-foreground truncate">{a.desc}</div>
+                    {/* Progress bar */}
+                    {!unlocked && prog && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gold/60 rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-[0.4rem] text-muted-foreground font-bold whitespace-nowrap">
+                          {prog.target >= 10000 ? `€${(prog.current / 1000).toFixed(0)}k/€${(prog.target / 1000).toFixed(0)}k` : `${prog.current}/${prog.target}`}
+                        </span>
+                      </div>
+                    )}
+                    {unlocked && (
+                      <div className="mt-0.5">
+                        <div className="h-1.5 bg-gold/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-gold rounded-full w-full" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
