@@ -838,43 +838,92 @@ function shuffleArray<T>(arr: T[]): T[] {
 const SOLO_PHASE_LABELS = ['VERKENNING', 'INFILTRATIE', 'UITVOERING', 'ONTSNAPPING'];
 const CONTRACT_PHASE_LABELS = ['VOORBEREIDING', 'UITVOERING', 'AFRONDING', 'AFLEVERING'];
 
-const SOLO_ATMOSPHERES: Record<string, string[]> = {
-  pickpocket: [
-    'De menigte stroomt langs je heen. Geluiden van de stad dempen je hartslag.',
-    'Neonreclames flikkeren boven de straat. Een perfecte afleiding.',
-    'De geur van streetfood mengt met uitlaatgassen. Niemand let op je.',
-    'Regendruppels tikken op je capuchon. Het perfecte weer voor een zakkenroller.',
+const DISTRICT_ATMOSPHERES: Record<DistrictId, string[]> = {
+  neon: [
+    'Neonreclames flikkeren in plassen op het asfalt. Bas dreunt uit een club verderop.',
+    'De Strip bruist. Dronken toeristen, straatvechters, dealers — iedereen is bezig vanavond.',
+    'Sigarettenrook kringelt omhoog in het paarse licht. Een uitsmijter kijkt de andere kant op.',
+    'Het gezoem van gokautomaten dringt door de muren. De geur van goedkope parfum hangt overal.',
+    'Een straatmuzikant speelt saxofoon in een steegje. De melodie verbergt het geluid van brekend glas.',
+    'Knipperende LED-borden beloven fortuin. De straat is een carnaval van wanhoop en hoop.',
   ],
-  atm_skimming: [
-    'Het scherm van de ATM baadt de steeg in een blauwgroen licht.',
-    'Je vingers trillen licht terwijl je de skimmer uit je jaszak haalt.',
-    'De beveiligingscamera draait langzaam. Je telt de seconden.',
-    'Een politiesirene loeit in de verte. Je adem stokt even.',
+  port: [
+    'De geur van zout en diesel drijft over de kade. Kranen piepen in de verte.',
+    'Containerschepen doemen op als donkere reuzen. Het water klotst tegen de steigers.',
+    'Mistflarden hangen laag over de haven. Voetstappen echoen op nat beton.',
+    'Een scheepshoorn loeit. Meeuwen krijsen. Ergens valt iets zwaars — niemand kijkt op.',
+    'Roestige ketens rammelen in de wind. De havenwachter is nergens te bekennen.',
+    'Het stinkt naar vis en motorolie. Ratten schieten weg als je langsloopt.',
   ],
-  car_theft: [
-    'De straatlantaarns werpen lange schaduwen over het glanzende koetswerk.',
-    'De motor van de auto tikt nog na — de eigenaar is net weg.',
-    'Regen glijdt over de motorkap. Het slot glimt onder het licht.',
-    'De geur van nieuw leer drijft uit het halfopen raam.',
+  crown: [
+    'Marmeren lobbies en spiegelende ramen. Hier ruikt het naar geld en arrogantie.',
+    'Privéchauffeurs wachten in zwarte auto\'s. Beveiligingscamera\'s registreren elke beweging.',
+    'De stille straten van Crown Heights. Elke lantaarnpaal heeft een camera. Elke deur een code.',
+    'Penthouses torenen boven je uit. Achter die ramen worden miljoenenbeslissingen genomen.',
+    'Een dure parfumgeur hangt in de lucht. Een concierge kijkt je achterdochtig aan.',
+    'Het tikken van dure hakken op graniet. Hier hoort niemand het geschreeuw van de lagere wijken.',
   ],
-  store_robbery: [
-    'De diamanten schitteren achter kogelvrij glas. Je hart bonkt.',
-    'De bewaker leunt tegen de deurpost, verveeld. Dat verandert zo.',
-    'Buiten raast het verkeer voorbij. Binnen is het stil. Te stil.',
-    'Je handschoenen zitten strak. Het masker kriebelt. Geen weg terug.',
+  iron: [
+    'Fabriekschoorstenen spuwen rook de nachtlucht in. De grond trilt onder je voeten.',
+    'Verlaten fabrieksgebouwen werpen vervormde schaduwen. Ergens drupt water op metaal.',
+    'De lucht smaakt naar ijzer en verbrande rubber. Iron Borough slaapt nooit echt.',
+    'Gebroken straatlantaarns. De enige verlichting komt van lasvonken achter een raam.',
+    'Een hond blaft in de verte. Motorgeronk — de Iron Skulls patrouilleren.',
+    'Roestige hekken en graffiti vertellen het verhaal van deze wijk. Hier regeert kracht.',
   ],
-  crypto_heist: [
-    'Serverfans zoemen in de duisternis. Groene LED\'s flikkeren als vuurvliegjes.',
-    'De airco blaast ijskoude lucht over je nek. Focus.',
-    'Kabels kronkelen als slangen over de vloer. Het doelwit is dichtbij.',
-    'Je laptop scherm werpt schaduwen op de muur. De klok tikt.',
+  low: [
+    'Graffiti vertelt het verhaal van Lowrise. Elke muur is een canvas, elke steeg een verhaal.',
+    'Kinderen spelen laat op straat. Hun moeders roepen vanuit open ramen.',
+    'De geur van wiet en verse empanada\'s. Lowrise voelt als thuis — gevaarlijk thuis.',
+    'Straatlantaarns flikkeren. Schaduwen bewegen in portieken. Iedereen let op iedereen.',
+    'Bassige reggaeton dreunt uit een kelderraam. Een dealer knikt naar je — herkenning.',
+    'Vochtige muren, kapotte stoeptegels. Maar er is een code hier. Respect verdien je.',
   ],
+};
+
+const OP_SPECIFIC_INTROS: Record<string, Record<DistrictId, string[]>> = {
+  pickpocket: {
+    neon: ['De casino-gasten zijn dronken en onoplettend. Perfect.', 'Een groep toeristen met dikke portemonnees loopt voorbij.'],
+    port: ['Havenarbeiders na hun shift — moe, afgeleid, met loonzakjes.', 'De drukte bij de ferry-terminal is ideaal voor zakkenrollers.'],
+    crown: ['Rijke mensen lopen met hun neus in de lucht. Ze zien je niet eens.', 'De zakenlunch-crowd stroomt uit de restaurants.'],
+    iron: ['Fabrieksarbeiders tellen hun weekgeld bij de uitgang.', 'De nachtwakers zijn de makkelijkste doelwitten — altijd half slapend.'],
+    low: ['In Lowrise ken je elke ontsnappingsroute uit je hoofd.', 'De marktdag trekt buitenstaanders aan. Makkelijke prooien.'],
+  },
+  atm_skimming: {
+    neon: ['De ATM naast de club wordt non-stop gebruikt. Meer data, meer risico.', 'Gokkers halen cash op alsof het water is.'],
+    port: ['De oude ATM bij de haven draait op verouderde software.', 'Zeelieden gebruiken buitenlandse kaarten — moeilijker te traceren.'],
+    crown: ['High-limit ATMs. Elke transactie is duizenden waard.', 'De geavanceerde ATMs hier vereisen een nieuwer skimmer-model.'],
+    iron: ['De ATM bij de fabriek is de enige in een straal van 500 meter.', 'Weinig beveiliging, maar ook weinig transacties.'],
+    low: ['De ATM in Lowrise is al drie keer geskimd dit jaar. Ze verwachten het.', 'Een lokale gang "beschermt" deze ATM. Ze willen een deel.'],
+  },
+  car_theft: {
+    neon: ['Ferrari\'s, Lamborghini\'s — de Strip is een showroom op wielen.', 'De valetparkeerders zijn de zwakste schakel.'],
+    port: ['Exportcontainers staan klaar. Steel het hier, verscheep het vanavond nog.', 'De havenbeveiliging focust op drugs, niet op auto\'s.'],
+    crown: ['Privéparkeergarages vol met supercars. De beveiliging is goed, maar de beloning is beter.', 'Chauffeurs laten de motor draaien terwijl ze hun baas ophalen.'],
+    iron: ['Gepantserde voertuigen van de Iron Skulls. Gevaarlijk, maar ongekend waardevol.', 'Oude maar zeldzame auto\'s staan te roesten. Collectors betalen grof.'],
+    low: ['De auto\'s hier zijn minder waard, maar niemand heeft een alarm.', 'Opgevoerde civic\'s en straatracers. De underground markt betaalt goed.'],
+  },
+  store_robbery: {
+    neon: ['De luxe winkels op de Strip. Bewaking is strak, maar de buit is het waard.', 'Toeristen als dekking. De chaos is je vriend.'],
+    port: ['Een smokkelkantoor vol met ongedeclareerde goederen. Wie gaat aangifte doen?', 'De haven-loodsen bevatten meer dan vis.'],
+    crown: ['De exclusiefste juweliers van Noxhaven. Kogelvrij glas, laserbeveiliging.', 'Een kunstgalerie vol meesterwerken. Eén schilderij is een jaarsalaris waard.'],
+    iron: ['Pandjeshuizen en illegale wapenhandelaren. De beveiliging is een man met een honkbalknuppel.', 'De voorraadkamer van de fabriek. Industrieel materiaal brengt goed op.'],
+    low: ['De goudhandelaar op de hoek. Hij kent iedereen, maar vanavond kent niemand jou.', 'Een apotheek met een "speciale" voorraad in de kelder.'],
+  },
+  crypto_heist: {
+    neon: ['Een illegaal crypto-kantoor achter een club. De beveiliging is menselijk, niet digitaal.', 'Mining-rigs in een kelder. De warmte is ondraaglijk.'],
+    port: ['Een offshore server op een vrachtschip. Letterlijk buiten jurisdictie.', 'De haven-administratie draait op een antiek systeem. Kinderspel.'],
+    crown: ['Het datacenter van een hedgefund. State-of-the-art. Dit wordt je grootste uitdaging.', 'Private keys in een kluis. Fysiek en digitaal beveiligd.'],
+    iron: ['Een serverboerderij in een verlaten fabriek. De koeling is de elektriciteitsrekening.', 'Een mijnwerker-collectief met onbeveiligde wallets.'],
+    low: ['Een kleine crypto-beurs gerund vanuit een woonkamer. Amateur-beveiliging.', 'De lokale dealer accepteert crypto. Zijn wallet is op zijn telefoon.'],
+  },
 };
 
 export function generateMissionEncounters(
   missionType: 'solo' | 'contract',
   missionId: string,
-  contractType?: string
+  contractType?: string,
+  district?: DistrictId
 ): MissionEncounter[] {
   const pool = missionType === 'solo'
     ? (SOLO_ENCOUNTERS[missionId] || SOLO_ENCOUNTERS['pickpocket'])
@@ -885,15 +934,22 @@ export function generateMissionEncounters(
   const count = Math.min(shuffled.length, Math.max(3, 3 + Math.floor(Math.random() * 2))); // 3-4
   const selected = shuffled.slice(0, count);
 
-  // Add phase labels and atmosphere
+  // Add phase labels and district-specific atmosphere
   const phaseLabels = missionType === 'solo' ? SOLO_PHASE_LABELS : CONTRACT_PHASE_LABELS;
-  const atmospheres = missionType === 'solo' ? (SOLO_ATMOSPHERES[missionId] || SOLO_ATMOSPHERES['pickpocket']) : [];
+  const loc = district || 'neon';
+  const districtAtmos = DISTRICT_ATMOSPHERES[loc] || DISTRICT_ATMOSPHERES.neon;
+  const opIntros = missionType === 'solo' ? (OP_SPECIFIC_INTROS[missionId]?.[loc] || []) : [];
 
-  return selected.map((enc, i) => ({
-    ...enc,
-    phase: phaseLabels[i] || phaseLabels[phaseLabels.length - 1],
-    atmosphere: atmospheres[i % atmospheres.length] || undefined,
-  }));
+  // Combine: first encounter gets op-specific intro, rest get district atmosphere
+  return selected.map((enc, i) => {
+    const opIntro = opIntros[i % Math.max(1, opIntros.length)];
+    const districtAtmo = districtAtmos[(i + Math.floor(Math.random() * districtAtmos.length)) % districtAtmos.length];
+    return {
+      ...enc,
+      phase: phaseLabels[i] || phaseLabels[phaseLabels.length - 1],
+      atmosphere: i === 0 && opIntro ? opIntro : (opIntro ? `${districtAtmo} ${opIntro}` : districtAtmo),
+    };
+  });
 }
 
 export function resolveMissionChoice(

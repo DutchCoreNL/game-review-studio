@@ -57,7 +57,7 @@ export function MissionBriefing({ operation, onClose }: MissionBriefingProps) {
     setLaunching(true);
     setTimeout(() => {
       const actualReward = rollActualReward(rewardRange);
-      const encounters = generateMissionEncounters('solo', operation.id);
+      const encounters = generateMissionEncounters('solo', operation.id, undefined, state.loc);
       const mission: ActiveMission = {
         type: 'solo',
         missionId: operation.id,
@@ -76,6 +76,7 @@ export function MissionBriefing({ operation, onClose }: MissionBriefingProps) {
         choiceResults: [],
       };
       dispatch({ type: 'START_MISSION', mission });
+      onClose();
     }, 600);
   };
 
