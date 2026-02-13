@@ -1,12 +1,12 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, DISTRICTS } from '@/game/constants';
+import { FAMILIES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, DISTRICTS, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_LABELS, BOSS_DATA } from '@/game/constants';
 import { GOODS } from '@/game/constants';
-import { getFactionStatus, getFactionPerks, getPlayerStat } from '@/game/engine';
+import { getFactionStatus, getFactionPerks, getPlayerStat, getConquestPhase, canStartConquestPhase } from '@/game/engine';
 import { FamilyId, FactionActionType } from '@/game/types';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart } from 'lucide-react';
+import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -48,10 +48,18 @@ export function FactionCard({ familyId }: FactionCardProps) {
   const relBarColor = conquered ? 'gold' : rel >= 50 ? 'emerald' : rel >= 0 ? 'gold' : 'blood';
 
   // Conquest conditions
+  const conquest = getConquestPhase(state, familyId);
   const canConquer = dead && !conquered;
   const canAnnex = !dead && !conquered && rel >= 100 && state.money >= 50000;
-  const canChallenge = !dead && !conquered && rel <= -20 && state.loc === fam.home;
+  // Boss challenge now requires conquest phase 2
+  const canChallenge = !dead && !conquered && conquest.phase >= 2 && state.loc === fam.home;
   const isInDistrict = state.loc === fam.home;
+
+  // Conquest phase checks
+  const phase1Check = canStartConquestPhase(state, familyId, 1);
+  const phase2Check = canStartConquestPhase(state, familyId, 2);
+  const phaseEnemy1 = FACTION_CONQUEST_PHASES[familyId]?.phase1;
+  const phaseEnemy2 = FACTION_CONQUEST_PHASES[familyId]?.phase2;
 
   const handleAction = (actionType: FactionActionType) => {
     const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
@@ -317,33 +325,99 @@ export function FactionCard({ familyId }: FactionCardProps) {
                 </div>
               )}
 
-              {/* === CHALLENGE TO COMBAT === */}
-              {!dead && !conquered && rel <= -20 && (
+              {/* === CONQUEST PROGRESS === */}
+              {!dead && !conquered && rel <= -10 && (
                 <div className="mb-3">
-                  <div className={`border rounded p-3 text-center ${
-                    canChallenge ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'
-                  }`}>
-                    <Swords size={16} className={`mx-auto mb-1 ${canChallenge ? 'text-blood' : 'text-muted-foreground'}`} />
-                    <p className="text-xs font-bold mb-1">Leider Uitdagen</p>
-                    <p className="text-[0.55rem] text-muted-foreground mb-2">
-                      {isInDistrict
-                        ? `Daag ${fam.contact} uit voor een gevecht op leven en dood.`
-                        : `Reis eerst naar ${DISTRICTS[fam.home].name}.`}
-                    </p>
-                    <motion.button
-                      onClick={handleChallenge}
-                      disabled={!canChallenge}
-                      className={`w-full py-2.5 rounded text-xs font-bold ${
-                        canChallenge
-                          ? 'bg-blood text-primary-foreground'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
-                      }`}
-                      whileTap={canChallenge ? { scale: 0.95 } : {}}
-                    >
-                      <Swords size={12} className="inline mr-1.5" />
-                      {canChallenge ? 'UITDAGEN' : `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`}
-                    </motion.button>
+                  {/* Phase progress bar */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target size={12} className="text-blood" />
+                    <p className="text-[0.5rem] font-bold text-blood uppercase tracking-wider">Veroveringsfasen</p>
                   </div>
+                  <div className="flex gap-1 mb-3">
+                    {[1, 2, 3].map(p => (
+                      <div key={p} className={`flex-1 h-1.5 rounded-full ${
+                        conquest.phase >= p ? 'bg-blood' : 'bg-muted'
+                      }`} />
+                    ))}
+                  </div>
+
+                  {/* Phase 1: Outpost */}
+                  {conquest.phase < 1 && (
+                    <div className={`border rounded p-3 mb-2 ${phase1Check.canStart ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <ShieldAlert size={14} className={phase1Check.canStart ? 'text-blood' : 'text-muted-foreground'} />
+                        <p className="text-xs font-bold">Fase 1: Buitenpost Aanvallen</p>
+                      </div>
+                      <p className="text-[0.55rem] text-muted-foreground mb-2">
+                        Versla {phaseEnemy1?.name} om toegang te krijgen tot de binnenste verdediging.
+                      </p>
+                      <motion.button
+                        onClick={() => { dispatch({ type: 'START_CONQUEST_PHASE', familyId, phase: 1 }); setView('city'); }}
+                        disabled={!phase1Check.canStart}
+                        className={`w-full py-2 rounded text-xs font-bold ${
+                          phase1Check.canStart ? 'bg-blood text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                        }`}
+                        whileTap={phase1Check.canStart ? { scale: 0.95 } : {}}
+                      >
+                        <Swords size={12} className="inline mr-1.5" />
+                        {phase1Check.canStart ? `AANVALLEN — ${phaseEnemy1?.name}` : phase1Check.reason}
+                      </motion.button>
+                    </div>
+                  )}
+
+                  {/* Phase 2: Defense */}
+                  {conquest.phase === 1 && (
+                    <div className={`border rounded p-3 mb-2 ${phase2Check.canStart ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Shield size={14} className={phase2Check.canStart ? 'text-blood' : 'text-muted-foreground'} />
+                        <p className="text-xs font-bold">Fase 2: Verdediging Doorbreken</p>
+                      </div>
+                      <p className="text-[0.55rem] text-muted-foreground mb-1">
+                        ✓ Buitenpost veroverd! Versla nu {phaseEnemy2?.name}.
+                      </p>
+                      <p className="text-[0.5rem] text-emerald mb-2">
+                        {phaseEnemy2?.desc}
+                      </p>
+                      <motion.button
+                        onClick={() => { dispatch({ type: 'START_CONQUEST_PHASE', familyId, phase: 2 }); setView('city'); }}
+                        disabled={!phase2Check.canStart}
+                        className={`w-full py-2 rounded text-xs font-bold ${
+                          phase2Check.canStart ? 'bg-blood text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                        }`}
+                        whileTap={phase2Check.canStart ? { scale: 0.95 } : {}}
+                      >
+                        <Swords size={12} className="inline mr-1.5" />
+                        {phase2Check.canStart ? `DOORBREKEN — ${phaseEnemy2?.name}` : phase2Check.reason}
+                      </motion.button>
+                    </div>
+                  )}
+
+                  {/* Phase 3: Boss Challenge */}
+                  {conquest.phase >= 2 && (
+                    <div className={`border rounded p-3 ${canChallenge ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Crown size={14} className={canChallenge ? 'text-gold' : 'text-muted-foreground'} />
+                        <p className="text-xs font-bold">Fase 3: Leider Uitdagen</p>
+                      </div>
+                      <p className="text-[0.55rem] text-muted-foreground mb-1">
+                        ✓ Verdediging doorbroken! De weg naar {BOSS_DATA[familyId]?.name} is vrij.
+                      </p>
+                      <p className="text-[0.5rem] text-gold mb-2">
+                        {BOSS_DATA[familyId]?.desc}
+                      </p>
+                      <motion.button
+                        onClick={handleChallenge}
+                        disabled={!canChallenge}
+                        className={`w-full py-2.5 rounded text-xs font-bold ${
+                          canChallenge ? 'bg-gradient-to-r from-blood to-gold text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                        }`}
+                        whileTap={canChallenge ? { scale: 0.95 } : {}}
+                      >
+                        <Swords size={12} className="inline mr-1.5" />
+                        {canChallenge ? `UITDAGEN — ${BOSS_DATA[familyId]?.name}` : `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`}
+                      </motion.button>
+                    </div>
+                  )}
                 </div>
               )}
 

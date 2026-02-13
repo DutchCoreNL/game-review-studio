@@ -25,6 +25,7 @@ import { CarTheftPopup } from './CarTheftPopup';
 import { FinalBossAlert } from './FinalBossAlert';
 import { CorruptionEventPopup } from './CorruptionEventPopup';
 import { WarEventPopup } from './WarEventPopup';
+import { ConquestPopup } from './ConquestPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
 import { PrisonOverlay } from './PrisonOverlay';
@@ -75,10 +76,10 @@ export function GameLayout() {
 
   // Popup open sounds
   useEffect(() => {
-    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent) {
+    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup) {
       playPopupOpen();
     }
-  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent]);
+  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup]);
 
   const clearEffect = useCallback(() => {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
@@ -119,6 +120,7 @@ export function GameLayout() {
         {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
         {state.prison && <PrisonOverlay />}
         {!state.prison && state.pendingWarEvent && <WarEventPopup />}
+        {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
         <FinalBossAlert />
         <AchievementPopup />
         {state.backstory === null && state.tutorialDone && (

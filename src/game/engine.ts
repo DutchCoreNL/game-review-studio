@@ -1,6 +1,6 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType } from './types';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType, ConquestPhaseData } from './types';
 import { generateCliffhanger } from './cliffhangers';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_COOLDOWN } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -1513,11 +1513,69 @@ export function fireCrew(state: GameState, crewIndex: number): { success: boolea
   return { success: true, message: `${name} ontslagen.` };
 }
 
+// ========== FACTION CONQUEST PHASE COMBAT ==========
+export function startConquestPhase(state: GameState, familyId: FamilyId, phase: 1 | 2): CombatState | null {
+  const phaseData = FACTION_CONQUEST_PHASES[familyId];
+  if (!phaseData) return null;
+  const enemy = phase === 1 ? phaseData.phase1 : phaseData.phase2;
+
+  const muscle = getPlayerStat(state, 'muscle');
+  const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
+
+  return {
+    idx: 0,
+    targetName: enemy.name,
+    targetHP: enemy.hp,
+    enemyMaxHP: enemy.hp,
+    enemyAttack: enemy.attack,
+    playerHP: playerMaxHP,
+    playerMaxHP,
+    logs: [...enemy.introLines],
+    isBoss: false,
+    familyId,
+    stunned: false,
+    turn: 0,
+    finished: false,
+    won: false,
+    conquestPhase: phase,
+  };
+}
+
+export function getConquestPhase(state: GameState, familyId: FamilyId): ConquestPhaseData {
+  if (!state.factionConquest) state.factionConquest = {};
+  return state.factionConquest[familyId] || { phase: 0, lastPhaseDay: 0 };
+}
+
+export function canStartConquestPhase(state: GameState, familyId: FamilyId, phase: 1 | 2): { canStart: boolean; reason: string } {
+  const fam = FAMILIES[familyId];
+  const progress = getConquestPhase(state, familyId);
+  const rel = state.familyRel[familyId] || 0;
+
+  if (state.leadersDefeated.includes(familyId)) return { canStart: false, reason: 'Leider al verslagen.' };
+  if (state.conqueredFactions?.includes(familyId)) return { canStart: false, reason: 'Factie al veroverd.' };
+  if (rel > -10) return { canStart: false, reason: 'Relatie moet onder -10 zijn.' };
+  if (state.loc !== fam.home) return { canStart: false, reason: `Reis eerst naar ${DISTRICTS[fam.home].name}.` };
+
+  if (phase === 1) {
+    if (progress.phase >= 1) return { canStart: false, reason: 'Buitenpost al veroverd.' };
+  } else {
+    if (progress.phase < 1) return { canStart: false, reason: 'Verover eerst de buitenpost.' };
+    if (progress.phase >= 2) return { canStart: false, reason: 'Verdediging al doorbroken.' };
+    if (state.day - progress.lastPhaseDay < CONQUEST_PHASE_COOLDOWN) return { canStart: false, reason: 'Wacht een dag tussen fases.' };
+  }
+
+  return { canStart: true, reason: '' };
+}
+
 // ========== COMBAT SYSTEM ==========
 export function startCombat(state: GameState, familyId: FamilyId): CombatState | null {
   const boss = BOSS_DATA[familyId];
   if (!boss) return null;
   if (state.leadersDefeated.includes(familyId)) return null;
+
+  // Require conquest phase 2 (defense broken) before boss fight
+  const progress = getConquestPhase(state, familyId);
+  if (progress.phase < 2) return null;
 
   const muscle = getPlayerStat(state, 'muscle');
   const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
@@ -1700,6 +1758,19 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       resolveNemesisDefeat(state);
       const nemReward = 15000 + state.nemesis.generation * 12000;
       combat.logs.push(`+€${nemReward.toLocaleString()} | +${100 + state.nemesis.generation * 50} REP | ${state.nemesis.name} is permanent uitgeschakeld!`);
+    } else if (combat.conquestPhase && combat.familyId) {
+      // Conquest sub-boss defeated — advance phase
+      if (!state.factionConquest) state.factionConquest = {};
+      const progress = state.factionConquest[combat.familyId] || { phase: 0, lastPhaseDay: 0 };
+      progress.phase = combat.conquestPhase as any; // 1 or 2
+      progress.lastPhaseDay = state.day;
+      state.factionConquest[combat.familyId] = progress;
+      const phaseLabel = combat.conquestPhase === 1 ? 'Buitenpost veroverd!' : 'Verdediging doorbroken!';
+      state.rep += combat.conquestPhase === 1 ? 50 : 100;
+      state.money += combat.conquestPhase === 1 ? 5000 : 12000;
+      state.stats.totalEarned += combat.conquestPhase === 1 ? 5000 : 12000;
+      gainXp(state, combat.conquestPhase === 1 ? 40 : 75);
+      combat.logs.push(`${phaseLabel} +€${(combat.conquestPhase === 1 ? 5000 : 12000).toLocaleString()} | +${combat.conquestPhase === 1 ? 50 : 100} REP`);
     } else if (combat.familyId) {
       state.leadersDefeated.push(combat.familyId);
       if (!state.leaderDefeatedDay) state.leaderDefeatedDay = {};
@@ -1710,6 +1781,8 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       state.stats.missionsCompleted++;
       gainXp(state, 100);
       combat.logs.push(`+€25.000 | +200 REP | +100 XP`);
+      // Auto-trigger conquest popup
+      state.pendingConquestPopup = combat.familyId;
     }
     return;
   }

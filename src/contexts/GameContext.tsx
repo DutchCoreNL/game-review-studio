@@ -173,6 +173,10 @@ type GameAction =
   // Dealer actions
   | { type: 'SELL_VEHICLE'; vehicleId: string }
   | { type: 'TRADE_IN_VEHICLE'; oldVehicleId: string; newVehicleId: string }
+  // Faction conquest actions
+  | { type: 'START_CONQUEST_PHASE'; familyId: FamilyId; phase: 1 | 2 }
+  | { type: 'DISMISS_CONQUEST_POPUP' }
+  | { type: 'ACCEPT_CONQUEST_POPUP' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -872,6 +876,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CONQUER_FACTION': {
       Engine.conquerFaction(s, action.familyId);
+      s.pendingConquestPopup = null;
       Engine.checkAchievements(s);
       return s;
     }
@@ -879,6 +884,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ANNEX_FACTION': {
       Engine.annexFaction(s, action.familyId);
       Engine.checkAchievements(s);
+      return s;
+    }
+
+    case 'START_CONQUEST_PHASE': {
+      const combat = Engine.startConquestPhase(s, action.familyId, action.phase);
+      if (combat) s.activeCombat = combat;
+      return s;
+    }
+
+    case 'DISMISS_CONQUEST_POPUP': {
+      s.pendingConquestPopup = null;
+      return s;
+    }
+
+    case 'ACCEPT_CONQUEST_POPUP': {
+      if (s.pendingConquestPopup) {
+        Engine.conquerFaction(s, s.pendingConquestPopup);
+        s.pendingConquestPopup = null;
+        Engine.checkAchievements(s);
+      }
       return s;
     }
 

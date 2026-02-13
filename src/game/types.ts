@@ -27,6 +27,13 @@ export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
 export interface PlayingCard { rank: string; suit: CardSuit; }
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
 
+// ========== FACTION CONQUEST PHASE TYPES ==========
+export type ConquestPhase = 0 | 1 | 2 | 3; // 0=nothing, 1=outpost cleared, 2=defense broken, 3=boss accessible
+export interface ConquestPhaseData {
+  phase: ConquestPhase;
+  lastPhaseDay: number; // day when last phase was completed (cooldown)
+}
+
 // ========== HITMAN SYSTEM TYPES ==========
 
 export type HitTargetType = 'luitenant' | 'ambtenaar' | 'zakenman' | 'verrader' | 'vip';
@@ -535,6 +542,7 @@ export interface CombatState {
   won: boolean;
   isNemesis?: boolean;
   bossPhase?: number; // 1 = SWAT, 2 = Decker
+  conquestPhase?: 1 | 2; // faction conquest sub-boss phase
 }
 
 export interface Achievement {
@@ -760,6 +768,8 @@ export interface GameState {
   policeRel: number;
   leadersDefeated: FamilyId[];
   leaderDefeatedDay: Partial<Record<FamilyId, number>>; // day when leader was defeated
+  factionConquest: Partial<Record<FamilyId, ConquestPhaseData>>; // multi-phase conquest progress
+  pendingConquestPopup: FamilyId | null; // auto-popup after leader defeat
   prices: Record<string, Record<string, number>>;
   priceTrends: Record<string, string>;
   districtDemands: Record<string, GoodId | null>;
