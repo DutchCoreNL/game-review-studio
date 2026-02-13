@@ -480,6 +480,98 @@ export const BOSS_DATA: Record<string, { name: string; hp: number; attack: numbe
   bikers: { name: 'Hammer', hp: 150, attack: 15, desc: 'Iron Skulls president. Een muur van staal.' },
 };
 
+// ========== FACTION CONQUEST PHASES ==========
+export interface ConquestPhaseEnemy {
+  name: string;
+  hp: number;
+  attack: number;
+  introLines: string[];
+  desc: string;
+}
+
+export const FACTION_CONQUEST_PHASES: Record<FamilyId, { phase1: ConquestPhaseEnemy; phase2: ConquestPhaseEnemy }> = {
+  cartel: {
+    phase1: {
+      name: 'Capitán Fuego',
+      hp: 60,
+      attack: 12,
+      introLines: [
+        'Een getatoeëerde luitenant blokkeert de ingang van het Cartel-fort.',
+        '"Je komt hier niet langs, gringo. El Serpiente verwacht je niet."',
+      ],
+      desc: 'Rechterhand van El Serpiente. Bewaakt de buitenposten van Port Nero.',
+    },
+    phase2: {
+      name: 'De Cartel Elite Guard',
+      hp: 85,
+      attack: 16,
+      introLines: [
+        'Drie zwaar bewapende Cartel-soldaten vormen de laatste verdedigingslinie.',
+        '"El Serpiente weet dat je komt. Dit wordt je graf."',
+      ],
+      desc: 'De elite beschermingseenheid van het Rojo Cartel.',
+    },
+  },
+  syndicate: {
+    phase1: {
+      name: 'Ghost',
+      hp: 50,
+      attack: 14,
+      introLines: [
+        'Een slanke figuur in een zwart pak verschijnt uit de schaduwen.',
+        '"Mr. Wu stuurt zijn groeten... en zijn kogels."',
+      ],
+      desc: 'Blue Lotus spion en saboteur. Onzichtbaar tot het te laat is.',
+    },
+    phase2: {
+      name: 'De Jade Wachters',
+      hp: 80,
+      attack: 20,
+      introLines: [
+        'Twee zwaardvechters in ceremonieel pantser bewaken de troonzaal.',
+        '"Alleen de waardigen mogen Mr. Wu\'s aanwezigheid betreden."',
+      ],
+      desc: 'Ceremoniële krijgers die de binnenste sanctum van Blue Lotus bewaken.',
+    },
+  },
+  bikers: {
+    phase1: {
+      name: 'Chainsaw Pete',
+      hp: 70,
+      attack: 11,
+      introLines: [
+        'Een berg van een man met een kettingzaag blokkeert de weg naar het clubhuis.',
+        '"Hammer zegt: niemand komt langs Pete. NIEMAND."',
+      ],
+      desc: 'Sergeant-at-Arms van de Iron Skulls. Meer spier dan verstand.',
+    },
+    phase2: {
+      name: 'De Road Captains',
+      hp: 90,
+      attack: 14,
+      introLines: [
+        'Vier motoren blokkeren de oprit. De Road Captains stappen af.',
+        '"Je hebt Pete verslagen. Respect. Maar dit is waar het stopt."',
+      ],
+      desc: 'De veteranen van de Iron Skulls. Samen onverslaanbaar — bijna.',
+    },
+  },
+};
+
+export const CONQUEST_PHASE_LABELS = [
+  'Niet gestart',
+  'Buitenpost Veroverd',
+  'Verdediging Doorbroken',
+  'Leider Bereikbaar',
+] as const;
+
+/** Minimum relation to start phase attacks (more hostile = more war) */
+export const CONQUEST_PHASE_REL_REQ = -10;
+/** Minimum sabotage actions needed before phase 1 */
+export const CONQUEST_MIN_SABOTAGE = 2;
+/** Days cooldown between conquest phases */
+export const CONQUEST_PHASE_COOLDOWN = 1;
+
 export interface BossCombatOverride {
   introLines: string[];
   scenePhrases: string[];
@@ -937,6 +1029,8 @@ export function createInitialState(): import('./types').GameState {
     policeRel: 20,
     leadersDefeated: [],
     leaderDefeatedDay: {},
+    factionConquest: {},
+    pendingConquestPopup: null,
     prices: {},
     priceTrends: {},
     districtDemands: {},
