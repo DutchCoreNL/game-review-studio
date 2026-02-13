@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
@@ -221,11 +221,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         loaded.ammoStock = { '9mm': loaded.ammo || 0, '7.62mm': 0, 'shells': 0 };
       }
       if (loaded.ammoFactoryLevel === undefined) loaded.ammoFactoryLevel = 1;
+      // Migrate: hospital & game over state
+      if (loaded.hospitalizations === undefined) loaded.hospitalizations = 0;
+      if (loaded.hospital === undefined) loaded.hospital = null;
+      if (loaded.gameOver === undefined) loaded.gameOver = false;
       return loaded;
     }
 
     case 'TRADE': {
-      if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't trade while hiding or in prison
+      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s; // Can't trade while hiding, in prison or hospital
       // Wanted check before trade
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -262,7 +266,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRAVEL': {
-      if ((s.hidingDays || 0) > 0 || s.prison) return s; // Can't travel while hiding or in prison
+      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s; // Can't travel while hiding, in prison or hospital
       // Wanted check before travel
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -860,8 +864,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           // Won: keep remaining HP (min 1)
           s.playerHP = Math.max(1, s.activeCombat.playerHP);
         } else {
-          // Lost: set HP to 10% of max (barely survived)
-          s.playerHP = Math.max(1, Math.floor(s.playerMaxHP * 0.1));
+          // Lost: hospitalization system
+          const maxHP = s.playerMaxHP;
+          const hospitalCost = maxHP * HOSPITAL_ADMISSION_COST_PER_MAXHP;
+          s.hospitalizations = (s.hospitalizations || 0) + 1;
+
+          if (s.hospitalizations >= MAX_HOSPITALIZATIONS) {
+            // Game Over
+            s.gameOver = true;
+            s.playerHP = 0;
+          } else {
+            // Admit to hospital
+            s.hospital = {
+              daysRemaining: HOSPITAL_STAY_DAYS,
+              totalDays: HOSPITAL_STAY_DAYS,
+              cost: hospitalCost,
+            };
+            s.money = Math.max(0, s.money - hospitalCost);
+            s.stats.totalSpent += Math.min(s.money + hospitalCost, hospitalCost);
+            s.rep = Math.max(0, s.rep - HOSPITAL_REP_LOSS);
+            s.playerHP = 1; // barely alive during hospital stay
+            addPhoneMessage(s, 'Crown Heights Ziekenhuis', `Je bent opgenomen na een verloren gevecht. Kosten: €${hospitalCost.toLocaleString()}. Hersteltijd: ${HOSPITAL_STAY_DAYS} dagen. (Opname ${s.hospitalizations}/${MAX_HOSPITALIZATIONS})`, 'warning');
+          }
         }
       }
       const wasFinalBoss = s._finalBossWon;

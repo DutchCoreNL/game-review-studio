@@ -29,6 +29,8 @@ import { ConquestPopup } from './ConquestPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
 import { PrisonOverlay } from './PrisonOverlay';
+import { HospitalStayOverlay } from './HospitalStayOverlay';
+import { GameOverScreen } from './GameOverScreen';
 import { AchievementPopup } from './AchievementPopup';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -119,10 +121,12 @@ export function GameLayout() {
         {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
         {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
         {state.prison && <PrisonOverlay />}
+        {state.hospital && <HospitalStayOverlay />}
         {!state.prison && state.pendingWarEvent && <WarEventPopup />}
         {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
         <FinalBossAlert />
         <AchievementPopup />
+        {state.gameOver && <GameOverScreen />}
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
         )}
