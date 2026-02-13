@@ -146,6 +146,17 @@ import badgeJackpot from './badge-jackpot.jpg';
 import badgeCleanMoney from './badge-clean-money.jpg';
 import badgeCarCollector from './badge-car-collector.jpg';
 import badgeSurvivor from './badge-survivor.jpg';
+import badgeConquestStart from './badge-conquest-start.jpg';
+import badgeConquestSubboss from './badge-conquest-subboss.jpg';
+import badgeConqueror from './badge-conqueror.jpg';
+import badgeTotalDomination from './badge-total-domination.jpg';
+import badgeVillaOwner from './badge-villa-owner.jpg';
+import badgeVillaBuilder from './badge-villa-builder.jpg';
+import badgeVillaFortress from './badge-villa-fortress.jpg';
+import badgeGearCollector from './badge-gear-collector.jpg';
+import badgeVeteran from './badge-veteran.jpg';
+import badgeNightOwl from './badge-night-owl.jpg';
+import badgeDebtFree from './badge-debt-free.jpg';
 
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
@@ -321,6 +332,17 @@ export const ACHIEVEMENT_IMAGES: Record<string, string> = {
   clean_money: badgeCleanMoney,
   car_collector: badgeCarCollector,
   survivor: badgeSurvivor,
+  conquest_start: badgeConquestStart,
+  conquest_subboss: badgeConquestSubboss,
+  conqueror: badgeConqueror,
+  total_domination: badgeTotalDomination,
+  villa_owner: badgeVillaOwner,
+  villa_builder: badgeVillaBuilder,
+  villa_fortress: badgeVillaFortress,
+  gear_collector: badgeGearCollector,
+  heist_master: badgeVeteran,
+  night_owl: badgeNightOwl,
+  debt_free: badgeDebtFree,
 };
 
 export const CASINO_GAME_IMAGES: Record<string, string> = {
