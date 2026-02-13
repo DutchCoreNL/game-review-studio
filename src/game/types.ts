@@ -753,6 +753,8 @@ export interface GameState {
   personalHeat: number;
   hidingDays: number;
   loc: DistrictId;
+  playerHP: number;
+  playerMaxHP: number;
   player: PlayerState;
   inventory: Partial<Record<GoodId, number>>;
   inventoryCosts: Partial<Record<GoodId, number>>;

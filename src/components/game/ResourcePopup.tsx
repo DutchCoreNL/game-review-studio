@@ -7,7 +7,7 @@ import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AmmoType, StatId } from '@/game/types';
 import { useState } from 'react';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | null;
+type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
 interface ResourcePopupProps {
   type: PopupType;

@@ -5,7 +5,7 @@
 
 import { GameState, EndgamePhase, VictoryData, VictoryRank, CombatState, FamilyId, StatId } from './types';
 import { FAMILIES, DISTRICTS, createInitialState, CombatEnvAction } from './constants';
-import { getPlayerStat, gainXp } from './engine';
+import { getPlayerStat, gainXp, syncPlayerMaxHP } from './engine';
 
 // ========== PROGRESSION PHASES ==========
 
@@ -74,8 +74,8 @@ export function startFinalBoss(state: GameState): CombatState | null {
 }
 
 export function createBossPhase(state: GameState, phase: number): CombatState {
-  const muscle = getPlayerStat(state, 'muscle');
-  const playerMaxHP = 100 + (state.player.level * 8) + (muscle * 4);
+  syncPlayerMaxHP(state);
+  const playerMaxHP = state.playerMaxHP;
   const phaseData = BOSS_PHASES[phase - 1];
 
   if (phase === 1) {
@@ -88,7 +88,7 @@ export function createBossPhase(state: GameState, phase: number): CombatState {
       targetHP: hp,
       enemyMaxHP: hp,
       enemyAttack: attack,
-      playerHP: playerMaxHP,
+      playerHP: state.playerHP,
       playerMaxHP,
       logs: [...phaseData.introLines, ''],
       isBoss: true,

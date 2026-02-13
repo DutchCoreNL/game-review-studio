@@ -42,6 +42,28 @@ function ensureAmmoStock(state: GameState): void {
   if (state.ammoFactoryLevel === undefined) state.ammoFactoryLevel = 1;
 }
 
+// ========== PLAYER HP HELPERS ==========
+
+/** Calculate player's max HP based on level and muscle stat */
+export function getPlayerMaxHP(state: GameState): number {
+  const muscle = getPlayerStat(state, 'muscle');
+  let maxHP = 80 + (state.player.level * 5) + (muscle * 3);
+  // Villa crew quarters bonus: +20 max HP
+  if (state.villa?.modules.includes('crew_kwartieren')) maxHP += 20;
+  return maxHP;
+}
+
+/** Recalculate and sync maxHP (call after level up, stat changes, gear changes) */
+export function syncPlayerMaxHP(state: GameState): void {
+  state.playerMaxHP = getPlayerMaxHP(state);
+  // Ensure current HP doesn't exceed max
+  if (state.playerHP > state.playerMaxHP) state.playerHP = state.playerMaxHP;
+}
+
+// ========== HOSPITAL CONSTANTS ==========
+export const HOSPITAL_HEAL_COST_PER_HP = 50; // €50 per HP
+export const HOSPITAL_FULL_HEAL_DISCOUNT = 0.8; // 20% discount for full heal
+
 // ========== FACTION ACTIVE HELPER ==========
 
 /** Returns false if the faction leader is defeated (chaos) or faction is conquered (vassal). */
@@ -1254,6 +1276,15 @@ export function endTurn(state: GameState): NightReportData {
   report.cliffhanger = generateCliffhanger(state);
 
   state.maxInv = recalcMaxInv(state);
+
+  // === PLAYER HP REGEN ===
+  // Natural overnight regen: 10 HP base, villa crew quarters doubles it
+  syncPlayerMaxHP(state);
+  const baseRegen = 10;
+  const regenMultiplier = state.villa?.modules.includes('crew_kwartieren') ? 2 : 1;
+  const hpRegen = Math.min(baseRegen * regenMultiplier, state.playerMaxHP - state.playerHP);
+  if (hpRegen > 0) state.playerHP += hpRegen;
+
   state.nightReport = report;
 
   return report;
@@ -1331,6 +1362,11 @@ export function gainXp(state: GameState, amount: number): boolean {
     state.player.level++;
     state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
     state.player.skillPoints += 2;
+    // Sync max HP on level up and heal the bonus
+    const oldMax = state.playerMaxHP;
+    syncPlayerMaxHP(state);
+    const hpGain = state.playerMaxHP - oldMax;
+    if (hpGain > 0) state.playerHP = Math.min(state.playerMaxHP, state.playerHP + hpGain);
     return true;
   }
   return false;
@@ -1519,8 +1555,8 @@ export function startConquestPhase(state: GameState, familyId: FamilyId, phase: 
   if (!phaseData) return null;
   const enemy = phase === 1 ? phaseData.phase1 : phaseData.phase2;
 
-  const muscle = getPlayerStat(state, 'muscle');
-  const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
+  syncPlayerMaxHP(state);
+  const playerMaxHP = state.playerMaxHP;
 
   return {
     idx: 0,
@@ -1528,7 +1564,7 @@ export function startConquestPhase(state: GameState, familyId: FamilyId, phase: 
     targetHP: enemy.hp,
     enemyMaxHP: enemy.hp,
     enemyAttack: enemy.attack,
-    playerHP: playerMaxHP,
+    playerHP: state.playerHP,
     playerMaxHP,
     logs: [...enemy.introLines],
     isBoss: false,
@@ -1577,8 +1613,9 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
   const progress = getConquestPhase(state, familyId);
   if (progress.phase < 2) return null;
 
-  const muscle = getPlayerStat(state, 'muscle');
-  const playerMaxHP = 80 + (state.player.level * 5) + (muscle * 3);
+  // Use persistent player HP — sync max first
+  syncPlayerMaxHP(state);
+  const playerMaxHP = state.playerMaxHP;
 
   const bossOverride = BOSS_COMBAT_OVERRIDES[familyId];
   const introLines = bossOverride
@@ -1591,7 +1628,7 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
     targetHP: boss.hp,
     enemyMaxHP: boss.hp,
     enemyAttack: boss.attack,
-    playerHP: playerMaxHP,
+    playerHP: state.playerHP, // Use persistent HP
     playerMaxHP,
     logs: introLines,
     isBoss: true,

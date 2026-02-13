@@ -7,11 +7,12 @@ import { CasinoView } from './CasinoView';
 import { ChopShopView } from './ChopShopView';
 import { SafehouseView } from './SafehouseView';
 import { VillaView } from './villa/VillaView';
+import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { NewsTicker } from './map/NewsTicker';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices, Wrench, Home, Building2, Swords } from 'lucide-react';
+import { Moon, Dices, Wrench, Home, Building2, Swords, Heart } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
@@ -24,6 +25,7 @@ export function MapView() {
   const [showChopShop, setShowChopShop] = useState(false);
   const [showSafehouse, setShowSafehouse] = useState(false);
   const [showVilla, setShowVilla] = useState(false);
+  const [showHospital, setShowHospital] = useState(false);
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
@@ -59,6 +61,18 @@ export function MapView() {
       <div>
         <VillaView />
         <button onClick={() => setShowVilla(false)}
+          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
+          ← TERUG NAAR KAART
+        </button>
+      </div>
+    );
+  }
+
+  if (showHospital) {
+    return (
+      <div>
+        <HospitalView />
+        <button onClick={() => setShowHospital(false)}
           className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
           ← TERUG NAAR KAART
         </button>
@@ -181,6 +195,17 @@ export function MapView() {
             className="px-4"
           >
             CHOP
+          </GameButton>
+        )}
+        {!isHiding && state.loc === 'crown' && state.playerHP < state.playerMaxHP && (
+          <GameButton
+            variant="emerald"
+            size="lg"
+            icon={<Heart size={14} />}
+            onClick={() => setShowHospital(true)}
+            className="px-4"
+          >
+            ZSHS
           </GameButton>
         )}
         {!isHiding && state.safehouses.some(sh => sh.district === state.loc) && (
