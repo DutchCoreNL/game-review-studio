@@ -698,11 +698,15 @@ export interface MissionChoice {
   effects: { heat: number; relChange: number; crewDamage: number; bonusReward: number };
 }
 
+export type MissionApproach = 'cautious' | 'standard' | 'aggressive';
+
 export interface MissionEncounter {
   id: string;
   text: string;
   districtVariants: Partial<Record<DistrictId, string>>;
   choices: MissionChoice[];
+  phase?: string;
+  atmosphere?: string;
 }
 
 export interface ActiveMission {
@@ -722,6 +726,8 @@ export interface ActiveMission {
   baseHeat: number;
   finished: boolean;
   success: boolean;
+  approach?: MissionApproach;
+  choiceResults?: ('success' | 'partial' | 'fail')[];
 }
 
 export type MapEventType = 'police_checkpoint' | 'accident' | 'street_fight' | 'black_market' | 'drone' | 'ambulance';

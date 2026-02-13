@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { SOLO_OPERATIONS, FAMILIES } from '@/game/constants';
-import { GameState, ActiveContract, ActiveMission } from '@/game/types';
+import { GameState, ActiveContract, ActiveMission, SoloOperation } from '@/game/types';
 import { generateMissionEncounters } from '@/game/missions';
 import { calculateOperationRewardRange, rollActualReward } from '@/game/operationRewards';
 import { SectionHeader } from './ui/SectionHeader';
@@ -15,6 +15,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
+import { MissionBriefing } from './MissionBriefing';
 import operationsBg from '@/assets/operations-bg.jpg';
 import { SOLO_OP_IMAGES, CONTRACT_TYPE_IMAGES } from '@/assets/items';
 
@@ -30,6 +31,7 @@ export function OperationsView() {
   const [subTab, setSubTab] = useState<OpsSubTab>('solo');
   const [selectedContract, setSelectedContract] = useState<number | null>(null);
   const [fireConfirm, setFireConfirm] = useState<number | null>(null);
+  const [briefingOp, setBriefingOp] = useState<SoloOperation | null>(null);
 
   const startContractMission = (contractId: number, crewIndex: number) => {
     const contract = state.activeContracts.find(c => c.id === contractId);
@@ -122,27 +124,7 @@ export function OperationsView() {
                         </div>
                         <GameButton variant="gold" size="sm" disabled={locked}
                           icon={<Crosshair size={12} />}
-                          onClick={() => {
-                            const range = calculateOperationRewardRange(op, state);
-                            const actualReward = rollActualReward(range);
-                            const encounters = generateMissionEncounters('solo', op.id);
-                            const mission: ActiveMission = {
-                              type: 'solo',
-                              missionId: op.id,
-                              currentEncounter: 0,
-                              encounters,
-                              totalReward: 0,
-                              totalHeat: 0,
-                              totalCrewDamage: 0,
-                              totalRelChange: {},
-                              log: [],
-                              baseReward: actualReward,
-                              baseHeat: op.heat,
-                              finished: false,
-                              success: false,
-                            };
-                            dispatch({ type: 'START_MISSION', mission });
-                          }}>GO</GameButton>
+                          onClick={() => setBriefingOp(op)}>GO</GameButton>
                       </div>
                     </div>
                   )}
@@ -331,6 +313,16 @@ export function OperationsView() {
         onCancel={() => setFireConfirm(null)}
       />
       </div>
+
+      {/* Mission Briefing overlay */}
+      <AnimatePresence>
+        {briefingOp && (
+          <MissionBriefing
+            operation={briefingOp}
+            onClose={() => setBriefingOp(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
