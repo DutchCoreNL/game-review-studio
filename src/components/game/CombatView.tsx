@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
+import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUEST_COMBAT_OVERRIDES, GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
@@ -130,12 +130,13 @@ function ActiveCombat() {
   const env = useMemo(() => {
     const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
     const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
+    const conquestOverride = combat.conquestPhase && combat.familyId ? CONQUEST_COMBAT_OVERRIDES[combat.familyId as FamilyId]?.[combat.conquestPhase] : null;
     const finalBossOverride = combat.bossPhase ? FINAL_BOSS_COMBAT_OVERRIDES[combat.bossPhase] : null;
-    const override = finalBossOverride || factionBossOverride;
+    const override = finalBossOverride || factionBossOverride || conquestOverride;
     return override && baseEnv
       ? { ...baseEnv, actions: override.actions, enemyAttackLogs: override.enemyAttackLogs, scenePhrases: override.scenePhrases }
       : baseEnv;
-  }, [state.loc, combat.isBoss, combat.familyId, combat.bossPhase]);
+  }, [state.loc, combat.isBoss, combat.familyId, combat.bossPhase, combat.conquestPhase]);
 
   // Pick a scene phrase based on turn — stable reference
   const scenePhrase = useMemo(() => {
