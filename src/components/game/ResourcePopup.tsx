@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { getRankTitle, getPlayerStat, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
+import { getRankTitle, getPlayerStat, getActiveVehicleHeat, getActiveAmmoType, getPlayerMaxHP, HOSPITAL_HEAL_COST_PER_HP } from '@/game/engine';
 import { REKAT_COSTS, VEHICLES, AMMO_PACKS, AMMO_FACTORY_UPGRADES, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, Flame, Skull, Star, Shield, Swords, Brain, Gem, Car, EyeOff, Wrench, Crosshair, Heart, Zap, Factory } from 'lucide-react';
@@ -46,6 +46,7 @@ export function ResourcePopup({ type, onClose }: ResourcePopupProps) {
               {type === 'level' && <LevelPanel />}
               {type === 'ammo' && <AmmoPanel />}
               {type === 'karma' && <KarmaPanel />}
+              {type === 'hp' && <HpPanel onClose={onClose} />}
             </div>
           </motion.div>
         </>
@@ -712,7 +713,154 @@ function KarmaPanel() {
   );
 }
 
-// ========== HELPERS ==========
+// ========== HP PANEL ==========
+function HpPanel({ onClose }: { onClose: () => void }) {
+  const { state, dispatch, showToast, setView } = useGame();
+  const hpPct = (state.playerHP / state.playerMaxHP) * 100;
+  const missing = state.playerMaxHP - state.playerHP;
+  const muscle = getPlayerStat(state, 'muscle');
+  const hasCrewQuarters = state.villa?.modules.includes('crew_kwartieren');
+  const regenPerNight = hasCrewQuarters ? 20 : 10;
+  const isInCrown = state.loc === 'crown';
+
+  const statusLabel = hpPct < 20 ? 'KRITIEK' : hpPct < 40 ? 'ZWAAR GEWOND' : hpPct < 60 ? 'GEWOND' : hpPct < 80 ? 'LICHT GEWOND' : 'GEZOND';
+  const statusColor = hpPct < 30 ? 'text-blood' : hpPct < 60 ? 'text-gold' : 'text-emerald';
+  const barColor = hpPct < 30 ? 'bg-blood' : hpPct < 60 ? 'bg-gold' : 'bg-emerald';
+
+  const quickHealCost = Math.min(missing, 20) * HOSPITAL_HEAL_COST_PER_HP;
+  const fullHealCost = Math.floor(missing * HOSPITAL_HEAL_COST_PER_HP * 0.8);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Heart size={18} className={statusColor} />
+        <h3 className="font-bold text-sm uppercase tracking-wider">Gezondheid</h3>
+      </div>
+
+      {/* HP Display */}
+      <div className="text-center mb-4">
+        <span className={`text-3xl font-bold ${statusColor}`}>{state.playerHP}</span>
+        <span className="text-lg text-muted-foreground">/{state.playerMaxHP}</span>
+        <p className={`text-xs font-bold mt-1 ${statusColor}`}>{statusLabel}</p>
+      </div>
+
+      {/* HP Bar */}
+      <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
+        <motion.div
+          className={`h-full rounded-full ${barColor}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${hpPct}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+
+      {/* Stats breakdown */}
+      <div className="space-y-1.5 mb-4">
+        <InfoRow label="Basis HP" value="80" />
+        <InfoRow label={`Level bonus (Lvl ${state.player.level})`} value={`+${state.player.level * 5}`} valueClass="text-gold" />
+        <InfoRow label={`Kracht bonus (${muscle})`} value={`+${muscle * 3}`} valueClass="text-gold" />
+        {hasCrewQuarters && <InfoRow label="Villa Crew Kwartieren" value="+20" valueClass="text-emerald" />}
+        <InfoRow label="Totaal Max HP" value={String(state.playerMaxHP)} valueClass="font-bold" />
+      </div>
+
+      {/* Regen info */}
+      <div className="bg-muted/30 rounded-lg p-3 mb-4">
+        <p className="text-xs font-bold mb-1.5 flex items-center gap-1.5">
+          <Zap size={12} className="text-emerald" /> Natuurlijk Herstel
+        </p>
+        <p className="text-[0.6rem] text-muted-foreground">
+          +{regenPerNight} HP per nacht{hasCrewQuarters ? ' (verdubbeld door Crew Kwartieren)' : ''}
+        </p>
+        {!hasCrewQuarters && (
+          <p className="text-[0.5rem] text-gold mt-1">💡 Villa Crew Kwartieren verdubbelt nachtelijk herstel naar 20 HP</p>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      {missing > 0 && (
+        <div className="space-y-2 mb-4">
+          <p className="text-xs font-bold flex items-center gap-1.5">
+            <Heart size={12} className="text-emerald" /> Snel Genezen
+          </p>
+
+          {isInCrown ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  const amount = Math.min(20, missing);
+                  const cost = amount * HOSPITAL_HEAL_COST_PER_HP;
+                  if (state.money < cost) return showToast('Niet genoeg geld!', true);
+                  dispatch({ type: 'HEAL_PLAYER', amount, cost });
+                  showToast(`+${amount} HP hersteld`);
+                }}
+                disabled={state.money < quickHealCost || missing <= 0}
+                className="py-2 rounded text-[0.6rem] font-bold bg-[hsl(var(--emerald)/0.1)] border border-emerald text-emerald disabled:opacity-30"
+              >
+                EERSTE HULP
+                <br />
+                <span className="text-[0.5rem]">+{Math.min(20, missing)} HP — €{quickHealCost.toLocaleString()}</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (state.money < fullHealCost) return showToast('Niet genoeg geld!', true);
+                  dispatch({ type: 'HEAL_PLAYER', amount: missing, cost: fullHealCost });
+                  showToast(`Volledig genezen! +${missing} HP`);
+                }}
+                disabled={state.money < fullHealCost || missing <= 0}
+                className="py-2 rounded text-[0.6rem] font-bold bg-[hsl(var(--emerald)/0.1)] border border-emerald text-emerald disabled:opacity-30"
+              >
+                VOLLEDIG HERSTEL
+                <br />
+                <span className="text-[0.5rem]">+{missing} HP — €{fullHealCost.toLocaleString()} (-20%)</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-muted/30 rounded p-2.5 text-center">
+              <p className="text-[0.6rem] text-muted-foreground">
+                🏥 Reis naar <span className="text-gold font-bold">Crown Heights</span> om het ziekenhuis te bezoeken
+              </p>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'TRAVEL', to: 'crown' as any });
+                  showToast('Verplaatst naar Crown Heights');
+                  onClose();
+                }}
+                className="mt-1.5 px-3 py-1.5 rounded text-[0.55rem] font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold"
+              >
+                REIS NAAR CROWN HEIGHTS
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Low HP warning */}
+      {hpPct < 30 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-[hsl(var(--blood)/0.15)] border border-blood rounded-lg p-3 mb-3"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Skull size={14} className="text-blood animate-pulse" />
+            <span className="text-xs font-bold text-blood uppercase tracking-wider">KRITIEK</span>
+          </div>
+          <p className="text-[0.6rem] text-blood/90 leading-relaxed">
+            Je gezondheid is gevaarlijk laag! Gevechten starten met je huidige HP. 
+            Als je verliest val je terug naar 10% van je max HP. Genees eerst!
+          </p>
+        </motion.div>
+      )}
+
+      <p className="text-[0.6rem] text-muted-foreground italic">
+        Je start elk gevecht met je huidige HP. Schade blijft bestaan na het gevecht. 
+        Verhoog je max HP door te levelen en Kracht te upgraden.
+      </p>
+    </div>
+  );
+}
+
+
 function InfoRow({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex justify-between text-xs bg-muted/50 rounded px-2.5 py-1.5">
