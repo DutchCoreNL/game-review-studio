@@ -864,6 +864,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           // Won: keep remaining HP (min 1)
           s.playerHP = Math.max(1, s.activeCombat.playerHP);
         } else {
+          // Last Stand: 15% chance to survive with 1 HP
+          const lastStandRoll = Math.random();
+          if (lastStandRoll < 0.15) {
+            s.playerHP = 1;
+            addPhoneMessage(s, '⚡ Last Stand', 'Je weigerde te vallen. Met pure wilskracht overleef je het gevecht met 1 HP!', 'warning');
+          } else {
           // Lost: hospitalization system
           const maxHP = s.playerMaxHP;
           const hospitalCost = maxHP * HOSPITAL_ADMISSION_COST_PER_MAXHP;
@@ -886,6 +892,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             s.playerHP = 1; // barely alive during hospital stay
             addPhoneMessage(s, 'Crown Heights Ziekenhuis', `Je bent opgenomen na een verloren gevecht. Kosten: €${hospitalCost.toLocaleString()}. Hersteltijd: ${HOSPITAL_STAY_DAYS} dagen. (Opname ${s.hospitalizations}/${MAX_HOSPITALIZATIONS})`, 'warning');
           }
+          } // end else (not last stand)
         }
       }
       const wasFinalBoss = s._finalBossWon;
