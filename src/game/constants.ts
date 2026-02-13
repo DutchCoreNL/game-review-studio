@@ -1068,6 +1068,17 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'jackpot', name: 'Jackpot!', desc: 'Win 50x bij slots', icon: 'Dices', condition: (s) => s.stats.casinoWon >= 50000 },
   { id: 'card_counter', name: 'Kaartenteller', desc: 'Win 5 blackjack op rij', icon: 'Spade', condition: (s) => (s.stats.blackjackStreak || 0) >= 5 },
   { id: 'poker_face', name: 'Poker Face', desc: 'Bereik 5x multiplier bij High-Low', icon: 'CircleDot', condition: (s) => (s.stats.highLowMaxRound || 0) >= 5 },
+  { id: 'conquest_start', name: 'Oorlogsverklaring', desc: 'Breek de verdediging van een factie', icon: 'Shield', condition: (s) => Object.values(s.factionConquest || {}).some((p: any) => p?.phase >= 1) },
+  { id: 'conquest_subboss', name: 'Sub-boss Killer', desc: 'Versla een factie sub-boss', icon: 'Skull', condition: (s) => Object.values(s.factionConquest || {}).some((p: any) => p?.phase >= 2) },
+  { id: 'conqueror', name: 'Veroveraar', desc: 'Neem een factie over als vazal', icon: 'Flag', condition: (s) => (s.conqueredFactions || []).length >= 1 },
+  { id: 'total_domination', name: 'Totale Dominantie', desc: 'Alle 3 facties als vazal', icon: 'Crown', condition: (s) => (s.conqueredFactions || []).length >= 3 },
+  { id: 'villa_owner', name: 'Huiseigenaar', desc: 'Koop Villa Noxhaven', icon: 'Home', condition: (s) => !!s.villa },
+  { id: 'villa_builder', name: 'Aannemer', desc: 'Installeer je eerste villa module', icon: 'Wrench', condition: (s) => (s.villa?.modules || []).length >= 1 },
+  { id: 'villa_fortress', name: 'Fort Knox', desc: 'Installeer 5 villa modules', icon: 'Castle', condition: (s) => (s.villa?.modules || []).length >= 5 },
+  { id: 'gear_collector', name: 'Wapenhandelaar', desc: 'Bezit 5 gear items', icon: 'Package', condition: (s) => (s.ownedGear || []).length >= 5 },
+  { id: 'heist_master', name: 'Veteraan', desc: 'Voltooi 10 missies', icon: 'Banknote', condition: (s) => (s.stats?.missionsCompleted || 0) >= 10 },
+  { id: 'night_owl', name: 'Nachtuil', desc: 'Overleef 100 dagen', icon: 'Moon', condition: (s) => s.day >= 100 },
+  { id: 'debt_free', name: 'Schuldvrij', desc: 'Los al je schulden af', icon: 'CheckCircle', condition: (s) => s.debt === 0 && (s.stats?.totalEarned || 0) > 10000 },
 ];
 
 export const BET_PRESETS = [100, 500, 1000, 5000];
