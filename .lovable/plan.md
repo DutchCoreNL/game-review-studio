@@ -1,103 +1,67 @@
 
+# Plan: Crew Loyaliteitsmissies + Contract Missies District-Specifiek
 
-# Solo Operaties 2.0 — Immersive Overhaul
+## Deel 1: Crew Loyaliteitsmissies & Persoonlijke Verhaalbogen
 
-## Probleem
-De huidige solo operaties voelen vlak: je klikt "GO" op een kaart, krijgt 2-3 korte tekstblokken met keuzes, en bent klaar. Er is geen opbouw, geen voorbereiding, en weinig gevoel dat je de operatie echt uitvoert.
+### Wat verandert er?
+Elk crewlid krijgt een persoonlijkheidstrek (loyaal, hebzuchtig, slim, etc.) die al in het type-systeem bestaat maar nog niet gebruikt wordt. Op basis van deze trek krijgen ze unieke loyaliteitsmissies die je relatie met hen verdiepen. Deze missies verschijnen als telefoonberichten en kunnen geaccepteerd of genegeerd worden.
 
-## Oplossing: Drie-Fasen Missie-Systeem
+### Nieuwe features:
+- **Persoonlijke crew-events**: Elk crewlid kan om de ~5 dagen een persoonlijk verzoek sturen via de telefoon, gebaseerd op hun persoonlijkheidstrek en rol
+- **Loyaliteitsmissies**: Korte keuze-events (2-3 opties) met gevolgen voor loyaliteit, geld, heat of reputatie
+- **Crew verhaalbogen**: Bij loyaliteit 80+ unlockt een crewlid een speciale "trouw" bonus; bij loyaliteit onder 30 krijg je een ultimatum-event
+- **Beloningssysteem**: Succesvolle loyaliteitsmissies geven +15-25 loyaliteit en soms unieke bonussen (stat boost, gratis gear, factie-connecties)
 
-Elke solo operatie wordt opgedeeld in drie duidelijke fasen met eigen visuele identiteit:
+### Voorbeelden van crew-events per persoonlijkheid:
+- **Loyaal**: "Baas, ik hoorde dat [factie] een prijs op je hoofd heeft gezet. Laat me uitzoeken wie de mol is."
+- **Hebzuchtig**: "Ik heb een tip over een onbewaakte kluis. 50/50 split. Wat zeg je?"
+- **Paranoid**: "Er volgt iemand ons al drie dagen. Ik wil een safehouse-check doen."
+- **Brutaal**: "Die vent in [district] had een grote mond over onze crew. Zal ik hem een bezoekje brengen?"
+- **Slim**: "Ik heb de beveiligingscodes van [district] gekraakt. Wil je ze gebruiken?"
 
-```text
-+------------------+     +------------------+     +------------------+
-|  1. BRIEFING     | --> |  2. UITVOERING   | --> |  3. RESULTAAT    |
-|  Plan je aanpak  |     |  3-4 encounters  |     |  Debriefing      |
-|  Kies voorberei- |     |  met fase-labels |     |  met statistieken|
-|  ding & strategie|     |  en sfeer-visuals|     |                  |
-+------------------+     +------------------+     +------------------+
-```
+---
 
-### Fase 1: Missie Briefing (NIEUW)
-In plaats van direct "GO" te klikken, opent er een fullscreen briefing scherm:
+## Deel 2: Contract Missies District-Specifiek
 
-- **Operatie-specifieke achtergrond** (bestaande SOLO_OP_IMAGES)
-- **Doelwit-info**: Wie/wat is het doelwit, waar, wanneer
-- **Risico-analyse**: Visuele meter met risico, verwachte heat, verwachte beloning
-- **Voorbereidingskeuze** (1 uit 3): De speler kiest een aanpak die de hele missie beinvloedt:
-  - **Voorzichtig** (minder heat, lagere beloningen, difficulty -5)
-  - **Standaard** (normaal)
-  - **Agressief** (meer heat, hogere beloningen, difficulty +5)
-- **"START OPERATIE" knop** met dramatische animatie
+### Wat verandert er?
+De vier contracttypes (delivery, combat, stealth, tech) krijgen volledige district-specifieke encounter-teksten, net als de solo operaties. Nu hebben ze slechts 2-3 generieke district-varianten per encounter; dit wordt uitgebreid naar alle 5 districten met langere, meeslepende beschrijvingen.
 
-### Fase 2: Verbeterde Encounter Flow
-- **Fase-labels** per encounter: "VERKENNING", "UITVOERING", "ONTSNAPPING" — zodat de speler voelt dat het verhaal vordert
-- **3-4 encounters** in plaats van 2-3 (meer verhaal)
-- **Operatie-specifieke achtergrondafbeelding** per encounter (hergebruik SOLO_OP_IMAGES i.p.v. de generieke encounter-bg)
-- **Sfeer-intro per encounter**: Een korte atmosferische zin boven de encounter-tekst (bijv. "De regen tikt op het asfalt. Je adem vormt wolkjes in de koude lucht.")
-- **Keuze-feedback**: Na elke keuze een korte visuele flash (groen/goud/rood) met het resultaat, voordat de volgende encounter laadt
+### Aanpassingen per contracttype:
 
-### Fase 3: Verbeterd Resultaatscherm
-- **Operatie-specifieke achtergrond** (niet een leeg zwart scherm)
-- **Tijdlijn-weergave** van alle gemaakte keuzes met resultaten
-- **XP en skill-progress bar** visueel geanimeerd
+**Delivery (Koeriersdienst/Wapenlevering/Smokkelroute)**
+- Port Nero: Havensmokkkel via containerschepen, douane-ontwijking
+- Crown Heights: Discrete leveringen aan penthouse-klanten, valet-drops
+- Iron Borough: Fabrieksterreinen, bewakingshonden, industriele routes
+- Lowrise: Steegjes, dakroutes, straatgangs als escort
+- Neon Strip: Club-achterkamers, casino-drops, nachtleven als dekking
+
+**Combat (Rivalen Intimideren/Bescherming)**
+- Elk district met unieke locaties (haven-containers, penthouses, fabrieken, steegjes, clubs)
+
+**Stealth (Inbraak/Safe Kraken)**
+- Crown Heights: Biometrische beveiliging, lasers, privesecurity
+- Port Nero: Roestige magazijnen, haven-bewaking
+- Alle 5 districten volledig ingevuld
+
+**Tech (Datadiefstal/Server Hack/Surveillance)**
+- Elk district met unieke server-locaties en hacking-scenario's
 
 ---
 
 ## Technische Details
 
-### 1. Types uitbreiden (`src/game/types.ts`)
-- `MissionApproach` type toevoegen: `'cautious' | 'standard' | 'aggressive'`
-- `ActiveMission` uitbreiden met:
-  - `approach?: MissionApproach` — gekozen aanpak
-  - `phaseLabels?: string[]` — fase-labels per encounter
-- `MissionEncounter` uitbreiden met:
-  - `phase?: string` — fase-label (bijv. "VERKENNING")
-  - `atmosphere?: string` — sfeer-intro tekst
+### Nieuwe bestanden:
+- `src/game/crewEvents.ts` — Crew loyaliteitsmissie-systeem met persoonlijkheidsgebonden events, keuze-logica en beloningen
 
-### 2. Encounter database uitbreiden (`src/game/missions.ts`)
-- **Fase-labels** toevoegen aan elke encounter (phase property)
-- **Sfeer-intro's** toevoegen aan elke encounter (atmosphere property)
-- `generateMissionEncounters` aanpassen: nu 3-4 encounters i.p.v. 2-3
-- Approach-modifier toepassen in `resolveMissionChoice`:
-  - cautious: difficulty -5, heat x0.7, reward x0.8
-  - aggressive: difficulty +5, heat x1.3, reward x1.3
+### Aangepaste bestanden:
+1. **`src/game/crewLoyalty.ts`** — Integratie van crew-events in de nachtcyclus; trigger voor persoonlijke verzoeken
+2. **`src/game/missions.ts`** — Alle `CONTRACT_ENCOUNTERS` (delivery, combat, stealth, tech) uitbreiden met volledige `districtVariants` voor alle 5 districten, plus langere encounter-teksten
+3. **`src/game/types.ts`** — Nieuw type `CrewLoyaltyEvent` toevoegen aan GameState voor actieve crew-events
+4. **`src/contexts/GameContext.tsx`** — Nieuwe reducer actions voor crew-event keuzes (`CREW_EVENT_CHOICE`)
+5. **`src/components/game/GameLayout.tsx`** of telefoon-overlay — UI voor crew-events weergeven als telefoonberichten met keuzemogelijkheden
 
-### 3. Briefing data toevoegen (`src/game/constants.ts`)
-- `SOLO_OPERATIONS` uitbreiden met een `briefing` object per operatie:
-  - `targetDesc`: Beschrijving van het doelwit
-  - `locationDesc`: Beschrijving van de locatie
-  - `intel`: Extra informatie / tips
-
-### 4. Nieuw component: `MissionBriefing.tsx`
-- Fullscreen overlay met operatie-achtergrond
-- Doelwit-info, risico-meters, beloning-range
-- Drie aanpak-knoppen (Voorzichtig / Standaard / Agressief)
-- "START OPERATIE" knop die de missie start met gekozen approach
-
-### 5. OperationsView aanpassen (`src/components/game/OperationsView.tsx`)
-- "GO" knop opent nu de MissionBriefing i.p.v. direct de missie te starten
-- Nieuwe state: `briefingOp` om bij te houden welke operatie gebriefed wordt
-
-### 6. MissionEncounterView verbeteren (`src/components/game/MissionEncounterView.tsx`)
-- Fase-label tonen boven de encounter ("FASE 1: VERKENNING")
-- Sfeer-intro tekst tonen boven de encounter-tekst (cursief, atmospheric)
-- Operatie-specifieke achtergrond laden via SOLO_OP_IMAGES
-- Visuele feedback-flash na keuze (success/partial/fail kleuren)
-- Progress bar tonen die de 3 fasen visualiseert
-
-### 7. MissionResult verbeteren (in MissionEncounterView)
-- Operatie-achtergrond toevoegen
-- Tijdlijn-weergave van keuzes met fase-labels en resultaat-iconen
-- XP-progress bar animatie
-
-### Samenvatting van wijzigingen
-| Bestand | Wat |
-|---|---|
-| `src/game/types.ts` | MissionApproach type, encounter phase/atmosphere fields |
-| `src/game/constants.ts` | Briefing data per solo operatie |
-| `src/game/missions.ts` | Phase labels, atmosphere teksten, 3-4 encounters, approach modifiers |
-| `src/components/game/MissionBriefing.tsx` | Nieuw: fullscreen briefing scherm |
-| `src/components/game/OperationsView.tsx` | GO opent briefing i.p.v. directe start |
-| `src/components/game/MissionEncounterView.tsx` | Fase-labels, sfeer-intro, op-specifieke achtergrond, feedback-flash, verbeterd resultaat |
-
+### Bestaande patronen gevolgd:
+- Crew personalities (`crewPersonalities` in GameState) worden al bijgehouden maar niet gebruikt — dit plan activeert ze
+- Phone messages (`addPhoneMessage`) worden al gebruikt voor crew-communicatie
+- Mission encounter structuur (`MissionEncounter` met `districtVariants`) wordt hergebruikt
+- `PersonalityTrait` type bestaat al met 8 varianten
