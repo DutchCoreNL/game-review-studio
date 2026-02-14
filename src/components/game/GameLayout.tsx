@@ -18,6 +18,7 @@ import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
+import { CrewEventPopup } from './CrewEventPopup';
 import { VictoryScreen } from './VictoryScreen';
 import { StoryEventPopup } from './StoryEventPopup';
 import { StoryArcEvent } from './StoryArcEvent';
@@ -114,6 +115,7 @@ export function GameLayout() {
         {state.activeMission && <MissionEncounterView />}
         {state.showPhone && <PhoneOverlay />}
         {state.pendingSpecChoice && <CrewSpecPopup />}
+        {state.pendingCrewEvent && <CrewEventPopup />}
         {state.victoryData && <VictoryScreen />}
         {!state.prison && state.pendingStreetEvent && <StoryEventPopup />}
         {!state.prison && state.pendingArcEvent && <StoryArcEvent />}

@@ -850,6 +850,10 @@ export interface GameState {
   screenEffect: ScreenEffectType;
   lastRewardAmount: number;
   crewPersonalities: Record<number, PersonalityTrait>;
+  pendingCrewEvent: import('./crewEvents').CrewLoyaltyEvent | null;
+  crewEventCooldowns: Record<number, number>; // crewIndex -> last event day
+  crewTrouwBonusGiven: Record<number, boolean>;
+  crewUltimatumGiven: Record<number, boolean>;
 
   // ========== STORY ARCS STATE ==========
   activeStoryArcs: import('../game/storyArcs').ActiveStoryArc[];
