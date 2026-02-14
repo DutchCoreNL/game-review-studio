@@ -14,6 +14,7 @@ import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
 import { generateHitContracts, executeHit } from '../game/hitman';
+import { resolveCrewEvent } from '../game/crewEvents';
 import { generateDailyNews } from '../game/newsGenerator';
 
 interface GameContextType {
@@ -178,6 +179,9 @@ type GameAction =
   | { type: 'DISMISS_CONQUEST_POPUP' }
   | { type: 'ACCEPT_CONQUEST_POPUP' }
   | { type: 'HEAL_PLAYER'; amount: number; cost: number }
+  // Crew loyalty event actions
+  | { type: 'RESOLVE_CREW_EVENT'; choiceId: string }
+  | { type: 'DISMISS_CREW_EVENT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -1318,6 +1322,29 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== CREW LOYALTY EVENT ACTIONS ==========
+
+    case 'RESOLVE_CREW_EVENT': {
+      if (!s.pendingCrewEvent) return s;
+      resolveCrewEvent(s, s.pendingCrewEvent, action.choiceId);
+      s.pendingCrewEvent = null;
+      return s;
+    }
+
+    case 'DISMISS_CREW_EVENT': {
+      if (s.pendingCrewEvent) {
+        // Ignoring a crew event = small loyalty penalty
+        const member = s.crew[s.pendingCrewEvent.crewIndex];
+        if (member) {
+          member.loyalty = Math.max(0, member.loyalty - 5);
+        }
+        if (!s.crewEventCooldowns) s.crewEventCooldowns = {};
+        s.crewEventCooldowns[s.pendingCrewEvent.crewIndex] = s.day;
+      }
+      s.pendingCrewEvent = null;
+      return s;
+    }
+
     // ========== HEAT 2.0 ACTIONS ==========
 
     case 'REKAT_VEHICLE': {
@@ -2338,6 +2365,11 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; if (c.loyalty === undefined) c.loyalty = 75; });
       // Narrative expansion migrations
       if (saved.backstory === undefined) saved.backstory = null;
+      // Crew events migration
+      if (saved.pendingCrewEvent === undefined) saved.pendingCrewEvent = null;
+      if (!saved.crewEventCooldowns) saved.crewEventCooldowns = {};
+      if (!saved.crewTrouwBonusGiven) saved.crewTrouwBonusGiven = {};
+      if (!saved.crewUltimatumGiven) saved.crewUltimatumGiven = {};
       if (saved.karma === undefined) saved.karma = 0;
       if (!saved.npcRelations) saved.npcRelations = {};
       if (!saved.keyDecisions) saved.keyDecisions = [];
