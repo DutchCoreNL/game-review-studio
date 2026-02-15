@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { getEncounterText, getEffectiveDifficulty } from '@/game/missions';
 import { getPlayerStat } from '@/game/engine';
-import { DISTRICTS } from '@/game/constants';
+import { DISTRICTS, SOLO_OPERATIONS } from '@/game/constants';
 import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameButton } from './ui/GameButton';
 import { SOLO_OP_IMAGES } from '@/assets/items';
 import encounterBg from '@/assets/items/encounter-bg.jpg';
-import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car, CheckCircle, XCircle, AlertCircle, Lock, Cpu } from 'lucide-react';
+import { LockpickGame } from './minigames/LockpickGame';
+import { HackingGame } from './minigames/HackingGame';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
@@ -53,6 +55,7 @@ export function MissionEncounterView() {
   const { state, dispatch } = useGame();
   const mission = state.activeMission;
   const [feedbackFlash, setFeedbackFlash] = useState<'success' | 'partial' | 'fail' | null>(null);
+  const [activeMinigame, setActiveMinigame] = useState<{ type: 'lockpick' | 'hacking'; choiceId: string } | null>(null);
 
   // Clear flash after animation
   useEffect(() => {
@@ -74,15 +77,37 @@ export function MissionEncounterView() {
   const districtName = DISTRICTS[state.loc].name;
   const opBg = mission.type === 'solo' ? SOLO_OP_IMAGES[mission.missionId] : null;
 
-  const handleChoice = (choiceId: string) => {
-    dispatch({ type: 'MISSION_CHOICE', choiceId });
-    // Determine result from the last choice
+  // Determine which mini-games are available for this mission
+  const getMinigameForChoice = (choiceStat: StatId): 'lockpick' | 'hacking' | null => {
+    const isStealth = (mission.type === 'contract' && mission.missionId?.includes('stealth')) ||
+      ['store_robbery', 'pickpocket', 'car_theft'].includes(mission.missionId);
+    const isTech = (mission.type === 'contract' && mission.missionId?.includes('tech')) ||
+      ['crypto_heist', 'atm_skimming'].includes(mission.missionId);
+
+    if (choiceStat === 'brains') {
+      return isTech ? 'hacking' : isStealth ? 'lockpick' : (Math.random() > 0.5 ? 'hacking' : 'lockpick');
+    }
+    if (isStealth && choiceStat === 'charm') return 'lockpick';
+    if (isTech) return 'hacking';
+    return null;
+  };
+
+  const handleChoice = (choiceId: string, forceResult?: 'success' | 'fail') => {
+    dispatch({ type: 'MISSION_CHOICE', choiceId, forceResult });
     setTimeout(() => {
       const m = state.activeMission;
       if (m && m.choiceResults && m.choiceResults.length > 0) {
         setFeedbackFlash(m.choiceResults[m.choiceResults.length - 1]);
       }
     }, 50);
+  };
+
+  const handleMinigameComplete = (success: boolean) => {
+    if (!activeMinigame) return;
+    const choiceId = activeMinigame.choiceId;
+    setActiveMinigame(null);
+    handleChoice(choiceId, success ? 'success' : 'fail');
+    setFeedbackFlash(success ? 'success' : 'fail');
   };
 
   return (
@@ -222,61 +247,81 @@ export function MissionEncounterView() {
               {encounter.choices.map((choice, idx) => {
                 const statVal = getPlayerStat(state, choice.stat);
                 const statColor = STAT_COLORS[choice.stat];
+                const minigameType = getMinigameForChoice(choice.stat);
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={choice.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.1 + 0.3 }}
-                    onClick={() => handleChoice(choice.id)}
-                    className="w-full game-card-interactive p-3 text-left"
                   >
-                    {(() => {
-                      const { difficulty: effDiff, weatherMod, crewMod } = getEffectiveDifficulty(state, choice, mission);
-                      const effLabel = DIFFICULTY_LABELS(effDiff);
-                      return (
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-bold text-xs uppercase tracking-wider text-foreground">
-                                {choice.label}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className={`flex items-center gap-1 text-[0.55rem] font-bold ${statColor}`}>
-                                {STAT_ICONS[choice.stat]}
-                                <span>{STAT_LABELS[choice.stat]}</span>
-                                <span className="text-foreground ml-0.5">({statVal})</span>
+                    <button
+                      onClick={() => handleChoice(choice.id)}
+                      className="w-full game-card-interactive p-3 text-left"
+                    >
+                      {(() => {
+                        const { difficulty: effDiff, weatherMod, crewMod } = getEffectiveDifficulty(state, choice, mission);
+                        const effLabel = DIFFICULTY_LABELS(effDiff);
+                        return (
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-xs uppercase tracking-wider text-foreground">
+                                  {choice.label}
+                                </span>
                               </div>
-                              <span className={`text-[0.5rem] font-bold ${effLabel.color}`}>{effLabel.label}</span>
-                              {weatherMod !== 0 && (
-                                <span className={`text-[0.5rem] font-semibold flex items-center gap-0.5 ${weatherMod > 0 ? 'text-blood' : 'text-emerald'}`}>
-                                  {WEATHER_ICONS[state.weather] || null}
-                                  {weatherMod > 0 ? `+${weatherMod}` : `${weatherMod}`}
-                                </span>
-                              )}
-                              {crewMod !== 0 && (
-                                <span className="text-[0.5rem] font-semibold flex items-center gap-0.5 text-ice">
-                                  <Users size={8} />
-                                  {crewMod}
-                                </span>
-                              )}
-                              {choice.effects.bonusReward > 0 && (
-                                <span className="text-[0.5rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
-                              )}
-                              {choice.effects.heat > 5 && (
-                                <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
-                                  <Flame size={8} /> +{choice.effects.heat}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className={`flex items-center gap-1 text-[0.55rem] font-bold ${statColor}`}>
+                                  {STAT_ICONS[choice.stat]}
+                                  <span>{STAT_LABELS[choice.stat]}</span>
+                                  <span className="text-foreground ml-0.5">({statVal})</span>
+                                </div>
+                                <span className={`text-[0.5rem] font-bold ${effLabel.color}`}>{effLabel.label}</span>
+                                {weatherMod !== 0 && (
+                                  <span className={`text-[0.5rem] font-semibold flex items-center gap-0.5 ${weatherMod > 0 ? 'text-blood' : 'text-emerald'}`}>
+                                    {WEATHER_ICONS[state.weather] || null}
+                                    {weatherMod > 0 ? `+${weatherMod}` : `${weatherMod}`}
+                                  </span>
+                                )}
+                                {crewMod !== 0 && (
+                                  <span className="text-[0.5rem] font-semibold flex items-center gap-0.5 text-ice">
+                                    <Users size={8} />
+                                    {crewMod}
+                                  </span>
+                                )}
+                                {choice.effects.bonusReward > 0 && (
+                                  <span className="text-[0.5rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
+                                )}
+                                {choice.effects.heat > 5 && (
+                                  <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
+                                    <Flame size={8} /> +{choice.effects.heat}
+                                  </span>
+                                )}
+                              </div>
                             </div>
+                            <Zap size={16} className="text-muted-foreground mt-1" />
                           </div>
-                          <Zap size={16} className="text-muted-foreground mt-1" />
-                        </div>
-                      );
-                    })()}
-                  </motion.button>
+                        );
+                      })()}
+                    </button>
+                    {/* Mini-game alternative button */}
+                    {minigameType && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMinigame({ type: minigameType, choiceId: choice.id });
+                        }}
+                        className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded border border-game-purple/40 bg-game-purple/10 hover:bg-game-purple/20 transition-colors text-game-purple"
+                      >
+                        {minigameType === 'lockpick' ? <Lock size={10} /> : <Cpu size={10} />}
+                        <span className="text-[0.5rem] font-bold uppercase tracking-wider">
+                          {minigameType === 'lockpick' ? '🔓 Lockpick Poging' : '💻 Hack Systeem'}
+                        </span>
+                        <span className="text-[0.4rem] text-muted-foreground ml-1">— Succes = gegarandeerd ✓</span>
+                      </button>
+                    )}
+                  </motion.div>
                 );
               })}
             </div>
@@ -315,6 +360,22 @@ export function MissionEncounterView() {
           )}
         </div>
       </div>
+      {/* Mini-game overlays */}
+      {activeMinigame?.type === 'lockpick' && (
+        <LockpickGame
+          difficulty={Math.min(3, Math.ceil(state.player.level / 5))}
+          brainsBonus={getPlayerStat(state, 'brains')}
+          onComplete={handleMinigameComplete}
+        />
+      )}
+      {activeMinigame?.type === 'hacking' && (
+        <HackingGame
+          difficulty={Math.min(3, Math.ceil(state.player.level / 5))}
+          brainsBonus={getPlayerStat(state, 'brains')}
+          hasHacker={state.crew.some(c => c.role === 'Hacker' && c.hp > 0)}
+          onComplete={handleMinigameComplete}
+        />
+      )}
     </motion.div>
   );
 }

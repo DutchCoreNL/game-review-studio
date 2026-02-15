@@ -1008,7 +1008,8 @@ export function generateMissionEncounters(
 export function resolveMissionChoice(
   state: GameState,
   mission: ActiveMission,
-  choiceId: string
+  choiceId: string,
+  forceResult?: 'success' | 'fail'
 ): {
   result: 'success' | 'partial' | 'fail';
   outcomeText: string;
@@ -1078,15 +1079,18 @@ export function resolveMissionChoice(
   effectiveDifficulty = Math.max(5, effectiveDifficulty);
 
   // Calculate success: stat * 5 + random(0-30) vs difficulty
-  const roll = statVal * 5 + Math.floor(Math.random() * 30);
-
   let result: 'success' | 'partial' | 'fail';
-  if (roll >= effectiveDifficulty + 15) {
-    result = 'success';
-  } else if (roll >= effectiveDifficulty - 5) {
-    result = 'partial';
+  if (forceResult) {
+    result = forceResult;
   } else {
-    result = 'fail';
+    const roll = statVal * 5 + Math.floor(Math.random() * 30);
+    if (roll >= effectiveDifficulty + 15) {
+      result = 'success';
+    } else if (roll >= effectiveDifficulty - 5) {
+      result = 'partial';
+    } else {
+      result = 'fail';
+    }
   }
 
   // Crew bonus for contracts (level-based save)

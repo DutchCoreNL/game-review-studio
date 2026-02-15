@@ -76,7 +76,7 @@ type GameAction =
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
   | { type: 'ANNEX_FACTION'; familyId: FamilyId }
   | { type: 'START_MISSION'; mission: ActiveMission }
-  | { type: 'MISSION_CHOICE'; choiceId: string }
+  | { type: 'MISSION_CHOICE'; choiceId: string; forceResult?: 'success' | 'fail' }
   | { type: 'END_MISSION' }
   // New feature actions
   | { type: 'CREATE_ROUTE'; route: SmuggleRoute }
@@ -145,7 +145,7 @@ type GameAction =
   | { type: 'BUY_HEIST_EQUIP'; equipId: import('../game/heists').HeistEquipId }
   | { type: 'LAUNCH_HEIST' }
   | { type: 'ADVANCE_HEIST' }
-  | { type: 'RESOLVE_HEIST_COMPLICATION'; choiceId: string }
+  | { type: 'RESOLVE_HEIST_COMPLICATION'; choiceId: string; forceResult?: 'success' | 'fail' }
   | { type: 'FINISH_HEIST' }
   | { type: 'CANCEL_HEIST' }
   // Villa actions
@@ -1093,7 +1093,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'MISSION_CHOICE': {
       if (!s.activeMission) return s;
       const mission = s.activeMission;
-      const result = MissionEngine.resolveMissionChoice(s, mission, action.choiceId);
+      const result = MissionEngine.resolveMissionChoice(s, mission, action.choiceId, action.forceResult);
 
       const encounter = mission.encounters[mission.currentEncounter];
       const choice = encounter?.choices.find(c => c.id === action.choiceId);
@@ -1964,7 +1964,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RESOLVE_HEIST_COMPLICATION': {
       if (!s.activeHeist || !s.activeHeist.pendingComplication) return s;
-      resolveComplication(s, s.activeHeist, action.choiceId);
+      resolveComplication(s, s.activeHeist, action.choiceId, action.forceResult);
       // If no more pending complication and not finished, auto-advance
       if (!s.activeHeist.pendingComplication && !s.activeHeist.finished) {
         executePhase(s, s.activeHeist);
