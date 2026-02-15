@@ -1772,6 +1772,7 @@ export function createInitialState(): import('./types').GameState {
     stockHoldings: {},
     pendingInsiderTip: null,
     stockEvents: [],
+    pendingMinigame: null,
   };
 }
 

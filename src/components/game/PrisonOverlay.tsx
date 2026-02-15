@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { Lock, DollarSign, KeyRound, Clock, AlertTriangle, Package, Brain, Swords, Heart, Scale, Users, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, DollarSign, KeyRound, Clock, AlertTriangle, Package, Brain, Swords, Heart, Scale, Users, ShieldCheck, ChevronDown, ChevronUp, Dice1 } from 'lucide-react';
 import { GameButton } from './ui/GameButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState, useEffect, useRef } from 'react';
@@ -8,6 +8,7 @@ import { PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_LAWYER_BRI
 import * as Engine from '@/game/engine';
 import prisonBg from '@/assets/items/overlay-prison.jpg';
 import { playCoinSound, playAlarmSound, playVictorySound, playNegativeSound, playDramaticReveal } from '@/game/sounds';
+import { DiceGame } from './minigames/DiceGame';
 
 export function PrisonOverlay() {
   const { state } = useGame();
@@ -24,6 +25,8 @@ function PrisonOverlayInner() {
   const [confirmBribe, setConfirmBribe] = useState(false);
   const [confirmEscape, setConfirmEscape] = useState(false);
   const [showEscapeBreakdown, setShowEscapeBreakdown] = useState(false);
+  const [showDice, setShowDice] = useState(false);
+  const [diceBet, setDiceBet] = useState(50);
   const hasPlayedAlarm = useRef(false);
 
   // Play alarm on mount (arrest)
@@ -264,6 +267,17 @@ function PrisonOverlayInner() {
               )}
 
               <GameButton
+                variant="purple"
+                size="md"
+                fullWidth
+                icon={<Dice1 size={14} />}
+                onClick={() => setShowDice(true)}
+                disabled={state.money < 50}
+              >
+                DOBBELEN — €{diceBet.toLocaleString()}
+              </GameButton>
+
+              <GameButton
                 variant="muted"
                 size="md"
                 fullWidth
@@ -312,6 +326,27 @@ function PrisonOverlayInner() {
         }}
         onCancel={() => setConfirmEscape(false)}
       />
+
+      {showDice && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-6">
+          <div className="w-full max-w-xs bg-card border border-border rounded-lg p-4 shadow-2xl">
+            <DiceGame
+              bet={diceBet}
+              isPrison
+              onResult={(won, amount) => {
+                if (won) {
+                  dispatch({ type: 'CASINO_WIN', amount: diceBet * 2 });
+                  showToast(`🎲 Gewonnen! +€${diceBet.toLocaleString()}`);
+                } else {
+                  dispatch({ type: 'CASINO_BET', amount: diceBet });
+                  showToast('🎲 Verloren!', true);
+                }
+              }}
+              onClose={() => setShowDice(false)}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

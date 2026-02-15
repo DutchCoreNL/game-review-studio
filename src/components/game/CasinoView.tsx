@@ -6,9 +6,10 @@ import { BlackjackGame } from './casino/BlackjackGame';
 import { RouletteGame } from './casino/RouletteGame';
 import { SlotsGame } from './casino/SlotsGame';
 import { HighLowGame } from './casino/HighLowGame';
+import { RussianRouletteGame } from './casino/RussianRouletteGame';
 import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino/casinoUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown } from 'lucide-react';
+import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair } from 'lucide-react';
 import casinoBg from '@/assets/casino-bg.png';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 
@@ -116,6 +117,7 @@ export function CasinoView() {
             <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
             <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
             <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
+            <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" />
           </motion.div>
         ) : activeGame === 'blackjack' ? (
           <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money}
@@ -126,8 +128,11 @@ export function CasinoView() {
         ) : activeGame === 'slots' ? (
           <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money}
             state={{ ...state, casinoJackpot: state.casinoJackpot }} onResult={handleResult} />
-        ) : (
+        ) : activeGame === 'highlow' ? (
           <HighLowGame key="hl" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} onResult={handleResult} />
+        ) : (
+          <RussianRouletteGame key="rr" dispatch={dispatch} showToast={showToast} money={state.money}
             state={state} onResult={handleResult} />
         )}
       </AnimatePresence>
