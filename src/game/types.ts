@@ -163,6 +163,15 @@ export interface NemesisState {
   lastReaction: string;
   negotiatedThisGen: boolean; // only 1x per generation
   scoutResult: string | null; // last scout intel, shown in night report
+  // Rivaal Systeem 2.0 fields
+  abilities: string[]; // unlocked abilities per generation
+  revengeActive: string | null; // active revenge action type
+  revengeDaysLeft: number; // days revenge is still active
+  defeatChoice: 'execute' | 'exile' | 'recruit' | null; // last defeat choice
+  tauntsShown: string[]; // which taunts already shown (no repeats)
+  woundedRevengeUsed: boolean; // 1x revenge per combat cycle
+  pendingDefeatChoice: boolean; // show defeat popup after combat
+  informantArchetype: NemesisArchetype | null; // revealed archetype from recruit choice
 }
 
 export type DistrictHQUpgradeId = 'patrol' | 'walls' | 'surveillance' | 'turret' | 'command';

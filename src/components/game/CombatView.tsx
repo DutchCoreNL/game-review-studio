@@ -3,6 +3,7 @@ import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUE
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
+import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -478,5 +479,10 @@ function CombatMenu() {
 
 export function CombatView() {
   const { state } = useGame();
-  return state.activeCombat ? <ActiveCombat /> : <CombatMenu />;
+  return (
+    <>
+      {state.activeCombat ? <ActiveCombat /> : <CombatMenu />}
+      <NemesisDefeatPopup />
+    </>
+  );
 }

@@ -1423,6 +1423,120 @@ export const NEMESIS_ARCHETYPES: NemesisArchetypeDef[] = [
 export const NEMESIS_NEGOTIATE_COST_BASE = 15000;
 export const NEMESIS_TRUCE_DAYS = 5;
 
+// ========== NEMESIS TAUNTS PER ARCHETYPE ==========
+
+export const NEMESIS_TAUNTS: Record<NemesisArchetype, {
+  phone: string[];
+  onDistrictBuy: string[];
+  onArrest: string[];
+  onWin: string;
+  onLose: string;
+}> = {
+  zakenman: {
+    phone: [
+      'Geld regeert, vriend. En ik heb meer dan jij. — {name}',
+      'Ik heb net je leverancier opgekocht. Succes ermee. — {name}',
+      'Elke cent die je verdient, kost mij niets. — {name}',
+      'Je denkt als een straatrat. Ik denk als een bank. — {name}',
+      'Mijn accountant is gevaarlijker dan jouw crew. — {name}',
+    ],
+    onDistrictBuy: [
+      'Leuk districtje. Ik bied het dubbele aan je buurman. — {name}',
+      'Vastgoed? Schattig. Ik bezit de hypotheekbank. — {name}',
+    ],
+    onArrest: [
+      'Mijn advocaten staan al klaar. Jij hebt een pro-deo. — {name}',
+      'Geniet van je cel. Ik geniet van je klanten. — {name}',
+    ],
+    onWin: 'Dit was een zakelijke beslissing. Niets persoonlijks.',
+    onLose: 'Je hebt me verslagen, maar mijn geld overleeft mij...',
+  },
+  brute: {
+    phone: [
+      'Ik ruik je bloed al. — {name}',
+      'Je crew? Zwak. Je villa? Breekbaar. Jij? Dood. — {name}',
+      'Ik heb je chauffeur zijn knieschijven beloofd. — {name}',
+      'Slaap lekker. Of niet. — {name}',
+      'Elke dag dat je leeft is een gunst van mij. — {name}',
+    ],
+    onDistrictBuy: [
+      'Leuk huis. Zou jammer zijn als het... afbrandde. — {name}',
+      'Meer grond om je in te begraven. — {name}',
+    ],
+    onArrest: [
+      'Achter tralies? Perfect doelwit. — {name}',
+      'De gevangenis beschermt je niet tegen mij. — {name}',
+    ],
+    onWin: 'Ik had je gewaarschuwd. Nu bloeden de straten.',
+    onLose: 'Goed gevochten... maar mijn opvolger zal erger zijn.',
+  },
+  schaduw: {
+    phone: [
+      'Je weet niet eens dat ik er ben. — {name}',
+      'Ik heb je telefoon al maanden afgeluisterd. — {name}',
+      'De politie heeft net een interessante tip gekregen... — {name}',
+      'Je denkt dat je veilig bent? Denk opnieuw. — {name}',
+      'Ik ben overal en nergens. — {name}',
+    ],
+    onDistrictBuy: [
+      'Mooi district. Mijn spionnen zitten er al. — {name}',
+      'Ik weet de code van je kluis al. — {name}',
+    ],
+    onArrest: [
+      'Wie denk je dat die tip heeft gestuurd? — {name}',
+      'De politie is ook maar een werktuig. — {name}',
+    ],
+    onWin: 'Je zag me niet aankomen. Niemand ziet mij aankomen.',
+    onLose: 'Ik verdwijn... maar mijn netwerk blijft.',
+  },
+  strateeg: {
+    phone: [
+      'Elke zet die je doet, heb ik drie beurten geleden voorspeld. — {name}',
+      'Je facties vertrouwen je niet meer. Vraag je af waarom? — {name}',
+      'Ik hoef je niet te doden. Ik laat je bondgenoten dat doen. — {name}',
+      'Schaak. Niet schaken. — {name}',
+      'Je bent een pion die denkt dat hij een koning is. — {name}',
+    ],
+    onDistrictBuy: [
+      'Interessante zet. Maar ik heb al drie tegenzetten. — {name}',
+      'Je breidt uit? Perfect. Meer flanken om aan te vallen. — {name}',
+    ],
+    onArrest: [
+      'Terwijl jij vastzit, herpositioneer ik alles. — {name}',
+      'Je afwezigheid is mijn beste bondgenoot. — {name}',
+    ],
+    onWin: 'Het was onvermijdelijk. Ik had alles berekend.',
+    onLose: 'Mijn opvolger kent mijn strategie. En hij zal beter zijn.',
+  },
+};
+
+// ========== NEMESIS GENERATION ABILITIES ==========
+
+export const NEMESIS_GEN_ABILITIES: Record<number, string[]> = {
+  1: [],
+  2: ['crew_bribe'],
+  3: ['crew_bribe', 'place_bounty'],
+  4: ['crew_bribe', 'place_bounty', 'double_action', 'safehouse_sabotage'],
+  5: ['crew_bribe', 'place_bounty', 'double_action', 'safehouse_sabotage', 'stat_boost'],
+};
+
+export const NEMESIS_ABILITY_LABELS: Record<string, { name: string; icon: string; desc: string }> = {
+  crew_bribe: { name: 'Crew Omkoping', icon: '🤝', desc: 'Kans om een crewlid om te kopen' },
+  place_bounty: { name: 'Bounty Plaatsen', icon: '🎯', desc: 'Plaatst een premie op de speler' },
+  double_action: { name: 'Dubbele Actie', icon: '⚡', desc: 'Twee acties per dag' },
+  safehouse_sabotage: { name: 'Safehouse Sabotage', icon: '💣', desc: 'Saboteert safehouses' },
+  stat_boost: { name: 'Ultieme Macht', icon: '👑', desc: 'Versterkte stats' },
+};
+
+// ========== NEMESIS REVENGE ACTIONS ==========
+
+export const NEMESIS_REVENGE_TYPES: Record<NemesisArchetype, { id: string; name: string; desc: string; duration: number }> = {
+  zakenman: { id: 'market_crash', name: 'Marktcrash', desc: 'Alle marktprijzen gemanipuleerd', duration: 3 },
+  brute: { id: 'hitmen', name: 'Huurmoordenaars', desc: 'Extra combat encounter', duration: 1 },
+  schaduw: { id: 'heat_surge', name: 'Heat Surge', desc: 'Verdubbelde heat', duration: 2 },
+  strateeg: { id: 'faction_sabotage', name: 'Factie Sabotage', desc: 'Alle factie-relaties -10', duration: 1 },
+};
+
 function getRandomArchetype(): NemesisArchetype {
   const types: NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
   return types[Math.floor(Math.random() * types.length)];
@@ -1449,6 +1563,15 @@ function createInitialNemesis(): NemesisState {
     lastReaction: '',
     negotiatedThisGen: false,
     scoutResult: null,
+    // Rivaal 2.0 fields
+    abilities: [],
+    revengeActive: null,
+    revengeDaysLeft: 0,
+    defeatChoice: null,
+    tauntsShown: [],
+    woundedRevengeUsed: false,
+    pendingDefeatChoice: false,
+    informantArchetype: null,
   };
 }
 

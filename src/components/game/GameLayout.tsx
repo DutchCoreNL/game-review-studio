@@ -37,6 +37,7 @@ import { ScreenEffects } from './animations/ScreenEffects';
 import { NpcEventPopup } from './NpcEventPopup';
 import { WeekEventBanner } from './WeekEventBanner';
 import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
+import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -134,6 +135,7 @@ export function GameLayout() {
         <AchievementPopup />
         {(state as any).pendingNpcEvent && <NpcEventPopup />}
         {state.pendingBountyEncounter && <BountyEncounterPopup />}
+        {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
         {state.gameOver && <GameOverScreen />}
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />

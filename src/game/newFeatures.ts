@@ -5,7 +5,7 @@
 
 import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, NemesisArchetype, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
 import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat, arrestPlayer, syncPlayerMaxHP } from './engine';
-import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS } from './constants';
+import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS, NEMESIS_TAUNTS, NEMESIS_GEN_ABILITIES, NEMESIS_REVENGE_TYPES } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
 
@@ -69,9 +69,81 @@ export function hasDistrictPerk(state: GameState, districtId: DistrictId, thresh
 
 // ========== 3. NEMESIS SYSTEM ==========
 
+// Apply archetype-specific revenge effect each day it's active
+function applyRevengeEffect(state: GameState, nem: NemesisState, report: NightReportData): void {
+  switch (nem.revengeActive) {
+    case 'market_crash': {
+      // Zakenman: manipulate all market prices
+      const districts: DistrictId[] = ['port', 'crown', 'iron', 'low', 'neon'];
+      districts.forEach(d => {
+        if (state.prices[d]) {
+          Object.keys(state.prices[d]).forEach(g => {
+            state.prices[d][g] = Math.floor(state.prices[d][g] * (0.6 + Math.random() * 0.5));
+          });
+        }
+      });
+      report.nemesisReaction = `${nem.name}: Marktcrash wraakactie actief (${nem.revengeDaysLeft} dagen over)`;
+      break;
+    }
+    case 'heat_surge': {
+      // Schaduw: double heat gain
+      addPersonalHeat(state, 10);
+      report.nemesisReaction = `${nem.name}: Heat Surge wraakactie (+10 heat, ${nem.revengeDaysLeft} dagen over)`;
+      break;
+    }
+    case 'faction_sabotage': {
+      // Strateeg: drain all faction relations
+      const factions = Object.keys(FAMILIES) as FamilyId[];
+      factions.forEach(fid => {
+        state.familyRel[fid] = Math.max(-100, (state.familyRel[fid] || 0) - 10);
+      });
+      report.nemesisReaction = `${nem.name}: Factie Sabotage wraakactie (-10 alle relaties)`;
+      break;
+    }
+    case 'hitmen': {
+      // Brute: extra combat encounter — handled via phone message trigger
+      addPhoneMessage(state, 'anonymous', `⚠️ Huurmoordenaars van ${nem.name} zijn gesignaleerd in ${DISTRICTS[state.loc].name}!`, 'threat');
+      report.nemesisReaction = `${nem.name}: Huurmoordenaars gestuurd!`;
+      break;
+    }
+  }
+}
+
+// Trigger revenge when nemesis is wounded but not killed
+function triggerNemesisRevenge(state: GameState, nem: NemesisState): void {
+  if (nem.woundedRevengeUsed) return;
+  const revengeType = NEMESIS_REVENGE_TYPES[nem.archetype];
+  nem.revengeActive = revengeType.id;
+  nem.revengeDaysLeft = revengeType.duration;
+  nem.woundedRevengeUsed = true;
+  addPhoneMessage(state, 'nemesis', `Je hebt me verwond. Dat was een fout. Bereid je voor op mijn ${revengeType.name}. — ${nem.name}`, 'threat');
+}
+
+// Send an archetype-specific taunt
+function sendNemesisTaunt(state: GameState, nem: NemesisState, category: 'phone' | 'onDistrictBuy' | 'onArrest'): void {
+  const taunts = NEMESIS_TAUNTS[nem.archetype];
+  if (!taunts) return;
+  const pool = taunts[category].filter(t => !nem.tauntsShown.includes(t));
+  if (pool.length === 0) return;
+  const taunt = pool[Math.floor(Math.random() * pool.length)];
+  nem.tauntsShown.push(taunt);
+  const msg = taunt.replace(/\{name\}/g, nem.name);
+  addPhoneMessage(state, 'nemesis', msg, 'threat');
+}
+
 export function updateNemesis(state: GameState, report: NightReportData): void {
   const nem = state.nemesis;
   if (!nem) return;
+
+  // === REVENGE COUNTDOWN ===
+  if (nem.revengeActive && nem.revengeDaysLeft > 0) {
+    nem.revengeDaysLeft--;
+    applyRevengeEffect(state, nem, report);
+    if (nem.revengeDaysLeft <= 0) {
+      report.nemesisReaction = `${nem.name}'s wraakactie (${nem.revengeActive}) is afgelopen.`;
+      nem.revengeActive = null;
+    }
+  }
 
   // === TRUCE COUNTDOWN ===
   if (nem.truceDaysLeft > 0) {
@@ -117,11 +189,26 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
     nem.lastReaction = '';
     nem.negotiatedThisGen = false;
     nem.scoutResult = null;
-    // New archetype for successor
+    nem.woundedRevengeUsed = false;
+    nem.revengeActive = null;
+    nem.revengeDaysLeft = 0;
+    // Assign generation abilities
+    nem.abilities = NEMESIS_GEN_ABILITIES[nem.generation] || [];
+    // New archetype for successor (or use informant intel)
     const archetypes: NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
-    nem.archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+    if (nem.informantArchetype) {
+      nem.archetype = nem.informantArchetype;
+      nem.informantArchetype = null;
+    } else {
+      nem.archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+    }
+    // Execute defeat: spawn faster
+    if (nem.defeatChoice === 'execute') {
+      // Already handled by earlier nextSpawnDay adjustment
+    }
+    nem.defeatChoice = null;
     const archDef = NEMESIS_ARCHETYPES.find(a => a.id === nem.archetype)!;
-    addPhoneMessage(state, 'anonymous', `⚠️ Een nieuwe rivaal is opgestaan: ${newName} (${archDef.icon} ${archDef.name}). Generatie #${nem.generation}.`, 'threat');
+    addPhoneMessage(state, 'anonymous', `⚠️ Een nieuwe rivaal is opgestaan: ${newName} (${archDef.icon} ${archDef.name}). Generatie #${nem.generation}.${nem.abilities.length > 0 ? ` Nieuwe vaardigheden ontgrendeld!` : ''}`, 'threat');
     report.nemesisAction = `Nieuwe rivaal: ${newName} — ${archDef.name} (Gen #${nem.generation})`;
     return;
   }
@@ -156,13 +243,18 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
     }
   }
 
-  // === REACTIONS TO PLAYER ACTIONS ===
+  // === REACTIONS TO PLAYER ACTIONS (with personality taunts) ===
   const reactions: string[] = [];
 
-  // React to player buying district
+  // React to player buying district (archetype-specific taunt)
   if (state.ownedDistricts.length > 0 && Math.random() < 0.15) {
-    addPhoneMessage(state, 'nemesis', `Je denkt dat je de stad kunt kopen? Ik zal je laten zien hoe het werkt. — ${nem.name}`, 'threat');
+    sendNemesisTaunt(state, nem, 'onDistrictBuy');
     reactions.push('dreigt na jouw districtaankoop');
+  }
+
+  // Random personality taunt (15% chance)
+  if (Math.random() < 0.15) {
+    sendNemesisTaunt(state, nem, 'phone');
   }
 
   // React to high heat: send anonymous tip
@@ -173,13 +265,49 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
     report.nemesisReaction = `${nem.name} heeft een anonieme tip naar de politie gestuurd (+${archDef.heatManipBonus} heat)`;
   }
 
-  // React to player in prison: extra revenge
+  // React to player in prison (archetype-specific)
   if (state.prison) {
+    sendNemesisTaunt(state, nem, 'onArrest');
     const revengeResult = nemesisPrisonRevenge(state, nem);
     if (revengeResult) {
       reactions.push(revengeResult);
       report.nemesisPrisonRevenge = `${nem.name}: ${revengeResult}`;
     }
+  }
+
+  // === GENERATION ABILITY ACTIONS ===
+  
+  // Gen 2+: Crew Bribe (chance a crew member defects)
+  if (nem.abilities.includes('crew_bribe') && state.crew.length > 0 && Math.random() < 0.08) {
+    const target = state.crew[Math.floor(Math.random() * state.crew.length)];
+    if (target.loyalty < 40) {
+      target.loyalty = Math.max(0, target.loyalty - 30);
+      reactions.push(`probeert ${target.name} om te kopen (loyalty -30)`);
+      addPhoneMessage(state, 'nemesis', `Je crew is niet zo loyaal als je denkt. Vraag het maar aan ${target.name}. — ${nem.name}`, 'threat');
+    }
+  }
+
+  // Gen 3+: Place Bounty on player
+  if (nem.abilities.includes('place_bounty') && Math.random() < 0.05) {
+    // Integrate with bounty system: increase player heat as proxy
+    addPersonalHeat(state, 8);
+    reactions.push('plaatst een premie op je hoofd (+8 heat)');
+    addPhoneMessage(state, 'anonymous', `⚠️ ${nem.name} heeft een premie op je hoofd gezet! Premiejagers zijn onderweg.`, 'threat');
+  }
+
+  // Gen 4+: Safehouse Sabotage
+  if (nem.abilities.includes('safehouse_sabotage') && state.safehouses && state.safehouses.length > 0 && Math.random() < 0.06) {
+    const targetSH = state.safehouses[Math.floor(Math.random() * state.safehouses.length)];
+    if (targetSH.upgrades.length > 0) {
+      const removedUpgrade = targetSH.upgrades.pop()!;
+      reactions.push(`saboteert je safehouse in ${DISTRICTS[targetSH.district].name} (${removedUpgrade} vernietigd)`);
+      addPhoneMessage(state, 'nemesis', `Je schuilplaats in ${DISTRICTS[targetSH.district].name}? Niet meer zo veilig. — ${nem.name}`, 'threat');
+    }
+  }
+
+  // Gen 5: Stat boost — already applied via power scaling
+  if (nem.abilities.includes('stat_boost')) {
+    nem.power += 5;
   }
 
   nem.lastReaction = reactions.join(', ');
@@ -209,7 +337,7 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
 
   // === NEMESIS ACTIONS (archetype-weighted) ===
   const actions: string[] = [];
-  const actionCount = 1 + (Math.random() < 0.3 ? 1 : 0);
+  const actionCount = (nem.abilities.includes('double_action') ? 2 : 1) + (Math.random() < 0.3 ? 1 : 0);
 
   // Villa attack
   const villaAttackChance = state.villa
@@ -468,17 +596,34 @@ export function resolveNemesisDefeat(state: GameState): void {
   nem.alliedFaction = null;
   nem.truceDaysLeft = 0;
   nem.scoutResult = null;
+  nem.woundedRevengeUsed = false;
+  nem.revengeActive = null;
+  nem.revengeDaysLeft = 0;
 
   const reward = 15000 + nem.generation * 12000;
   state.money += reward;
   state.rep += 100 + nem.generation * 50;
   state.stats.totalEarned += reward;
 
+  // Set pending defeat choice (popup will show after combat)
+  nem.pendingDefeatChoice = true;
+
   if (nem.generation < 5 || state.freePlayMode) {
     nem.nextSpawnDay = state.day + 10 + nem.generation * 3;
-    addPhoneMessage(state, 'anonymous', `${nem.name} is permanent uitgeschakeld! +€${reward.toLocaleString()} buit. Een opvolger kan over ${10 + nem.generation * 3} dagen opduiken.`, 'opportunity');
+    addPhoneMessage(state, 'anonymous', `${nem.name} is uitgeschakeld! +€${reward.toLocaleString()} buit. Wat doe je met de rivaal?`, 'opportunity');
   } else {
     addPhoneMessage(state, 'anonymous', `${nem.name} was de laatste rivaal. De onderwereld is definitief van jou! +€${reward.toLocaleString()} buit.`, 'opportunity');
+    nem.pendingDefeatChoice = false; // No choice needed for final rival
+  }
+}
+
+// Trigger revenge when nemesis loses HP in combat but survives
+export function checkNemesisWoundedRevenge(state: GameState): void {
+  const nem = state.nemesis;
+  if (!nem || !nem.alive) return;
+  // If nemesis was wounded (HP < 50% of max) but not killed, trigger revenge
+  if (nem.hp > 0 && nem.hp < nem.maxHp * 0.5 && !nem.woundedRevengeUsed) {
+    triggerNemesisRevenge(state, nem);
   }
 }
 
