@@ -28,6 +28,7 @@ import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import { MissionBriefing } from './MissionBriefing';
+import { BountyBoardPanel } from './bounty/BountyBoardPanel';
 import operationsBg from '@/assets/operations-bg.jpg';
 import { SOLO_OP_IMAGES, CONTRACT_TYPE_IMAGES } from '@/assets/items';
 
@@ -36,7 +37,7 @@ const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat:
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'challenges';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'bounties' | 'challenges';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -88,6 +89,7 @@ export function OperationsView() {
           { id: 'contracts' as OpsSubTab, label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
           { id: 'heists' as OpsSubTab, label: 'HEIST', icon: <Target size={12} /> },
           { id: 'hits' as OpsSubTab, label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
+          { id: 'bounties' as OpsSubTab, label: 'PREMIES', icon: <ShieldAlert size={12} />, badge: (state.activeBounties || []).length + (state.placedBounties || []).length },
           { id: 'crew' as OpsSubTab, label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
           { id: 'challenges' as OpsSubTab, label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
         ]).map(tab => (
@@ -310,6 +312,8 @@ export function OperationsView() {
       {subTab === 'hits' && <HitsView />}
 
       {subTab === 'heists' && <HeistView />}
+
+      {subTab === 'bounties' && <BountyBoardPanel />}
 
       {subTab === 'challenges' && <DailyChallengesView />}
 

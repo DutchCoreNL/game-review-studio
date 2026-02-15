@@ -16,6 +16,8 @@ import { checkWeekEvent, processWeekEvent } from '../game/weekEvents';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
 import { generateHitContracts, executeHit } from '../game/hitman';
+import * as bountyModule from '../game/bounties';
+import * as stockModule from '../game/stocks';
 import { resolveCrewEvent } from '../game/crewEvents';
 import { generateDailyNews } from '../game/newsGenerator';
 
@@ -186,6 +188,15 @@ type GameAction =
   | { type: 'DISMISS_CREW_EVENT' }
   | { type: 'RESOLVE_NPC_EVENT'; choiceId: string }
   | { type: 'DISMISS_NPC_EVENT' }
+  // Bounty actions
+  | { type: 'PLACE_BOUNTY'; targetId: string }
+  | { type: 'RESOLVE_BOUNTY_ENCOUNTER'; choice: 'fight' | 'flee' | 'bribe' }
+  | { type: 'DISMISS_BOUNTY_ENCOUNTER' }
+  | { type: 'CANCEL_BOUNTY'; bountyId: string }
+  // Stock actions
+  | { type: 'BUY_STOCK'; stockId: string; shares: number }
+  | { type: 'SELL_STOCK'; stockId: string; shares: number }
+  | { type: 'DISMISS_INSIDER_TIP' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -2167,6 +2178,70 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== BOUNTY ACTIONS ==========
+
+    case 'PLACE_BOUNTY': {
+      const target = bountyModule.BOUNTY_TARGETS.find(t => t.id === action.targetId);
+      if (!target || s.money < target.cost) return s;
+      s.money -= target.cost;
+      s.stats.totalSpent += target.cost;
+      if (!s.placedBounties) s.placedBounties = [];
+      s.placedBounties.push({
+        id: `placed_${s.day}_${action.targetId}`,
+        targetName: target.name,
+        targetType: 'npc',
+        reward: target.cost,
+        placedBy: 'Speler',
+        deadline: s.day + 7,
+        status: 'active',
+        familyId: target.familyId,
+        district: target.district,
+      });
+      // Remove from board
+      s.bountyBoard = s.bountyBoard.filter(b => b.id !== action.targetId);
+      return s;
+    }
+
+    case 'RESOLVE_BOUNTY_ENCOUNTER': {
+      if (!s.pendingBountyEncounter) return s;
+      bountyModule.resolveBountyEncounter(s, action.choice);
+      s.pendingBountyEncounter = null;
+      return s;
+    }
+
+    case 'DISMISS_BOUNTY_ENCOUNTER': {
+      s.pendingBountyEncounter = null;
+      return s;
+    }
+
+    case 'CANCEL_BOUNTY': {
+      if (!s.placedBounties) return s;
+      const bounty = s.placedBounties.find(b => b.id === action.bountyId);
+      if (bounty) {
+        bounty.status = 'expired';
+        s.money += Math.floor(bounty.reward * 0.5); // refund half
+        s.placedBounties = s.placedBounties.filter(b => b.id !== action.bountyId);
+      }
+      return s;
+    }
+
+    // ========== STOCK ACTIONS ==========
+
+    case 'BUY_STOCK': {
+      stockModule.buyStock(s, action.stockId as any, action.shares);
+      return s;
+    }
+
+    case 'SELL_STOCK': {
+      stockModule.sellStock(s, action.stockId as any, action.shares);
+      return s;
+    }
+
+    case 'DISMISS_INSIDER_TIP': {
+      s.pendingInsiderTip = null;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -2416,6 +2491,16 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (!saved.seenEndgameEvents) saved.seenEndgameEvents = [];
       // Achievement popup migration
       if (!saved.pendingAchievements) saved.pendingAchievements = [];
+      // Bounty & Stock market migrations
+      if (!saved.activeBounties) saved.activeBounties = [];
+      if (!saved.placedBounties) saved.placedBounties = [];
+      if (saved.pendingBountyEncounter === undefined) saved.pendingBountyEncounter = null;
+      if (!saved.bountyBoard) saved.bountyBoard = [];
+      if (!saved.stockPrices) saved.stockPrices = {};
+      if (!saved.stockHistory) saved.stockHistory = {};
+      if (!saved.stockHoldings) saved.stockHoldings = {};
+      if (saved.pendingInsiderTip === undefined) saved.pendingInsiderTip = null;
+      if (!saved.stockEvents) saved.stockEvents = [];
       const today = new Date().toDateString();
       if (saved.lastLoginDay !== today) {
         saved.dailyRewardClaimed = false;

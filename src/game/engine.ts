@@ -9,6 +9,8 @@ import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationM
 import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
 import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
+import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
+import { updateStockPrices } from './stocks';
 
 const SAVE_KEY = 'noxhaven_save_v11';
 
@@ -1296,6 +1298,18 @@ export function endTurn(state: GameState): NightReportData {
 
   // === CLIFFHANGER GENERATION ===
   report.cliffhanger = generateCliffhanger(state);
+
+  // === BOUNTY SYSTEM PROCESSING ===
+  generatePlayerBounties(state);
+  const encounter = rollBountyEncounter(state);
+  if (encounter) {
+    state.pendingBountyEncounter = encounter;
+  }
+  processPlacedBounties(state, report);
+  refreshBountyBoard(state);
+
+  // === STOCK MARKET PROCESSING ===
+  updateStockPrices(state, report);
 
   state.maxInv = recalcMaxInv(state);
 

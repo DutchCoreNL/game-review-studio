@@ -1635,6 +1635,17 @@ export function createInitialState(): import('./types').GameState {
     goldenHour: null,
     // Run history
     runHistory: [],
+    // Bounty system state
+    activeBounties: [],
+    placedBounties: [],
+    pendingBountyEncounter: null,
+    bountyBoard: [],
+    // Stock market state
+    stockPrices: {},
+    stockHistory: {},
+    stockHoldings: {},
+    pendingInsiderTip: null,
+    stockEvents: [],
   };
 }
 
