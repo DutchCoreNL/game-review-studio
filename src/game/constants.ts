@@ -1632,6 +1632,8 @@ export function createInitialState(): import('./types').GameState {
     dealerDeal: null,
     // Golden hour state
     goldenHour: null,
+    // Run history
+    runHistory: [],
   };
 }
 

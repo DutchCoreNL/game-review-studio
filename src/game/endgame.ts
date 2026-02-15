@@ -483,11 +483,30 @@ export function createNewGamePlus(state: GameState): GameState {
         fresh.npcRelations[id] = {
           ...fresh.npcRelations[id],
           met: true,
-          value: Math.floor((state.npcRelations[id].value || 0) * 0.3), // carry 30% relationship
+          value: Math.floor((state.npcRelations[id].value || 0) * 0.3),
         };
       }
     });
   }
+
+  // Save current run to history
+  const vData = buildVictoryData(state);
+  const runRecord: import('./types').RunRecord = {
+    ngLevel: state.newGamePlusLevel,
+    day: state.day,
+    score: vData.score,
+    rank: vData.rank,
+    method: vData.method,
+    factionsConquered: vData.factionsConquered,
+    districtsOwned: vData.districtsOwned,
+    achievementsUnlocked: vData.achievementsUnlocked,
+    totalEarned: vData.totalEarned,
+    nemesisDefeated: vData.nemesisDefeated >= 1,
+    crewSize: vData.crewSize,
+    karma: state.karma,
+    timestamp: Date.now(),
+  };
+  fresh.runHistory = [...(state.runHistory || []), runRecord];
 
   return fresh;
 }
