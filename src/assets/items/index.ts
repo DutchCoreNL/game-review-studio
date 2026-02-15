@@ -157,6 +157,7 @@ import badgeGearCollector from './badge-gear-collector.jpg';
 import badgeVeteran from './badge-veteran.jpg';
 import badgeNightOwl from './badge-night-owl.jpg';
 import badgeDebtFree from './badge-debt-free.jpg';
+import badgeHallOfFame from './badge-hall-of-fame.jpg';
 
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
@@ -343,6 +344,7 @@ export const ACHIEVEMENT_IMAGES: Record<string, string> = {
   heist_master: badgeVeteran,
   night_owl: badgeNightOwl,
   debt_free: badgeDebtFree,
+  hall_of_fame: badgeHallOfFame,
 };
 
 export const CASINO_GAME_IMAGES: Record<string, string> = {

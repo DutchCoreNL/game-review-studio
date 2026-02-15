@@ -1255,6 +1255,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'heist_master', name: 'Veteraan', desc: 'Voltooi 10 missies', icon: 'Banknote', condition: (s) => (s.stats?.missionsCompleted || 0) >= 10, progress: (s) => ({ current: Math.min(s.stats?.missionsCompleted || 0, 10), target: 10 }) },
   { id: 'night_owl', name: 'Nachtuil', desc: 'Overleef 100 dagen', icon: 'Moon', condition: (s) => s.day >= 100, progress: (s) => ({ current: Math.min(s.day, 100), target: 100 }) },
   { id: 'debt_free', name: 'Schuldvrij', desc: 'Los al je schulden af', icon: 'CheckCircle', condition: (s) => s.debt === 0 && (s.stats?.totalEarned || 0) > 10000 },
+  { id: 'hall_of_fame', name: 'Hall of Fame', desc: 'Voltooi 3+ NG+ runs met minimaal A-rank', icon: 'Trophy', condition: (s) => (s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length >= 3, progress: (s) => ({ current: Math.min((s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length, 3), target: 3 }) },
 ];
 
 export const BET_PRESETS = [100, 500, 1000, 5000];
