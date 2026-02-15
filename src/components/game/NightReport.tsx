@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star, Target, BarChart3 } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star, Target, BarChart3, Truck, Gem } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -63,7 +63,19 @@ export function NightReport() {
   if (report.villaCokeProduced && report.villaCokeProduced > 0) scheduleSound(villaCokeDelay, playPositiveSound);
 
   const villaLabDelay = report.villaLabProduced && report.villaLabProduced > 0 ? next() : d;
-  if (report.villaLabProduced && report.villaLabProduced > 0) scheduleSound(villaLabDelay, playPositiveSound);
+   if (report.villaLabProduced && report.villaLabProduced > 0) scheduleSound(villaLabDelay, playPositiveSound);
+
+  // Drug Empire dealer income
+  const drugDealerDelay = report.drugEmpireDealerIncome && report.drugEmpireDealerIncome > 0 ? next() : d;
+  if (report.drugEmpireDealerIncome && report.drugEmpireDealerIncome > 0) scheduleSound(drugDealerDelay, playCoinSound);
+
+  // Drug Empire NoxCrystal
+  const drugNoxDelay = report.drugEmpireNoxCrystal && report.drugEmpireNoxCrystal > 0 ? next() : d;
+  if (report.drugEmpireNoxCrystal && report.drugEmpireNoxCrystal > 0) scheduleSound(drugNoxDelay, playPositiveSound);
+
+  // Drug Empire risk event
+  const drugRiskDelay = report.drugEmpireRiskEvent ? next(0.2) : d;
+  if (report.drugEmpireRiskEvent) scheduleSound(drugRiskDelay, playAlarmSound);
 
   // Costs
   const debtDelay = report.debtInterest > 0 ? next() : d;
@@ -214,6 +226,37 @@ export function NightReport() {
             {report.villaLabProduced && report.villaLabProduced > 0 && (
               <AnimatedReportRow icon={<FlaskConical size={14} />} label="Villa Lab" value={report.villaLabProduced} prefix="+" suffix=" Synthetica" positive color="text-blood" delay={villaLabDelay} />
             )}
+
+            {/* Drug Empire: Dealer Income */}
+            {report.drugEmpireDealerIncome && report.drugEmpireDealerIncome > 0 && (
+              <AnimatedReportRow icon={<Truck size={14} />} label="Dealer Netwerk" value={report.drugEmpireDealerIncome} prefix="€" positive color="text-emerald" delay={drugDealerDelay} />
+            )}
+
+            {/* Drug Empire: NoxCrystal */}
+            {report.drugEmpireNoxCrystal && report.drugEmpireNoxCrystal > 0 && (
+              <AnimatedReportRow icon={<Gem size={14} />} label="NoxCrystal Geproduceerd" value={report.drugEmpireNoxCrystal} prefix="+" suffix=" kristallen" positive color="text-game-purple" delay={drugNoxDelay} />
+            )}
+
+            {/* Drug Empire: Risk Event */}
+            {report.drugEmpireRiskEvent && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: drugRiskDelay, type: 'spring', stiffness: 400 }}
+                className={`border rounded-lg p-3 flex items-center gap-2 ${
+                  report.drugEmpireRiskEvent.type === 'big_harvest' ? 'bg-emerald/10 border-emerald' : 'bg-blood/10 border-blood'
+                }`}
+              >
+                <AlertTriangle size={16} className={report.drugEmpireRiskEvent.type === 'big_harvest' ? 'text-emerald' : 'text-blood'} />
+                <div>
+                  <p className={`text-xs font-bold ${report.drugEmpireRiskEvent.type === 'big_harvest' ? 'text-emerald' : 'text-blood'}`}>
+                    {report.drugEmpireRiskEvent.title}
+                  </p>
+                  <p className="text-[0.6rem] text-muted-foreground">{report.drugEmpireRiskEvent.desc}</p>
+                </div>
+              </motion.div>
+            )}
+
             {report.debtInterest > 0 && (
               <AnimatedReportRow icon={<TrendingDown size={14} />} label="Schuld Rente" value={report.debtInterest} prefix="€" positive color="text-blood" delay={debtDelay} />
             )}
