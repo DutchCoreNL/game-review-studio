@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { BOUNTY_TARGETS, BountyTarget } from '@/game/bounties';
+import { BOUNTY_IMAGES } from '@/assets/items';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -18,7 +19,15 @@ export function BountyBoardPanel() {
 
   return (
     <div className="space-y-3">
-      {/* Sub-tabs */}
+      {/* Banner */}
+      <div className="relative h-20 rounded-lg overflow-hidden -mx-1">
+        <img src={BOUNTY_IMAGES.board} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+        <div className="absolute bottom-2 left-3 flex items-center gap-2">
+          <Target size={14} className="text-blood" />
+          <span className="text-xs font-display text-blood uppercase tracking-wider font-bold">Premiejacht</span>
+        </div>
+      </div>
       <div className="flex gap-1.5">
         {([
           { id: 'board' as const, label: 'PREMIE BORD', badge: board.length },

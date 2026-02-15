@@ -3,6 +3,7 @@ import { useGame } from '@/contexts/GameContext';
 import { RACES, VEHICLES } from '@/game/constants';
 import { RaceDef, RaceType } from '@/game/types';
 import { pickRaceNPC, calculateRaceResult, RaceResult } from '@/game/racing';
+import { RACING_IMAGES } from '@/assets/items';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { Slider } from '@/components/ui/slider';
@@ -51,6 +52,15 @@ export function RacingPanel() {
 
   return (
     <div>
+      {/* Racing banner */}
+      <div className="relative h-20 rounded-lg overflow-hidden mb-3">
+        <img src={RACING_IMAGES.bg} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+        <div className="absolute bottom-2 left-3 flex items-center gap-2">
+          <Flag size={14} className="text-gold" />
+          <span className="text-xs font-display text-gold uppercase tracking-wider font-bold">Illegale Races</span>
+        </div>
+      </div>
       <SectionHeader title="Illegale Races" icon={<Flag size={12} />} badge={state.raceUsedToday ? 'COOLDOWN' : undefined} badgeColor="blood" />
 
       {state.raceUsedToday && (

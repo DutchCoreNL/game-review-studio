@@ -166,6 +166,30 @@ import opCarTheft from './op-car-theft.jpg';
 import opStoreRobbery from './op-store-robbery.jpg';
 import opCryptoHeist from './op-crypto-heist.jpg';
 
+// Stock market company images
+import stockNeroShipping from './stock-nero-shipping.jpg';
+import stockCrownPharma from './stock-crown-pharma.jpg';
+import stockIronSteel from './stock-iron-steel.jpg';
+import stockNeonMedia from './stock-neon-media.jpg';
+import stockShadowTech from './stock-shadow-tech.jpg';
+
+// Bounty images
+import bountyBoardBg from './bounty-board-bg.jpg';
+import bountyHunter from './bounty-hunter.jpg';
+
+// Racing image
+import racingBg from './racing-bg.jpg';
+
+// Game over image
+import gameOverBg from './game-over-bg.jpg';
+
+// Market event images
+import marketDrugBust from './market-drug-bust.jpg';
+import marketPoliceSweep from './market-police-sweep.jpg';
+import marketTechBoom from './market-tech-boom.jpg';
+import marketCartelWar from './market-cartel-war.jpg';
+import marketPortBlockade from './market-port-blockade.jpg';
+
 export const VEHICLE_IMAGES: Record<string, string> = {
   toyohata: carToyohata,
   forgedyer: carForgedyer,
@@ -352,4 +376,33 @@ export const CASINO_GAME_IMAGES: Record<string, string> = {
   roulette: casinoRoulette,
   slots: casinoSlots,
   highlow: casinoHighlow,
+};
+
+export const STOCK_IMAGES: Record<string, string> = {
+  nero_shipping: stockNeroShipping,
+  crown_pharma: stockCrownPharma,
+  iron_steel: stockIronSteel,
+  neon_media: stockNeonMedia,
+  shadow_tech: stockShadowTech,
+};
+
+export const BOUNTY_IMAGES = {
+  board: bountyBoardBg,
+  hunter: bountyHunter,
+};
+
+export const RACING_IMAGES = {
+  bg: racingBg,
+};
+
+export const GAME_OVER_IMAGES = {
+  bg: gameOverBg,
+};
+
+export const MARKET_EVENT_IMAGES: Record<string, string> = {
+  drug_bust: marketDrugBust,
+  police_sweep: marketPoliceSweep,
+  tech_boom: marketTechBoom,
+  cartel_war: marketCartelWar,
+  port_blockade: marketPortBlockade,
 };
