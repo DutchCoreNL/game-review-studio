@@ -13,6 +13,7 @@ import {
   calculateDealerIncome, MAX_DEALERS, shouldShowDrugEmpire,
   type ProductionLabId, type DrugTier,
 } from '@/game/drugEmpire';
+import { DRUG_EMPIRE_IMAGES } from '@/assets/items';
 
 type EmpireTab = 'labs' | 'dealers' | 'noxcrystal';
 
@@ -40,12 +41,15 @@ export function DrugEmpirePanel() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-blood/10 border border-blood rounded-lg p-3 flex items-center gap-2"
+          className="relative overflow-hidden bg-blood/10 border border-blood rounded-lg"
         >
-          <AlertTriangle size={16} className="text-blood flex-shrink-0" />
-          <div>
-            <p className="text-xs font-bold text-blood">🔍 DEA ONDERZOEK ACTIEF</p>
-            <p className="text-[0.6rem] text-muted-foreground">Alle productie gestopt. Nog {de.deaInvestigation} {de.deaInvestigation === 1 ? 'dag' : 'dagen'}.</p>
+          <img src={DRUG_EMPIRE_IMAGES.dea_investigation} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+          <div className="relative p-3 flex items-center gap-2">
+            <AlertTriangle size={16} className="text-blood flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-blood">🔍 DEA ONDERZOEK ACTIEF</p>
+              <p className="text-[0.6rem] text-muted-foreground">Alle productie gestopt. Nog {de.deaInvestigation} {de.deaInvestigation === 1 ? 'dag' : 'dagen'}.</p>
+            </div>
           </div>
         </motion.div>
       )}
@@ -88,13 +92,19 @@ function LabUpgradesTab() {
         const isOffline = (de?.labOffline[lab.id] || 0) > 0;
 
         return (
-          <div key={lab.id} className={`bg-${lab.color}/5 border border-${lab.color}/20 rounded-lg p-3 space-y-2`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <div key={lab.id} className={`bg-${lab.color}/5 border border-${lab.color}/20 rounded-lg overflow-hidden`}>
+            {/* Lab tier banner image */}
+            <div className="relative h-20">
+              <img
+                src={currentTier === 3 ? DRUG_EMPIRE_IMAGES.lab_tier3 : currentTier === 2 ? DRUG_EMPIRE_IMAGES.lab_tier2 : DRUG_EMPIRE_IMAGES.lab_tier1}
+                alt="" className={`w-full h-full object-cover ${isOffline ? 'grayscale' : ''}`}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+              <div className="absolute bottom-2 left-3 flex items-center gap-2">
                 <span>{lab.icon}</span>
                 <span className={`text-xs font-bold text-${lab.color}`}>{lab.name}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="absolute bottom-2 right-3 flex items-center gap-1">
                 <span className="text-[0.55rem] text-muted-foreground">Tier</span>
                 {[1, 2, 3].map(t => (
                   <span key={t} className={`text-[0.6rem] w-5 h-5 rounded flex items-center justify-center font-bold ${
@@ -103,6 +113,8 @@ function LabUpgradesTab() {
                 ))}
               </div>
             </div>
+
+            <div className="p-3 space-y-2">
 
             {isOffline && (
               <p className="text-[0.55rem] text-blood font-bold">🚨 OFFLINE — {de!.labOffline[lab.id]} dagen resterend</p>
@@ -152,6 +164,7 @@ function LabUpgradesTab() {
                 })}
               </div>
             )}
+            </div>
           </div>
         );
       })}
@@ -171,6 +184,16 @@ function DealersTab() {
 
   return (
     <div className="space-y-3">
+      {/* Dealer network banner */}
+      <div className="relative h-24 rounded-lg overflow-hidden">
+        <img src={DRUG_EMPIRE_IMAGES.dealer_network} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+        <div className="absolute bottom-2 left-3">
+          <p className="text-xs font-bold text-gold">Distributienetwerk</p>
+          <p className="text-[0.55rem] text-muted-foreground">Wijs dealers toe aan je districten</p>
+        </div>
+      </div>
+
       {/* Active dealers */}
       {de && de.dealers.length > 0 && (
         <div className="space-y-1.5">
@@ -277,14 +300,20 @@ function NoxCrystalTab() {
 
   return (
     <div className="space-y-3">
-      <div className="bg-game-purple/10 border border-game-purple/30 rounded-lg p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Crown size={16} className="text-game-purple" />
-          <div>
-            <p className="text-xs font-bold text-game-purple">NoxCrystal</p>
-            <p className="text-[0.55rem] text-muted-foreground">Het ultieme product. Alle labs Tier 3 vereist.</p>
+      <div className="bg-game-purple/10 border border-game-purple/30 rounded-lg overflow-hidden">
+        {/* NoxCrystal banner */}
+        <div className="relative h-28">
+          <img src={DRUG_EMPIRE_IMAGES.noxcrystal} alt="" className={`w-full h-full object-cover ${!allTier3 ? 'grayscale' : ''}`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+          <div className="absolute bottom-2 left-3 flex items-center gap-2">
+            <Crown size={16} className="text-game-purple" />
+            <div>
+              <p className="text-xs font-bold text-game-purple">NoxCrystal</p>
+              <p className="text-[0.55rem] text-muted-foreground">Het ultieme product. Alle labs Tier 3 vereist.</p>
+            </div>
           </div>
         </div>
+        <div className="p-3 space-y-2">
 
         <div className="grid grid-cols-2 gap-2 text-[0.6rem]">
           <div className="bg-muted/30 rounded p-2">
@@ -325,6 +354,7 @@ function NoxCrystalTab() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

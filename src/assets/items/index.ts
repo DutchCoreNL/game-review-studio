@@ -421,3 +421,28 @@ export const MINIGAME_IMAGES = {
   arm_wrestle: minigameArmWrestle,
   dice: minigameDice,
 };
+
+// Drug Imperium images
+import drugNoxcrystal from './drug-noxcrystal.jpg';
+import drugLabTier1 from './drug-lab-tier1.jpg';
+import drugLabTier2 from './drug-lab-tier2.jpg';
+import drugLabTier3 from './drug-lab-tier3.jpg';
+import drugDealerNetwork from './drug-dealer-network.jpg';
+import drugLabRaid from './drug-lab-raid.jpg';
+import drugDeaInvestigation from './drug-dea-investigation.jpg';
+import drugContaminated from './drug-contaminated.jpg';
+import drugRivalSabotage from './drug-rival-sabotage.jpg';
+import drugBigHarvest from './drug-big-harvest.jpg';
+
+export const DRUG_EMPIRE_IMAGES = {
+  noxcrystal: drugNoxcrystal,
+  lab_tier1: drugLabTier1,
+  lab_tier2: drugLabTier2,
+  lab_tier3: drugLabTier3,
+  dealer_network: drugDealerNetwork,
+  lab_raid: drugLabRaid,
+  dea_investigation: drugDeaInvestigation,
+  contaminated: drugContaminated,
+  rival_sabotage: drugRivalSabotage,
+  big_harvest: drugBigHarvest,
+};
