@@ -101,7 +101,7 @@ type GameAction =
   | { type: 'RESOLVE_FINAL_BOSS' }
   | { type: 'NEW_GAME_PLUS' }
   | { type: 'FREE_PLAY' }
-  | { type: 'RESOLVE_STREET_EVENT'; choiceId: string }
+  | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'fail' }
   | { type: 'DISMISS_STREET_EVENT' }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
@@ -1306,7 +1306,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RESOLVE_STREET_EVENT': {
       if (!s.pendingStreetEvent) return s;
-      const result = resolveStreetChoice(s, s.pendingStreetEvent, action.choiceId);
+      const result = resolveStreetChoice(s, s.pendingStreetEvent, action.choiceId, action.forceResult);
       // Apply effects
       if (result.success) {
         s.money += result.effects.money;

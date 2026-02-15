@@ -5,10 +5,12 @@ import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Brain, Star, Flame, AlertTriangle } from 'lucide-react';
+import { Swords, Brain, Star, Flame, AlertTriangle, Dices, Cpu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { playDramaticReveal } from '@/game/sounds';
 import streetEventBg from '@/assets/street-event-bg.jpg';
+import { ArmWrestleGame } from './minigames/ArmWrestleGame';
+import { DiceGame } from './minigames/DiceGame';
 
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={11} />,
@@ -33,6 +35,7 @@ export function StoryEventPopup() {
   const event = state.pendingStreetEvent;
   const [result, setResult] = useState<{ success: boolean; text: string } | null>(null);
   const [textDone, setTextDone] = useState(false);
+  const [activeMinigame, setActiveMinigame] = useState<{ type: 'arm_wrestle' | 'dice'; choiceId: string } | null>(null);
 
   useEffect(() => {
     if (event) playDramaticReveal();
@@ -42,8 +45,22 @@ export function StoryEventPopup() {
 
   const text = getEventText(event, state.loc);
 
-  const handleChoice = (choiceId: string) => {
-    dispatch({ type: 'RESOLVE_STREET_EVENT', choiceId });
+  const handleChoice = (choiceId: string, forceResult?: 'success' | 'fail') => {
+    dispatch({ type: 'RESOLVE_STREET_EVENT', choiceId, forceResult });
+  };
+
+  const handleMinigameComplete = (success: boolean) => {
+    if (!activeMinigame) return;
+    const choiceId = activeMinigame.choiceId;
+    setActiveMinigame(null);
+    handleChoice(choiceId, success ? 'success' : 'fail');
+  };
+
+  // Determine bet amount from choice effects for dice game
+  const getMinigameBet = (): number => {
+    if (!activeMinigame) return 300;
+    const choice = event.choices.find(c => c.id === activeMinigame.choiceId);
+    return choice ? Math.abs(choice.effects.money) || 300 : 300;
   };
 
   return (
@@ -79,7 +96,7 @@ export function StoryEventPopup() {
           </div>
 
           {/* Choices */}
-          {textDone && !result && (
+          {textDone && !result && !state.streetEventResult && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -90,36 +107,51 @@ export function StoryEventPopup() {
                 const chance = Math.min(95, 100 - choice.difficulty + (statVal * 5));
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={choice.id}
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    onClick={() => handleChoice(choice.id)}
-                    className="w-full game-card-interactive p-3 text-left"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-xs uppercase tracking-wider text-foreground">
-                          {choice.label}
-                        </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`flex items-center gap-1 text-[0.55rem] font-bold ${STAT_COLORS[choice.stat]}`}>
-                            {STAT_ICONS[choice.stat]}
-                            {STAT_LABELS[choice.stat]} ({statVal})
+                    <button
+                      onClick={() => {
+                        if (choice.minigame) {
+                          setActiveMinigame({ type: choice.minigame, choiceId: choice.id });
+                        } else {
+                          handleChoice(choice.id);
+                        }
+                      }}
+                      className="w-full game-card-interactive p-3 text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-xs uppercase tracking-wider text-foreground">
+                            {choice.label}
                           </span>
-                          <span className={`text-[0.5rem] font-bold ${chance > 70 ? 'text-emerald' : chance > 40 ? 'text-gold' : 'text-blood'}`}>
-                            {chance}%
-                          </span>
-                          {choice.effects.heat > 5 && (
-                            <span className="text-[0.5rem] text-blood flex items-center gap-0.5">
-                              <Flame size={8} /> +{choice.effects.heat}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`flex items-center gap-1 text-[0.55rem] font-bold ${STAT_COLORS[choice.stat]}`}>
+                              {STAT_ICONS[choice.stat]}
+                              {STAT_LABELS[choice.stat]} ({statVal})
                             </span>
-                          )}
+                            {choice.minigame ? (
+                              <span className="text-[0.5rem] font-bold text-game-purple flex items-center gap-0.5">
+                                {choice.minigame === 'arm_wrestle' ? '💪' : '🎲'} MINI-GAME
+                              </span>
+                            ) : (
+                              <span className={`text-[0.5rem] font-bold ${chance > 70 ? 'text-emerald' : chance > 40 ? 'text-gold' : 'text-blood'}`}>
+                                {chance}%
+                              </span>
+                            )}
+                            {choice.effects.heat > 5 && (
+                              <span className="text-[0.5rem] text-blood flex items-center gap-0.5">
+                                <Flame size={8} /> +{choice.effects.heat}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.button>
+                    </button>
+                  </motion.div>
                 );
               })}
             </motion.div>
@@ -150,6 +182,24 @@ export function StoryEventPopup() {
             </motion.div>
           )}
         </motion.div>
+
+        {/* Mini-game overlays */}
+        {activeMinigame?.type === 'arm_wrestle' && (
+          <ArmWrestleGame
+            playerMuscle={getPlayerStat(state, 'muscle')}
+            opponentStrength={Math.min(10, 3 + Math.floor(state.day / 10))}
+            opponentName="Havenarbeider"
+            onResult={(won) => handleMinigameComplete(won)}
+          />
+        )}
+        {activeMinigame?.type === 'dice' && (
+          <DiceGame
+            bet={getMinigameBet()}
+            isPrison={false}
+            onResult={(won) => handleMinigameComplete(won)}
+            onClose={() => { setActiveMinigame(null); }}
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );

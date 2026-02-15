@@ -17,6 +17,7 @@ export interface StreetEventChoice {
     dirtyMoney: number;
     crewDamage: number;
   };
+  minigame?: 'arm_wrestle' | 'dice'; // triggers a mini-game instead of stat roll
 }
 
 export interface StreetEvent {
@@ -485,6 +486,63 @@ export const STREET_EVENTS: StreetEvent[] = [
       },
     ],
   },
+  // ===== MINI-GAME STREET EVENTS =====
+  {
+    id: 'iron_arm_wrestle',
+    text: 'In een rokerige bar in Iron Borough slaat een gespierde havenarbeider op de tafel. "Jij daar! Durf je een potje armworstelen? €500 inzet. Of ben je te zwak?"',
+    districts: ['iron'],
+    minDay: 3,
+    choices: [
+      {
+        id: 'iaw_accept', label: '💪 NEEM DE UITDAGING AAN', stat: 'muscle', difficulty: 35,
+        successText: 'Je drukt zijn arm tegen de tafel! De bar barst los in gejuich. De verliezer schuift mompelend €500 over de tafel. Je reputatie stijgt.',
+        failText: 'Hij is sterker dan je dacht. Je arm knalt tegen het hout. €500 lichter, maar je hebt lef getoond.',
+        effects: { money: 500, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+        minigame: 'arm_wrestle',
+      },
+      {
+        id: 'iaw_bet_big', label: '💰 VERHOOG NAAR €2.000', stat: 'charm', difficulty: 45,
+        successText: 'Je gooit €2.000 op tafel. De spanning stijgt. Na een epische strijd win je! De menigte scandeert je naam.',
+        failText: 'De hogere inzet maakt je nerveus. Je verliest €2.000 en je trots.',
+        effects: { money: 2000, heat: 2, rep: 20, dirtyMoney: 0, crewDamage: 0 },
+        minigame: 'arm_wrestle',
+      },
+      {
+        id: 'iaw_decline', label: 'LOOP DOOR', stat: 'brains', difficulty: 10,
+        successText: 'Je schudt je hoofd. "Niet vandaag." Slim — die vent had armen als boomstammen.',
+        failText: 'Je loopt weg. Een paar mannen lachen je na.',
+        effects: { money: 0, heat: 0, rep: -3, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'port_dice_game',
+    text: 'Bij de dokken van Port Nero zit een groep havenarbeiders rond een krat te dobbelen. Een oudere man met een litteken kijkt op. "Kom erbij, vriend. €300 buy-in. We spelen eerlijk... meestal."',
+    districts: ['port'],
+    minDay: 2,
+    choices: [
+      {
+        id: 'pdg_play', label: '🎲 GOOI DE DOBBELSTENEN', stat: 'brains', difficulty: 30,
+        successText: 'Je gooit een perfecte 7! De groep gromt, maar betaalt uit. €600 winst en respect bij de dokwerkers.',
+        failText: 'Snake eyes. De groep grijnst terwijl ze je geld oppakken. Beter geluk volgende keer.',
+        effects: { money: 600, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+        minigame: 'dice',
+      },
+      {
+        id: 'pdg_high_stakes', label: '💎 HIGH STAKES (€1.500)', stat: 'charm', difficulty: 50,
+        successText: 'Je gooit voor het grote geld en wint! €3.000 — de dokwerkers noemen je "Lucky." Nieuwe connecties op de kade.',
+        failText: 'De dobbelstenen zijn je niet gunstig gezind. €1.500 armer. De oudere man knipoogt — "Komt goed, jongen."',
+        effects: { money: 3000, heat: 3, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+        minigame: 'dice',
+      },
+      {
+        id: 'pdg_watch', label: 'KIJK ALLEEN', stat: 'brains', difficulty: 10,
+        successText: 'Je kijkt toe en leert hun trucjes. Nuttige informatie voor later.',
+        failText: 'Je kijkt toe. Een van hen mompelt "toerist" en de groep lacht.',
+        effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
 ];
 
 // ========== EVENT LOGIC ==========
@@ -527,15 +585,21 @@ export function getEventText(event: StreetEvent, district: DistrictId): string {
 export function resolveStreetChoice(
   state: GameState,
   event: StreetEvent,
-  choiceId: string
+  choiceId: string,
+  forceResult?: 'success' | 'fail'
 ): { success: boolean; text: string; effects: StreetEventChoice['effects'] } {
   const choice = event.choices.find(c => c.id === choiceId);
   if (!choice) return { success: false, text: 'Onbekende keuze.', effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 } };
 
-  const statVal = getPlayerStat(state, choice.stat);
-  const roll = Math.random() * 100;
-  const successChance = Math.min(95, 100 - choice.difficulty + (statVal * 5));
-  const success = roll < successChance;
+  let success: boolean;
+  if (forceResult) {
+    success = forceResult === 'success';
+  } else {
+    const statVal = getPlayerStat(state, choice.stat);
+    const roll = Math.random() * 100;
+    const successChance = Math.min(95, 100 - choice.difficulty + (statVal * 5));
+    success = roll < successChance;
+  }
 
   return {
     success,
