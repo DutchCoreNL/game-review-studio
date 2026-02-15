@@ -33,6 +33,7 @@ import { PrisonOverlay } from './PrisonOverlay';
 import { HospitalStayOverlay } from './HospitalStayOverlay';
 import { GameOverScreen } from './GameOverScreen';
 import { AchievementPopup } from './AchievementPopup';
+import { CinematicOverlay } from './CinematicOverlay';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { NpcEventPopup } from './NpcEventPopup';
 import { WeekEventBanner } from './WeekEventBanner';
@@ -137,6 +138,7 @@ export function GameLayout() {
         {state.pendingBountyEncounter && <BountyEncounterPopup />}
         {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
         {state.gameOver && <GameOverScreen />}
+        {state.pendingCinematic && <CinematicOverlay />}
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
         )}

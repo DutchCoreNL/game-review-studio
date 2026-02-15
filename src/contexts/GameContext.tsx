@@ -20,6 +20,7 @@ import * as bountyModule from '../game/bounties';
 import * as stockModule from '../game/stocks';
 import { resolveCrewEvent } from '../game/crewEvents';
 import { generateDailyNews } from '../game/newsGenerator';
+import { checkCinematicTrigger, applyCinematicChoice, markCinematicSeen } from '../game/cinematics';
 
 interface GameContextType {
   state: GameState;
@@ -198,6 +199,9 @@ type GameAction =
   | { type: 'BUY_STOCK'; stockId: string; shares: number }
   | { type: 'SELL_STOCK'; stockId: string; shares: number }
   | { type: 'DISMISS_INSIDER_TIP' }
+  // Cinematic actions
+  | { type: 'RESOLVE_CINEMATIC'; cinematicId: string; choiceId: string }
+  | { type: 'DISMISS_CINEMATIC' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -359,6 +363,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.ownedDistricts.push(action.id);
       Engine.gainXp(s, 50);
       s.maxInv = Engine.recalcMaxInv(s);
+      // Cinematic trigger: first district
+      const distCinematic = checkCinematicTrigger(s, 'district_bought');
+      if (distCinematic) s.pendingCinematic = distCinematic;
       return s;
     }
 
@@ -530,6 +537,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (!s.ownedVehicles.some(ov => ov.id === uv.id) && checkUniqueUnlock(uv.unlockCheck)) {
           s.ownedVehicles.push({ id: uv.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
           addPhoneMessage(s, '🏆 UNIEK', `Je hebt ${uv.name} ontgrendeld! ${uv.desc}`, 'opportunity');
+        }
+      }
+      // === CINEMATIC TRIGGERS at end of turn ===
+      if (!s.pendingCinematic) {
+        // Check arrest cinematic
+        if (s.prison) {
+          const arrestCinematic = checkCinematicTrigger(s, 'arrested');
+          if (arrestCinematic) s.pendingCinematic = arrestCinematic;
+        }
+        // Check crew defection cinematic
+        if (s.nightReport?.crewDefections && s.nightReport.crewDefections.length > 0) {
+          const betrayalCinematic = checkCinematicTrigger(s, 'crew_defected');
+          if (betrayalCinematic) s.pendingCinematic = betrayalCinematic;
+        }
+        // Check milestone cinematics (godfather, rise_to_power)
+        if (!s.pendingCinematic) {
+          const endCinematic = checkCinematicTrigger(s);
+          if (endCinematic) s.pendingCinematic = endCinematic;
         }
       }
       return s;
@@ -978,6 +1003,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       const wasFinalBoss = s._finalBossWon;
       delete s._finalBossWon;
+      // Cinematic triggers on combat end
+      if (s.activeCombat?.won) {
+        const combatCinematic = checkCinematicTrigger(s, 'combat_won');
+        if (combatCinematic) s.pendingCinematic = combatCinematic;
+      }
+      if (s.activeCombat?.isNemesis && s.activeCombat?.won) {
+        const nemCinematic = checkCinematicTrigger(s, 'nemesis_combat_start');
+        if (nemCinematic) s.pendingCinematic = nemCinematic;
+      }
       s.activeCombat = null;
       if (wasFinalBoss) {
         // Trigger final boss resolution
@@ -1396,6 +1430,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_FLASHBACK': {
       s.pendingFlashback = null;
+      return s;
+    }
+
+    // ========== CINEMATIC MOMENT ACTIONS ==========
+
+    case 'RESOLVE_CINEMATIC': {
+      if (s.pendingCinematic) {
+        applyCinematicChoice(s, action.cinematicId, action.choiceId);
+      }
+      s.pendingCinematic = null;
+      return s;
+    }
+
+    case 'DISMISS_CINEMATIC': {
+      if (s.pendingCinematic) {
+        markCinematicSeen(s, s.pendingCinematic.id);
+      }
+      s.pendingCinematic = null;
       return s;
     }
 

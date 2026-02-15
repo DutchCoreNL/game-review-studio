@@ -921,6 +921,10 @@ export interface GameState {
   // ========== ACHIEVEMENT POPUP STATE ==========
   pendingAchievements: string[];
 
+  // ========== CINEMATIC MOMENTS STATE ==========
+  pendingCinematic: import('../game/cinematics').CinematicMoment | null;
+  seenCinematics: string[];
+
   // ========== ENDGAME EVENT TRACKING ==========
   seenEndgameEvents: string[];
 

@@ -1745,6 +1745,9 @@ export function createInitialState(): import('./types').GameState {
     villa: null,
     // Achievement popup state
     pendingAchievements: [],
+    // Cinematic moments state
+    pendingCinematic: null,
+    seenCinematics: [],
     seenEndgameEvents: [],
     // Market alerts
     marketAlerts: [],
