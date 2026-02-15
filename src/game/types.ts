@@ -636,6 +636,11 @@ export interface NightReportData {
   villaLabProduced?: number;
   villaVaultProtected?: number; // shown only on arrest
   villaAttack?: { won: boolean; nemesisName: string; damage: string; stolenMoney?: number; moduleDamaged?: string; defenseScore?: number; attackPower?: number; defenseBreakdown?: { label: string; value: number; icon: string }[] };
+  // Drug Empire night report
+  drugEmpireDealerIncome?: number;
+  drugEmpireDealerDetails?: { district: string; income: number; crewName: string }[];
+  drugEmpireNoxCrystal?: number;
+  drugEmpireRiskEvent?: { type: string; title: string; desc: string };
   // Crew loyalty
   crewDefections?: { name: string; reason: string }[];
   // Safehouse raids
@@ -917,6 +922,9 @@ export interface GameState {
 
   // ========== VILLA STATE ==========
   villa: VillaState | null;
+
+  // ========== DRUG EMPIRE STATE ==========
+  drugEmpire: import('./drugEmpire').DrugEmpireState | null;
 
   // ========== ACHIEVEMENT POPUP STATE ==========
   pendingAchievements: string[];

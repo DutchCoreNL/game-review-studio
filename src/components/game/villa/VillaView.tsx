@@ -9,8 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, ArrowUp, ArrowDown, Package, DollarSign, Shield, Factory, Users, Navigation, Sparkles } from 'lucide-react';
 import villaBg from '@/assets/villa-bg.jpg';
 import { VILLA_MODULE_IMAGES } from '@/assets/items';
+import { shouldShowDrugEmpire } from '@/game/drugEmpire';
+import { DrugEmpirePanel } from './DrugEmpirePanel';
 
-type VillaTab = 'overview' | 'production' | 'storage' | 'modules';
+type VillaTab = 'overview' | 'production' | 'storage' | 'modules' | 'empire';
 
 export function VillaView() {
   const { state, dispatch, showToast } = useGame();
@@ -49,11 +51,13 @@ export function VillaView() {
     );
   }
 
+  const showEmpire = shouldShowDrugEmpire(state);
   const tabs: { id: VillaTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overzicht', icon: '🏛️' },
     { id: 'production', label: 'Productie', icon: '🧪' },
     { id: 'storage', label: 'Opslag', icon: '📦' },
     { id: 'modules', label: 'Modules', icon: '🔧' },
+    ...(showEmpire ? [{ id: 'empire' as VillaTab, label: 'Imperium', icon: '💀' }] : []),
   ];
 
   return (
@@ -100,6 +104,7 @@ export function VillaView() {
           {tab === 'production' && <ProductionTab />}
           {tab === 'storage' && <StorageTab depositAmount={depositAmount} setDepositAmount={setDepositAmount} goodDepositGood={goodDepositGood} setGoodDepositGood={setGoodDepositGood} />}
           {tab === 'modules' && <ModulesTab />}
+          {tab === 'empire' && <DrugEmpirePanel />}
         </motion.div>
       </AnimatePresence>
       </div>

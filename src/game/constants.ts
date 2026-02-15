@@ -1743,6 +1743,8 @@ export function createInitialState(): import('./types').GameState {
     dailyNews: [],
     // Villa state
     villa: null,
+    // Drug Empire state
+    drugEmpire: null,
     // Achievement popup state
     pendingAchievements: [],
     // Cinematic moments state

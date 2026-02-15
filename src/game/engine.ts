@@ -7,6 +7,7 @@ import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
 import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
+import { processDrugEmpireNight, createDrugEmpireState, shouldShowDrugEmpire, NOXCRYSTAL_HEAT } from './drugEmpire';
 import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
@@ -716,6 +717,31 @@ export function endTurn(state: GameState): NightReportData {
     if (villaProduction.labProduced > 0) report.villaLabProduced = villaProduction.labProduced;
     // Reset helipad daily
     state.villa.helipadUsedToday = false;
+
+    // Auto-init Drug Empire state when player has production modules
+    if (!state.drugEmpire && shouldShowDrugEmpire(state)) {
+      state.drugEmpire = createDrugEmpireState();
+    }
+
+    // Drug Empire night processing
+    if (state.drugEmpire) {
+      const deResult = processDrugEmpireNight(state);
+      if (deResult.dealerIncome > 0) {
+        report.drugEmpireDealerIncome = deResult.dealerIncome;
+        report.drugEmpireDealerDetails = deResult.dealerDetails;
+      }
+      if (deResult.noxCrystalProduced > 0) {
+        report.drugEmpireNoxCrystal = deResult.noxCrystalProduced;
+        addPersonalHeat(state, NOXCRYSTAL_HEAT);
+      }
+      if (deResult.riskEvent) {
+        report.drugEmpireRiskEvent = {
+          type: deResult.riskEvent.type,
+          title: deResult.riskEvent.title,
+          desc: deResult.riskEvent.desc,
+        };
+      }
+    }
   }
 
   // Only run old HQ lab if villa doesn't have synthetica_lab

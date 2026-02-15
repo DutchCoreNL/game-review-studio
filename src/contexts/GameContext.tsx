@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect, u
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
+import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis } from '../game/newFeatures';
@@ -202,6 +203,12 @@ type GameAction =
   // Cinematic actions
   | { type: 'RESOLVE_CINEMATIC'; cinematicId: string; choiceId: string }
   | { type: 'DISMISS_CINEMATIC' }
+  // Drug Empire actions
+  | { type: 'UPGRADE_LAB'; labId: ProductionLabId; targetTier: 2 | 3 }
+  | { type: 'SET_DRUG_TIER'; labId: ProductionLabId; tier: DrugTier }
+  | { type: 'ASSIGN_DEALER'; district: DistrictId; crewName: string; product: GoodId }
+  | { type: 'RECALL_DEALER'; district: DistrictId }
+  | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -251,6 +258,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.gameOver === undefined) loaded.gameOver = false;
       // Migrate: mini-game state
       if (loaded.pendingMinigame === undefined) loaded.pendingMinigame = null;
+      // Migrate: drug empire state
+      if (loaded.drugEmpire === undefined) loaded.drugEmpire = null;
       return loaded;
     }
 
@@ -2337,6 +2346,56 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_INSIDER_TIP': {
       s.pendingInsiderTip = null;
+      return s;
+    }
+
+    // ========== DRUG EMPIRE ACTIONS ==========
+
+    case 'UPGRADE_LAB': {
+      if (!s.villa) return s;
+      if (!s.drugEmpire) {
+        if (shouldShowDrugEmpire(s)) s.drugEmpire = createDrugEmpireState();
+        else return s;
+      }
+      if (!canUpgradeLab(s, action.labId, action.targetTier)) return s;
+      const labCost = LAB_UPGRADE_COSTS[action.labId][action.targetTier];
+      s.money -= labCost;
+      s.stats.totalSpent += labCost;
+      s.drugEmpire!.labTiers[action.labId] = action.targetTier;
+      return s;
+    }
+
+    case 'SET_DRUG_TIER': {
+      if (!s.drugEmpire) return s;
+      const maxTier = s.drugEmpire.labTiers[action.labId];
+      if (action.tier > maxTier) return s;
+      s.drugEmpire.selectedQuality[action.labId] = action.tier;
+      return s;
+    }
+
+    case 'ASSIGN_DEALER': {
+      if (!s.drugEmpire) return s;
+      if (!canAssignDealer(s, action.district)) return s;
+      s.drugEmpire.dealers.push({
+        district: action.district,
+        crewName: action.crewName,
+        marketShare: 5,
+        daysActive: 0,
+        product: action.product,
+      });
+      return s;
+    }
+
+    case 'RECALL_DEALER': {
+      if (!s.drugEmpire) return s;
+      s.drugEmpire.dealers = s.drugEmpire.dealers.filter(d => d.district !== action.district);
+      return s;
+    }
+
+    case 'SELL_NOXCRYSTAL': {
+      if (!s.drugEmpire || s.drugEmpire.noxCrystalStock < action.amount) return s;
+      const noxValue = sellNoxCrystal(s, action.amount);
+      if (noxValue > 0) s.lastRewardAmount = noxValue;
       return s;
     }
 

@@ -1,5 +1,6 @@
 import { GameState, GoodId, VillaModuleId, VillaState, NightReportData } from './types';
 import { GOODS } from './constants';
+import { LAB_OUTPUT_MULT, LAB_CHEM_REDUCTION, DRUG_TIER_HEAT_MULT, type DrugTier, type ProductionLabId } from './drugEmpire';
 
 // ========== VILLA CONSTANTS ==========
 
@@ -89,14 +90,27 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
   if (!state.villa) return result;
 
   const villa = state.villa;
+  const de = state.drugEmpire;
   const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   let space = state.maxInv - currentInv;
   const prestige = villa.prestigeModules || [];
 
+  // Helper: get tier multipliers from Drug Empire state
+  const getLabTier = (labId: ProductionLabId): DrugTier => de?.labTiers[labId] || 1;
+  const getQuality = (labId: ProductionLabId): DrugTier => de?.selectedQuality[labId] || 1;
+  const isLabOffline = (labId: ProductionLabId): boolean => (de?.labOffline[labId] || 0) > 0;
+  const isDEAActive = (): boolean => (de?.deaInvestigation || 0) > 0;
+  // Check for big harvest event (doubles output)
+  const isBigHarvest = false; // Handled separately in drugEmpire night processing
+
   // Wietplantage: passive 5-10 drugs/night (prestige: 8-15)
-  if (villa.modules.includes('wietplantage') && space > 0) {
+  if (villa.modules.includes('wietplantage') && space > 0 && !isLabOffline('wietplantage') && !isDEAActive()) {
     const isPrestige = prestige.includes('wietplantage');
-    const wietYield = isPrestige ? (8 + Math.floor(Math.random() * 8)) : (5 + Math.floor(Math.random() * 6));
+    const tier = getLabTier('wietplantage');
+    const quality = getQuality('wietplantage');
+    const outputMult = LAB_OUTPUT_MULT[tier];
+    const baseYield = isPrestige ? (8 + Math.floor(Math.random() * 8)) : (5 + Math.floor(Math.random() * 6));
+    const wietYield = Math.floor(baseYield * outputMult);
     const produced = Math.min(wietYield, space);
     const existing = state.inventory.drugs || 0;
     const existingCost = state.inventoryCosts.drugs || 0;
@@ -107,18 +121,23 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
       : baseCost;
     result.wietProduced = produced;
     space -= produced;
-    result.heatGenerated += 2;
+    result.heatGenerated += Math.ceil(2 * DRUG_TIER_HEAT_MULT[quality]);
   }
 
   // Coke Lab: 3-5 per night (prestige: 5-8), requires chemicals
-  if (villa.modules.includes('coke_lab') && space > 0 && state.lab.chemicals > 0) {
+  if (villa.modules.includes('coke_lab') && space > 0 && state.lab.chemicals > 0 && !isLabOffline('coke_lab') && !isDEAActive()) {
     const isPrestige = prestige.includes('coke_lab');
-    const cokeYield = isPrestige ? (5 + Math.floor(Math.random() * 4)) : (3 + Math.floor(Math.random() * 3));
-    const chemsNeeded = cokeYield * 2;
+    const tier = getLabTier('coke_lab');
+    const quality = getQuality('coke_lab');
+    const outputMult = LAB_OUTPUT_MULT[tier];
+    const chemReduction = LAB_CHEM_REDUCTION[tier];
+    const baseYield = isPrestige ? (5 + Math.floor(Math.random() * 4)) : (3 + Math.floor(Math.random() * 3));
+    const cokeYield = Math.floor(baseYield * outputMult);
+    const chemsNeeded = Math.ceil(cokeYield * 2 * chemReduction);
     const chemsAvailable = Math.min(state.lab.chemicals, chemsNeeded);
-    const produced = Math.min(Math.floor(chemsAvailable / 2), space);
+    const produced = Math.min(Math.floor(chemsAvailable / Math.max(1, Math.ceil(2 * chemReduction))), space);
     if (produced > 0) {
-      state.lab.chemicals -= produced * 2;
+      state.lab.chemicals -= Math.ceil(produced * 2 * chemReduction);
       const existing = state.inventory.luxury || 0;
       const existingCost = state.inventoryCosts.luxury || 0;
       const baseCost = GOODS.find(g => g.id === 'luxury')!.base * 0.6;
@@ -128,16 +147,22 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
         : baseCost;
       result.cokeProduced = produced;
       space -= produced;
-      result.heatGenerated += 5;
+      result.heatGenerated += Math.ceil(5 * DRUG_TIER_HEAT_MULT[quality]);
     }
   }
 
   // Synthetica Lab: prestige = no heat
-  if (villa.modules.includes('synthetica_lab') && space > 0 && state.lab.chemicals > 0) {
+  if (villa.modules.includes('synthetica_lab') && space > 0 && state.lab.chemicals > 0 && !isLabOffline('synthetica_lab') && !isDEAActive()) {
     const isPrestige = prestige.includes('synthetica_lab');
-    const batch = Math.min(state.lab.chemicals, 15, space);
+    const tier = getLabTier('synthetica_lab');
+    const quality = getQuality('synthetica_lab');
+    const outputMult = LAB_OUTPUT_MULT[tier];
+    const chemReduction = LAB_CHEM_REDUCTION[tier];
+    const maxBatch = Math.floor(15 * outputMult);
+    const chemsNeeded = Math.ceil(maxBatch * chemReduction);
+    const batch = Math.min(Math.floor(state.lab.chemicals / Math.max(1, chemReduction)), maxBatch, space);
     if (batch > 0) {
-      state.lab.chemicals -= batch;
+      state.lab.chemicals -= Math.ceil(batch * chemReduction);
       const existing = state.inventory.drugs || 0;
       const existingCost = state.inventoryCosts.drugs || 0;
       const baseCost = GOODS.find(g => g.id === 'drugs')!.base * 0.5;
@@ -146,7 +171,7 @@ export function processVillaProduction(state: GameState): VillaProductionResult 
         ? Math.floor(((existing * existingCost) + (batch * baseCost)) / (existing + batch))
         : baseCost;
       result.labProduced = batch;
-      result.heatGenerated += isPrestige ? 0 : 3;
+      result.heatGenerated += isPrestige ? 0 : Math.ceil(3 * DRUG_TIER_HEAT_MULT[quality]);
     }
   }
 
