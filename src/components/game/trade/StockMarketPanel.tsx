@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { STOCKS, STOCK_IDS, StockId, getPortfolioValue, getPortfolioCost, ensureStockState } from '@/game/stocks';
+import { STOCK_IMAGES } from '@/assets/items';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -94,7 +95,9 @@ export function StockMarketPanel() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{stock.icon}</span>
+                    <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                      <img src={STOCK_IMAGES[stock.id]} alt={stock.name} className="w-full h-full object-cover" />
+                    </div>
                     <div className="text-left">
                       <p className="text-[0.6rem] font-bold">{stock.name}</p>
                       <p className="text-[0.45rem] text-muted-foreground">{stock.sector} • Div: {(stock.dividendRate * 100).toFixed(1)}%</p>

@@ -5,6 +5,7 @@ import { GameButton } from './ui/GameButton';
 import { deleteGame } from '@/game/engine';
 import { playNegativeSound } from '@/game/sounds';
 import { useEffect, useRef } from 'react';
+import { GAME_OVER_IMAGES } from '@/assets/items';
 
 export function GameOverScreen() {
   const { state, dispatch } = useGame();
@@ -35,8 +36,11 @@ export function GameOverScreen() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="absolute inset-0 z-50 flex items-center justify-center px-6 bg-background/95"
+      className="absolute inset-0 z-50 flex items-center justify-center px-6 overflow-hidden"
     >
+      {/* Background image */}
+      <img src={GAME_OVER_IMAGES.bg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+      <div className="absolute inset-0 bg-background/80" />
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
