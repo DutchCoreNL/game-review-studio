@@ -5,6 +5,7 @@ import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
 import { getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
 import { playCoinSound, playNegativeSound, playDramaticReveal } from '@/game/sounds';
+import { MINIGAME_IMAGES } from '@/assets/items';
 
 interface Props {
   dispatch: (action: any) => void;

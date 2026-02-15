@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Swords, Trophy, X } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
 import { playVictorySound, playNegativeSound } from '@/game/sounds';
+import { MINIGAME_IMAGES } from '@/assets/items';
 
 interface Props {
   opponentName: string;

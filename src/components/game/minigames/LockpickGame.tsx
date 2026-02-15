@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Check, X } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
+import { MINIGAME_IMAGES } from '@/assets/items';
 
 interface Props {
   difficulty: number; // 1-5 pins

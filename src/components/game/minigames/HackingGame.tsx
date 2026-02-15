@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Cpu, Timer, Check, X, RotateCw } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
+import { MINIGAME_IMAGES } from '@/assets/items';
 
 interface Props {
   difficulty: number; // 1-3, affects grid and time
