@@ -943,6 +943,9 @@ export interface GameState {
     veteranCrewBonus: boolean;
   };
 
+  // ========== RUN HISTORY (NG+ Leaderboard) ==========
+  runHistory: RunRecord[];
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
@@ -989,4 +992,21 @@ export interface AlliancePact {
   expiresDay: number;
   benefit: string;
   costPerDay: number;
+}
+
+// ========== RUN RECORD (NG+ Leaderboard) ==========
+export interface RunRecord {
+  ngLevel: number;
+  day: number;
+  score: number;
+  rank: string; // S, A, B, C, D
+  method: string;
+  factionsConquered: number;
+  districtsOwned: number;
+  achievementsUnlocked: number;
+  totalEarned: number;
+  nemesisDefeated: boolean;
+  crewSize: number;
+  karma: number;
+  timestamp: number; // Date.now()
 }
