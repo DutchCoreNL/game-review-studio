@@ -11,6 +11,8 @@ import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
 import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
+import { rollNpcEvent, resolveNpcEvent, applyMissingNpcBonuses } from '../game/npcEvents';
+import { checkWeekEvent, processWeekEvent } from '../game/weekEvents';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
 import { generateHitContracts, executeHit } from '../game/hitman';
@@ -182,6 +184,8 @@ type GameAction =
   // Crew loyalty event actions
   | { type: 'RESOLVE_CREW_EVENT'; choiceId: string }
   | { type: 'DISMISS_CREW_EVENT' }
+  | { type: 'RESOLVE_NPC_EVENT'; choiceId: string }
+  | { type: 'DISMISS_NPC_EVENT' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -445,6 +449,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (npcEnc) {
           addPhoneMessage(s, npcEnc.npcId, npcEnc.message, 'info');
         }
+        // NPC interactive events
+        if (!(s as any).pendingNpcEvent) {
+          const npcEvt = rollNpcEvent(s);
+          if (npcEvt) {
+            (s as any).pendingNpcEvent = npcEvt;
+          }
+        }
       }
       // NPC passive bonuses
       const npcBonuses = applyNpcBonuses(s);
@@ -455,6 +466,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (npcBonuses.crewHealBonus > 0) {
         s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
       }
+      // Apply missing NPC bonuses (Luna free crew, etc.)
+      applyMissingNpcBonuses(s);
+      // Week events
+      const weekEvt = checkWeekEvent(s);
+      if (weekEvt) (s as any).activeWeekEvent = weekEvt;
+      processWeekEvent(s);
       // Generate hit contracts
       s.hitContracts = generateHitContracts(s);
       // Generate daily news
@@ -1333,7 +1350,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_CREW_EVENT': {
       if (s.pendingCrewEvent) {
-        // Ignoring a crew event = small loyalty penalty
         const member = s.crew[s.pendingCrewEvent.crewIndex];
         if (member) {
           member.loyalty = Math.max(0, member.loyalty - 5);
@@ -1342,6 +1358,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.crewEventCooldowns[s.pendingCrewEvent.crewIndex] = s.day;
       }
       s.pendingCrewEvent = null;
+      return s;
+    }
+
+    case 'RESOLVE_NPC_EVENT': {
+      const npcEvt = (s as any).pendingNpcEvent;
+      if (!npcEvt) return s;
+      const npcResult = resolveNpcEvent(s, npcEvt, action.choiceId);
+      if (npcResult.moneyChange > 0) {
+        s.screenEffect = 'gold-flash';
+        s.lastRewardAmount = npcResult.moneyChange;
+      }
+      (s as any).pendingNpcEvent = null;
+      return s;
+    }
+
+    case 'DISMISS_NPC_EVENT': {
+      (s as any).pendingNpcEvent = null;
       return s;
     }
 
