@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star, Target, BarChart3 } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -587,6 +587,77 @@ export function NightReport() {
                 ))}
               </motion.div>
             )}
+
+            {/* Stock Market Results */}
+            {report.stockDividend && report.stockDividend > 0 && (
+              <AnimatedReportRow icon={<BarChart3 size={14} />} label="Dividend Inkomen" value={report.stockDividend} prefix="€" positive color="text-emerald" delay={next()} />
+            )}
+            {report.stockEvent && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-[hsl(var(--gold)/0.08)] border border-gold/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-gold mb-0.5">
+                  <BarChart3 size={12} /> {report.stockEvent.name}
+                </div>
+                <p className="text-[0.55rem] text-muted-foreground">{report.stockEvent.desc}</p>
+              </motion.div>
+            )}
+            {report.stockChanges && report.stockChanges.length > 0 && (() => {
+              const bigMoves = report.stockChanges.filter(sc => Math.abs(sc.change) >= 10);
+              if (bigMoves.length === 0) return null;
+              return (
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-muted/40 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <BarChart3 size={14} />
+                    <span>Beurs Overzicht</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {bigMoves.map(sc => (
+                      <div key={sc.stockId} className="flex justify-between text-[0.6rem]">
+                        <span className="text-muted-foreground">{sc.stockId.replace(/_/g, ' ')}</span>
+                        <span className={`font-bold ${sc.change > 0 ? 'text-emerald' : 'text-blood'}`}>
+                          {sc.change > 0 ? '+' : ''}€{sc.change}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })()}
+
+            {/* Bounty Results */}
+            {report.bountyEncounterReport && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(0.2), type: 'spring', stiffness: 350 }}
+                className="border rounded-lg p-3 bg-[hsl(var(--blood)/0.08)] border-blood/40"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Target size={14} className="text-blood" />
+                  <span className="text-xs font-bold text-blood">PREMIEJAGER!</span>
+                </div>
+                <p className="text-[0.6rem] text-muted-foreground">{report.bountyEncounterReport}</p>
+              </motion.div>
+            )}
+            {report.bountyResults && report.bountyResults.length > 0 && report.bountyResults.map((br, i) => (
+              <motion.div
+                key={`br-${i}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: next(), duration: 0.35 }}
+                className={`border rounded-lg p-3 ${br.success ? 'bg-[hsl(var(--gold)/0.08)] border-gold/40' : 'bg-muted/40 border-border'}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Target size={14} className={br.success ? 'text-gold' : 'text-muted-foreground'} />
+                  <span className={`text-xs font-bold ${br.success ? 'text-gold' : 'text-muted-foreground'}`}>
+                    {br.success ? 'PREMIE VOLTOOID!' : 'Premie Mislukt'}
+                  </span>
+                </div>
+                <p className="text-[0.6rem] text-muted-foreground">
+                  Doelwit: {br.targetName}
+                  {br.success && <> — <span className="text-emerald font-bold">+€{br.rewardMoney.toLocaleString()}</span> <span className="text-gold font-bold">+{br.rewardRep} rep</span></>}
+                </p>
+              </motion.div>
+            ))}
 
             {report.weatherChange && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: weatherDelay, duration: 0.35 }} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
