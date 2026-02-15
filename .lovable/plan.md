@@ -1,148 +1,94 @@
 
 
-# Bounty Systeem & Aandelenmarkt
+# Rivaal Systeem Verbeteren
 
-## Overzicht
+## Huidige Staat
 
-Twee nieuwe systemen die de gameplay verdiepen: een **Bounty Systeem** (premiejacht) waar NPC's en de Nemesis premies op je hoofd zetten en jij premies kunt plaatsen, en een **Aandelenmarkt** waar je kunt investeren in bedrijven met dynamische koersen.
+Het rivaal-systeem heeft al een solide basis: 4 archetypes (Zakenman, Brute, Schaduw, Strateeg), 5 generaties, villa-aanvallen, diplomatieoptie, scouting, en factie-allianties. Maar vergeleken met games als Torn en Omerta mist het nog diepgang en variatie.
 
----
+## Verbeteringen
 
-## 1. Bounty Systeem (Premiejacht)
+### 1. Rivaal Taunts & Persoonlijkheid
+Elke archetype krijgt een set unieke dreig-berichten, reacties op speler-acties, en overwinnings/verlies-quotes. Dit maakt elke rivaal memorabel in plaats van generiek.
 
-### Hoe het werkt
+- 4-6 unieke telefoonberichten per archetype
+- Reacties op specifieke speleracties (district kopen, factie veroveren, gearresteerd worden)
+- Overwinnings-quote wanneer de rivaal de speler verslaat
 
-- **Premies OP de speler**: Bij hoge heat (>60) of na bepaalde acties (district veroveren, factie aanvallen) plaatsen NPC-rivalen een premie op je hoofd. Dit leidt tot willekeurige aanvallen door premiejagers.
-- **Premies DOOR de speler**: Speler kan premies plaatsen op NPC-doelen (rivaliserende luitenants, de Nemesis z'n bondgenoten). Kost geld, maar levert passief rep en territoriumvoordelen op wanneer de premiejager slaagt.
-- **Premiejager-encounters**: Willekeurige pop-ups tijdens het spelen waar een premiejager je aanvalt. Speler kiest: vechten, vluchten, of omkopen.
-- **Premie-bord**: Nieuw tabblad in het Operations-scherm met actieve premies.
+### 2. Rivaal Progression Abilities
+Elke generatie ontgrendelt een nieuwe ability voor de rivaal, waardoor latere rivalen gevaarlijker en strategischer worden.
 
-### Nieuwe Types
+- **Gen 1**: Basis acties (markmanipulatie, diefstal)
+- **Gen 2**: Factie-alliantie + crew-omkoping (kans dat een crewlid overloopt)
+- **Gen 3**: Bounty op speler plaatsen (integratie met het bestaande bounty-systeem)
+- **Gen 4**: Dubbele acties per dag + safehouse-sabotage
+- **Gen 5**: "Ultieme rivaal" - alle abilities + versterkte stats
 
-- `BountyContract` - premie met doel, beloning, deadline, status
-- `BountyEncounter` - encounter wanneer een jager je vindt
-- `BountyTarget` - NPC-doelen waar speler premie op kan zetten
+### 3. Rivaal Heat Map
+Visuele indicator op de stadskaart die toont welke districten de rivaal beinvloedt, met een "invloedszone" die groeit naarmate de rivaal sterker wordt.
 
-### Nieuwe State Velden
+- Rode tint op beinvloede districten in de CityMap
+- Tooltip met effecten (marktprijzen, rep-drain)
 
-- `activeBounties: BountyContract[]` - premies op de speler
-- `placedBounties: BountyContract[]` - premies door de speler
-- `pendingBountyEncounter: BountyEncounter | null` - actieve encounter popup
-- `bountyBoard: BountyTarget[]` - beschikbare doelen
+### 4. Confrontatie Keuzes
+Na het verslaan van een rivaal krijgt de speler keuzes die invloed hebben op de opvolger:
 
-### Nieuwe Reducer Actions
+- **Executeer**: +Rep, +Heat, snellere en boze opvolger
+- **Verbanning**: Neutraal, normale opvolger
+- **Rekruteer als Informant**: -Rep maar insider info over volgende generatie (archetype onthuld)
 
-- `PLACE_BOUNTY` - premie plaatsen op NPC
-- `RESOLVE_BOUNTY_ENCOUNTER` - keuze bij premiejager-aanval (fight/flee/bribe)
-- `DISMISS_BOUNTY_ENCOUNTER` - popup sluiten
-- `CANCEL_BOUNTY` - geplaatste premie annuleren
+### 5. Rivaal Wraakacties
+Wanneer de speler de rivaal verwondt maar niet doodt, reageert de rivaal met een gerichte wraakactie gebaseerd op archetype:
 
-### Game Engine Integratie
-
-- Tijdens `END_TURN`: kans op premiejager-encounter gebaseerd op totale premiegeld
-- Nemesis plaatst automatisch premies na bepaalde triggers
-- Geplaatste premies hebben kans op dagelijkse voltooiing
-- Premies verlopen na deadline
-
-### UI Componenten
-
-- `BountyBoardPanel.tsx` - tabblad in OperationsView
-- `BountyEncounterPopup.tsx` - encounter popup
+- Zakenman: Manipuleert alle marktprijzen voor 3 dagen
+- Brute: Stuurt huurmoordenaars (extra combat encounter)
+- Schaduw: Verdubbelt heat voor 2 dagen
+- Strateeg: Draait alle factie-relaties -10
 
 ---
 
-## 2. Aandelenmarkt (Stock Market)
+## Technische Details
 
-### Hoe het werkt
+### Gewijzigde bestanden
 
-- **5 bedrijven** met thematische namen (Nero Shipping, Crown Pharma, Iron Steel, Neon Media, Shadow Tech)
-- **Dynamische koersen**: dagelijkse prijsfluctuatie (+-2-8%) beinvloed door game-events (razzia's, karteloorlog, markt-events)
-- **Kopen & verkopen**: aandelen kopen/verkopen via een beurs-interface
-- **Insider trading**: corrupte contacten en NPC-relaties geven hints over aankomende koerswijzigingen
-- **Crashes & booms**: willekeurige events die grote koersschommelingen veroorzaken
-- **Dividend**: sommige aandelen betalen dagelijks dividend
-
-### Nieuwe Types
-
-- `StockId` - 5 aandelen IDs
-- `StockDef` - definitie met naam, sector, volatiliteit, dividendpercentage
-- `StockHolding` - bezit: aantal, gemiddelde aankoopprijs
-- `StockEvent` - markt-event dat koersen beinvloedt
-- `InsiderTip` - hint over aankomende koerswijziging
-
-### Nieuwe State Velden
-
-- `stockPrices: Record<StockId, number>` - huidige koersen
-- `stockHistory: Record<StockId, number[]>` - 30-daagse koershistorie
-- `stockHoldings: Record<StockId, StockHolding>` - speler bezit
-- `pendingInsiderTip: InsiderTip | null` - actieve tip
-- `stockEvents: StockEvent[]` - actieve markt-events
-
-### Nieuwe Reducer Actions
-
-- `BUY_STOCK` - aandelen kopen
-- `SELL_STOCK` - aandelen verkopen
-- `DISMISS_INSIDER_TIP` - tip sluiten
-
-### Game Engine Integratie
-
-- Tijdens `END_TURN`: koersen updaten, dividend uitkeren, events triggeren
-- Markt-events (bestaande `MARKET_EVENTS`) beinvloeden ook aandelenkoersen
-- Corrupte contacten met `intelBonus` geven insider tips
-- Nemesis-acties beinvloeden gerelateerde aandelen
-
-### UI Componenten
-
-- `StockMarketPanel.tsx` - nieuw tabblad in TradeView
-- Koersgrafiek hergebruikt `PriceHistoryChart` patroon
-- Portfolio overzicht met winst/verlies berekening
-
----
-
-## 3. Integratie in Bestaande Views
-
-### TradeView - Nieuw tabblad "BEURS"
-
-Toevoegen als 6e sub-tab naast MARKT, ANALYSE, VEILING, WITWAS, GEAR.
-
-### OperationsView - Nieuw tabblad "PREMIES"
-
-Bounty board als extra sectie in het operations-scherm.
-
-### GameLayout
-
-- `BountyEncounterPopup` toevoegen aan overlay-stack
-- Bounty encounters triggeren `playPopupOpen` sound
-
-### Night Report
-
-- Dividend-inkomsten tonen
-- Koerswijzigingen samenvatten
-- Premiejager-activiteit rapporteren
-- Geplaatste premie-resultaten tonen
-
----
-
-## 4. Bestanden Overzicht
-
-### Nieuwe bestanden
-| Bestand | Doel |
-|---|---|
-| `src/game/bounties.ts` | Bounty-logica: genereren, encounters, resolutie |
-| `src/game/stocks.ts` | Aandelenmarkt-logica: koersen, events, dividend |
-| `src/components/game/bounty/BountyBoardPanel.tsx` | Bounty board UI |
-| `src/components/game/bounty/BountyEncounterPopup.tsx` | Encounter popup |
-| `src/components/game/trade/StockMarketPanel.tsx` | Aandelenmarkt UI |
-
-### Bestaande bestanden die worden aangepast
 | Bestand | Wijziging |
 |---|---|
-| `src/game/types.ts` | Nieuwe interfaces en state-velden |
-| `src/game/constants.ts` | Stock definities, bounty templates, achievements |
-| `src/contexts/GameContext.tsx` | Nieuwe actions, reducer cases, END_TURN integratie |
-| `src/game/engine.ts` | Bounty/stock processing in END_TURN |
-| `src/components/game/TradeView.tsx` | BEURS tab toevoegen |
-| `src/components/game/OperationsView.tsx` | PREMIES sectie toevoegen |
-| `src/components/game/GameLayout.tsx` | BountyEncounterPopup overlay |
-| `src/assets/items/index.ts` | Nieuwe afbeeldingen registreren |
+| `src/game/types.ts` | `NemesisState` uitbreiden met `abilities`, `revengeActive`, `defeatChoice` |
+| `src/game/constants.ts` | Taunt-arrays per archetype, ability-definities per generatie |
+| `src/game/newFeatures.ts` | `updateNemesis()` uitbreiden met revenge-logica, generatie-abilities, en confrontatie-keuzes |
+| `src/contexts/GameContext.tsx` | Nieuwe actions: `NEMESIS_DEFEAT_CHOICE`, revenge-processing in END_TURN |
+| `src/components/game/map/NemesisInfo.tsx` | Abilities-weergave, revenge-indicator, uitgebreide info |
+| `src/components/game/map/NemesisMarker.tsx` | Invloedszone-visualisatie op kaart |
+| `src/components/game/CombatView.tsx` | Defeat-keuze popup na nemesis-gevecht |
+
+### Nieuwe bestanden
+
+| Bestand | Doel |
+|---|---|
+| `src/components/game/map/NemesisDefeatPopup.tsx` | Keuze-popup na het verslaan van een rivaal (executeer/verban/rekruteer) |
+
+### State Uitbreidingen (types.ts)
+
+```text
+NemesisState + {
+  abilities: string[];          // ontgrendelde abilities per generatie
+  revengeActive: string | null; // actieve wraakactie type
+  revengeDaysLeft: number;      // dagen wraak nog actief
+  defeatChoice: 'execute' | 'exile' | 'recruit' | null;
+  tauntsShown: string[];        // welke taunts al getoond (geen herhaling)
+  woundedRevengeUsed: boolean;  // 1x revenge per gevecht
+}
+```
+
+### Generatie Abilities (constants.ts)
+
+```text
+GEN_ABILITIES = {
+  1: [],
+  2: ['crew_bribe'],        // kan crewlid omkopen
+  3: ['place_bounty'],      // plaatst bounty op speler
+  4: ['double_action', 'safehouse_sabotage'],
+  5: ['all_abilities', 'stat_boost']
+}
+```
 
