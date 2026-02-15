@@ -11,7 +11,7 @@ import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair } from 'lucide-react';
 import casinoBg from '@/assets/casino-bg.png';
-import { CASINO_GAME_IMAGES } from '@/assets/items/index';
+import { CASINO_GAME_IMAGES, MINIGAME_IMAGES } from '@/assets/items/index';
 
 export function CasinoView() {
   const { state, dispatch, showToast } = useGame();
@@ -117,7 +117,7 @@ export function CasinoView() {
             <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
             <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
             <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
-            <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" />
+            <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" image={MINIGAME_IMAGES.russian_roulette} />
           </motion.div>
         ) : activeGame === 'blackjack' ? (
           <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money}

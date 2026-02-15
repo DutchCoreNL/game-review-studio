@@ -406,3 +406,18 @@ export const MARKET_EVENT_IMAGES: Record<string, string> = {
   cartel_war: marketCartelWar,
   port_blockade: marketPortBlockade,
 };
+
+// Mini-game images
+import minigameRussianRoulette from './minigame-russian-roulette.jpg';
+import minigameLockpick from './minigame-lockpick.jpg';
+import minigameHacking from './minigame-hacking.jpg';
+import minigameArmWrestle from './minigame-arm-wrestle.jpg';
+import minigameDice from './minigame-dice.jpg';
+
+export const MINIGAME_IMAGES = {
+  russian_roulette: minigameRussianRoulette,
+  lockpick: minigameLockpick,
+  hacking: minigameHacking,
+  arm_wrestle: minigameArmWrestle,
+  dice: minigameDice,
+};

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, DollarSign } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
 import { playCoinSound, playNegativeSound } from '@/game/sounds';
+import { MINIGAME_IMAGES } from '@/assets/items';
 
 interface Props {
   bet: number;
