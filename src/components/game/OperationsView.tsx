@@ -10,6 +10,18 @@ import { StatBar } from './ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target, Skull, ShieldAlert } from 'lucide-react';
+import { PersonalityTrait } from '@/game/types';
+
+const PERSONALITY_LABELS: Record<PersonalityTrait, string> = {
+  loyaal: '🤝 Loyaal',
+  hebzuchtig: '💰 Hebzuchtig',
+  rustig: '🧘 Rustig',
+  impulsief: '⚡ Impulsief',
+  slim: '🧠 Slim',
+  brutaal: '💪 Brutaal',
+  charmant: '🎭 Charmant',
+  paranoid: '👁️ Paranoid',
+};
 import { CREW_SPECIALIZATIONS } from '@/game/constants';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DailyChallengesView } from './DailyChallengesView';
@@ -193,6 +205,11 @@ export function OperationsView() {
                     <div>
                       <h4 className="font-bold text-xs">
                         {c.name} <span className="text-muted-foreground font-normal text-[0.55rem]">({c.role})</span>
+                        {state.crewPersonalities?.[i] && (
+                          <span className="ml-1 text-[0.45rem] font-semibold text-ice bg-ice/10 px-1.5 py-0.5 rounded border border-ice/20">
+                            {PERSONALITY_LABELS[state.crewPersonalities[i]] || state.crewPersonalities[i]}
+                          </span>
+                        )}
                       </h4>
                       {/* Specialization info */}
                       {c.specialization ? (() => {

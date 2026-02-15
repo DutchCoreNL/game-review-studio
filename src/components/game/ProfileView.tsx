@@ -25,6 +25,7 @@ import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
 import { CharacterAvatar, AvatarState } from './profile/CharacterAvatar';
 import { AvatarPreviewDashboard } from './profile/AvatarPreviewDashboard';
+import { EncyclopediaView } from './EncyclopediaView';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
   { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
@@ -38,7 +39,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'avatar';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'avatar' | 'encyclopedia';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -97,6 +98,7 @@ export function ProfileView() {
           { id: 'leaderboard' as ProfileTab, label: '🏆 RANKING' },
           { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
           { id: 'avatar' as ProfileTab, label: '🧍 AVATAR' },
+          { id: 'encyclopedia' as ProfileTab, label: '📖 WIKI' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setProfileTab(tab.id)}
             className={`shrink-0 px-3 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
@@ -255,6 +257,8 @@ export function ProfileView() {
           </div>
         </div>
       )}
+
+      {profileTab === 'encyclopedia' && <EncyclopediaView />}
 
       {profileTab === 'districts' && (
         <>

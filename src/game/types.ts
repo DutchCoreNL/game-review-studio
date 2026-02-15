@@ -934,6 +934,15 @@ export interface GameState {
   // ========== STATISTICS HISTORY ==========
   incomeHistory?: number[];
 
+  // ========== NG+ STATE ==========
+  _ngPlusDifficultyScale?: number; // combat scaling multiplier
+  _ngPlusExclusiveFlags?: {
+    nemesisRevengeAvailable: boolean;
+    eliteContractsEnabled: boolean;
+    legendaryHeistsEnabled: boolean;
+    veteranCrewBonus: boolean;
+  };
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;

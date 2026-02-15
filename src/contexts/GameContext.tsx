@@ -530,6 +530,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RECRUIT': {
       Engine.recruit(s);
+      // NG+ veteran crew bonus: first crew starts with +20 loyalty
+      if (s._ngPlusExclusiveFlags?.veteranCrewBonus && s.crew.length > 0) {
+        const newest = s.crew[s.crew.length - 1];
+        if (newest.loyalty !== undefined) newest.loyalty = Math.min(100, (newest.loyalty || 50) + 20);
+      }
       if (s.dailyProgress) { s.dailyProgress.recruits++; }
       syncChallenges(s);
       return s;

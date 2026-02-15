@@ -267,22 +267,29 @@ export function generateContracts(state: GameState): void {
   state.activeContracts = [];
   const factionKeys = (Object.keys(FAMILIES) as FamilyId[]);
   const activeFactions = factionKeys.filter(fid => isFactionActive(state, fid));
+  const ngScale = state._ngPlusDifficultyScale || 1;
+  const eliteEnabled = state._ngPlusExclusiveFlags?.eliteContractsEnabled;
 
-  for (let i = 0; i < 3; i++) {
+  // Generate 3 normal contracts + 1 elite if NG+2+
+  const contractCount = eliteEnabled ? 4 : 3;
+
+  for (let i = 0; i < contractCount; i++) {
     const template = CONTRACT_TEMPLATES[Math.floor(Math.random() * CONTRACT_TEMPLATES.length)];
+    const isElite = eliteEnabled && i === contractCount - 1;
+    const eliteMult = isElite ? 2.0 : 1.0;
+    const eliteRiskBonus = isElite ? 15 : 0;
 
     if (activeFactions.length < 2) {
-      // Not enough active factions — generate "solo" contracts without faction ties
       state.activeContracts.push({
         id: Date.now() + i,
-        name: template.name,
+        name: isElite ? `⚡ ${template.name}` : template.name,
         type: template.type,
         employer: activeFactions[0] || factionKeys[0],
         target: activeFactions[0] || factionKeys[0],
-        risk: Math.min(90, Math.floor(template.risk + (state.day / 2))),
-        heat: template.heat,
-        reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0))),
-        xp: 35 + (state.day * 2)
+        risk: Math.min(95, Math.floor(template.risk + (state.day / 2) + eliteRiskBonus)),
+        heat: template.heat + (isElite ? 5 : 0),
+        reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0)) * ngScale * eliteMult),
+        xp: Math.floor((35 + (state.day * 2)) * eliteMult)
       });
       continue;
     }
@@ -293,18 +300,17 @@ export function generateContracts(state: GameState): void {
     
     state.activeContracts.push({
       id: Date.now() + i,
-      name: template.name,
+      name: isElite ? `⚡ ${template.name}` : template.name,
       type: template.type,
       employer,
       target,
-      risk: Math.min(90, Math.floor(template.risk + (state.day / 2))),
-      heat: template.heat,
-      reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0))),
-      xp: 35 + (state.day * 2)
+      risk: Math.min(95, Math.floor(template.risk + (state.day / 2) + eliteRiskBonus)),
+      heat: template.heat + (isElite ? 5 : 0),
+      reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0)) * ngScale * eliteMult),
+      xp: Math.floor((35 + (state.day * 2)) * eliteMult)
     });
   }
 }
-
 export function generateMapEvents(state: GameState): void {
   const events: MapEvent[] = [];
   const totalRoads = 8;
@@ -1843,7 +1849,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
 
   // Enemy attack
   if (!combat.stunned) {
-    let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6));
+    let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6) * (state._ngPlusDifficultyScale || 1));
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
     }
