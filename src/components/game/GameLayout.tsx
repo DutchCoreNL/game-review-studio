@@ -34,6 +34,8 @@ import { HospitalStayOverlay } from './HospitalStayOverlay';
 import { GameOverScreen } from './GameOverScreen';
 import { AchievementPopup } from './AchievementPopup';
 import { ScreenEffects } from './animations/ScreenEffects';
+import { NpcEventPopup } from './NpcEventPopup';
+import { WeekEventBanner } from './WeekEventBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -94,6 +96,7 @@ export function GameLayout() {
         <GameHeader />
 
         <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
+          <WeekEventBanner />
           <AnimatePresence mode="wait">
             <motion.div
               key={state.activeCombat ? 'combat' : view}
@@ -128,6 +131,7 @@ export function GameLayout() {
         {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
         <FinalBossAlert />
         <AchievementPopup />
+        {(state as any).pendingNpcEvent && <NpcEventPopup />}
         {state.gameOver && <GameOverScreen />}
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
