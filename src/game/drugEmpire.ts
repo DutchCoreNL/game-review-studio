@@ -22,6 +22,16 @@ export interface DrugEmpireState {
   noxCrystalProduced: number;
   labOffline: Record<ProductionLabId, number>; // days remaining offline
   deaInvestigation: number; // days remaining, 0 = inactive
+  // Cumulative stats
+  totalDealerIncome: number;
+  totalNoxCrystalSold: number;
+  totalNoxCrystalRevenue: number;
+  totalLabRaids: number;
+  totalDeaInvestigations: number;
+  totalContaminatedBatches: number;
+  totalRivalSabotages: number;
+  totalBigHarvests: number;
+  riskEventLog: { type: string; title: string; day: number }[];
 }
 
 // ========== CONSTANTS ==========
@@ -84,6 +94,15 @@ export function createDrugEmpireState(): DrugEmpireState {
     noxCrystalProduced: 0,
     labOffline: { wietplantage: 0, coke_lab: 0, synthetica_lab: 0 },
     deaInvestigation: 0,
+    totalDealerIncome: 0,
+    totalNoxCrystalSold: 0,
+    totalNoxCrystalRevenue: 0,
+    totalLabRaids: 0,
+    totalDeaInvestigations: 0,
+    totalContaminatedBatches: 0,
+    totalRivalSabotages: 0,
+    totalBigHarvests: 0,
+    riskEventLog: [],
   };
 }
 
@@ -236,6 +255,7 @@ export function processDrugEmpireNight(state: GameState): DrugEmpireNightResult 
     const income = calculateDealerIncome(dealer, state);
     state.money += income;
     state.stats.totalEarned += income;
+    de.totalDealerIncome = (de.totalDealerIncome || 0) + income;
     result.dealerIncome += income;
     result.dealerDetails.push({
       district: DISTRICTS[dealer.district]?.name || dealer.district,
@@ -248,6 +268,18 @@ export function processDrugEmpireNight(state: GameState): DrugEmpireNightResult 
   result.riskEvent = rollDrugRiskEvent(state);
   if (result.riskEvent) {
     applyRiskEvent(state, result.riskEvent);
+    // Track cumulative stats
+    switch (result.riskEvent.type) {
+      case 'lab_raid': de.totalLabRaids = (de.totalLabRaids || 0) + 1; break;
+      case 'dea_investigation': de.totalDeaInvestigations = (de.totalDeaInvestigations || 0) + 1; break;
+      case 'contaminated_batch': de.totalContaminatedBatches = (de.totalContaminatedBatches || 0) + 1; break;
+      case 'rival_sabotage': de.totalRivalSabotages = (de.totalRivalSabotages || 0) + 1; break;
+      case 'big_harvest': de.totalBigHarvests = (de.totalBigHarvests || 0) + 1; break;
+    }
+    // Log event (keep last 20)
+    de.riskEventLog = de.riskEventLog || [];
+    de.riskEventLog.push({ type: result.riskEvent.type, title: result.riskEvent.title, day: state.stats.daysPlayed });
+    if (de.riskEventLog.length > 20) de.riskEventLog = de.riskEventLog.slice(-20);
   }
 
   return result;
@@ -358,6 +390,8 @@ export function sellNoxCrystal(state: GameState, amount: number): number {
     return sum + NOXCRYSTAL_VALUE.min + Math.floor(Math.random() * (NOXCRYSTAL_VALUE.max - NOXCRYSTAL_VALUE.min));
   }, 0);
   de.noxCrystalStock -= amount;
+  de.totalNoxCrystalSold = (de.totalNoxCrystalSold || 0) + amount;
+  de.totalNoxCrystalRevenue = (de.totalNoxCrystalRevenue || 0) + totalValue;
   state.money += totalValue;
   state.stats.totalEarned += totalValue;
   // NoxCrystal sales generate massive heat
