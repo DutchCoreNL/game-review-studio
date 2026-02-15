@@ -1,15 +1,18 @@
 import { useGame } from '@/contexts/GameContext';
 import { HEIST_TEMPLATES, HEIST_ROLES, HEIST_EQUIPMENT, getAvailableHeists, getHeistCooldownRemaining, HeistRoleId, HeistEquipId } from '@/game/heists';
 import { DISTRICTS } from '@/game/constants';
+import { getPlayerStat } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Target, Users, Eye, ShoppingBag, Play, X, Lock, Clock, CheckCircle } from 'lucide-react';
+import { Target, Users, Eye, ShoppingBag, Play, X, Lock, Clock, CheckCircle, Cpu } from 'lucide-react';
 import heistBg from '@/assets/heist-bg.jpg';
 import { HEIST_IMAGES } from '@/assets/items';
+import { LockpickGame } from '../minigames/LockpickGame';
+import { HackingGame } from '../minigames/HackingGame';
 
 export function HeistView() {
   const { state, dispatch, showToast } = useGame();
@@ -228,6 +231,21 @@ function HeistExecution() {
   const heist = state.activeHeist!;
   const template = HEIST_TEMPLATES.find(h => h.id === heist.plan.heistId)!;
   const complication = heist.pendingComplication;
+  const [activeMinigame, setActiveMinigame] = useState<{ type: 'lockpick' | 'hacking'; choiceId: string } | null>(null);
+
+  // Determine if a complication type supports a mini-game
+  const getComplicationMinigame = (compType: string): 'lockpick' | 'hacking' | null => {
+    if (compType === 'tech_fail') return 'hacking';
+    if (compType === 'lockdown' || compType === 'alarm') return 'lockpick';
+    return null;
+  };
+
+  const handleMinigameComplete = (success: boolean) => {
+    if (!activeMinigame) return;
+    const choiceId = activeMinigame.choiceId;
+    setActiveMinigame(null);
+    dispatch({ type: 'RESOLVE_HEIST_COMPLICATION', choiceId, forceResult: success ? 'success' : 'fail' });
+  };
 
   return (
     <div>
@@ -272,16 +290,34 @@ function HeistExecution() {
         <motion.div className="game-card border-2 border-gold mb-3" initial={{ scale: 0.95 }} animate={{ scale: 1 }}>
           <p className="text-[0.55rem] font-bold text-gold mb-2">⚠️ {complication.text}</p>
           <div className="space-y-1.5">
-            {complication.choices.map(c => (
-              <button key={c.id} onClick={() => dispatch({ type: 'RESOLVE_HEIST_COMPLICATION', choiceId: c.id })}
-                className="w-full text-left game-card bg-muted/50 hover:bg-muted border border-border hover:border-gold/50 transition-all p-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs">{c.label}</span>
-                  <GameBadge variant="muted" size="xs">{c.stat}</GameBadge>
+            {complication.choices.map(c => {
+              const minigameType = getComplicationMinigame(complication.type);
+              return (
+                <div key={c.id}>
+                  <button onClick={() => dispatch({ type: 'RESOLVE_HEIST_COMPLICATION', choiceId: c.id })}
+                    className="w-full text-left game-card bg-muted/50 hover:bg-muted border border-border hover:border-gold/50 transition-all p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs">{c.label}</span>
+                      <GameBadge variant="muted" size="xs">{c.stat}</GameBadge>
+                    </div>
+                    <p className="text-[0.4rem] text-muted-foreground">Moeilijkheid: {c.difficulty}%</p>
+                  </button>
+                  {/* Mini-game alternative */}
+                  {minigameType && (
+                    <button
+                      onClick={() => setActiveMinigame({ type: minigameType, choiceId: c.id })}
+                      className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded border border-game-purple/40 bg-game-purple/10 hover:bg-game-purple/20 transition-colors text-game-purple"
+                    >
+                      {minigameType === 'lockpick' ? <Lock size={10} /> : <Cpu size={10} />}
+                      <span className="text-[0.5rem] font-bold uppercase tracking-wider">
+                        {minigameType === 'lockpick' ? '🔓 Lockpick' : '💻 Hack'}
+                      </span>
+                      <span className="text-[0.4rem] text-muted-foreground ml-1">— Succes = gegarandeerd ✓</span>
+                    </button>
+                  )}
                 </div>
-                <p className="text-[0.4rem] text-muted-foreground">Moeilijkheid: {c.difficulty}%</p>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       )}
@@ -314,6 +350,23 @@ function HeistExecution() {
           VOLGENDE FASE
         </GameButton>
       ) : null}
+
+      {/* Mini-game overlays */}
+      {activeMinigame?.type === 'lockpick' && (
+        <LockpickGame
+          difficulty={Math.min(3, template.tier)}
+          brainsBonus={getPlayerStat(state, 'brains')}
+          onComplete={handleMinigameComplete}
+        />
+      )}
+      {activeMinigame?.type === 'hacking' && (
+        <HackingGame
+          difficulty={Math.min(3, template.tier)}
+          brainsBonus={getPlayerStat(state, 'brains')}
+          hasHacker={state.crew.some(c => c.role === 'Hacker' && c.hp > 0)}
+          onComplete={handleMinigameComplete}
+        />
+      )}
     </div>
   );
 }

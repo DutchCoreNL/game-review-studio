@@ -410,17 +410,22 @@ export function executePhase(state: GameState, heist: ActiveHeist): void {
 }
 
 /** Resolve a complication choice */
-export function resolveComplication(state: GameState, heist: ActiveHeist, choiceId: string): void {
+export function resolveComplication(state: GameState, heist: ActiveHeist, choiceId: string, forceResult?: 'success' | 'fail'): void {
   const complication = heist.pendingComplication;
   if (!complication) return;
 
   const choice = complication.choices.find(c => c.id === choiceId);
   if (!choice) return;
 
-  const statVal = getPlayerStat(state, choice.stat);
-  const diff = Math.max(10, choice.difficulty - statVal * 3);
-  const roll = Math.random() * 100;
-  const success = roll > diff;
+  let success: boolean;
+  if (forceResult) {
+    success = forceResult === 'success';
+  } else {
+    const statVal = getPlayerStat(state, choice.stat);
+    const diff = Math.max(10, choice.difficulty - statVal * 3);
+    const roll = Math.random() * 100;
+    success = roll > diff;
+  }
 
   if (success) {
     heist.log.push(`   ✓ ${choice.label}: ${choice.successText}`);
