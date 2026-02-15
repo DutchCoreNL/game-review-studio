@@ -158,6 +158,11 @@ import badgeVeteran from './badge-veteran.jpg';
 import badgeNightOwl from './badge-night-owl.jpg';
 import badgeDebtFree from './badge-debt-free.jpg';
 import badgeHallOfFame from './badge-hall-of-fame.jpg';
+import badgeFirstDealer from './badge-first-dealer.jpg';
+import badgeMasterChemist from './badge-master-chemist.jpg';
+import badgeNoxcrystal from './badge-noxcrystal.jpg';
+import badgeDealerMogul from './badge-dealer-mogul.jpg';
+import badgeDeaSurvivor from './badge-dea-survivor.jpg';
 
 // Solo operation images
 import opPickpocket from './op-pickpocket.jpg';
@@ -369,6 +374,11 @@ export const ACHIEVEMENT_IMAGES: Record<string, string> = {
   night_owl: badgeNightOwl,
   debt_free: badgeDebtFree,
   hall_of_fame: badgeHallOfFame,
+  first_dealer: badgeFirstDealer,
+  master_chemist: badgeMasterChemist,
+  noxcrystal_first: badgeNoxcrystal,
+  dealer_mogul: badgeDealerMogul,
+  dea_survivor: badgeDeaSurvivor,
 };
 
 export const CASINO_GAME_IMAGES: Record<string, string> = {
