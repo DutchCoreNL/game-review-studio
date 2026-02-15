@@ -1,55 +1,68 @@
-# Nieuwe Mini-Games voor Noxhaven
+# Drug Imperium -- Endgame Productiesysteem
 
 ## Overzicht
 
-Er worden **5 nieuwe interactieve mini-games** toegevoegd die thematisch passen bij het maffia-genre en aansluiten op bestaande systemen. Elke mini-game heeft eigen mechanics, risico/beloning, en raakt aan bestaande progressie (geld, rep, heat, karma).
+Het Drug Imperium breidt de bestaande villa-productie (Wietplantage, Coke Lab, Synthetica Lab) uit naar een volwaardig endgame-systeem met **kwaliteitsniveaus**, **lab-upgrades**, **een distributienetwerk** en **risico-events**. Het systeem wordt ontgrendeld wanneer de speler minimaal 2 productiemodulen bezit en Villa Level 2+ heeft.
 
-## Nieuwe Mini-Games
+---
 
-### 1. Russian Roulette (Casino)
+## Nieuwe Mechanica
 
-Een spanning-gebaseerde mini-game in The Velvet Room. De speler speelt tegen een NPC om steeds hogere inzetten. Elke ronde draait de cilinder (1/6 kans op "verlies"). Cash out wanneer je wilt, of ga door voor hogere multipliers.
+### 1. Kwaliteitsniveaus (Drug Tiers)
 
-- **Locatie**: Casino (5e spel naast Blackjack, Roulette, Slots, High-Low)
-- **Mechaniek**: 6-kamer cilinder, elke ronde 1 kamer gevuld. Multiplier stijgt per overleefde ronde (1.5x, 2.5x, 4x, 7x, 12x). Cash out op elk moment
-- **Risico**: Verlies = gehele inzet kwijt + crew damage
-- **Balans**: Huis-edge via stijgende "kamers gevuld" per ronde (1/6, 1/5, 1/4...)
+Elke productiemodulen produceert nu in drie kwaliteitstiers:
 
-### 2. Lockpick (Solo Operatie)
 
-Een timing-gebaseerde mini-game die verschijnt bij inbraken en kluis-missies. De speler moet op het juiste moment "klikken" om pinnen te zetten in een slot.
+| Tier | Label   | Prijsmultiplier | Heat-multiplier | Unlock     |
+| ---- | ------- | --------------- | --------------- | ---------- |
+| 1    | Straat  | 1.0x            | 1.0x            | Standaard  |
+| 2    | Premium | 1.8x            | 1.5x            | Lab Tier 2 |
+| 3    | Puur    | 3.0x            | 2.5x            | Lab Tier 3 |
 
-- **Locatie**: Verschijnt als optionele skill-check bij solo operaties en heist-complicaties
-- **Mechaniek**: 3-5 pinnen die elk een "sweet spot" hebben. Een marker beweegt heen en weer; tik in de groene zone om de pin te zetten. Mis = pin reset
-- **Beloning**: Succesvol lockpicken geeft bonus loot (+20-50% beloning) of verlaagt heist-moeilijkheid
-- **Stat-link**: Brains-stat vergroot de groene zone
 
-### 3. Dobbelspel / Craps (Straat)
+- Hogere kwaliteit = meer winst, maar ook meer Heat per batch
+- Kwaliteit is instelbaar per lab (speler kiest welk tier ze produceren)
 
-Een snel dobbelspel dat verschijnt als willekeurige straatontmoeting of in de gevangenis.
+### 2. Lab Upgrade Tiers (3 niveaus)
 
-- **Locatie**: Willekeurige straatontmoetingen + gevangenis-activiteit
-- **Mechaniek**: Gooi 2 dobbelstenen. 7 of 11 op eerste worp = win. 2, 3, of 12 = verlies. Anders wordt dat getal je "punt" en moet je het nogmaals gooien voor je een 7 gooit
-- **In gevangenis**: Speel met sigaretten (valuta) om je straf te verkorten of connecties te maken
-- **Balans**: Standaard craps-kansen (huis-edge ~1.4%)
+Elk productielab (Wietplantage, Coke Lab, Synthetica Lab) krijgt 3 upgrade-tiers:
 
-### 4. Hacking Mini-Game (Tech Operaties)
 
-Een puzzel-gebaseerde mini-game voor tech-gerelateerde missies. Kruis draden aan in een grid om een circuit te voltooien.
+| Tier | Kosten             | Effect                                                            |
+| ---- | ------------------ | ----------------------------------------------------------------- |
+| 1    | Basis (al gekocht) | Huidige productie                                                 |
+| 2    | €75.000-€120.000   | +50% output, -20% chemicalien, unlock Premium                     |
+| 3    | €200.000-€300.000  | +100% output, kwaliteitsbonussen, unlock Puur + NoxCrystal recept |
 
-- **Locatie**: Tech-contracten, heist-complicaties, villa server-room events
-- **Mechaniek**: 4x4 grid met nodes. Roteer tegels om een pad te maken van start naar finish binnen een tijdslimiet (15-30 sec). Moeilijkheid schaalt met level
-- **Beloning**: Succes = bonus data (verkopen voor geld), heat-reductie, of extra intel
-- **Stat-link**: Brains-stat en Hacker-crewlid geven extra tijd
 
-### 5. Arm Wrestle (Bar / Gevecht)
+### 3. Distributienetwerk
 
-Een snelle reactie-game tegen NPC's in bars of als intimidatie-optie.
+Wijs crewleden aan als **dealers** in specifieke districten:
 
-- **Locatie**: Straatontmoetingen, gevangenis, factie-onderhandelingen
-- **Mechaniek**: Twee balken botsen. Tap snel en ritmisch om je balk naar rechts te duwen. NPC-sterkte is gebaseerd op Muscle-stat verschil
-- **Beloning**: Win = respect (+rep), verlies = reputatie-verlies. In gevangenis: bescherming of allianties
-- **Stat-link**: Muscle-stat geeft een voorsprong
+- Elke dealer genereert passief inkomen per nacht op basis van: product kwaliteit x district vraag x dealer-level
+- Max 1 dealer per district, max 5 totaal
+- Dealers bouwen "marktaandeel" op (0-100%) over tijd
+- Hoger marktaandeel = meer inkomen, maar ook meer Heat en risico op rivaal-aanvallen
+- Dealers kunnen worden aangevallen door facties (verliezen marktaandeel)
+
+### 4. NoxCrystal (Endgame Product)
+
+- Vereist: alle 3 labs op Tier 3 + speciale precursors
+- Productie: 1-2 per nacht, verkoopwaarde €8.000-€12.000 per stuk
+- Genereert +15 Heat per batch
+- Kan alleen verkocht worden aan specifieke contacten (niet op de reguliere markt)
+
+### 5. Risico-Events (Nachtelijke Checks)
+
+
+| Event           | Trigger                          | Effect                                                       |
+| --------------- | -------------------------------- | ------------------------------------------------------------ |
+| Lab Raid        | Heat > 60 + productie actief     | Lab offline 2 dagen, verlies voorraad                        |
+| Besmette Batch  | 10% kans per nacht               | Karma -5, Rep -10, klanten ziek                              |
+| Rivaal Sabotage | Marktaandeel > 60% in district   | Dealer gewond, marktaandeel -20%                             |
+| DEA Onderzoek   | NoxCrystal productie + Heat > 40 | 3-daags onderzoek: alle productie stopt, arrestatiekans +15% |
+| Grote Oogst     | 5% kans bij Tier 3               | Dubbele productie deze nacht                                 |
+
 
 ---
 
@@ -58,61 +71,82 @@ Een snelle reactie-game tegen NPC's in bars of als intimidatie-optie.
 ### Nieuwe Bestanden
 
 
-| Bestand                                              | Doel                                 |
-| ---------------------------------------------------- | ------------------------------------ |
-| `src/components/game/casino/RussianRouletteGame.tsx` | Russian Roulette mini-game component |
-| `src/components/game/minigames/LockpickGame.tsx`     | Lockpick timing mini-game            |
-| `src/components/game/minigames/DiceGame.tsx`         | Craps/dobbelspel component           |
-| `src/components/game/minigames/HackingGame.tsx`      | Grid-puzzel hacking mini-game        |
-| `src/components/game/minigames/ArmWrestleGame.tsx`   | Tap-gebaseerde arm-wrestle game      |
+| Bestand                                         | Doel                                                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/game/drugEmpire.ts`                        | Alle constanten, types, productie-logica, dealer-berekeningen en risico-event checks            |
+| `src/components/game/villa/DrugEmpirePanel.tsx` | UI-paneel binnen VillaView: lab upgrades, kwaliteitskeuze, dealer-toewijzing, NoxCrystal status |
 
 
 ### Gewijzigde Bestanden
 
 
-| Bestand                                 | Wijziging                                             |
-| --------------------------------------- | ----------------------------------------------------- |
-| `src/game/types.ts`                     | `CasinoGame` type uitbreiden met `'russian_roulette'` |
-| `src/components/game/CasinoView.tsx`    | Russian Roulette toevoegen als 5e casino-spel         |
-| `src/components/game/PrisonOverlay.tsx` | Dobbelspel toevoegen als gevangenis-activiteit        |
-| `src/components/game/storyEvents.ts`    | Nieuwe street events met arm wrestle en dice triggers |
-| `src/contexts/GameContext.tsx`          | Nieuwe actions voor mini-game resultaten en state     |
+| Bestand                                   | Wijziging                                                                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/game/types.ts`                       | Nieuwe types: `DrugTier`, `LabUpgradeState`, `DealerAssignment`, `DrugEmpireState` toevoegen aan `GameState`                                        |
+| `src/game/villa.ts`                       | `processVillaProduction()` uitbreiden met tier-logica, dealer-inkomsten en NoxCrystal productie                                                     |
+| `src/contexts/GameContext.tsx`            | Nieuwe reducer-acties: `UPGRADE_LAB`, `SET_DRUG_TIER`, `ASSIGN_DEALER`, `RECALL_DEALER`, `SELL_NOXCRYSTAL`. Migratie-logica voor `drugEmpire` state |
+| `src/components/game/villa/VillaView.tsx` | Nieuwe "Drug Imperium" tab toevoegen naast bestaande tabs (overview, production, storage, modules)                                                  |
+| `src/game/constants.ts`                   | NoxCrystal toevoegen als speciaal goed (niet in GOODS array, aparte constante)                                                                      |
+| `src/components/game/NightReport.tsx`     | Drug Empire resultaten tonen: dealer-inkomsten, risico-events, NoxCrystal productie                                                                 |
 
 
-### State Uitbreidingen
+### State Uitbreiding
 
 ```text
-CasinoGame type + 'russian_roulette'
-
 GameState + {
-  pendingMinigame: {
-    type: 'lockpick' | 'dice' | 'hacking' | 'arm_wrestle';
-    difficulty: number;
-    context: string; // waar het vandaan komt
-    rewards: { money?: number; rep?: number; heat?: number };
+  drugEmpire: {
+    labTiers: {
+      wietplantage: 1 | 2 | 3;
+      coke_lab: 1 | 2 | 3;
+      synthetica_lab: 1 | 2 | 3;
+    };
+    selectedQuality: {
+      wietplantage: 1 | 2 | 3;
+      coke_lab: 1 | 2 | 3;
+      synthetica_lab: 1 | 2 | 3;
+    };
+    dealers: {
+      district: DistrictId;
+      crewName: string;
+      marketShare: number; // 0-100
+      daysActive: number;
+      product: GoodId;
+    }[];
+    noxCrystalStock: number;
+    noxCrystalProduced: number; // lifetime total
+    labOffline: {
+      wietplantage: number; // days remaining offline
+      coke_lab: number;
+      synthetica_lab: number;
+    };
+    deaInvestigation: number; // days remaining, 0 = inactive
   } | null;
 }
 ```
 
-### Casino Integratie (Russian Roulette)
+### Productie Flow (Nachtelijk)
 
-- Toegevoegd aan het bestaande casino-menu grid (2x3 in plaats van 2x2)
-- Gebruikt dezelfde `BetControls`, `onResult` callback, en VIP bonus-systeem
-- Visueel: draaiende cilinder-animatie met Framer Motion, spanning opbouw
+1. Check of labs online zijn (niet offline door raid)
+2. Per actief lab: bereken output op basis van tier + kwaliteit
+3. Vermenigvuldig met prestige-bonussen (bestaand systeem)
+4. Genereer Heat op basis van kwaliteit-tier
+5. Check NoxCrystal productie (alle labs Tier 3 + chemicalien > 10)
+6. Bereken dealer-inkomsten per district
+7. Roll risico-events (raid, besmetting, sabotage, DEA)
+8. Rapporteer alles in NightReport
 
-### Gevangenis Integratie (Dobbelspel)
+### Unlock Vereisten
 
-- Nieuwe "Dobbelen" knop in de PrisonOverlay naast "Omkopen" en "Ontsnappen"
-- Winst in sigaretten die omgezet worden naar strafverkorting of connecties
-- Verlies kost "bescherming" (crew loyalty effect)
+- Drug Imperium tab verschijnt zodra de speler 1+ productiemodule bezit
+- Lab Tier 2: Villa Level 2 + €75k-€120k
+- Lab Tier 3: Villa Level 3 + €200k-€300k + alle districten bezit
+- NoxCrystal: alle 3 labs Tier 3
+- Dealers: minimaal 1 crewlid beschikbaar + district bezit
 
-### Missie/Heist Integratie (Lockpick + Hacking)
+### Dealer Inkomsten Formule
 
-- Mini-games verschijnen als alternatieve skill-checks
-- Succes vervangt de normale dice-roll met een gegarandeerd resultaat
-- Speler kan altijd kiezen: mini-game spelen OF normale stat-check doen
+```text
+dagelijks_inkomen = basis_prijs x kwaliteit_multiplier x district_vraag x (marktaandeel / 100) x (1 + dealer_level * 0.1)
+```
 
-### Straat Integratie (Arm Wrestle + Dice)
-
-- 2 nieuwe street events die mini-games triggeren
-- Arm wrestle bij Iron Borough bars, dice bij Port District docks
+Waar `district_vraag` de bestaande `mods` uit DISTRICTS gebruikt.
