@@ -1256,6 +1256,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'night_owl', name: 'Nachtuil', desc: 'Overleef 100 dagen', icon: 'Moon', condition: (s) => s.day >= 100, progress: (s) => ({ current: Math.min(s.day, 100), target: 100 }) },
   { id: 'debt_free', name: 'Schuldvrij', desc: 'Los al je schulden af', icon: 'CheckCircle', condition: (s) => s.debt === 0 && (s.stats?.totalEarned || 0) > 10000 },
   { id: 'hall_of_fame', name: 'Hall of Fame', desc: 'Voltooi 3+ NG+ runs met minimaal A-rank', icon: 'Trophy', condition: (s) => (s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length >= 3, progress: (s) => ({ current: Math.min((s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length, 3), target: 3 }) },
+  // Drug Imperium achievements
+  { id: 'first_dealer', name: 'Eerste Dealer', desc: 'Wijs je eerste dealer toe aan een district', icon: 'Users', condition: (s) => (s.drugEmpire?.dealers || []).length >= 1, progress: (s) => ({ current: Math.min((s.drugEmpire?.dealers || []).length, 1), target: 1 }) },
+  { id: 'master_chemist', name: 'Meester Chemist', desc: 'Upgrade alle 3 labs naar Tier 3', icon: 'FlaskConical', condition: (s) => s.drugEmpire?.labTiers.wietplantage >= 3 && s.drugEmpire?.labTiers.coke_lab >= 3 && s.drugEmpire?.labTiers.synthetica_lab >= 3, progress: (s) => ({ current: [s.drugEmpire?.labTiers.wietplantage, s.drugEmpire?.labTiers.coke_lab, s.drugEmpire?.labTiers.synthetica_lab].filter(t => t && t >= 3).length, target: 3 }) },
+  { id: 'noxcrystal_first', name: 'NoxCrystal Pionier', desc: 'Produceer je eerste NoxCrystal', icon: 'Gem', condition: (s) => (s.drugEmpire?.noxCrystalProduced || 0) >= 1, progress: (s) => ({ current: Math.min(s.drugEmpire?.noxCrystalProduced || 0, 1), target: 1 }) },
+  { id: 'dealer_mogul', name: 'Dealer Mogul', desc: 'Verdien €100.000 via dealers', icon: 'TrendingUp', condition: (s) => (s.drugEmpire?.totalDealerIncome || 0) >= 100000, progress: (s) => ({ current: Math.min(s.drugEmpire?.totalDealerIncome || 0, 100000), target: 100000 }) },
+  { id: 'dea_survivor', name: 'DEA Overlever', desc: 'Overleef een DEA onderzoek', icon: 'ShieldAlert', condition: (s) => (s.drugEmpire?.totalDeaInvestigations || 0) >= 1, progress: (s) => ({ current: Math.min(s.drugEmpire?.totalDeaInvestigations || 0, 1), target: 1 }) },
 ];
 
 export const BET_PRESETS = [100, 500, 1000, 5000];
