@@ -643,6 +643,12 @@ export interface NightReportData {
   goldenHourBonus?: number;
   goldenHourStarted?: boolean;
   goldenHourEnded?: boolean;
+  // Bounty & Stock night report
+  bountyResults?: { targetName: string; success: boolean; rewardMoney: number; rewardRep: number }[];
+  bountyEncounterReport?: string;
+  stockChanges?: { stockId: string; oldPrice: number; newPrice: number; change: number }[];
+  stockDividend?: number;
+  stockEvent?: { name: string; desc: string } | null;
 }
 
 export interface ExpiryWarning {
@@ -945,6 +951,19 @@ export interface GameState {
 
   // ========== RUN HISTORY (NG+ Leaderboard) ==========
   runHistory: RunRecord[];
+
+  // ========== BOUNTY SYSTEM STATE ==========
+  activeBounties: import('../game/bounties').BountyContract[];
+  placedBounties: import('../game/bounties').BountyContract[];
+  pendingBountyEncounter: import('../game/bounties').BountyEncounter | null;
+  bountyBoard: import('../game/bounties').BountyTarget[];
+
+  // ========== STOCK MARKET STATE ==========
+  stockPrices: Record<string, number>;
+  stockHistory: Record<string, number[]>;
+  stockHoldings: Record<string, import('../game/stocks').StockHolding>;
+  pendingInsiderTip: import('../game/stocks').InsiderTip | null;
+  stockEvents: import('../game/stocks').StockEvent[];
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;

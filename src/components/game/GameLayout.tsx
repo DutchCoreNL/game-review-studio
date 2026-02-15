@@ -36,6 +36,7 @@ import { AchievementPopup } from './AchievementPopup';
 import { ScreenEffects } from './animations/ScreenEffects';
 import { NpcEventPopup } from './NpcEventPopup';
 import { WeekEventBanner } from './WeekEventBanner';
+import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -81,10 +82,10 @@ export function GameLayout() {
 
   // Popup open sounds
   useEffect(() => {
-    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup) {
+    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup || state.pendingBountyEncounter) {
       playPopupOpen();
     }
-  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup]);
+  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
 
   const clearEffect = useCallback(() => {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
@@ -132,6 +133,7 @@ export function GameLayout() {
         <FinalBossAlert />
         <AchievementPopup />
         {(state as any).pendingNpcEvent && <NpcEventPopup />}
+        {state.pendingBountyEncounter && <BountyEncounterPopup />}
         {state.gameOver && <GameOverScreen />}
         {state.backstory === null && state.tutorialDone && (
           <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />

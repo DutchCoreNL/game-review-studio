@@ -1,4 +1,4 @@
-import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel } from 'lucide-react';
+import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
@@ -9,9 +9,10 @@ import { LaunderingPanel } from './trade/LaunderingPanel';
 import { GearPanel } from './trade/GearPanel';
 import { MarketAnalysisPanel } from './trade/MarketAnalysisPanel';
 import { AuctionPanel } from './trade/AuctionPanel';
+import { StockMarketPanel } from './trade/StockMarketPanel';
 import tradeBg from '@/assets/trade-bg.jpg';
 
-type TradeSubTab = 'market' | 'analysis' | 'launder' | 'gear' | 'auction';
+type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks';
 
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
@@ -44,6 +45,7 @@ export function TradeView() {
           { id: 'market' as TradeSubTab, label: 'MARKT', icon: <ShoppingBag size={11} />, badge: false },
           { id: 'analysis' as TradeSubTab, label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
           { id: 'auction' as TradeSubTab, label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) > 0 },
+          { id: 'stocks' as TradeSubTab, label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
           { id: 'launder' as TradeSubTab, label: 'WITWAS', icon: <Droplets size={11} />, badge: false },
           { id: 'gear' as TradeSubTab, label: 'GEAR', icon: <ShieldCheck size={11} />, badge: false },
         ]).map(tab => (
@@ -67,6 +69,7 @@ export function TradeView() {
       {subTab === 'market' && <MarketPanel />}
       {subTab === 'analysis' && <MarketAnalysisPanel />}
       {subTab === 'auction' && <AuctionPanel />}
+      {subTab === 'stocks' && <StockMarketPanel />}
       {subTab === 'launder' && <LaunderingPanel />}
       {subTab === 'gear' && <GearPanel />}
       </div>
