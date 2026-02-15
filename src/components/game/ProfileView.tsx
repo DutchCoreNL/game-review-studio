@@ -23,8 +23,6 @@ import { ReputationLeaderboard } from './profile/ReputationLeaderboard';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
-import { CharacterAvatar, AvatarState } from './profile/CharacterAvatar';
-import { AvatarPreviewDashboard } from './profile/AvatarPreviewDashboard';
 import { EncyclopediaView } from './EncyclopediaView';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 
@@ -40,7 +38,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'avatar' | 'encyclopedia' | 'drugempire';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'encyclopedia' | 'drugempire';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -58,14 +56,9 @@ export function ProfileView() {
       {/* Boss Card */}
       <div className="game-card border-l-[3px] border-l-gold mb-4 mt-1">
         <div className="flex items-center gap-3">
-          <CharacterAvatar size="sm" state={{
-            level: state.player.level,
-            karma: state.karma,
-            district: state.loc,
-            weapon: state.player.loadout.weapon,
-            armor: state.player.loadout.armor,
-            hasCybernetics: state.ownedGear.includes('lotus_implant'),
-          }} />
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Skull size={18} className="text-gold" />
+          </div>
           <div className="flex-1">
             <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
             <div className="flex items-center gap-1.5">
@@ -98,7 +91,7 @@ export function ProfileView() {
           { id: 'charts' as ProfileTab, label: '📊 CHARTS' },
           { id: 'leaderboard' as ProfileTab, label: '🏆 RANKING' },
           { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
-          { id: 'avatar' as ProfileTab, label: '🧍 AVATAR' },
+          
           { id: 'encyclopedia' as ProfileTab, label: '📖 WIKI' },
           { id: 'drugempire' as ProfileTab, label: '💀 IMPERIUM' },
         ]).map(tab => (
@@ -244,21 +237,8 @@ export function ProfileView() {
 
       {profileTab === 'leaderboard' && <ReputationLeaderboard />}
 
-      {profileTab === 'avatar' && (
-        <div className="flex flex-col items-center gap-4">
-          <CharacterAvatar size="lg" state={{
-            level: state.player.level,
-            karma: state.karma,
-            district: state.loc,
-            weapon: state.player.loadout.weapon,
-            armor: state.player.loadout.armor,
-            hasCybernetics: state.ownedGear.includes('lotus_implant'),
-          }} />
-          <div className="w-full">
-            <AvatarPreviewDashboard />
-          </div>
-        </div>
-      )}
+
+
 
       {profileTab === 'encyclopedia' && <EncyclopediaView />}
 
