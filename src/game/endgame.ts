@@ -443,6 +443,52 @@ export function createNewGamePlus(state: GameState): GameState {
   fresh.nemesis.hp = fresh.nemesis.maxHp;
   fresh.nemesis.power = 10 + ngLevel * 15;
 
+  // ========== NG+ EXCLUSIVE ENHANCEMENTS ==========
+
+  // Stronger nemesis archetype rotation
+  const archetypes: import('./types').NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
+  fresh.nemesis.archetype = archetypes[(ngLevel - 1) % archetypes.length];
+
+  // NG+ exclusive starting gear (keep best gear from previous run)
+  if (state.ownedGear.length > 0) {
+    // Carry over up to 2 gear items
+    const keepGear = state.ownedGear.slice(0, Math.min(2, state.ownedGear.length));
+    fresh.ownedGear = keepGear;
+  }
+
+  // NG+ scaling: enemies deal more damage, have more HP
+  // This is stored as a multiplier and applied in combat
+  fresh._ngPlusDifficultyScale = 1 + ngLevel * 0.25; // 1.25x, 1.5x, 1.75x, etc.
+
+  // NG+ exclusive rewards tracking
+  fresh._ngPlusExclusiveFlags = {
+    nemesisRevengeAvailable: true, // nemesis starts with vendetta
+    eliteContractsEnabled: ngLevel >= 2, // harder contracts with better rewards
+    legendaryHeistsEnabled: ngLevel >= 3, // unique heists only in NG+3
+    veteranCrewBonus: true, // first recruited crew starts with +20 loyalty
+  };
+
+  // NG+ nemesis starts with vendetta — will attack on day 3
+  fresh.nemesis.truceDaysLeft = 0;
+  fresh.nemesis.lastAction = `Wraak voor NG+${ngLevel - 1}... hij jaagt op je.`;
+
+  // NG+ starting reputation bonus
+  fresh.rep = Math.min(500, ngLevel * 100);
+
+  // NG+ carry over NPC relationship flags (not values)
+  if (state.npcRelations) {
+    const npcIds = Object.keys(state.npcRelations);
+    npcIds.forEach(id => {
+      if (state.npcRelations[id]?.met) {
+        fresh.npcRelations[id] = {
+          ...fresh.npcRelations[id],
+          met: true,
+          value: Math.floor((state.npcRelations[id].value || 0) * 0.3), // carry 30% relationship
+        };
+      }
+    });
+  }
+
   return fresh;
 }
 

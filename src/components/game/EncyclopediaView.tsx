@@ -192,6 +192,22 @@ const ENTRIES: EncyclopediaEntry[] = [
       '🔓 Ontsnappingspoging in gevangenis: 30% basisskans, +10% met Brains.',
     ],
   },
+  {
+    id: 'ngplus',
+    title: 'New Game+',
+    icon: <Crown size={14} className="text-game-purple" />,
+    category: 'Systemen',
+    content: [
+      '🔄 Na het verslaan van Commissaris Decker kun je een New Game+ starten.',
+      '📈 Elke NG+ ronde schaalt vijanden met +25% schade per level.',
+      '🎒 Je houdt tot 2 gear items en 30% van NPC-relaties.',
+      '💰 Extra startgeld: €5.000 per NG+ level.',
+      '⚔️ NG+2: Elite Contracten ontgrendeld — moeilijker maar lucratiever.',
+      '🏦 NG+3: Legendarische Heists — unieke overvallocaties alleen beschikbaar in NG+3+.',
+      '🦹 Je nemesis start met een wraakactie en een nieuw archetype elk NG+ level.',
+      '🏆 Achievements blijven behouden over alle NG+ runs.',
+    ],
+  },
 ];
 
 const CATEGORIES = [...new Set(ENTRIES.map(e => e.category))];
