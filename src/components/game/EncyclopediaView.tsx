@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SectionHeader } from './ui/SectionHeader';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ChevronRight, X, Flame, Shield, Swords, Users, MapPin, Home, Brain, Handshake, Target, Dices, Crown, Car, Skull } from 'lucide-react';
+import { Book, ChevronRight, X, Flame, Shield, Swords, Users, MapPin, Home, Brain, Handshake, Target, Dices, Crown, Car, Skull, FlaskConical } from 'lucide-react';
 
 interface EncyclopediaEntry {
   id: string;
@@ -206,6 +206,44 @@ const ENTRIES: EncyclopediaEntry[] = [
       '🏦 NG+3: Legendarische Heists — unieke overvallocaties alleen beschikbaar in NG+3+.',
       '🦹 Je nemesis start met een wraakactie en een nieuw archetype elk NG+ level.',
       '🏆 Achievements blijven behouden over alle NG+ runs.',
+    ],
+  },
+  {
+    id: 'drug_empire',
+    title: 'Drug Imperium',
+    icon: <FlaskConical size={14} className="text-game-purple" />,
+    category: 'Imperium',
+    content: [
+      '💀 Het Drug Imperium is een endgame-systeem dat je villa-productie uitbreidt naar een volwaardige drugsoperatie.',
+      '🔓 Ontgrendeld zodra je minimaal 1 productiemodule bezit (Wietplantage, Coke Lab of Synthetica Lab).',
+      '',
+      '🧪 KWALITEITSTIERS — Elk lab produceert in drie kwaliteitsniveaus:',
+      '  • Straat (Tier 1): 1.0x prijs, 1.0x heat — standaard beschikbaar.',
+      '  • Premium (Tier 2): 1.8x prijs, 1.5x heat — vereist Lab Tier 2.',
+      '  • Puur (Tier 3): 3.0x prijs, 2.5x heat — vereist Lab Tier 3.',
+      '',
+      '🔬 LAB UPGRADES — Elk lab heeft 3 upgrade-tiers:',
+      '  • Tier 1: Basisproductie (al actief bij aankoop).',
+      '  • Tier 2: +50% output, -20% chemicaliënkosten. Kost €75k-€120k, vereist Villa Level 2.',
+      '  • Tier 3: +100% output, unlock Puur kwaliteit + NoxCrystal recept. Kost €200k-€300k, vereist Villa Level 3 + alle districten.',
+      '',
+      '🤝 DISTRIBUTIENETWERK — Wijs crewleden aan als dealers:',
+      '  • Max 5 dealers, 1 per district. Vereist dat je het district bezit.',
+      '  • Dealers bouwen marktaandeel op (+5%/dag, max 100%).',
+      '  • Inkomen = basisprijs × kwaliteit × district-vraag × marktaandeel × dealer-level.',
+      '  • Hoog marktaandeel (>60%) trekt rivaal-sabotage aan.',
+      '',
+      '💎 NOXCRYSTAL — Het ultieme endgame-product:',
+      '  • Vereist: alle 3 labs op Tier 3 + minimaal 10 chemicaliën.',
+      '  • Productie: 1-2 per nacht, verkoopwaarde €8.000-€12.000 per stuk.',
+      '  • Genereert +15 Heat per verkoop — alleen voor de zwaarste spelers.',
+      '',
+      '⚠️ RISICO-EVENTS — Elke nacht is er kans op:',
+      '  • 🚨 Lab Raid (heat >60): lab 2 dagen offline, verlies voorraad.',
+      '  • ☠️ Besmette Batch (10%): karma -5, reputatie -10.',
+      '  • ⚔️ Rivaal Sabotage (marktaandeel >60%): dealer gewond, marktaandeel -20%.',
+      '  • 🔍 DEA Onderzoek (NoxCrystal + heat >40): 3 dagen geen productie, +15% arrestatiekans.',
+      '  • 🌿 Grote Oogst (5% bij Tier 3): dubbele productie die nacht!',
     ],
   },
 ];
