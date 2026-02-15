@@ -1,12 +1,12 @@
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS } from '@/game/constants';
-import { NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE } from '@/game/constants';
+import { NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_ABILITY_LABELS, NEMESIS_REVENGE_TYPES } from '@/game/constants';
 import { negotiateNemesis, scoutNemesis } from '@/game/newFeatures';
 import { getPlayerStat } from '@/game/engine';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
-import { Skull, MapPin, Swords, Zap, Clock, Trophy, Handshake, Search, Shield, Users } from 'lucide-react';
+import { Skull, MapPin, Swords, Zap, Clock, Trophy, Handshake, Search, Shield, Users, Flame, AlertTriangle } from 'lucide-react';
 import { FAMILIES } from '@/game/constants';
 
 export function NemesisInfo() {
@@ -118,6 +118,33 @@ export function NemesisInfo() {
         <div className="flex items-center gap-1.5 mb-1.5 text-[0.5rem] text-muted-foreground">
           <Users size={10} className="text-blood" />
           <span>Bondgenoot: <span className="text-blood font-bold">{FAMILIES[nem.alliedFaction]?.name}</span> (-3 relatie/dag)</span>
+        </div>
+      )}
+
+      {/* Abilities */}
+      {nem.abilities && nem.abilities.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {nem.abilities.map(ab => {
+            const abDef = NEMESIS_ABILITY_LABELS[ab];
+            if (!abDef) return null;
+            return (
+              <span key={ab} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blood/10 border border-blood/20 text-[0.5rem] text-blood">
+                <span>{abDef.icon}</span> {abDef.name}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Revenge indicator */}
+      {nem.revengeActive && nem.revengeDaysLeft > 0 && (
+        <div className="flex items-center gap-1.5 mb-2 bg-blood/15 rounded px-2 py-1 border border-blood/30">
+          <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
+            <Flame size={12} className="text-blood" />
+          </motion.div>
+          <span className="text-[0.55rem] text-blood font-bold">
+            WRAAK: {NEMESIS_REVENGE_TYPES[nem.archetype]?.name} — {nem.revengeDaysLeft} {nem.revengeDaysLeft === 1 ? 'dag' : 'dagen'} over
+          </span>
         </div>
       )}
 

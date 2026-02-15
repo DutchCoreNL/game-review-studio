@@ -171,6 +171,7 @@ type GameAction =
   | { type: 'BID_AUCTION'; itemId: string; amount: number }
   | { type: 'NEGOTIATE_NEMESIS' }
   | { type: 'SCOUT_NEMESIS' }
+  | { type: 'NEMESIS_DEFEAT_CHOICE'; choice: 'execute' | 'exile' | 'recruit' }
   | { type: 'FORM_ALLIANCE'; familyId: FamilyId }
   | { type: 'BREAK_ALLIANCE'; familyId: FamilyId }
   // Racing actions
@@ -852,6 +853,42 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'NEMESIS_DEFEAT_CHOICE': {
+      const nem = s.nemesis;
+      if (!nem) return s;
+      nem.pendingDefeatChoice = false;
+      nem.defeatChoice = action.choice;
+      
+      const { NEMESIS_TAUNTS } = require('../game/constants');
+      const archTaunts = NEMESIS_TAUNTS[nem.archetype];
+      
+      switch (action.choice) {
+        case 'execute':
+          s.rep += 50;
+          Engine.splitHeat(s, 15, 0.7);
+          // Next successor spawns faster and is angry
+          nem.nextSpawnDay = Math.max(s.day + 1, nem.nextSpawnDay - 5);
+          addPhoneMessage(s, 'anonymous', `Je hebt ${nem.name} geëxecuteerd. De straten sidderen. Maar zijn opvolger zal wraak willen...`, 'warning');
+          break;
+        case 'exile':
+          addPhoneMessage(s, 'anonymous', `${nem.name} is verbannen uit Noxhaven. Een neutrale opvolger zal verschijnen.`, 'info');
+          break;
+        case 'recruit':
+          s.rep -= 25;
+          // Reveal next archetype
+          const archetypes: import('../game/types').NemesisArchetype[] = ['zakenman', 'brute', 'schaduw', 'strateeg'];
+          const nextArchetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+          nem.informantArchetype = nextArchetype;
+          const { NEMESIS_ARCHETYPES: ARCH } = require('../game/constants');
+          const archDef = ARCH.find((a: any) => a.id === nextArchetype);
+          addPhoneMessage(s, 'informant', `${nem.name} werkt nu als informant. De volgende rivaal wordt een ${archDef?.icon} ${archDef?.name}.`, 'opportunity');
+          // Longer spawn delay (informant keeps things calm)
+          nem.nextSpawnDay = Math.max(nem.nextSpawnDay, s.day + 15);
+          break;
+      }
+      return s;
+    }
+
     case 'COMBAT_ACTION': {
       if (!s.activeCombat) return s;
       const hpBefore = s.activeCombat.playerHP;
@@ -930,6 +967,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             addPhoneMessage(s, 'Crown Heights Ziekenhuis', `Je bent opgenomen na een verloren gevecht. Kosten: €${hospitalCost.toLocaleString()}. Hersteltijd: ${HOSPITAL_STAY_DAYS} dagen. (Opname ${s.hospitalizations}/${MAX_HOSPITALIZATIONS})`, 'warning');
           }
           } // end else (not last stand)
+        }
+        // Check nemesis wounded revenge (player lost nemesis combat)
+        if (s.activeCombat?.isNemesis && !s.activeCombat.won && s.nemesis?.alive) {
+          // Sync nemesis HP from combat
+          s.nemesis.hp = s.activeCombat.targetHP;
+          const { checkNemesisWoundedRevenge } = require('../game/newFeatures');
+          checkNemesisWoundedRevenge(s);
         }
       }
       const wasFinalBoss = s._finalBossWon;
@@ -2363,6 +2407,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
           archetype: (['zakenman', 'brute', 'schaduw', 'strateeg'] as const)[Math.floor(Math.random() * 4)],
           claimedDistrict: null, alliedFaction: null, truceDaysLeft: 0, lastReaction: '',
           negotiatedThisGen: false, scoutResult: null,
+          abilities: [], revengeActive: null, revengeDaysLeft: 0, defeatChoice: null,
+          tauntsShown: [], woundedRevengeUsed: false, pendingDefeatChoice: false, informantArchetype: null,
         };
       }
       // Migrate existing nemesis saves to new successor system
@@ -2378,6 +2424,15 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.nemesis.lastReaction === undefined) saved.nemesis.lastReaction = '';
       if (saved.nemesis.negotiatedThisGen === undefined) saved.nemesis.negotiatedThisGen = false;
       if (saved.nemesis.scoutResult === undefined) saved.nemesis.scoutResult = null;
+      // Migrate nemesis 2.0 fields
+      if (!saved.nemesis.abilities) saved.nemesis.abilities = [];
+      if (saved.nemesis.revengeActive === undefined) saved.nemesis.revengeActive = null;
+      if (saved.nemesis.revengeDaysLeft === undefined) saved.nemesis.revengeDaysLeft = 0;
+      if (saved.nemesis.defeatChoice === undefined) saved.nemesis.defeatChoice = null;
+      if (!saved.nemesis.tauntsShown) saved.nemesis.tauntsShown = [];
+      if (saved.nemesis.woundedRevengeUsed === undefined) saved.nemesis.woundedRevengeUsed = false;
+      if (saved.nemesis.pendingDefeatChoice === undefined) saved.nemesis.pendingDefeatChoice = false;
+      if (saved.nemesis.informantArchetype === undefined) saved.nemesis.informantArchetype = null;
       if (!saved.districtDefenses) {
         saved.districtDefenses = {
           port: { upgrades: [], fortLevel: 0 },
