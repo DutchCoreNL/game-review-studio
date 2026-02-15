@@ -22,7 +22,7 @@ export interface VillaState {
   purchaseDay: number;
   lastPartyDay: number; // day when last party was thrown (cooldown)
 }
-export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | null;
+export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | 'russian_roulette' | null;
 export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
 export interface PlayingCard { rank: string; suit: CardSuit; }
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';
@@ -977,6 +977,14 @@ export interface GameState {
   stockHoldings: Record<string, import('../game/stocks').StockHolding>;
   pendingInsiderTip: import('../game/stocks').InsiderTip | null;
   stockEvents: import('../game/stocks').StockEvent[];
+
+  // ========== MINI-GAME STATE ==========
+  pendingMinigame: {
+    type: 'lockpick' | 'dice' | 'hacking' | 'arm_wrestle';
+    difficulty: number;
+    context: string;
+    rewards: { money?: number; rep?: number; heat?: number };
+  } | null;
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;

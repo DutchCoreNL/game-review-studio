@@ -249,6 +249,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.hospitalizations === undefined) loaded.hospitalizations = 0;
       if (loaded.hospital === undefined) loaded.hospital = null;
       if (loaded.gameOver === undefined) loaded.gameOver = false;
+      // Migrate: mini-game state
+      if (loaded.pendingMinigame === undefined) loaded.pendingMinigame = null;
       return loaded;
     }
 
