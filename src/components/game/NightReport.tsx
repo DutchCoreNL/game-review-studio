@@ -10,6 +10,7 @@ import { AnimatedCounter } from './animations/AnimatedCounter';
 import { useEffect, useRef, useState } from 'react';
 import { playCoinSound, playAlarmSound, playNegativeSound, playPositiveSound, isMuted, toggleMute } from '@/game/sounds';
 import nightReportBg from '@/assets/night-report-bg.jpg';
+import { DRUG_EMPIRE_IMAGES } from '@/assets/items/index';
 
 export function NightReport() {
   const { state, dispatch } = useGame();
@@ -237,25 +238,45 @@ export function NightReport() {
               <AnimatedReportRow icon={<Gem size={14} />} label="NoxCrystal Geproduceerd" value={report.drugEmpireNoxCrystal} prefix="+" suffix=" kristallen" positive color="text-game-purple" delay={drugNoxDelay} />
             )}
 
-            {/* Drug Empire: Risk Event */}
-            {report.drugEmpireRiskEvent && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: drugRiskDelay, type: 'spring', stiffness: 400 }}
-                className={`border rounded-lg p-3 flex items-center gap-2 ${
-                  report.drugEmpireRiskEvent.type === 'big_harvest' ? 'bg-emerald/10 border-emerald' : 'bg-blood/10 border-blood'
-                }`}
-              >
-                <AlertTriangle size={16} className={report.drugEmpireRiskEvent.type === 'big_harvest' ? 'text-emerald' : 'text-blood'} />
-                <div>
-                  <p className={`text-xs font-bold ${report.drugEmpireRiskEvent.type === 'big_harvest' ? 'text-emerald' : 'text-blood'}`}>
-                    {report.drugEmpireRiskEvent.title}
-                  </p>
-                  <p className="text-[0.6rem] text-muted-foreground">{report.drugEmpireRiskEvent.desc}</p>
-                </div>
-              </motion.div>
-            )}
+            {/* Drug Empire: Risk Event with banner */}
+            {report.drugEmpireRiskEvent && (() => {
+              const riskType = report.drugEmpireRiskEvent.type;
+              const isPositive = riskType === 'big_harvest';
+              const borderClr = isPositive ? 'border-emerald' : 'border-blood';
+              const titleClr = isPositive ? 'text-emerald' : 'text-blood';
+              const riskImageMap: Record<string, string> = {
+                lab_raid: DRUG_EMPIRE_IMAGES.lab_raid,
+                dea_investigation: DRUG_EMPIRE_IMAGES.dea_investigation,
+                contaminated_batch: DRUG_EMPIRE_IMAGES.contaminated,
+                rival_sabotage: DRUG_EMPIRE_IMAGES.rival_sabotage,
+                big_harvest: DRUG_EMPIRE_IMAGES.big_harvest,
+              };
+              const bannerImg = riskImageMap[riskType];
+              return (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: drugRiskDelay, type: 'spring', stiffness: 400 }}
+                  className={`border ${borderClr} rounded-lg overflow-hidden`}
+                >
+                  {bannerImg && (
+                    <div className="relative h-16 overflow-hidden">
+                      <img src={bannerImg} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-3 flex items-center gap-2">
+                    <AlertTriangle size={16} className={`${titleClr} flex-shrink-0`} />
+                    <div>
+                      <p className={`text-xs font-bold ${titleClr}`}>
+                        {report.drugEmpireRiskEvent.title}
+                      </p>
+                      <p className="text-[0.6rem] text-muted-foreground">{report.drugEmpireRiskEvent.desc}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {report.debtInterest > 0 && (
               <AnimatedReportRow icon={<TrendingDown size={14} />} label="Schuld Rente" value={report.debtInterest} prefix="€" positive color="text-blood" delay={debtDelay} />
