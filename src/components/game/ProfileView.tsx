@@ -20,6 +20,7 @@ import { StatsOverviewPanel } from './profile/StatsOverviewPanel';
 import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
 import { AudioSettingsPanel } from './profile/AudioSettingsPanel';
 import { ReputationLeaderboard } from './profile/ReputationLeaderboard';
+import { LeaderboardView } from './LeaderboardView';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
@@ -89,7 +90,7 @@ export function ProfileView() {
           { id: 'arcs' as ProfileTab, label: 'BOGEN' },
           { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
           { id: 'charts' as ProfileTab, label: '📊 CHARTS' },
-          { id: 'leaderboard' as ProfileTab, label: '🏆 RANKING' },
+          { id: 'leaderboard' as ProfileTab, label: '🌐 ONLINE' },
           { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
           
           { id: 'encyclopedia' as ProfileTab, label: '📖 WIKI' },
@@ -235,8 +236,7 @@ export function ProfileView() {
 
       {profileTab === 'charts' && <StatisticsCharts />}
 
-      {profileTab === 'leaderboard' && <ReputationLeaderboard />}
-
+      {profileTab === 'leaderboard' && <LeaderboardView />}
 
 
 
