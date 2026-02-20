@@ -20,8 +20,9 @@ import { generateHitContracts, executeHit } from '../game/hitman';
 import * as bountyModule from '../game/bounties';
 import * as stockModule from '../game/stocks';
 import { resolveCrewEvent } from '../game/crewEvents';
-import { generateDailyNews } from '../game/newsGenerator';
 import { checkCinematicTrigger, applyCinematicChoice, markCinematicSeen } from '../game/cinematics';
+import { generateDailyNews } from '../game/newsGenerator';
+import { syncLeaderboard } from '@/lib/syncLeaderboard';
 
 interface GameContextType {
   state: GameState;
@@ -568,6 +569,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           if (endCinematic) s.pendingCinematic = endCinematic;
         }
       }
+      // Sync to online leaderboard
+      syncLeaderboard({
+        rep: s.rep,
+        cash: s.money,
+        day: s.day,
+        level: s.player.level,
+        districts_owned: s.ownedDistricts.length,
+        crew_size: s.crew.length,
+        karma: s.karma || 0,
+        backstory: s.backstory || null,
+      });
+
       return s;
     }
 

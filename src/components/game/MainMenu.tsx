@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX } from 'lucide-react';
+import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut } from 'lucide-react';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
 interface MainMenuProps {
   hasSave: boolean;
   onNewGame: () => void;
   onContinue: () => void;
+  isLoggedIn?: boolean;
+  username?: string;
+  onLoginClick?: () => void;
+  onLogoutClick?: () => void;
 }
 
 const CREDITS = [
@@ -28,7 +32,7 @@ const HOW_TO_PLAY = [
 
 type SubScreen = 'settings' | 'credits' | 'howto' | null;
 
-export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
+export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginClick, onLogoutClick }: MainMenuProps) {
   const [show, setShow] = useState(false);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -171,6 +175,28 @@ export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
                 label="CREDITS"
                 onClick={() => setSubScreen('credits')}
               />
+
+              <div className="h-px bg-border/50 my-1" />
+
+              {isLoggedIn ? (
+                <div className="flex gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded border border-emerald/30 bg-emerald/5 text-emerald text-xs font-ui font-semibold">
+                    <Wifi size={14} /> ONLINE
+                  </div>
+                  <MenuButton
+                    icon={<LogOut size={16} />}
+                    label="UITLOGGEN"
+                    onClick={() => onLogoutClick?.()}
+                    className="flex-1"
+                  />
+                </div>
+              ) : (
+                <MenuButton
+                  icon={<WifiOff size={18} />}
+                  label="INLOGGEN / REGISTREREN"
+                  onClick={() => onLoginClick?.()}
+                />
+              )}
             </motion.div>
 
             {/* Version */}
