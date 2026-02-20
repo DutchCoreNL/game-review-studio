@@ -385,15 +385,20 @@ export function NightReport() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: prisonStatusDelay, duration: 0.35 }}
-                className="bg-[hsl(var(--blood)/0.1)] border border-blood/30 rounded-lg p-3"
+                className="border border-blood/30 rounded-lg overflow-hidden"
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Lock size={14} className="text-blood" />
-                  <p className="text-xs font-bold text-blood">GEVANGENIS — Dag {report.prisonDayServed}</p>
-                  {report.prisonDaysRemaining !== undefined && report.prisonDaysRemaining > 0 && (
-                    <span className="text-[0.5rem] text-muted-foreground ml-auto">{report.prisonDaysRemaining} {report.prisonDaysRemaining === 1 ? 'dag' : 'dagen'} over</span>
-                  )}
+                <div className="relative h-14 overflow-hidden">
+                  <img src={overlayPrison} alt="" className="w-full h-full object-cover opacity-60" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
                 </div>
+                <div className="p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Lock size={14} className="text-blood" />
+                    <p className="text-xs font-bold text-blood">GEVANGENIS — Dag {report.prisonDayServed}</p>
+                    {report.prisonDaysRemaining !== undefined && report.prisonDaysRemaining > 0 && (
+                      <span className="text-[0.5rem] text-muted-foreground ml-auto">{report.prisonDaysRemaining} {report.prisonDaysRemaining === 1 ? 'dag' : 'dagen'} over</span>
+                    )}
+                  </div>
 
                 {/* Daily event */}
                 {report.prisonDailyEvent && (
@@ -420,6 +425,7 @@ export function NightReport() {
                     <span><span className="font-bold">{report.prisonCrewDeserted.join(', ')}</span> heeft je crew verlaten!</span>
                   </motion.div>
                 )}
+                </div>
               </motion.div>
             )}
 
