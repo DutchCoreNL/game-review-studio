@@ -10,7 +10,8 @@ import { AnimatedCounter } from './animations/AnimatedCounter';
 import { useEffect, useRef, useState } from 'react';
 import { playCoinSound, playAlarmSound, playNegativeSound, playPositiveSound, isMuted, toggleMute } from '@/game/sounds';
 import nightReportBg from '@/assets/night-report-bg.jpg';
-import { DRUG_EMPIRE_IMAGES } from '@/assets/items/index';
+import { DRUG_EMPIRE_IMAGES, MARKET_EVENT_IMAGES } from '@/assets/items/index';
+import overlayPrison from '@/assets/items/overlay-prison.jpg';
 
 export function NightReport() {
   const { state, dispatch } = useGame();
@@ -324,14 +325,20 @@ export function NightReport() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: raidDelay, type: 'spring', stiffness: 400 }}
-                className="bg-[hsl(var(--blood)/0.1)] border border-blood rounded-lg p-3 flex items-center gap-2 glow-blood"
+                className="border border-blood rounded-lg overflow-hidden glow-blood"
               >
-                <Shield size={16} className="text-blood flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-blood">POLITIE INVAL!</p>
-                  <p className="text-[0.6rem] text-muted-foreground">
-                    Boete: €<AnimatedCounter value={report.policeFine} prefix="" duration={1000} />
-                  </p>
+                <div className="relative h-16 overflow-hidden">
+                  <img src={MARKET_EVENT_IMAGES.police_sweep} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                </div>
+                <div className="p-3 flex items-center gap-2">
+                  <Shield size={16} className="text-blood flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-blood">POLITIE INVAL!</p>
+                    <p className="text-[0.6rem] text-muted-foreground">
+                      Boete: €<AnimatedCounter value={report.policeFine} prefix="" duration={1000} />
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -342,26 +349,32 @@ export function NightReport() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: prisonDelay, type: 'spring', stiffness: 400 }}
-                className="bg-[hsl(var(--blood)/0.15)] border-2 border-blood rounded-lg p-3 glow-blood"
+                className="border-2 border-blood rounded-lg overflow-hidden glow-blood"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Lock size={16} className="text-blood flex-shrink-0" />
-                  <p className="text-xs font-bold text-blood uppercase">GEARRESTEERD!</p>
+                <div className="relative h-16 overflow-hidden">
+                  <img src={overlayPrison} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
                 </div>
-                <div className="space-y-1 text-[0.6rem] text-muted-foreground">
-                  <p>Straf: <span className="text-blood font-bold">{report.prisonSentence} {report.prisonSentence === 1 ? 'dag' : 'dagen'}</span></p>
-                  {(report.prisonMoneyLost || 0) > 0 && (
-                    <p>Geld in beslag genomen: <span className="text-blood font-bold">-€{report.prisonMoneyLost?.toLocaleString()}</span></p>
-                  )}
-                  {(report.prisonDirtyMoneyLost || 0) > 0 && (
-                    <p>Dirty money verloren: <span className="text-blood font-bold">-€{report.prisonDirtyMoneyLost?.toLocaleString()}</span></p>
-                  )}
-                  {report.prisonGoodsLost && report.prisonGoodsLost.length > 0 && (
-                    <p>Geconfisqueerd: <span className="text-blood font-bold">{report.prisonGoodsLost.join(', ')}</span></p>
-                  )}
-                  {(report.villaVaultProtected || 0) > 0 && (
-                    <p className="text-emerald">🔐 Kluis beschermd: <span className="font-bold">€{report.villaVaultProtected?.toLocaleString()}</span></p>
-                  )}
+                <div className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock size={16} className="text-blood flex-shrink-0" />
+                    <p className="text-xs font-bold text-blood uppercase">GEARRESTEERD!</p>
+                  </div>
+                  <div className="space-y-1 text-[0.6rem] text-muted-foreground">
+                    <p>Straf: <span className="text-blood font-bold">{report.prisonSentence} {report.prisonSentence === 1 ? 'dag' : 'dagen'}</span></p>
+                    {(report.prisonMoneyLost || 0) > 0 && (
+                      <p>Geld in beslag genomen: <span className="text-blood font-bold">-€{report.prisonMoneyLost?.toLocaleString()}</span></p>
+                    )}
+                    {(report.prisonDirtyMoneyLost || 0) > 0 && (
+                      <p>Dirty money verloren: <span className="text-blood font-bold">-€{report.prisonDirtyMoneyLost?.toLocaleString()}</span></p>
+                    )}
+                    {report.prisonGoodsLost && report.prisonGoodsLost.length > 0 && (
+                      <p>Geconfisqueerd: <span className="text-blood font-bold">{report.prisonGoodsLost.join(', ')}</span></p>
+                    )}
+                    {(report.villaVaultProtected || 0) > 0 && (
+                      <p className="text-emerald">🔐 Kluis beschermd: <span className="font-bold">€{report.villaVaultProtected?.toLocaleString()}</span></p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
