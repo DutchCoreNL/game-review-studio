@@ -1,152 +1,97 @@
-# Drug Imperium -- Endgame Productiesysteem
+
+# Multiplayer Leaderboard Integratie
 
 ## Overzicht
+Een async multiplayer systeem waarbij spelers hun eigen game lokaal spelen, maar hun voortgang synchroniseren naar een online leaderboard. Andere spelers kunnen elkaars statistieken, reputatie en imperium bekijken.
 
-Het Drug Imperium breidt de bestaande villa-productie (Wietplantage, Coke Lab, Synthetica Lab) uit naar een volwaardig endgame-systeem met **kwaliteitsniveaus**, **lab-upgrades**, **een distributienetwerk** en **risico-events**. Het systeem wordt ontgrendeld wanneer de speler minimaal 2 productiemodulen bezit en Villa Level 2+ heeft.
+## Wat de speler ziet
+- Een "ONLINE" tab in het profiel met een live leaderboard
+- Rankings op basis van reputatie, vermogen, districten, en dag
+- Mogelijkheid om op een speler te klikken en hun stats te bekijken
+- Optioneel: dagelijkse/wekelijkse competities
 
----
+## Stappen
 
-## Nieuwe Mechanica
+### 1. Lovable Cloud activeren
+- Database, authenticatie en edge functions via Lovable Cloud inschakelen
 
-### 1. Kwaliteitsniveaus (Drug Tiers)
+### 2. Authenticatie toevoegen
+- Login/registratie scherm (email + wachtwoord)
+- Optioneel: anoniem spelen zonder sync, of inloggen om te synchroniseren
+- Login knop op het MainMenu scherm
 
-Elke productiemodulen produceert nu in drie kwaliteitstiers:
+### 3. Database schema aanmaken
+Tabellen:
+- **profiles**: `id (FK auth.users)`, `username`, `created_at`
+- **leaderboard_entries**: `id`, `user_id (FK profiles)`, `username`, `rep`, `cash`, `day`, `level`, `districts_owned`, `crew_size`, `karma`, `backstory`, `updated_at`
 
+RLS policies:
+- Iedereen mag leaderboard lezen (SELECT)
+- Alleen eigen entry mag worden geschreven (INSERT/UPDATE)
 
-| Tier | Label   | Prijsmultiplier | Heat-multiplier | Unlock     |
-| ---- | ------- | --------------- | --------------- | ---------- |
-| 1    | Straat  | 1.0x            | 1.0x            | Standaard  |
-| 2    | Premium | 1.8x            | 1.5x            | Lab Tier 2 |
-| 3    | Puur    | 3.0x            | 2.5x            | Lab Tier 3 |
+### 4. Sync mechanisme bouwen
+- Bij elke "DAG AFSLUITEN" worden de relevante stats naar `leaderboard_entries` gestuurd via een upsert
+- Dit gebeurt alleen als de speler is ingelogd
+- Geen impact op gameplay als je offline/uitgelogd speelt
 
+### 5. Leaderboard UI bouwen
+- Nieuwe tab "RANKING" in het profiel (of apart scherm)
+- Tabel met top 50 spelers, gesorteerd op reputatie
+- Filter opties: op reputatie, vermogen, dag, of districten
+- Klikbaar om detail-stats van een speler te zien
+- Eigen positie wordt altijd getoond (highlighted)
 
-- Hogere kwaliteit = meer winst, maar ook meer Heat per batch
-- Kwaliteit is instelbaar per lab (speler kiest welk tier ze produceren)
+### 6. Integratie in bestaande flow
+- MainMenu: "ONLINE" knop naast Continue/New Game
+- GameHeader: klein online-indicator icoontje als je bent ingelogd
+- ProfileView: extra tab voor het leaderboard
 
-### 2. Lab Upgrade Tiers (3 niveaus)
+## Technische details
 
-Elk productielab (Wietplantage, Coke Lab, Synthetica Lab) krijgt 3 upgrade-tiers:
+### Database migratie
+```sql
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
+CREATE TABLE leaderboard_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
+  username TEXT NOT NULL,
+  rep INTEGER DEFAULT 0,
+  cash INTEGER DEFAULT 0,
+  day INTEGER DEFAULT 1,
+  level INTEGER DEFAULT 1,
+  districts_owned INTEGER DEFAULT 0,
+  crew_size INTEGER DEFAULT 0,
+  karma INTEGER DEFAULT 0,
+  backstory TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-| Tier | Kosten             | Effect                                                            |
-| ---- | ------------------ | ----------------------------------------------------------------- |
-| 1    | Basis (al gekocht) | Huidige productie                                                 |
-| 2    | €75.000-€120.000   | +50% output, -20% chemicalien, unlock Premium                     |
-| 3    | €200.000-€300.000  | +100% output, kwaliteitsbonussen, unlock Puur + NoxCrystal recept |
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leaderboard_entries ENABLE ROW LEVEL SECURITY;
 
-
-### 3. Distributienetwerk
-
-Wijs crewleden aan als **dealers** in specifieke districten:
-
-- Elke dealer genereert passief inkomen per nacht op basis van: product kwaliteit x district vraag x dealer-level
-- Max 1 dealer per district, max 5 totaal
-- Dealers bouwen "marktaandeel" op (0-100%) over tijd
-- Hoger marktaandeel = meer inkomen, maar ook meer Heat en risico op rivaal-aanvallen
-- Dealers kunnen worden aangevallen door facties (verliezen marktaandeel)
-
-### 4. NoxCrystal (Endgame Product)
-
-- Vereist: alle 3 labs op Tier 3 + speciale precursors
-- Productie: 1-2 per nacht, verkoopwaarde €8.000-€12.000 per stuk
-- Genereert +15 Heat per batch
-- Kan alleen verkocht worden aan specifieke contacten (niet op de reguliere markt)
-
-### 5. Risico-Events (Nachtelijke Checks)
-
-
-| Event           | Trigger                          | Effect                                                       |
-| --------------- | -------------------------------- | ------------------------------------------------------------ |
-| Lab Raid        | Heat > 60 + productie actief     | Lab offline 2 dagen, verlies voorraad                        |
-| Besmette Batch  | 10% kans per nacht               | Karma -5, Rep -10, klanten ziek                              |
-| Rivaal Sabotage | Marktaandeel > 60% in district   | Dealer gewond, marktaandeel -20%                             |
-| DEA Onderzoek   | NoxCrystal productie + Heat > 40 | 3-daags onderzoek: alle productie stopt, arrestatiekans +15% |
-| Grote Oogst     | 5% kans bij Tier 3               | Dubbele productie deze nacht                                 |
-
-
----
-
-## Technische Details
-
-### Nieuwe Bestanden
-
-
-| Bestand                                         | Doel                                                                                            |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `src/game/drugEmpire.ts`                        | Alle constanten, types, productie-logica, dealer-berekeningen en risico-event checks            |
-| `src/components/game/villa/DrugEmpirePanel.tsx` | UI-paneel binnen VillaView: lab upgrades, kwaliteitskeuze, dealer-toewijzing, NoxCrystal status |
-
-
-### Gewijzigde Bestanden
-
-
-| Bestand                                   | Wijziging                                                                                                                                           |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/game/types.ts`                       | Nieuwe types: `DrugTier`, `LabUpgradeState`, `DealerAssignment`, `DrugEmpireState` toevoegen aan `GameState`                                        |
-| `src/game/villa.ts`                       | `processVillaProduction()` uitbreiden met tier-logica, dealer-inkomsten en NoxCrystal productie                                                     |
-| `src/contexts/GameContext.tsx`            | Nieuwe reducer-acties: `UPGRADE_LAB`, `SET_DRUG_TIER`, `ASSIGN_DEALER`, `RECALL_DEALER`, `SELL_NOXCRYSTAL`. Migratie-logica voor `drugEmpire` state |
-| `src/components/game/villa/VillaView.tsx` | Nieuwe "Drug Imperium" tab toevoegen naast bestaande tabs (overview, production, storage, modules)                                                  |
-| `src/game/constants.ts`                   | NoxCrystal toevoegen als speciaal goed (niet in GOODS array, aparte constante)                                                                      |
-| `src/components/game/NightReport.tsx`     | Drug Empire resultaten tonen: dealer-inkomsten, risico-events, NoxCrystal productie                                                                 |
-
-
-### State Uitbreiding
-
-```text
-GameState + {
-  drugEmpire: {
-    labTiers: {
-      wietplantage: 1 | 2 | 3;
-      coke_lab: 1 | 2 | 3;
-      synthetica_lab: 1 | 2 | 3;
-    };
-    selectedQuality: {
-      wietplantage: 1 | 2 | 3;
-      coke_lab: 1 | 2 | 3;
-      synthetica_lab: 1 | 2 | 3;
-    };
-    dealers: {
-      district: DistrictId;
-      crewName: string;
-      marketShare: number; // 0-100
-      daysActive: number;
-      product: GoodId;
-    }[];
-    noxCrystalStock: number;
-    noxCrystalProduced: number; // lifetime total
-    labOffline: {
-      wietplantage: number; // days remaining offline
-      coke_lab: number;
-      synthetica_lab: number;
-    };
-    deaInvestigation: number; // days remaining, 0 = inactive
-  } | null;
-}
+-- Policies
+CREATE POLICY "Public read" ON leaderboard_entries FOR SELECT USING (true);
+CREATE POLICY "Own write" ON leaderboard_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Own update" ON leaderboard_entries FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 ```
 
-### Productie Flow (Nachtelijk)
+### Sync functie (in GameContext of engine)
+Na `END_TURN` dispatch, een `upsert` naar `leaderboard_entries` met de huidige stats.
 
-1. Check of labs online zijn (niet offline door raid)
-2. Per actief lab: bereken output op basis van tier + kwaliteit
-3. Vermenigvuldig met prestige-bonussen (bestaand systeem)
-4. Genereer Heat op basis van kwaliteit-tier
-5. Check NoxCrystal productie (alle labs Tier 3 + chemicalien > 10)
-6. Bereken dealer-inkomsten per district
-7. Roll risico-events (raid, besmetting, sabotage, DEA)
-8. Rapporteer alles in NightReport
+### Nieuwe componenten
+- `src/components/game/LeaderboardView.tsx` - Hoofdscherm met ranking tabel
+- `src/components/game/PlayerDetailPopup.tsx` - Detail popup bij klik op speler
+- `src/pages/Auth.tsx` - Login/registratie pagina
 
-### Unlock Vereisten
-
-- Drug Imperium tab verschijnt zodra de speler 1+ productiemodule bezit
-- Lab Tier 2: Villa Level 2 + €75k-€120k
-- Lab Tier 3: Villa Level 3 + €200k-€300k + alle districten bezit
-- NoxCrystal: alle 3 labs Tier 3
-- Dealers: minimaal 1 crewlid beschikbaar + district bezit
-
-### Dealer Inkomsten Formule
-
-```text
-dagelijks_inkomen = basis_prijs x kwaliteit_multiplier x district_vraag x (marktaandeel / 100) x (1 + dealer_level * 0.1)
-```
-
-Waar `district_vraag` de bestaande `mods` uit DISTRICTS gebruikt.
+### Bestaande wijzigingen
+- `src/pages/Index.tsx` - Login flow toevoegen
+- `src/components/game/ProfileView.tsx` - Leaderboard tab toevoegen
+- `src/contexts/GameContext.tsx` - Sync logic na END_TURN
+- `src/components/game/MainMenu.tsx` - Online knop toevoegen
