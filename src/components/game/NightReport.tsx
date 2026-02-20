@@ -435,8 +435,14 @@ export function NightReport() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: prisonReleasedDelay, type: 'spring', stiffness: 400 }}
-                className="bg-[hsl(var(--emerald)/0.15)] border-2 border-emerald rounded-lg p-3 space-y-2"
+                className="border-2 border-emerald rounded-lg overflow-hidden"
               >
+                <div className="relative h-16 overflow-hidden">
+                  <img src={overlayPrison} alt="" className="w-full h-full object-cover opacity-50 grayscale" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                  <div className="absolute inset-0 bg-emerald/10" />
+                </div>
+                <div className="p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-emerald flex-shrink-0" />
                   <div>
@@ -495,6 +501,7 @@ export function NightReport() {
                     )}
                   </div>
                 )}
+                </div>
               </motion.div>
             )}
 
