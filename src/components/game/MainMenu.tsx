@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut } from 'lucide-react';
+import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
 interface MainMenuProps {
@@ -37,6 +38,9 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [nickError, setNickError] = useState('');
+  const [nickLoading, setNickLoading] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setShow(true), 100);
@@ -48,6 +52,38 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
       setConfirmNew(true);
       return;
     }
+    onNewGame();
+  };
+
+  const handleQuickNewGame = async () => {
+    if (!nickname.trim() || nickname.trim().length < 3) {
+      setNickError('Nickname moet minimaal 3 tekens zijn');
+      return;
+    }
+    if (nickname.trim().length > 20) {
+      setNickError('Nickname mag maximaal 20 tekens zijn');
+      return;
+    }
+    setNickLoading(true);
+    setNickError('');
+
+    const { data, error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError) {
+      setNickError(anonError.message);
+      setNickLoading(false);
+      return;
+    }
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({ id: data.user.id, username: nickname.trim() });
+      if (profileError) {
+        setNickError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : profileError.message);
+        setNickLoading(false);
+        return;
+      }
+    }
+    setNickLoading(false);
     onNewGame();
   };
 
@@ -128,6 +164,20 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                 />
               )}
 
+              {/* Nickname input for non-logged-in users */}
+              {!isLoggedIn && !hasSave && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    placeholder="Kies je nickname (min. 3 tekens)"
+                    value={nickname}
+                    onChange={e => { setNickname(e.target.value); setNickError(''); }}
+                    className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
+                  />
+                  {nickError && <p className="text-xs text-blood font-ui">{nickError}</p>}
+                </div>
+              )}
+
               {confirmNew ? (
                 <div className="flex flex-col gap-2">
                   <p className="text-xs text-center text-blood font-ui">
@@ -138,7 +188,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                       icon={<Play size={16} />}
                       label="JA, NIEUW SPEL"
                       accent
-                      onClick={onNewGame}
+                      onClick={isLoggedIn ? onNewGame : handleQuickNewGame}
                       className="flex-1"
                     />
                     <MenuButton
@@ -151,10 +201,10 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                 </div>
               ) : (
                 <MenuButton
-                  icon={<Play size={18} />}
-                  label="NIEUW SPEL"
+                  icon={isLoggedIn ? <Play size={18} /> : <Zap size={18} />}
+                  label={nickLoading ? 'LADEN...' : 'NIEUW SPEL'}
                   accent={!hasSave}
-                  onClick={handleNewGame}
+                  onClick={isLoggedIn ? handleNewGame : (hasSave ? handleNewGame : handleQuickNewGame)}
                 />
               )}
 
