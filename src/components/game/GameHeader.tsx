@@ -13,7 +13,8 @@ import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles, Heart } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles, Heart, Wifi, WifiOff } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
@@ -36,6 +37,7 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
 export function GameHeader() {
   const { state, dispatch } = useGame();
   const [popup, setPopup] = useState<PopupType>(null);
+  const { user } = useAuth();
   const rank = getRankTitle(state.rep);
   const weatherDef = WEATHER_EFFECTS[state.weather];
   const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
@@ -71,6 +73,9 @@ export function GameHeader() {
             {state.newGamePlusLevel > 0 && (
               <span className="text-game-purple text-[0.45rem] font-bold">NG+{state.newGamePlusLevel}</span>
             )}
+            <span className={`flex items-center gap-0.5 ${user ? 'text-emerald' : 'text-muted-foreground/40'}`} title={user ? 'Online — stats worden gesynchroniseerd' : 'Offline — log in om te synchroniseren'}>
+              {user ? <Wifi size={8} /> : <WifiOff size={8} />}
+            </span>
           </div>
         </div>
 
