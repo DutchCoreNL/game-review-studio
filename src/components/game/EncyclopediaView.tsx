@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SectionHeader } from './ui/SectionHeader';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ChevronRight, X, Flame, Shield, Swords, Users, MapPin, Home, Brain, Handshake, Target, Dices, Crown, Car, Skull, FlaskConical } from 'lucide-react';
+import { Book, ChevronRight, X, Flame, Shield, Swords, Users, MapPin, Home, Brain, Handshake, Target, Dices, Crown, Car, Skull, FlaskConical, Trophy } from 'lucide-react';
 
 interface EncyclopediaEntry {
   id: string;
@@ -244,6 +244,36 @@ const ENTRIES: EncyclopediaEntry[] = [
       '  • ⚔️ Rivaal Sabotage (marktaandeel >60%): dealer gewond, marktaandeel -20%.',
       '  • 🔍 DEA Onderzoek (NoxCrystal + heat >40): 3 dagen geen productie, +15% arrestatiekans.',
       '  • 🌿 Grote Oogst (5% bij Tier 3): dubbele productie die nacht!',
+    ],
+  },
+  {
+    id: 'leaderboard',
+    title: 'Online Leaderboard',
+    icon: <Trophy size={14} className="text-gold" />,
+    category: 'Systemen',
+    content: [
+      '🌐 Het Online Leaderboard laat je je voortgang vergelijken met andere spelers wereldwijd.',
+      '',
+      '📝 REGISTRATIE:',
+      '  • Maak een account aan via het hoofdmenu (📧 Registreren).',
+      '  • Kies een unieke gebruikersnaam — dit is je publieke naam op het leaderboard.',
+      '  • Je kunt ook inloggen op een bestaand account om je voortgang te koppelen.',
+      '',
+      '🔄 SYNCHRONISATIE:',
+      '  • Je stats worden automatisch gesynct na elke "Dag Afsluiten".',
+      '  • Alleen ingelogde spelers worden gesynchroniseerd.',
+      '  • De volgende gegevens worden opgeslagen: Reputatie, Cash, Dag, Level, Districten, Crew-grootte, Karma en Backstory.',
+      '',
+      '📊 RANKING CRITERIA:',
+      '  • Sorteer op REP (standaard), CASH, DAGEN of LAND (districten).',
+      '  • Top 50 spelers worden getoond per categorie.',
+      '  • Je eigen positie wordt altijd bovenaan uitgelicht met een gouden rand.',
+      '',
+      '👤 SPELER DETAILS:',
+      '  • Klik op een speler om hun profiel te bekijken.',
+      '  • Bekijk hun level, karma-uitlijning, backstory en district-bezit.',
+      '',
+      '💡 TIP: Open het leaderboard via Profiel → 🌐 ONLINE tab.',
     ],
   },
 ];
