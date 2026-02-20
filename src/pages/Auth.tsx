@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, LogIn, UserPlus, Zap } from 'lucide-react';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
 interface AuthProps {
@@ -10,13 +10,48 @@ interface AuthProps {
 }
 
 export function Auth({ onBack, onAuth }: AuthProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'quick' | 'login' | 'register'>('quick');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const handleQuickPlay = async () => {
+    if (!username.trim() || username.length < 3) {
+      setError('Nickname moet minimaal 3 tekens zijn');
+      return;
+    }
+    if (username.trim().length > 20) {
+      setError('Nickname mag maximaal 20 tekens zijn');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    const { data, error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError) {
+      setError(anonError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({ id: data.user.id, username: username.trim() });
+
+      if (profileError) {
+        setError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : profileError.message);
+        setLoading(false);
+        return;
+      }
+    }
+
+    onAuth();
+    setLoading(false);
+  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -48,7 +83,6 @@ export function Auth({ onBack, onAuth }: AuthProps) {
     }
 
     if (data.user) {
-      // Create profile
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({ id: data.user.id, username: username.trim() });
@@ -66,8 +100,16 @@ export function Auth({ onBack, onAuth }: AuthProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'login') handleLogin();
+    if (mode === 'quick') handleQuickPlay();
+    else if (mode === 'login') handleLogin();
     else handleRegister();
+  };
+
+  const titles = { quick: 'SNEL SPELEN', login: 'INLOGGEN', register: 'REGISTREREN' };
+  const subtitles = {
+    quick: 'Kies een nickname en verschijn op het leaderboard',
+    login: 'Log in om je score te synchroniseren',
+    register: 'Maak een account om je voortgang te bewaren',
   };
 
   return (
@@ -88,37 +130,41 @@ export function Auth({ onBack, onAuth }: AuthProps) {
 
         <div className="text-center">
           <h1 className="font-display text-3xl font-black tracking-wider text-foreground gold-text-glow">
-            {mode === 'login' ? 'INLOGGEN' : 'REGISTREREN'}
+            {titles[mode]}
           </h1>
           <p className="text-xs text-muted-foreground mt-1 font-ui">
-            {mode === 'login' ? 'Log in om je score te synchroniseren' : 'Maak een account om mee te doen aan het leaderboard'}
+            {subtitles[mode]}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {mode === 'register' && (
+          {(mode === 'quick' || mode === 'register') && (
             <input
               type="text"
-              placeholder="Username (min. 3 tekens)"
+              placeholder={mode === 'quick' ? 'Kies je nickname (min. 3 tekens)' : 'Username (min. 3 tekens)'}
               value={username}
               onChange={e => setUsername(e.target.value)}
               className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
             />
           )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
-          />
-          <input
-            type="password"
-            placeholder="Wachtwoord"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
-          />
+          {(mode === 'login' || mode === 'register') && (
+            <>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
+              />
+              <input
+                type="password"
+                placeholder="Wachtwoord"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
+              />
+            </>
+          )}
 
           {error && <p className="text-xs text-blood font-ui">{error}</p>}
           {success && <p className="text-xs text-emerald font-ui">{success}</p>}
@@ -130,17 +176,45 @@ export function Auth({ onBack, onAuth }: AuthProps) {
             disabled={loading}
             className="flex items-center justify-center gap-2 px-5 py-3 rounded border border-gold/50 bg-gold/10 text-gold font-ui text-sm font-semibold tracking-wider hover:bg-gold/20 glow-gold disabled:opacity-50"
           >
-            {mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />}
-            {loading ? 'LADEN...' : mode === 'login' ? 'INLOGGEN' : 'REGISTREREN'}
+            {mode === 'quick' ? <Zap size={16} /> : mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />}
+            {loading ? 'LADEN...' : titles[mode]}
           </motion.button>
         </form>
 
-        <button
-          onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSuccess(''); }}
-          className="text-xs text-muted-foreground hover:text-gold transition-colors font-ui text-center"
-        >
-          {mode === 'login' ? 'Nog geen account? Registreer hier' : 'Al een account? Log hier in'}
-        </button>
+        <div className="flex flex-col gap-1 items-center">
+          {mode === 'quick' && (
+            <button
+              onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+              className="text-xs text-muted-foreground hover:text-gold transition-colors font-ui"
+            >
+              Al een account? Log hier in
+            </button>
+          )}
+          {mode === 'login' && (
+            <>
+              <button
+                onClick={() => { setMode('quick'); setError(''); setSuccess(''); }}
+                className="text-xs text-muted-foreground hover:text-gold transition-colors font-ui"
+              >
+                Snel spelen met alleen een nickname
+              </button>
+              <button
+                onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
+                className="text-xs text-muted-foreground hover:text-gold transition-colors font-ui"
+              >
+                Nog geen account? Registreer hier
+              </button>
+            </>
+          )}
+          {mode === 'register' && (
+            <button
+              onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+              className="text-xs text-muted-foreground hover:text-gold transition-colors font-ui"
+            >
+              Al een account? Log hier in
+            </button>
+          )}
+        </div>
       </motion.div>
     </div>
   );
