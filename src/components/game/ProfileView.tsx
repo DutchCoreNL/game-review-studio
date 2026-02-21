@@ -26,6 +26,7 @@ import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
 import { EncyclopediaView } from './EncyclopediaView';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
+import { LinkAccountPanel } from './profile/LinkAccountPanel';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
   { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
@@ -382,6 +383,9 @@ export function ProfileView() {
           </div>
         </>
       )}
+
+      {/* Link Account for anonymous users */}
+      <LinkAccountPanel />
 
       {/* Menu & Reset */}
       <div className="flex gap-2 mt-4">
