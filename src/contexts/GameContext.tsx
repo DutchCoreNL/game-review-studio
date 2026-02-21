@@ -5,7 +5,7 @@ import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
-import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis } from '../game/newFeatures';
+import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
@@ -1019,7 +1019,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (s.activeCombat?.isNemesis && !s.activeCombat.won && s.nemesis?.alive) {
           // Sync nemesis HP from combat
           s.nemesis.hp = s.activeCombat.targetHP;
-          const { checkNemesisWoundedRevenge } = require('../game/newFeatures');
           checkNemesisWoundedRevenge(s);
         }
       }
