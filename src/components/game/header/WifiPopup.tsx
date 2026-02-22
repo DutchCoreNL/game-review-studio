@@ -32,21 +32,25 @@ export function WifiPopup() {
 
   const handleSync = async () => {
     setSyncing(true);
-    await syncLeaderboard({
-      rep: state.rep,
-      cash: state.money,
-      day: state.day,
-      level: state.player.level,
-      districts_owned: state.ownedDistricts.length,
-      crew_size: state.crew.length,
-      karma: state.karma || 0,
-      backstory: state.backstory || null,
-    });
-    // Refresh the updated_at
-    const { data } = await supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user!.id).single();
-    if (data) setLastSync(data.updated_at);
-    setSyncing(false);
-    toast({ title: '✅ Gesynchroniseerd', description: 'Je stats zijn bijgewerkt op het leaderboard.' });
+    try {
+      await syncLeaderboard({
+        rep: state.rep,
+        cash: state.money,
+        day: state.day,
+        level: state.player.level,
+        districts_owned: state.ownedDistricts.length,
+        crew_size: state.crew.length,
+        karma: state.karma || 0,
+        backstory: state.backstory || null,
+      });
+      const { data } = await supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user!.id).maybeSingle();
+      if (data) setLastSync(data.updated_at);
+      toast({ title: '✅ Gesynchroniseerd', description: 'Je stats zijn bijgewerkt op het leaderboard.' });
+    } catch {
+      toast({ title: '❌ Sync mislukt', description: 'Er ging iets mis. Probeer het later opnieuw.', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const syncLabel = lastSync
