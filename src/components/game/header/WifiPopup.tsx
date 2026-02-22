@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGame } from '@/contexts/GameContext';
 import { supabase } from '@/integrations/supabase/client';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
+import { toast } from '@/hooks/use-toast';
 
 export function WifiPopup() {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ export function WifiPopup() {
     const { data } = await supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user!.id).single();
     if (data) setLastSync(data.updated_at);
     setSyncing(false);
+    toast({ title: '✅ Gesynchroniseerd', description: 'Je stats zijn bijgewerkt op het leaderboard.' });
   };
 
   const syncLabel = lastSync
