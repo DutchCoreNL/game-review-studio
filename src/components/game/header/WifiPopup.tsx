@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, User, Clock, X } from 'lucide-react';
+import { Wifi, WifiOff, User, Clock, X, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useGame } from '@/contexts/GameContext';
 import { supabase } from '@/integrations/supabase/client';
+import { syncLeaderboard } from '@/lib/syncLeaderboard';
+
 export function WifiPopup() {
   const { user } = useAuth();
+  const { state } = useGame();
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    if (!user || !open) return;
+  const fetchInfo = () => {
+    if (!user) return;
     Promise.all([
       supabase.from('profiles').select('username').eq('id', user.id).single(),
       supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user.id).single(),
@@ -18,7 +23,29 @@ export function WifiPopup() {
       if (profileRes.data) setUsername(profileRes.data.username);
       if (lbRes.data) setLastSync(lbRes.data.updated_at);
     });
+  };
+
+  useEffect(() => {
+    if (open && user) fetchInfo();
   }, [user, open]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    await syncLeaderboard({
+      rep: state.rep,
+      cash: state.money,
+      day: state.day,
+      level: state.player.level,
+      districts_owned: state.ownedDistricts.length,
+      crew_size: state.crew.length,
+      karma: state.karma || 0,
+      backstory: state.backstory || null,
+    });
+    // Refresh the updated_at
+    const { data } = await supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user!.id).single();
+    if (data) setLastSync(data.updated_at);
+    setSyncing(false);
+  };
 
   const syncLabel = lastSync
     ? new Date(lastSync).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
@@ -29,7 +56,7 @@ export function WifiPopup() {
       <button
         type="button"
         onClick={() => setOpen(p => !p)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
         className={`flex items-center gap-0.5 ${user ? 'text-emerald' : 'text-muted-foreground/40'} hover:opacity-80 transition-opacity`}
       >
         {user ? <Wifi size={8} /> : <WifiOff size={8} />}
@@ -66,6 +93,14 @@ export function WifiPopup() {
                     <Clock size={9} className="flex-shrink-0" />
                     <span>Sync: {syncLabel}</span>
                   </div>
+                  <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="w-full mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-[0.55rem] font-bold bg-emerald/15 border border-emerald/30 text-emerald hover:bg-emerald/25 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={9} className={syncing ? 'animate-spin' : ''} />
+                    {syncing ? 'SYNCING...' : 'SYNC NU'}
+                  </button>
                 </>
               ) : (
                 <p className="text-[0.5rem] text-muted-foreground leading-relaxed">
