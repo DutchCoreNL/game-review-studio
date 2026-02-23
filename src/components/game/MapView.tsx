@@ -17,9 +17,12 @@ import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
+import { useAuth } from '@/hooks/useAuth';
+import { syncLeaderboard } from '@/lib/syncLeaderboard';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
+  const { user } = useAuth();
   const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
@@ -54,6 +57,18 @@ export function MapView() {
   const confirmEnd = () => {
     setConfirmEndTurn(false);
     dispatch({ type: 'END_TURN' });
+    if (user) {
+      syncLeaderboard({
+        rep: state.rep,
+        cash: state.money,
+        day: state.day + 1,
+        level: state.player.level,
+        districts_owned: state.ownedDistricts.length,
+        crew_size: state.crew.length,
+        karma: state.karma || 0,
+        backstory: state.backstory || null,
+      }).catch(() => {});
+    }
   };
 
   if (showVilla) {
