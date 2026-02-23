@@ -8,13 +8,15 @@ import { GameButton } from '../ui/GameButton';
 import { PriceSparkline } from './PriceSparkline';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, MapPin, TrendingUp, TrendingDown, ArrowRight, Leaf, Navigation, Bell, BellRing, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart3, MapPin, TrendingUp, TrendingDown, ArrowRight, Leaf, Navigation, Bell, BellRing, Plus, Trash2, ChevronDown, ChevronUp, Plane } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 const DISTRICT_IDS = Object.keys(DISTRICTS) as DistrictId[];
 
 export function MarketAnalysisPanel() {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch, showToast, setTradeMode } = useGame();
+  const [pendingTravelBuy, setPendingTravelBuy] = useState<{ dist: DistrictId; goodName: string } | null>(null);
   const [selectedGood, setSelectedGood] = useState<GoodId | null>(null);
   const [showAlertForm, setShowAlertForm] = useState(false);
   const [alertGood, setAlertGood] = useState<GoodId>('drugs');
@@ -204,6 +206,18 @@ export function MarketAnalysisPanel() {
                 <div className="mt-1 flex items-center gap-1.5">
                   <span className="text-[0.45rem] text-muted-foreground">Trend:</span>
                   <PriceSparkline data={sparkData} width={60} height={16} />
+                </div>
+              )}
+              {/* Reis & Koop button - only if not already in cheapest district */}
+              {state.loc !== route.cheapest.dist && (
+                <div className="mt-2 pt-1.5 border-t border-border/30">
+                  <GameButton
+                    variant="gold"
+                    size="sm"
+                    onClick={() => setPendingTravelBuy({ dist: route.cheapest.dist, goodName: g.name })}
+                  >
+                    <Plane size={10} /> REIS & KOOP — {DISTRICTS[route.cheapest.dist].name}
+                  </GameButton>
                 </div>
               )}
             </motion.div>
@@ -451,6 +465,24 @@ export function MarketAnalysisPanel() {
           </motion.div>
         );
       })()}
+
+      {/* Reis & Koop confirmation dialog */}
+      {pendingTravelBuy && (
+        <ConfirmDialog
+          open={true}
+          title="Reis & Koop"
+          message={`Reis naar ${DISTRICTS[pendingTravelBuy.dist].name} om ${pendingTravelBuy.goodName} in te kopen tegen de laagste prijs? (Reiskosten: €50)`}
+          confirmText="REIS HIERHEEN"
+          variant="warning"
+          onConfirm={() => {
+            dispatch({ type: 'TRAVEL', to: pendingTravelBuy.dist });
+            setTradeMode('buy');
+            showToast(`Aangekomen in ${DISTRICTS[pendingTravelBuy.dist].name} — Inkoopmodus actief!`);
+            setPendingTravelBuy(null);
+          }}
+          onCancel={() => setPendingTravelBuy(null)}
+        />
+      )}
     </>
   );
 }
