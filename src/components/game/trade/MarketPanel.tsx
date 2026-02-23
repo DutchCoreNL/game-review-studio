@@ -11,7 +11,7 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
@@ -44,6 +44,7 @@ export function MarketPanel() {
   const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: TradeMode } | null>(null);
   const [pendingTrade, setPendingTrade] = useState<{ gid: GoodId; qty: number; cost: number } | null>(null);
   const [expandedGood, setExpandedGood] = useState<string | null>(null);
+  const [pendingSellAll, setPendingSellAll] = useState<{ totalGains: number } | null>(null);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -100,6 +101,32 @@ export function MarketPanel() {
 
     executeTrade(gid, actualQty);
   }, [state, quantity, tradeMode, invCount, prices, executeTrade]);
+
+  const estimateSellAllGains = useCallback(() => {
+    const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
+    let total = 0;
+    GOODS.forEach(g => {
+      const owned = state.inventory[g.id] || 0;
+      if (owned > 0) {
+        const basePrice = prices[g.id] || 0;
+        const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
+        total += sellPrice * owned;
+      }
+    });
+    return total;
+  }, [state, prices, totalCharm]);
+
+  const confirmSellAll = useCallback(() => {
+    GOODS.forEach(g => {
+      const owned = state.inventory[g.id] || 0;
+      if (owned > 0) {
+        dispatch({ type: 'TRADE', gid: g.id, mode: 'sell', quantity: owned });
+      }
+    });
+    playCoinSound();
+    showToast(`Alles verkocht! +€${pendingSellAll?.totalGains.toLocaleString()}`);
+    setPendingSellAll(null);
+  }, [state, dispatch, showToast, pendingSellAll]);
 
   return (
     <>
@@ -162,6 +189,20 @@ export function MarketPanel() {
             }`}>{QUANTITY_LABELS[i]}</button>
         ))}
       </div>
+
+      {/* Sell All Button */}
+      {tradeMode === 'sell' && invCount > 0 && (
+        <motion.button
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => setPendingSellAll({ totalGains: estimateSellAllGains() })}
+          className="w-full mb-4 py-2.5 rounded font-bold text-xs uppercase tracking-wider bg-blood/15 border border-blood text-blood hover:bg-blood/25 transition-all flex items-center justify-center gap-2"
+        >
+          <PackageOpen size={14} />
+          VERKOOP ALLES
+          <span className="text-[0.5rem] opacity-70 font-normal">(~€{estimateSellAllGains().toLocaleString()})</span>
+        </motion.button>
+      )}
 
       {/* Goods List */}
       <div className="space-y-2.5">
@@ -421,6 +462,19 @@ export function MarketPanel() {
             setPendingTrade(null);
           }}
           onCancel={() => setPendingTrade(null)}
+        />
+      )}
+
+      {/* Sell All confirmation dialog */}
+      {pendingSellAll && (
+        <ConfirmDialog
+          open={true}
+          title="Alles verkopen"
+          message={`Weet je zeker dat je al je goederen wilt verkopen? Geschatte opbrengst: €${pendingSellAll.totalGains.toLocaleString()}`}
+          confirmText="VERKOOP ALLES"
+          variant="danger"
+          onConfirm={confirmSellAll}
+          onCancel={() => setPendingSellAll(null)}
         />
       )}
     </>
