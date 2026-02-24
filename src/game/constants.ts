@@ -1781,6 +1781,8 @@ export function createInitialState(): import('./types').GameState {
     pendingInsiderTip: null,
     stockEvents: [],
     pendingMinigame: null,
+    // Trade log state
+    tradeLog: [],
   };
 }
 

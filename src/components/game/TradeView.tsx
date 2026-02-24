@@ -1,4 +1,4 @@
-import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp } from 'lucide-react';
+import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
@@ -10,9 +10,10 @@ import { GearPanel } from './trade/GearPanel';
 import { MarketAnalysisPanel } from './trade/MarketAnalysisPanel';
 import { AuctionPanel } from './trade/AuctionPanel';
 import { StockMarketPanel } from './trade/StockMarketPanel';
+import { TradeLogPanel } from './trade/TradeLogPanel';
 import tradeBg from '@/assets/trade-bg.jpg';
 
-type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks';
+type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
 
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
@@ -48,6 +49,7 @@ export function TradeView() {
           { id: 'stocks' as TradeSubTab, label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
           { id: 'launder' as TradeSubTab, label: 'WITWAS', icon: <Droplets size={11} />, badge: false },
           { id: 'gear' as TradeSubTab, label: 'GEAR', icon: <ShieldCheck size={11} />, badge: false },
+          { id: 'log' as TradeSubTab, label: 'LOG', icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) > 0 },
         ]).map(tab => (
           <button
             key={tab.id}
@@ -72,6 +74,7 @@ export function TradeView() {
       {subTab === 'stocks' && <StockMarketPanel />}
       {subTab === 'launder' && <LaunderingPanel />}
       {subTab === 'gear' && <GearPanel />}
+      {subTab === 'log' && <TradeLogPanel />}
       </div>
     </div>
   );
