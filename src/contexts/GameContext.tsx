@@ -261,6 +261,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.pendingMinigame === undefined) loaded.pendingMinigame = null;
       // Migrate: drug empire state
       if (loaded.drugEmpire === undefined) loaded.drugEmpire = null;
+      // Migrate: trade log
+      if (!loaded.tradeLog) loaded.tradeLog = [];
       return loaded;
     }
 
@@ -275,6 +277,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
       const moneyBefore = s.money;
+      const invBefore = s.inventory[action.gid] || 0;
+      const avgCostBefore = s.inventoryCosts[action.gid] || 0;
       Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
       // Heat 2.0: trade heat goes to vehicle (transport of goods)
       const tradeHeat = action.mode === 'buy' ? 1 : 2;
@@ -288,6 +292,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (earned > 0) {
           s.lastRewardAmount = earned;
         }
+      }
+      // === Trade Log Entry ===
+      const tradedQty = Math.abs((s.inventory[action.gid] || 0) - invBefore);
+      if (tradedQty > 0) {
+        const moneyDiff = Math.abs(s.money - moneyBefore);
+        const pricePerUnit = Math.round(moneyDiff / tradedQty);
+        if (!s.tradeLog) s.tradeLog = [];
+        s.tradeLog.unshift({
+          id: `${s.day}-${Date.now()}-${action.gid}`,
+          day: s.day,
+          goodId: action.gid,
+          mode: action.mode,
+          quantity: tradedQty,
+          pricePerUnit,
+          totalPrice: moneyDiff,
+          district: s.loc,
+          profitPerUnit: action.mode === 'sell' ? pricePerUnit - avgCostBefore : undefined,
+        });
+        // Keep max 50 entries
+        if (s.tradeLog.length > 50) s.tradeLog = s.tradeLog.slice(0, 50);
       }
       // Daily challenge tracking
       if (s.dailyProgress) {

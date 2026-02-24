@@ -986,6 +986,9 @@ export interface GameState {
   pendingInsiderTip: import('../game/stocks').InsiderTip | null;
   stockEvents: import('../game/stocks').StockEvent[];
 
+  // ========== TRADE LOG STATE ==========
+  tradeLog: TradeLogEntry[];
+
   // ========== MINI-GAME STATE ==========
   pendingMinigame: {
     type: 'lockpick' | 'dice' | 'hacking' | 'arm_wrestle';
@@ -1043,6 +1046,19 @@ export interface AlliancePact {
 }
 
 // ========== RUN RECORD (NG+ Leaderboard) ==========
+// ========== TRADE LOG TYPES ==========
+export interface TradeLogEntry {
+  id: string;
+  day: number;
+  goodId: GoodId;
+  mode: 'buy' | 'sell';
+  quantity: number;
+  pricePerUnit: number;
+  totalPrice: number;
+  district: DistrictId;
+  profitPerUnit?: number; // only for sell: sellPrice - avgCost
+}
+
 export interface RunRecord {
   ngLevel: number;
   day: number;
