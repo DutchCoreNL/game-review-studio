@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, DISTRICTS, GOODS, WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star, Target, BarChart3, Truck, Gem } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, Factory, Shield, Flame, Car, Sparkles, Heart, Route, Skull, CloudRain, Sun, CloudFog, Thermometer, CloudLightning, Volume2, VolumeX, Crosshair, Lock, Leaf, Diamond, FlaskConical, UserMinus, Swords, BellRing, AlertTriangle, Gavel, Handshake, Star, Target, BarChart3, Truck, Gem, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { VillaAttackPopup } from './villa/VillaAttackPopup';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { AnimatedResourceBar } from './night-report/AnimatedResourceBar';
@@ -622,6 +622,32 @@ export function NightReport() {
                   <TrendingUp size={12} /> {report.marketEvent.name}
                 </div>
                 <p className="text-[0.55rem] text-muted-foreground">{report.marketEvent.desc}</p>
+              </motion.div>
+            )}
+
+            {/* Goods Price Changes */}
+            {report.priceChanges && report.priceChanges.length > 0 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: next(), duration: 0.35 }} className="bg-muted/40 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+                  <BarChart3 size={14} />
+                  <span className="font-bold uppercase tracking-wider text-[0.6rem]">Markt Prijsflash</span>
+                </div>
+                <div className="space-y-1">
+                  {report.priceChanges.map(pc => (
+                    <div key={pc.goodId} className="flex justify-between items-center text-[0.6rem]">
+                      <span className="text-muted-foreground">{pc.goodName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground/60">€{pc.oldPrice}</span>
+                        <span className="text-muted-foreground/40">→</span>
+                        <span className="text-foreground font-semibold">€{pc.newPrice}</span>
+                        <span className={`font-bold flex items-center gap-0.5 ${pc.changePercent > 0 ? 'text-blood' : 'text-emerald'}`}>
+                          {pc.changePercent > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                          {pc.changePercent > 0 ? '+' : ''}{pc.changePercent}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
 

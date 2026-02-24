@@ -1171,7 +1171,28 @@ export function endTurn(state: GameState): NightReportData {
     });
   }
 
+  // Capture old prices for night report comparison
+  const oldPrices: Record<string, number> = {};
+  const playerLoc = state.loc;
+  GOODS.forEach(g => {
+    oldPrices[g.id] = state.prices[playerLoc]?.[g.id] || 0;
+  });
+
   generatePrices(state);
+
+  // Calculate price changes for night report
+  const priceChanges: { goodId: import('./types').GoodId; goodName: string; oldPrice: number; newPrice: number; changePercent: number }[] = [];
+  GOODS.forEach(g => {
+    const oldP = oldPrices[g.id] || 0;
+    const newP = state.prices[playerLoc]?.[g.id] || 0;
+    if (oldP > 0) {
+      const changePct = Math.round(((newP - oldP) / oldP) * 100);
+      if (Math.abs(changePct) >= 5) { // Only show significant changes (>=5%)
+        priceChanges.push({ goodId: g.id as import('./types').GoodId, goodName: g.name, oldPrice: oldP, newPrice: newP, changePercent: changePct });
+      }
+    }
+  });
+  if (priceChanges.length > 0) report.priceChanges = priceChanges;
   generateContracts(state);
   generateMapEvents(state);
 
