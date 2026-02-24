@@ -663,6 +663,8 @@ export interface NightReportData {
   stockChanges?: { stockId: string; oldPrice: number; newPrice: number; change: number }[];
   stockDividend?: number;
   stockEvent?: { name: string; desc: string } | null;
+  // Goods price changes
+  priceChanges?: { goodId: GoodId; goodName: string; oldPrice: number; newPrice: number; changePercent: number }[];
 }
 
 export interface ExpiryWarning {
