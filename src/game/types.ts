@@ -991,6 +991,9 @@ export interface GameState {
   // ========== TRADE LOG STATE ==========
   tradeLog: TradeLogEntry[];
 
+  // ========== CRAFTING LOG STATE ==========
+  craftLog: import('../game/crafting').CraftLogEntry[];
+
   // ========== MINI-GAME STATE ==========
   pendingMinigame: {
     type: 'lockpick' | 'dice' | 'hacking' | 'arm_wrestle';
