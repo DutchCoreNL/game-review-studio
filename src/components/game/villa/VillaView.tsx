@@ -2,6 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, VILLA_PRESTIGE_UPGRADES, getVaultMax, getStorageMax } from '@/game/villa';
 import { GOODS, DISTRICTS } from '@/game/constants';
 import { GoodId, DistrictId, VillaModuleId } from '@/game/types';
+import { CRAFT_RECIPES } from '@/game/crafting';
 import { GameButton } from '../ui/GameButton';
 import { SectionHeader } from '../ui/SectionHeader';
 import { useState } from 'react';
@@ -492,8 +493,19 @@ function ModulesTab() {
                 ) : (
                   <GameButton variant={meetsLevel ? 'gold' : 'muted'} size="sm" disabled={!canAfford || !meetsLevel}
                     onClick={() => {
+                      // Count newly unlocked crafting recipes
+                      const modulesBefore = state.villa!.modules;
+                      const modulesAfter = [...modulesBefore, mod.id];
+                      const villaLevel = state.villa!.level;
+                      const recipesBefore = CRAFT_RECIPES.filter(r => villaLevel >= r.reqVillaLevel && modulesBefore.includes(r.reqModule)).length;
+                      const recipesAfter = CRAFT_RECIPES.filter(r => villaLevel >= r.reqVillaLevel && modulesAfter.includes(r.reqModule as VillaModuleId)).length;
+                      const newRecipes = recipesAfter - recipesBefore;
+
                       dispatch({ type: 'INSTALL_VILLA_MODULE', moduleId: mod.id });
                       showToast(`${mod.name} geïnstalleerd!`);
+                      if (newRecipes > 0) {
+                        setTimeout(() => showToast(`⚗️ ${newRecipes} nieuw${newRecipes > 1 ? 'e' : ''} crafting recept${newRecipes > 1 ? 'en' : ''} vrijgespeeld!`), 1500);
+                      }
                     }}>
                     {!meetsLevel ? `LVL ${mod.reqLevel}` : `€${mod.cost.toLocaleString()}`}
                   </GameButton>
