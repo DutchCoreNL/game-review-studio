@@ -11,8 +11,9 @@ import villaBg from '@/assets/villa-bg.jpg';
 import { VILLA_MODULE_IMAGES } from '@/assets/items';
 import { shouldShowDrugEmpire } from '@/game/drugEmpire';
 import { DrugEmpirePanel } from './DrugEmpirePanel';
+import { CraftingPanel } from './CraftingPanel';
 
-type VillaTab = 'overview' | 'production' | 'storage' | 'modules' | 'empire';
+type VillaTab = 'overview' | 'production' | 'storage' | 'modules' | 'crafting' | 'empire';
 
 export function VillaView() {
   const { state, dispatch, showToast } = useGame();
@@ -52,11 +53,13 @@ export function VillaView() {
   }
 
   const showEmpire = shouldShowDrugEmpire(state);
+  const hasProductionModule = villa.modules.includes('synthetica_lab') || villa.modules.includes('coke_lab') || villa.modules.includes('wietplantage');
   const tabs: { id: VillaTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overzicht', icon: '🏛️' },
     { id: 'production', label: 'Productie', icon: '🧪' },
     { id: 'storage', label: 'Opslag', icon: '📦' },
     { id: 'modules', label: 'Modules', icon: '🔧' },
+    ...(hasProductionModule ? [{ id: 'crafting' as VillaTab, label: 'Crafting', icon: '⚗️' }] : []),
     ...(showEmpire ? [{ id: 'empire' as VillaTab, label: 'Imperium', icon: '💀' }] : []),
   ];
 
@@ -104,6 +107,7 @@ export function VillaView() {
           {tab === 'production' && <ProductionTab />}
           {tab === 'storage' && <StorageTab depositAmount={depositAmount} setDepositAmount={setDepositAmount} goodDepositGood={goodDepositGood} setGoodDepositGood={setGoodDepositGood} />}
           {tab === 'modules' && <ModulesTab />}
+          {tab === 'crafting' && <CraftingPanel />}
           {tab === 'empire' && <DrugEmpirePanel />}
         </motion.div>
       </AnimatePresence>

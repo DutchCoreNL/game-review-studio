@@ -1783,6 +1783,7 @@ export function createInitialState(): import('./types').GameState {
     pendingMinigame: null,
     // Trade log state
     tradeLog: [],
+    craftLog: [],
   };
 }
 

@@ -210,6 +210,7 @@ type GameAction =
   | { type: 'ASSIGN_DEALER'; district: DistrictId; crewName: string; product: GoodId }
   | { type: 'RECALL_DEALER'; district: DistrictId }
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
+  | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -263,6 +264,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.drugEmpire === undefined) loaded.drugEmpire = null;
       // Migrate: trade log
       if (!loaded.tradeLog) loaded.tradeLog = [];
+      // Migrate: craft log
+      if (!loaded.craftLog) loaded.craftLog = [];
       return loaded;
     }
 
@@ -2134,6 +2137,49 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.stats.totalSpent += cost;
       s.villa.prestigeModules.push(action.moduleId);
       s.maxInv = Engine.recalcMaxInv(s);
+      return s;
+    }
+
+    case 'CRAFT_ITEM': {
+      if (!s.villa) return s;
+      const { CRAFT_RECIPES, canCraft } = require('../game/crafting');
+      const recipe = CRAFT_RECIPES.find((r: any) => r.id === action.recipeId);
+      if (!recipe) return s;
+      const check = canCraft(s, recipe);
+      if (!check.ok) return s;
+      // Consume ingredients
+      for (const ing of recipe.ingredients) {
+        s.inventory[ing.goodId] = (s.inventory[ing.goodId] || 0) - ing.amount;
+      }
+      s.lab.chemicals -= recipe.chemCost;
+      // Add crafted output with boosted cost basis
+      const baseCost = require('../game/constants').GOODS.find((g: any) => g.id === recipe.output.goodId)?.base || 500;
+      const craftedCost = Math.floor(baseCost * recipe.sellMultiplier);
+      const existing = s.inventory[recipe.output.goodId] || 0;
+      const existingCost = s.inventoryCosts[recipe.output.goodId] || 0;
+      s.inventory[recipe.output.goodId] = existing + recipe.output.amount;
+      s.inventoryCosts[recipe.output.goodId] = existing + recipe.output.amount > 0
+        ? Math.floor(((existing * existingCost) + (recipe.output.amount * craftedCost)) / (existing + recipe.output.amount))
+        : craftedCost;
+      // Heat
+      s.heat = Math.min(100, s.heat + recipe.heatGain);
+      // Log
+      if (!s.craftLog) s.craftLog = [];
+      s.craftLog.unshift({
+        id: `craft-${s.day}-${Date.now()}`,
+        day: s.day,
+        recipeId: recipe.id,
+        recipeName: recipe.name,
+        outputGoodId: recipe.output.goodId,
+        outputAmount: recipe.output.amount,
+        estimatedValue: craftedCost * recipe.output.amount,
+      });
+      if (s.craftLog.length > 30) s.craftLog = s.craftLog.slice(0, 30);
+      // Daily progress for challenges
+      if (s.dailyProgress) {
+        s.dailyProgress.trades = (s.dailyProgress.trades || 0) + 1;
+      }
+      syncChallenges(s);
       return s;
     }
 
