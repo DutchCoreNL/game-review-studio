@@ -2,8 +2,10 @@ import { useGame } from '@/contexts/GameContext';
 import { GOODS, DISTRICTS } from '@/game/constants';
 import { SectionHeader } from '../ui/SectionHeader';
 import { motion } from 'framer-motion';
-import { ScrollText, TrendingUp, TrendingDown, ShoppingCart, Banknote } from 'lucide-react';
+import { ScrollText, TrendingUp, TrendingDown, ShoppingCart, Banknote, BarChart3 } from 'lucide-react';
 import { GOOD_IMAGES } from '@/assets/items';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { useMemo } from 'react';
 
 export function TradeLogPanel() {
   const { state } = useGame();
@@ -16,9 +18,50 @@ export function TradeLogPanel() {
   const totalBought = log.filter(e => e.mode === 'buy').reduce((sum, e) => sum + e.totalPrice, 0);
   const totalSold = log.filter(e => e.mode === 'sell').reduce((sum, e) => sum + e.totalPrice, 0);
 
+  // Daily profit/loss chart data
+  const dailyProfitData = useMemo(() => {
+    const dayMap: Record<number, number> = {};
+    for (const entry of log) {
+      if (entry.mode === 'sell' && entry.profitPerUnit !== undefined) {
+        dayMap[entry.day] = (dayMap[entry.day] || 0) + entry.profitPerUnit * entry.quantity;
+      }
+      if (entry.mode === 'buy') {
+        // buys don't count as loss until sold, skip
+      }
+    }
+    return Object.entries(dayMap)
+      .map(([day, profit]) => ({ day: `D${day}`, profit, fill: profit >= 0 ? 'hsl(var(--emerald))' : 'hsl(var(--blood))' }))
+      .slice(-10);
+  }, [log]);
+
   return (
     <>
       <SectionHeader title="Handelslogboek" icon={<ScrollText size={12} />} />
+
+      {/* Daily profit chart */}
+      {dailyProfitData.length > 1 && (
+        <div className="game-card mb-4">
+          <h4 className="text-[0.6rem] font-bold text-gold uppercase tracking-wider mb-2 flex items-center gap-1">
+            <BarChart3 size={10} /> Dagelijkse Winst/Verlies (10d)
+          </h4>
+          <ResponsiveContainer width="100%" height={90}>
+            <BarChart data={dailyProfitData}>
+              <XAxis dataKey="day" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={35} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+              <ReferenceLine y={0} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+              <Bar dataKey="profit" radius={[2, 2, 0, 0]}>
+                {dailyProfitData.map((entry, i) => (
+                  <rect key={i} fill={entry.fill} />
+                ))}
+              </Bar>
+              <Tooltip
+                formatter={(v: number) => [`${v >= 0 ? '+' : ''}€${v.toLocaleString()}`, 'Winst']}
+                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '4px', fontSize: '0.55rem' }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Summary strip */}
       <div className="flex gap-2 mb-4">

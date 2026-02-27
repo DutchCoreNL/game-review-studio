@@ -247,19 +247,40 @@ export function OperationsView() {
                           <Star size={8} className="text-gold" />
                           <span className="text-[0.5rem] text-muted-foreground">{c.xp}/{30 * c.level}</span>
                         </div>
-                        <div className="flex items-center gap-0.5" title={`Loyaliteit: ${c.loyalty ?? 75}`}>
-                          <ShieldAlert size={8} className={
-                            (c.loyalty ?? 75) >= 50 ? 'text-emerald' :
-                            (c.loyalty ?? 75) >= 20 ? 'text-orange-400' : 'text-blood'
-                          } />
-                          <span className={`text-[0.5rem] ${
-                            (c.loyalty ?? 75) >= 50 ? 'text-emerald' :
-                            (c.loyalty ?? 75) >= 20 ? 'text-orange-400' : 'text-blood'
-                          }`}>
-                            {(c.loyalty ?? 75) >= 80 ? 'Trouw' : (c.loyalty ?? 75) >= 50 ? 'OK' : (c.loyalty ?? 75) >= 20 ? '⚠' : '💀'}
-                          </span>
-                        </div>
                       </div>
+                      {/* Loyalty bar */}
+                      {(() => {
+                        const loyalty = c.loyalty ?? 75;
+                        const loyaltyColor = loyalty >= 80 ? 'bg-emerald' : loyalty >= 50 ? 'bg-gold' : loyalty >= 20 ? 'bg-orange-400' : 'bg-blood';
+                        const loyaltyLabel = loyalty >= 80 ? 'Trouw' : loyalty >= 50 ? 'Neutraal' : loyalty >= 20 ? 'Onrustig' : 'Ontrouw';
+                        const labelColor = loyalty >= 80 ? 'text-emerald' : loyalty >= 50 ? 'text-gold' : loyalty >= 20 ? 'text-orange-400' : 'text-blood';
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <ShieldAlert size={9} className={labelColor} />
+                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                className={`h-full rounded-full ${loyaltyColor}`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${loyalty}%` }}
+                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                              />
+                            </div>
+                            <span className={`text-[0.45rem] font-bold ${labelColor} min-w-[3rem] text-right`}>
+                              {loyaltyLabel} ({loyalty})
+                            </span>
+                            {loyalty < 20 && (
+                              <motion.span
+                                animate={{ opacity: [1, 0.3, 1] }}
+                                transition={{ duration: 0.8, repeat: Infinity }}
+                                className="text-[0.5rem]"
+                              >💀</motion.span>
+                            )}
+                            {loyalty < 50 && loyalty >= 20 && (
+                              <span className="text-[0.5rem]" title="Risico op desertie">⚠️</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">

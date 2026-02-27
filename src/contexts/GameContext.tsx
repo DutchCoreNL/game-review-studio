@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
@@ -222,7 +223,7 @@ function syncChallenges(s: GameState): void {
 }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
-  const s = JSON.parse(JSON.stringify(state)) as GameState;
+  return produce(state, (s) => {
 
   switch (action.type) {
     case 'SET_STATE': {
@@ -2559,8 +2560,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     default:
-      return s;
+      return;
   }
+  });
 }
 
 export function GameProvider({ children, onExitToMenu }: { children: React.ReactNode; onExitToMenu?: () => void }) {

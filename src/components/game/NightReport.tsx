@@ -229,6 +229,29 @@ export function NightReport() {
               <AnimatedReportRow icon={<FlaskConical size={14} />} label="Villa Lab" value={report.villaLabProduced} prefix="+" suffix=" Synthetica" positive color="text-blood" delay={villaLabDelay} />
             )}
 
+            {/* Crafting output */}
+            {report.craftingOutput && report.craftingOutput.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: villaLabDelay + 0.15, duration: 0.35 }}
+                className="border border-game-purple/30 rounded-lg p-3 bg-[hsl(var(--game-purple)/0.06)]"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <FlaskConical size={14} className="text-game-purple" />
+                  <span className="text-xs font-bold text-game-purple uppercase tracking-wider">Crafting Productie</span>
+                </div>
+                <div className="space-y-1">
+                  {report.craftingOutput.map((craft, i) => (
+                    <div key={i} className="flex justify-between text-[0.6rem]">
+                      <span className="text-muted-foreground">{craft.icon} {craft.recipeName}</span>
+                      <span className="text-game-purple font-bold">+{craft.outputAmount} {craft.outputGood} (≈€{craft.estimatedValue.toLocaleString()})</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {/* Drug Empire: Dealer Income */}
             {report.drugEmpireDealerIncome && report.drugEmpireDealerIncome > 0 && (
               <AnimatedReportRow icon={<Truck size={14} />} label="Dealer Netwerk" value={report.drugEmpireDealerIncome} prefix="€" positive color="text-emerald" delay={drugDealerDelay} />
