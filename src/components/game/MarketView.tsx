@@ -3,22 +3,79 @@ import { GOODS, GEAR, DISTRICTS } from '@/game/constants';
 import { GoodId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react';
-import { useState } from 'react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { gameApi } from '@/lib/gameApi';
+import { supabase } from '@/integrations/supabase/client';
 
 const QUANTITIES = [1, 5, 10, 0]; // 0 = max
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
 
+interface MarketData {
+  price: number;
+  trend: string;
+  buyVol: number;
+  sellVol: number;
+}
+
 export function MarketView() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
   const [quantity, setQuantity] = useState(1);
+  const [serverPrices, setServerPrices] = useState<Record<string, Record<string, MarketData>> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [trading, setTrading] = useState(false);
+
+  const fetchPrices = useCallback(async () => {
+    setLoading(true);
+    const res = await gameApi.getMarketPrices();
+    if (res.success && res.data?.prices) {
+      setServerPrices(res.data.prices as any);
+    }
+    setLoading(false);
+  }, []);
+
+  // Load prices on mount and when district changes
+  useEffect(() => {
+    fetchPrices();
+  }, [state.loc, fetchPrices]);
+
+  // Realtime price updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('market-prices')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'market_prices',
+      }, (payload) => {
+        const row = payload.new as any;
+        setServerPrices(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev };
+          if (!updated[row.district_id]) updated[row.district_id] = {};
+          updated[row.district_id] = {
+            ...updated[row.district_id],
+            [row.good_id]: {
+              price: row.current_price,
+              trend: row.price_trend,
+              buyVol: row.buy_volume,
+              sellVol: row.sell_volume,
+            },
+          };
+          return updated;
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
   const charmBonus = Math.floor(((totalCharm * 0.02) + (state.rep / 5000)) * 100);
-  const prices = state.prices[state.loc] || {};
+  const districtPrices = serverPrices?.[state.loc] || {};
 
-  const handleTrade = (gid: GoodId) => {
+  const handleTrade = async (gid: GoodId) => {
     const actualQty = quantity === 0
       ? (tradeMode === 'buy' ? state.maxInv - invCount : (state.inventory[gid] || 0))
       : quantity;
@@ -27,14 +84,33 @@ export function MarketView() {
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
-    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
-    const good = GOODS.find(g => g.id === gid);
-    showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
+    setTrading(true);
+    const res = await gameApi.trade(gid, tradeMode, actualQty);
+    setTrading(false);
+
+    if (res.success) {
+      const good = GOODS.find(g => g.id === gid);
+      showToast(res.message || `${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
+      // Also dispatch locally to sync state
+      dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
+    } else {
+      showToast(res.message || 'Handel mislukt.', true);
+    }
   };
 
   return (
     <div>
-      <SectionHeader title={`Lokale Markt: ${DISTRICTS[state.loc].name}`} />
+      <div className="flex items-center justify-between">
+        <SectionHeader title={`Lokale Markt: ${DISTRICTS[state.loc].name}`} />
+        <div className="flex items-center gap-1.5 mt-2">
+          {loading ? (
+            <RefreshCw size={10} className="text-muted-foreground animate-spin" />
+          ) : (
+            <Wifi size={10} className="text-emerald" />
+          )}
+          <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">LIVE</span>
+        </div>
+      </div>
 
       {state.heat > 50 && (
         <div className="text-blood text-xs font-bold bg-[hsl(var(--blood)/0.1)] p-2 rounded mb-3 border border-blood/20">
@@ -89,10 +165,12 @@ export function MarketView() {
       {/* Goods List */}
       <div className="space-y-2 mb-6">
         {GOODS.map(g => {
-          const basePrice = prices[g.id] || 0;
-          const trend = state.priceTrends[g.id] === 'up';
+          const marketData = districtPrices[g.id];
+          const basePrice = marketData?.price || state.prices[state.loc]?.[g.id] || 0;
+          const trend = marketData?.trend === 'up';
           const demand = state.districtDemands[state.loc] === g.id;
           const owned = state.inventory[g.id] || 0;
+          const volume = marketData ? (marketData.buyVol + marketData.sellVol) : 0;
 
           let displayPrice = basePrice;
           let disabled = false;
@@ -149,18 +227,23 @@ export function MarketView() {
                     </span>
                   )}
                 </div>
+                {marketData && (
+                  <div className="text-[0.45rem] text-muted-foreground/70">
+                    Vol: {volume} | B:{marketData.buyVol} V:{marketData.sellVol}
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => handleTrade(g.id)}
-                disabled={disabled}
+                disabled={disabled || trading}
                 className={`px-3 py-1.5 rounded text-[0.65rem] font-bold uppercase transition-all ${
-                  disabled
+                  disabled || trading
                     ? 'bg-muted text-muted-foreground opacity-30'
                     : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold hover:bg-[hsl(var(--gold)/0.2)]'
                 }`}
               >
-                {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
-                {effectiveQty > 1 && !disabled && (
+                {trading ? '...' : tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
+                {effectiveQty > 1 && !disabled && !trading && (
                   <span className="block text-[0.45rem] opacity-70">€{totalPrice.toLocaleString()}</span>
                 )}
               </button>

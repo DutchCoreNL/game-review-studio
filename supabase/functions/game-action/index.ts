@@ -108,7 +108,7 @@ interface ActionResult {
   data?: Record<string, any>;
 }
 
-// ========== TRADE ==========
+// ========== TRADE (SERVER-SIDE MARKET ECONOMY) ==========
 
 async function handleTrade(supabase: any, userId: string, ps: any, payload: { goodId: string; mode: "buy" | "sell"; quantity: number }): Promise<ActionResult> {
   const { goodId, mode, quantity } = payload;
@@ -120,28 +120,32 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
   let blocked = checkBlocked(ps); if (blocked) return { success: false, message: blocked };
   let energyErr = checkEnergy(ps, "trade"); if (energyErr) return { success: false, message: energyErr };
 
+  // Fetch LIVE market price from shared market_prices table
+  const { data: marketRow } = await supabase.from("market_prices")
+    .select("*").eq("good_id", goodId).eq("district_id", ps.loc).maybeSingle();
+  if (!marketRow) return { success: false, message: "Geen marktprijs beschikbaar." };
+
   const { data: invRow } = await supabase.from("player_inventory").select("*").eq("user_id", userId).eq("good_id", goodId).maybeSingle();
   const currentQty = invRow?.quantity || 0;
   const currentAvgCost = invRow?.avg_cost || 0;
 
-  // Get active vehicle for storage
   const { data: activeVeh } = await supabase.from("player_vehicles").select("vehicle_id").eq("user_id", userId).eq("is_active", true).maybeSingle();
   const maxInv = getVehicleStorage(activeVeh?.vehicle_id || "toyohata");
 
   const { data: allInv } = await supabase.from("player_inventory").select("quantity").eq("user_id", userId);
   const totalInv = (allInv || []).reduce((sum: number, r: any) => sum + (r.quantity || 0), 0);
 
-  const basePrice = good.base;
   const charm = getPlayerStat(ps.stats || {}, ps.loadout || {}, "charm");
   const charmBonus = charm * 0.02 + (ps.rep || 0) / 5000;
   const energyCost = ENERGY_COSTS.trade || 2;
+  const livePrice = marketRow.current_price;
 
   if (mode === "buy") {
     const spaceLeft = maxInv - totalInv;
     const maxBuy = Math.min(quantity, spaceLeft);
     if (maxBuy <= 0) return { success: false, message: "Kofferbak vol." };
 
-    let buyPrice = basePrice;
+    let buyPrice = livePrice;
     if (ps.heat > 50) buyPrice = Math.floor(buyPrice * 1.2);
 
     const actualQty = Math.min(maxBuy, Math.floor(ps.money / buyPrice));
@@ -163,14 +167,31 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
       { onConflict: "user_id,good_id" }
     );
 
-    return { success: true, message: `${actualQty}x ${good.name} gekocht voor €${totalCost}`, data: { quantity: actualQty, totalCost, newMoney: ps.money - totalCost } };
+    // === SUPPLY & DEMAND: buying increases price ===
+    const priceImpact = Math.max(1, Math.floor(livePrice * 0.02 * actualQty / 5));
+    const newPrice = Math.min(livePrice * 3, livePrice + priceImpact); // cap at 3x base
+    const newBuyVol = (marketRow.buy_volume || 0) + actualQty;
+    const trend = newBuyVol > (marketRow.sell_volume || 0) ? "up" : "stable";
+
+    await supabase.from("market_prices").update({
+      current_price: newPrice, buy_volume: newBuyVol,
+      price_trend: trend, last_updated: new Date().toISOString(),
+    }).eq("good_id", goodId).eq("district_id", ps.loc);
+
+    // Log trade history
+    await supabase.from("market_trade_history").insert({
+      good_id: goodId, district_id: ps.loc, price: buyPrice, volume: actualQty, trade_type: "buy",
+    });
+
+    return { success: true, message: `${actualQty}x ${good.name} gekocht voor €${totalCost}`, data: { quantity: actualQty, totalCost, newMoney: ps.money - totalCost, marketPrice: newPrice } };
   } else {
     if (currentQty <= 0) return { success: false, message: "Niet op voorraad." };
     const actualQty = Math.min(quantity, currentQty);
-    const sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus));
+    const sellPrice = Math.floor(livePrice * 0.85 * (1 + charmBonus));
     const totalRevenue = sellPrice * actualQty;
     const remainingQty = currentQty - actualQty;
     const repGain = Math.floor(2 * actualQty);
+    const profitPerUnit = sellPrice - currentAvgCost;
 
     await supabase.from("player_state").update({
       money: ps.money + totalRevenue, rep: (ps.rep || 0) + repGain,
@@ -186,8 +207,53 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
       await supabase.from("player_inventory").update({ quantity: remainingQty }).eq("user_id", userId).eq("good_id", goodId);
     }
 
-    return { success: true, message: `${actualQty}x ${good.name} verkocht voor €${totalRevenue}`, data: { quantity: actualQty, totalRevenue, newMoney: ps.money + totalRevenue } };
+    // === SUPPLY & DEMAND: selling decreases price ===
+    const priceImpact = Math.max(1, Math.floor(livePrice * 0.02 * actualQty / 5));
+    const newPrice = Math.max(Math.floor(good.base * 0.3), livePrice - priceImpact); // floor at 30% of base
+    const newSellVol = (marketRow.sell_volume || 0) + actualQty;
+    const trend = newSellVol > (marketRow.buy_volume || 0) ? "down" : "stable";
+
+    await supabase.from("market_prices").update({
+      current_price: newPrice, sell_volume: newSellVol,
+      price_trend: trend, last_updated: new Date().toISOString(),
+    }).eq("good_id", goodId).eq("district_id", ps.loc);
+
+    await supabase.from("market_trade_history").insert({
+      good_id: goodId, district_id: ps.loc, price: sellPrice, volume: actualQty, trade_type: "sell",
+    });
+
+    return { success: true, message: `${actualQty}x ${good.name} verkocht voor €${totalRevenue} (${profitPerUnit >= 0 ? '+' : ''}€${profitPerUnit}/stuk)`, data: { quantity: actualQty, totalRevenue, newMoney: ps.money + totalRevenue, profitPerUnit, marketPrice: newPrice } };
   }
+}
+
+async function handleGetMarketPrices(supabase: any, userId: string, ps: any): Promise<ActionResult> {
+  // Get all market prices
+  const { data: prices } = await supabase.from("market_prices").select("good_id, district_id, current_price, buy_volume, sell_volume, price_trend");
+
+  // Get recent trade history for the current district (last 10 trades per good)
+  const { data: history } = await supabase.from("market_trade_history")
+    .select("good_id, price, trade_type, created_at")
+    .eq("district_id", ps.loc)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  // Build price map: { district: { good: price } }
+  const priceMap: Record<string, Record<string, { price: number; trend: string; buyVol: number; sellVol: number }>> = {};
+  for (const p of (prices || [])) {
+    if (!priceMap[p.district_id]) priceMap[p.district_id] = {};
+    priceMap[p.district_id][p.good_id] = {
+      price: p.current_price,
+      trend: p.price_trend,
+      buyVol: p.buy_volume,
+      sellVol: p.sell_volume,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Marktprijzen opgehaald.",
+    data: { prices: priceMap, history: history || [] },
+  };
 }
 
 // ========== TRAVEL ==========
@@ -1670,6 +1736,9 @@ Deno.serve(async (req) => {
         break;
       case "trade":
         result = await handleTrade(supabase, user.id, playerState, payload);
+        break;
+      case "get_market_prices":
+        result = await handleGetMarketPrices(supabase, user.id, playerState);
         break;
       case "travel":
         result = await handleTravel(supabase, user.id, playerState, payload);

@@ -395,6 +395,69 @@ export type Database = {
           },
         ]
       }
+      market_prices: {
+        Row: {
+          buy_volume: number
+          current_price: number
+          district_id: string
+          good_id: string
+          id: string
+          last_updated: string
+          price_trend: string
+          sell_volume: number
+        }
+        Insert: {
+          buy_volume?: number
+          current_price?: number
+          district_id: string
+          good_id: string
+          id?: string
+          last_updated?: string
+          price_trend?: string
+          sell_volume?: number
+        }
+        Update: {
+          buy_volume?: number
+          current_price?: number
+          district_id?: string
+          good_id?: string
+          id?: string
+          last_updated?: string
+          price_trend?: string
+          sell_volume?: number
+        }
+        Relationships: []
+      }
+      market_trade_history: {
+        Row: {
+          created_at: string
+          district_id: string
+          good_id: string
+          id: string
+          price: number
+          trade_type: string
+          volume: number
+        }
+        Insert: {
+          created_at?: string
+          district_id: string
+          good_id: string
+          id?: string
+          price: number
+          trade_type: string
+          volume: number
+        }
+        Update: {
+          created_at?: string
+          district_id?: string
+          good_id?: string
+          id?: string
+          price?: number
+          trade_type?: string
+          volume?: number
+        }
+        Relationships: []
+      }
       player_businesses: {
         Row: {
           acquired_at: string
