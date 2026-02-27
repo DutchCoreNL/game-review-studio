@@ -586,6 +586,81 @@ export type Database = {
           },
         ]
       }
+      market_listings: {
+        Row: {
+          created_at: string
+          district_id: string
+          expires_at: string
+          good_id: string
+          id: string
+          price_per_unit: number
+          quantity: number
+          seller_id: string
+          seller_name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          district_id: string
+          expires_at?: string
+          good_id: string
+          id?: string
+          price_per_unit: number
+          quantity: number
+          seller_id: string
+          seller_name?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          district_id?: string
+          expires_at?: string
+          good_id?: string
+          id?: string
+          price_per_unit?: number
+          quantity?: number
+          seller_id?: string
+          seller_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      market_player_trades: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          district_id: string
+          good_id: string
+          id: string
+          price_per_unit: number
+          quantity: number
+          seller_id: string | null
+          trade_type: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          district_id: string
+          good_id: string
+          id?: string
+          price_per_unit: number
+          quantity: number
+          seller_id?: string | null
+          trade_type?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          district_id?: string
+          good_id?: string
+          id?: string
+          price_per_unit?: number
+          quantity?: number
+          seller_id?: string | null
+          trade_type?: string
+        }
+        Relationships: []
+      }
       market_prices: {
         Row: {
           buy_volume: number
@@ -1336,6 +1411,54 @@ export type Database = {
           turn?: number
           updated_at?: string
           winner_id?: string | null
+        }
+        Relationships: []
+      }
+      trade_offers: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          message: string | null
+          offer_cash: number
+          offer_goods: Json
+          receiver_id: string
+          receiver_name: string
+          request_cash: number
+          request_goods: Json
+          sender_id: string
+          sender_name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          offer_cash?: number
+          offer_goods?: Json
+          receiver_id: string
+          receiver_name?: string
+          request_cash?: number
+          request_goods?: Json
+          sender_id: string
+          sender_name?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          offer_cash?: number
+          offer_goods?: Json
+          receiver_id?: string
+          receiver_name?: string
+          request_cash?: number
+          request_goods?: Json
+          sender_id?: string
+          sender_name?: string
+          status?: string
         }
         Relationships: []
       }
