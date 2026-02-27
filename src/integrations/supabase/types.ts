@@ -67,6 +67,39 @@ export type Database = {
           },
         ]
       }
+      player_sanctions: {
+        Row: {
+          active: boolean
+          admin_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          reason: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          admin_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          admin_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
