@@ -15,6 +15,7 @@ interface SyncPayload {
   crew_size: number;
   karma: number;
   backstory: string | null;
+  prestige_level: number;
 }
 
 // Reasonable bounds for validation
@@ -26,6 +27,7 @@ const LIMITS = {
   districts_owned: { min: 0, max: 5 },
   crew_size: { min: 0, max: 20 },
   karma: { min: -100, max: 100 },
+  prestige_level: { min: 0, max: 10 },
 };
 
 function validate(data: unknown): { ok: true; data: SyncPayload } | { ok: false; error: string } {
@@ -41,7 +43,6 @@ function validate(data: unknown): { ok: true; data: SyncPayload } | { ok: false;
     if (val < bounds.min || val > bounds.max) {
       return { ok: false, error: `${key} out of range (${bounds.min}-${bounds.max})` };
     }
-    // Must be integer
     if (!Number.isInteger(val)) {
       return { ok: false, error: `${key} must be an integer` };
     }
@@ -65,6 +66,7 @@ function validate(data: unknown): { ok: true; data: SyncPayload } | { ok: false;
       crew_size: d.crew_size as number,
       karma: d.karma as number,
       backstory: (d.backstory as string | null),
+      prestige_level: d.prestige_level as number,
     },
   };
 }
@@ -75,7 +77,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get user from auth header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -84,7 +85,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create anon client to verify user token
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -101,7 +101,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse and validate payload
     const body = await req.json();
     const result = validate(body);
     if (!result.ok) {
@@ -111,10 +110,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use service role client for write (bypasses RLS)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get username from profile
     const { data: profile } = await adminClient
       .from("profiles")
       .select("username")
@@ -146,7 +143,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Anti-cheat: scores can only go up (rep, cash, day, level)
+    // Anti-cheat checks
     if (existing) {
       const { data: prev } = await adminClient
         .from("leaderboard_entries")
@@ -154,12 +151,9 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .single();
 
-      // Day should generally increase (allow reset for NG+)
-      // Rep and level should not decrease dramatically (allow small dips for game mechanics)
       if (prev) {
         const repDrop = prev.rep - result.data.rep;
         if (repDrop > 500 && result.data.day > 5) {
-          // Suspicious large rep drop outside early game
           console.warn(`Suspicious rep drop for ${user.id}: ${prev.rep} -> ${result.data.rep}`);
         }
       }
@@ -185,12 +179,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Bot scaling: scale all bots relative to top real player ---
+    // --- Bot scaling ---
     try {
-      // Find the highest real player stats from leaderboard
       const { data: topPlayer } = await adminClient
         .from("leaderboard_entries")
-        .select("rep, cash, day, level, districts_owned, crew_size")
+        .select("rep, cash, day, level, districts_owned, crew_size, prestige_level")
         .order("rep", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -208,9 +201,9 @@ Deno.serve(async (req) => {
           const maxDay = topPlayer.day;
           const maxDistricts = topPlayer.districts_owned;
           const maxCrew = topPlayer.crew_size;
+          const maxPrestige = topPlayer.prestige_level || 0;
 
           for (const bot of bots) {
-            // Each bot gets a random fraction (40-95%) of the top player's stats
             const frac = 0.4 + Math.random() * 0.55;
             const botLevel = Math.max(1, Math.min(maxLvl, Math.floor(maxLvl * frac)));
             const botRep = Math.max(0, Math.floor(maxRep * frac * (0.8 + Math.random() * 0.2)));
@@ -219,6 +212,7 @@ Deno.serve(async (req) => {
             const botDistricts = Math.min(maxDistricts, Math.floor(maxDistricts * frac));
             const botCrew = Math.min(maxCrew, Math.floor(maxCrew * frac + Math.random() * 2));
             const botHp = 80 + botLevel * 5;
+            const botPrestige = frac > 0.7 ? Math.min(maxPrestige, Math.floor(maxPrestige * frac)) : 0;
 
             await adminClient
               .from("bot_players")
@@ -231,6 +225,7 @@ Deno.serve(async (req) => {
                 crew_size: botCrew,
                 hp: botHp,
                 max_hp: botHp,
+                prestige_level: botPrestige,
               })
               .eq("id", bot.id);
           }
