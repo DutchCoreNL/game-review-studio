@@ -222,7 +222,9 @@ type GameAction =
   // PvP Turn-Based Combat
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
   | { type: 'PVP_COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'skill' | 'combo_finisher'; skillId?: string }
-  | { type: 'END_PVP_COMBAT' };
+  | { type: 'END_PVP_COMBAT' }
+  // Skill Tree actions
+  | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -2595,6 +2597,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
         s.activePvPCombat = null;
       }
+      return s;
+    }
+
+    case 'SYNC_SKILLS': {
+      s.unlockedSkills = action.skills;
+      s.player.skillPoints = action.skillPoints;
       return s;
     }
 

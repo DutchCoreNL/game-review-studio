@@ -1802,6 +1802,10 @@ export function createInitialState(): import('./types').GameState {
     tickIntervalMinutes: 30,
     gangDistricts: [],
     gangId: null,
+    // Skill Tree & Prestige
+    unlockedSkills: [],
+    prestigeLevel: 0,
+    xpStreak: 0,
   };
 }
 
