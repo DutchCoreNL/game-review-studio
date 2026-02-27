@@ -10,6 +10,7 @@ import { useFactionState } from '@/hooks/useFactionState';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert, Users, Trophy, Timer } from 'lucide-react';
 import { useState } from 'react';
+import { PlayerDetailPopup } from '../PlayerDetailPopup';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
   Handshake: <Handshake size={14} />,
@@ -35,6 +36,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
   const { state, dispatch, showToast, setView } = useGame();
   const { factions, usernameMap } = useFactionState();
   const [expanded, setExpanded] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   
   // Get MMO faction state from server
   const mmoFaction = factions[familyId];
@@ -164,6 +166,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
   };
 
   return (
+    <>
     <motion.div
       className={`game-card overflow-hidden transition-all`}
       style={{ borderLeft: `3px solid ${conquered ? 'hsl(var(--gold))' : dead ? '#444' : fam.color}` }}
@@ -320,7 +323,12 @@ export function FactionCard({ familyId }: FactionCardProps) {
                               <span className={`w-4 text-center font-bold ${i === 0 ? 'text-gold' : i === 1 ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
                                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                               </span>
-                              <span className="flex-1 truncate text-muted-foreground">{usernameMap[uid] || uid.slice(0, 8) + '...'}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedPlayerId(uid); }}
+                                className="flex-1 truncate text-left text-gold/80 hover:text-gold hover:underline transition-colors cursor-pointer"
+                              >
+                                {usernameMap[uid] || uid.slice(0, 8) + '...'}
+                              </button>
                               <span className="font-bold">{dmg as number} dmg</span>
                             </div>
                           ))}
@@ -545,5 +553,13 @@ export function FactionCard({ familyId }: FactionCardProps) {
         )}
       </AnimatePresence>
     </motion.div>
+
+    {selectedPlayerId && (
+      <PlayerDetailPopup
+        userId={selectedPlayerId}
+        onClose={() => setSelectedPlayerId(null)}
+      />
+    )}
+    </>
   );
 }
