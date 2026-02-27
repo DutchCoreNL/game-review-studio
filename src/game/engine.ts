@@ -12,7 +12,7 @@ import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
-import { getWeekEventXpMultiplier } from './weekEvents';
+import { getWeekEventXpMultiplier, isHeatFreezeActive } from './weekEvents';
 
 // localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
@@ -170,6 +170,8 @@ export function getActiveVehicleHeat(state: GameState): number {
 }
 
 export function addVehicleHeat(state: GameState, amount: number): void {
+  // During heat freeze events, block heat gains (reductions still apply)
+  if (amount > 0 && isHeatFreezeActive(state)) return;
   const v = state.ownedVehicles.find(v => v.id === state.activeVehicle);
   if (v) {
     v.vehicleHeat = Math.max(0, Math.min(100, (v.vehicleHeat || 0) + amount));
@@ -177,6 +179,8 @@ export function addVehicleHeat(state: GameState, amount: number): void {
 }
 
 export function addPersonalHeat(state: GameState, amount: number): void {
+  // During heat freeze events, block heat gains (reductions still apply)
+  if (amount > 0 && isHeatFreezeActive(state)) return;
   state.personalHeat = Math.max(0, Math.min(100, (state.personalHeat || 0) + amount));
 }
 
