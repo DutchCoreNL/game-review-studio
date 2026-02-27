@@ -151,7 +151,6 @@ type GameAction =
   | { type: 'DISMISS_FLASHBACK' }
   // Hitman & Ammo actions
   | { type: 'BUY_AMMO'; packId: string; ammoType: import('../game/types').AmmoType }
-  | { type: 'LOAD_AMMO_FROM_INVENTORY'; goodId: string; quantity?: number }
   | { type: 'EXECUTE_HIT'; hitId: string }
   | { type: 'CRUSH_CAR'; carId: string }
   // Prison actions
@@ -1866,30 +1865,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= pack.cost;
       s.stats.totalSpent += pack.cost;
       s.ammoStock[aType] = Math.min(99, (s.ammoStock[aType] || 0) + pack.amount);
-      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
-      return s;
-    }
-
-    case 'LOAD_AMMO_FROM_INVENTORY': {
-      // Convert ammo goods from market inventory into ammoStock
-      const ammoGoodMap: Record<string, import('@/game/types').AmmoType> = {
-        'ammo_9mm': '9mm',
-        'ammo_762': '7.62mm',
-        'ammo_shells': 'shells',
-      };
-      const ammoTypeForGood = ammoGoodMap[action.goodId];
-      if (!ammoTypeForGood) return s;
-      const qty = action.quantity || (s.inventory[action.goodId as GoodId] || 0);
-      if (qty <= 0) return s;
-      const available = s.inventory[action.goodId as GoodId] || 0;
-      const toLoad = Math.min(qty, available);
-      if (toLoad <= 0) return s;
-      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
-      const currentStock = s.ammoStock[ammoTypeForGood] || 0;
-      const canLoad = Math.min(toLoad, 99 - currentStock);
-      if (canLoad <= 0) return s;
-      s.inventory[action.goodId as GoodId] = available - canLoad;
-      s.ammoStock[ammoTypeForGood] = currentStock + canLoad;
       s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
       return s;
     }

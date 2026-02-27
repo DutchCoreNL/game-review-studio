@@ -249,15 +249,8 @@ export function generatePrices(state: GameState): void {
       
       // Apply market event effects
       const eventMod = eventEffects[g.id as GoodId] || 1.0;
-
-      // Apply week event ammo price modifier for ammo goods
-      let ammoPriceMod = 1.0;
-      if (g.id.startsWith('ammo_')) {
-        const { getWeekEventAmmoPriceMult } = require('./weekEvents');
-        ammoPriceMod = getWeekEventAmmoPriceMult(state) / 100;
-      }
       
-      state.prices[id][g.id] = Math.floor(g.base * volatility * DISTRICTS[id].mods[g.id as GoodId] * demandMod * pressureMod * eventMod * ammoPriceMod);
+      state.prices[id][g.id] = Math.floor(g.base * volatility * DISTRICTS[id].mods[g.id as GoodId] * demandMod * pressureMod * eventMod);
       state.priceTrends[g.id] = Math.random() > 0.5 ? 'up' : 'down';
     });
     
@@ -1286,11 +1279,7 @@ export function endTurn(state: GameState): NightReportData {
     ensureAmmoStock(state);
     const factoryLevel = state.ammoFactoryLevel || 1;
     const upgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === factoryLevel);
-    let produced = upgrade?.production || AMMO_FACTORY_DAILY_PRODUCTION;
-    // Week event: ammo production modifier (blockade/smuggle)
-    const { getWeekEventAmmoProductionMult } = require('./weekEvents');
-    const ammoProductionMult = getWeekEventAmmoProductionMult(state);
-    produced = Math.max(1, Math.floor(produced * ammoProductionMult / 100));
+    const produced = upgrade?.production || AMMO_FACTORY_DAILY_PRODUCTION;
     const ammoType = getActiveAmmoType(state);
     const oldVal = state.ammoStock[ammoType] || 0;
     state.ammoStock[ammoType] = Math.min(99, oldVal + produced);
