@@ -1272,6 +1272,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'noxcrystal_first', name: 'NoxCrystal Pionier', desc: 'Produceer je eerste NoxCrystal', icon: 'Gem', condition: (s) => (s.drugEmpire?.noxCrystalProduced || 0) >= 1, progress: (s) => ({ current: Math.min(s.drugEmpire?.noxCrystalProduced || 0, 1), target: 1 }) },
   { id: 'dealer_mogul', name: 'Dealer Mogul', desc: 'Verdien €100.000 via dealers', icon: 'TrendingUp', condition: (s) => (s.drugEmpire?.totalDealerIncome || 0) >= 100000, progress: (s) => ({ current: Math.min(s.drugEmpire?.totalDealerIncome || 0, 100000), target: 100000 }) },
   { id: 'dea_survivor', name: 'DEA Overlever', desc: 'Overleef een DEA onderzoek', icon: 'ShieldAlert', condition: (s) => (s.drugEmpire?.totalDeaInvestigations || 0) >= 1, progress: (s) => ({ current: Math.min(s.drugEmpire?.totalDeaInvestigations || 0, 1), target: 1 }) },
+  // Prestige-only achievements
+  { id: 'prestige_1', name: 'Herboren', desc: 'Bereik Prestige 1', icon: 'Shield', condition: (s) => (s.prestigeLevel || 0) >= 1, progress: (s) => ({ current: Math.min(s.prestigeLevel || 0, 1), target: 1 }) },
+  { id: 'prestige_2', name: 'Veteraan Elite', desc: 'Bereik Prestige 2', icon: 'Zap', condition: (s) => (s.prestigeLevel || 0) >= 2, progress: (s) => ({ current: Math.min(s.prestigeLevel || 0, 2), target: 2 }) },
+  { id: 'prestige_3', name: 'Legende', desc: 'Bereik Prestige 3 — Legendarische status', icon: 'Crown', condition: (s) => (s.prestigeLevel || 0) >= 3, progress: (s) => ({ current: Math.min(s.prestigeLevel || 0, 3), target: 3 }) },
+  { id: 'prestige_4', name: 'Eeuwig', desc: 'Bereik Prestige 4 — De stad vergeet je nooit', icon: 'Flame', condition: (s) => (s.prestigeLevel || 0) >= 4, progress: (s) => ({ current: Math.min(s.prestigeLevel || 0, 4), target: 4 }) },
+  { id: 'prestige_5', name: 'Onsterfelijk', desc: 'Bereik Prestige 5 — Godstatus in Noxhaven', icon: 'Skull', condition: (s) => (s.prestigeLevel || 0) >= 5, progress: (s) => ({ current: Math.min(s.prestigeLevel || 0, 5), target: 5 }) },
 ];
 
 export const BET_PRESETS = [100, 500, 1000, 5000];
