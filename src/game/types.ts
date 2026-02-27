@@ -1122,6 +1122,7 @@ export interface GameState {
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
   _completedArcFlashbackId?: string;
+  _pendingXpGains: { amount: number; source: string }[]; // queued for server-side processing
 }
 
 // ========== MARKET ALERT TYPES ==========

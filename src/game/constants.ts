@@ -1806,6 +1806,7 @@ export function createInitialState(): import('./types').GameState {
     unlockedSkills: [],
     prestigeLevel: 0,
     xpStreak: 0,
+    _pendingXpGains: [],
   };
 }
 
