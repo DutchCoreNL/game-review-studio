@@ -185,6 +185,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Bot scaling: scale all bots relative to top real player ---
+    try {
+      // Find the highest real player stats from leaderboard
+      const { data: topPlayer } = await adminClient
+        .from("leaderboard_entries")
+        .select("rep, cash, day, level, districts_owned, crew_size")
+        .order("rep", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (topPlayer && topPlayer.level >= 2) {
+        const { data: bots } = await adminClient
+          .from("bot_players")
+          .select("id, level")
+          .eq("is_active", true);
+
+        if (bots && bots.length > 0) {
+          const maxLvl = topPlayer.level;
+          const maxRep = topPlayer.rep;
+          const maxCash = Number(topPlayer.cash);
+          const maxDay = topPlayer.day;
+          const maxDistricts = topPlayer.districts_owned;
+          const maxCrew = topPlayer.crew_size;
+
+          for (const bot of bots) {
+            // Each bot gets a random fraction (40-95%) of the top player's stats
+            const frac = 0.4 + Math.random() * 0.55;
+            const botLevel = Math.max(1, Math.min(maxLvl, Math.floor(maxLvl * frac)));
+            const botRep = Math.max(0, Math.floor(maxRep * frac * (0.8 + Math.random() * 0.2)));
+            const botCash = Math.max(500, Math.floor(maxCash * frac * (0.5 + Math.random() * 0.5)));
+            const botDay = Math.max(1, Math.floor(maxDay * frac));
+            const botDistricts = Math.min(maxDistricts, Math.floor(maxDistricts * frac));
+            const botCrew = Math.min(maxCrew, Math.floor(maxCrew * frac + Math.random() * 2));
+            const botHp = 80 + botLevel * 5;
+
+            await adminClient
+              .from("bot_players")
+              .update({
+                level: botLevel,
+                rep: botRep,
+                cash: botCash,
+                day: botDay,
+                districts_owned: botDistricts,
+                crew_size: botCrew,
+                hp: botHp,
+                max_hp: botHp,
+              })
+              .eq("id", bot.id);
+          }
+        }
+      }
+    } catch (scaleErr) {
+      console.error("Bot scaling error (non-fatal):", scaleErr);
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
