@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/hooks/useAuth';
 import { gameApi } from '@/lib/gameApi';
+import { PvPPlayerInfo } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -9,18 +10,13 @@ import { StatBar } from './ui/StatBar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User } from 'lucide-react';
+import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User, Eye } from 'lucide-react';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
 import { Mail } from 'lucide-react';
 import { MessagesComposePopup } from './MessagesComposePopup';
+import { PvPCombatView } from './PvPCombatView';
 
-interface PlayerTarget {
-  userId: string;
-  username: string;
-  level: number;
-  hp: number;
-  maxHp: number;
-}
+interface PlayerTarget extends PvPPlayerInfo {}
 
 interface AttackResult {
   won: boolean;
@@ -34,7 +30,7 @@ interface AttackResult {
 }
 
 export function PvPAttackView() {
-  const { state, showToast } = useGame();
+  const { state, dispatch, showToast } = useGame();
   const { user } = useAuth();
   const [players, setPlayers] = useState<PlayerTarget[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,8 +39,28 @@ export function PvPAttackView() {
   const [lastResult, setLastResult] = useState<AttackResult | null>(null);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [messageTarget, setMessageTarget] = useState<{ userId: string; username: string } | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<PlayerTarget | null>(null);
 
   const fetchPlayers = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await gameApi.listPlayers();
+      if (res.success && res.data?.players) {
+        setPlayers(res.data.players);
+      }
+    } catch {
+      showToast('Kon spelers niet laden.', true);
+    }
+    setLoading(false);
+  }, [user, showToast]);
+
+  useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
+
+  // If active PvP combat, show combat view
+  if (state.activePvPCombat) {
+    return <PvPCombatView />;
+  }
     if (!user) return;
     setLoading(true);
     try {

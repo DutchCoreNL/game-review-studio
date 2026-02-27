@@ -1784,6 +1784,8 @@ export function createInitialState(): import('./types').GameState {
     // Trade log state
     tradeLog: [],
     craftLog: [],
+    // PvP combat state
+    activePvPCombat: null,
     // MMO server state
     energy: 100,
     maxEnergy: 100,

@@ -560,6 +560,88 @@ export interface CombatState {
   conquestPhase?: 1 | 2; // faction conquest sub-boss phase
 }
 
+// ========== COMBAT SKILL TYPES ==========
+
+export interface CombatSkill {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  unlockLevel: number;
+  cooldownTurns: number;
+  energyCost: number;
+  effect: CombatSkillEffect;
+}
+
+export interface CombatSkillEffect {
+  type: 'damage' | 'buff' | 'heal_and_buff' | 'multi_hit' | 'crit' | 'stun' | 'execute' | 'emergency_heal';
+  value?: number;
+  bonus?: string;
+  buffId?: string;
+  duration?: number;
+  healAmount?: number;
+  hits?: number;
+  damagePerHit?: number;
+  multiplier?: number;
+  chance?: number;
+  stat?: string;
+  thresholdPct?: number;
+  bonusDamage?: number;
+}
+
+export interface CombatBuff {
+  id: string;
+  name: string;
+  duration: number;
+  effect: string;
+}
+
+// ========== PVP TURN-BASED COMBAT STATE ==========
+
+export interface PvPCombatState {
+  attackerId: string;
+  attackerName: string;
+  attackerHP: number;
+  attackerMaxHP: number;
+  attackerLevel: number;
+  attackerStats: { muscle: number; brains: number; charm: number };
+  attackerLoadout: Record<string, string | null>;
+  attackerBuffs: CombatBuff[];
+  attackerSkillCooldowns: Record<string, number>;
+  attackerComboCounter: number;
+  defenderId: string;
+  defenderName: string;
+  defenderHP: number;
+  defenderMaxHP: number;
+  defenderLevel: number;
+  defenderStats: { muscle: number; brains: number; charm: number };
+  defenderLoadout: Record<string, string | null>;
+  defenderBuffs: CombatBuff[];
+  defenderComboCounter: number;
+  turn: number;
+  logs: string[];
+  finished: boolean;
+  won: boolean;
+  lastAction: string | null;
+  damageDealt: number;
+  damageTaken: number;
+  skillsUsed: number;
+  combosLanded: number;
+}
+
+export interface PvPPlayerInfo {
+  userId: string;
+  username: string;
+  level: number;
+  hp: number;
+  maxHp: number;
+  stats?: { muscle: number; brains: number; charm: number };
+  loadout?: Record<string, string | null>;
+  backstory?: string;
+  rep?: number;
+  isBot?: boolean;
+}
+
 export interface Achievement {
   id: string;
   name: string;
@@ -1003,6 +1085,9 @@ export interface GameState {
     context: string;
     rewards: { money?: number; rep?: number; heat?: number };
   } | null;
+
+  // ========== PVP TURN-BASED COMBAT STATE ==========
+  activePvPCombat: PvPCombatState | null;
 
   // ========== MMO SERVER STATE ==========
   energy: number;

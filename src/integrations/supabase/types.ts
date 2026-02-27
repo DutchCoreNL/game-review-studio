@@ -1094,6 +1094,48 @@ export type Database = {
         }
         Relationships: []
       }
+      pvp_combat_sessions: {
+        Row: {
+          attacker_id: string
+          attacker_state: Json
+          combat_log: Json
+          created_at: string
+          defender_id: string
+          defender_state: Json
+          id: string
+          status: string
+          turn: number
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          attacker_id: string
+          attacker_state?: Json
+          combat_log?: Json
+          created_at?: string
+          defender_id: string
+          defender_state?: Json
+          id?: string
+          status?: string
+          turn?: number
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          attacker_id?: string
+          attacker_state?: Json
+          combat_log?: Json
+          created_at?: string
+          defender_id?: string
+          defender_state?: Json
+          id?: string
+          status?: string
+          turn?: number
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
