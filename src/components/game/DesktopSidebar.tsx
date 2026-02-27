@@ -7,7 +7,7 @@ import {
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings,
-  ShieldAlert, LucideIcon, Phone, Newspaper,
+  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
@@ -74,12 +74,14 @@ const CATEGORIES: Category[] = [
       { id: 'business', label: 'Business', icon: Store },
       { id: 'garage', label: 'Garage', icon: Car },
       { id: 'districts', label: 'Wijken', icon: MapPin },
+      { id: 'properties', label: 'Vastgoed', icon: Home },
     ],
   },
   {
     label: 'PROFIEL', icon: '👤',
     items: [
       { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
+      { id: 'education', label: 'Educatie', icon: GraduationCap },
       { id: 'loadout', label: 'Loadout', icon: Shield },
       { id: 'contacts', label: 'NPC Relaties', icon: Users },
       { id: 'reputation', label: 'Reputatie', icon: Star },
