@@ -44,7 +44,7 @@ export function GameNav() {
   }, [state.activeContracts, state.hitContracts, state.crew, state.carOrders, state.day, state.districtDemands, state.pendingStreetEvent, state.nightReport]);
 
   return (
-    <nav className="flex-shrink-0 h-[60px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
+    <nav className="flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
       {NAV_ITEMS.map(item => {
         const isActive = view === item.id;
         const Icon = item.icon;
@@ -53,7 +53,7 @@ export function GameNav() {
           <button
             key={item.id}
             onClick={() => { playNavClick(); setView(item.id); }}
-            className={`flex flex-col items-center gap-0.5 text-[0.55rem] font-semibold transition-all duration-200 px-3 py-1.5 min-w-[56px] relative ${
+            className={`flex flex-col items-center gap-0.5 text-[0.6rem] font-semibold transition-all duration-200 px-4 py-2 min-w-[60px] min-h-[44px] relative ${
               isActive ? 'text-gold' : 'text-muted-foreground'
             }`}
           >

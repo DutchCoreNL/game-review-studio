@@ -40,6 +40,7 @@ import { WeekEventBanner } from './WeekEventBanner';
 import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { SanctionBanner } from './SanctionBanner';
+import { DesktopSidebar } from './DesktopSidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -96,54 +97,64 @@ export function GameLayout() {
 
   return (
     <ScreenEffects effect={state.screenEffect} onDone={clearEffect}>
-      <div className="noise-overlay vignette flex flex-col h-[100dvh] max-w-[600px] mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl w-full">
-        <GameHeader />
+      <div className="noise-overlay vignette flex h-[100dvh] w-full bg-background relative overflow-hidden">
+        {/* Desktop sidebar - hidden on mobile */}
+        <DesktopSidebar />
 
-        <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
-          <SanctionBanner />
-          <WeekEventBanner />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={state.activeCombat ? 'combat' : view}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
-            >
-              <ViewComponent />
-            </motion.div>
-          </AnimatePresence>
-        </main>
+        {/* Main game column */}
+        <div className="flex flex-col flex-1 max-w-[600px] lg:max-w-none mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl">
+          <GameHeader />
 
-        <GameNav />
-        <GameToast />
+          <main className="flex-1 overflow-y-auto pb-2 px-4 lg:px-6 pt-2 game-scroll">
+            <SanctionBanner />
+            <WeekEventBanner />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={state.activeCombat ? 'combat' : view}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="lg:max-w-[900px] lg:mx-auto"
+              >
+                <ViewComponent />
+              </motion.div>
+            </AnimatePresence>
+          </main>
 
-        {!state.tutorialDone && <TutorialOverlay />}
-        {state.nightReport && <NightReport />}
-        {state.activeMission && <MissionEncounterView />}
-        {state.showPhone && <PhoneOverlay />}
-        {state.pendingSpecChoice && <CrewSpecPopup />}
-        {state.pendingCrewEvent && <CrewEventPopup />}
-        {state.victoryData && <VictoryScreen />}
-        {!state.prison && state.pendingStreetEvent && <StoryEventPopup />}
-        {!state.prison && state.pendingArcEvent && <StoryArcEvent />}
-        {!state.prison && state.pendingCarTheft && <CarTheftPopup />}
-        {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
-        {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
-        {state.prison && <PrisonOverlay />}
-        {state.hospital && <HospitalStayOverlay />}
-        {!state.prison && state.pendingWarEvent && <WarEventPopup />}
-        {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
-        <FinalBossAlert />
-        <AchievementPopup />
-        {(state as any).pendingNpcEvent && <NpcEventPopup />}
-        {state.pendingBountyEncounter && <BountyEncounterPopup />}
-        {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
-        {state.gameOver && <GameOverScreen />}
-        {state.pendingCinematic && <CinematicOverlay />}
-        {state.backstory === null && state.tutorialDone && (
-          <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
-        )}
+          {/* Bottom nav - mobile only */}
+          <div className="lg:hidden">
+            <GameNav />
+          </div>
+          <GameToast />
+
+          {!state.tutorialDone && <TutorialOverlay />}
+          {state.nightReport && <NightReport />}
+          {state.activeMission && <MissionEncounterView />}
+          {state.showPhone && <PhoneOverlay />}
+          {state.pendingSpecChoice && <CrewSpecPopup />}
+          {state.pendingCrewEvent && <CrewEventPopup />}
+          {state.victoryData && <VictoryScreen />}
+          {!state.prison && state.pendingStreetEvent && <StoryEventPopup />}
+          {!state.prison && state.pendingArcEvent && <StoryArcEvent />}
+          {!state.prison && state.pendingCarTheft && <CarTheftPopup />}
+          {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
+          {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
+          {state.prison && <PrisonOverlay />}
+          {state.hospital && <HospitalStayOverlay />}
+          {!state.prison && state.pendingWarEvent && <WarEventPopup />}
+          {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
+          <FinalBossAlert />
+          <AchievementPopup />
+          {(state as any).pendingNpcEvent && <NpcEventPopup />}
+          {state.pendingBountyEncounter && <BountyEncounterPopup />}
+          {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
+          {state.gameOver && <GameOverScreen />}
+          {state.pendingCinematic && <CinematicOverlay />}
+          {state.backstory === null && state.tutorialDone && (
+            <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
+          )}
+        </div>
       </div>
     </ScreenEffects>
   );
