@@ -641,6 +641,7 @@ export interface PvPCombatState {
   damageTaken: number;
   skillsUsed: number;
   combosLanded: number;
+  attackerPvpDamageBonus?: number;
 }
 
 export interface PvPPlayerInfo {

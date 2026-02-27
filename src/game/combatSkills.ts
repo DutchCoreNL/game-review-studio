@@ -273,6 +273,11 @@ export function pvpCombatTurn(
     s.attackerComboCounter++;
   }
 
+  // MMO Perk: Weduwnaar PvP damage bonus
+  if (s.attackerPvpDamageBonus && playerDamage > 0) {
+    playerDamage = Math.floor(playerDamage * (1 + s.attackerPvpDamageBonus));
+  }
+
   // Apply damage
   s.defenderHP = Math.max(0, s.defenderHP - playerDamage);
   s.damageDealt += playerDamage;
