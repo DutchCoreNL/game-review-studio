@@ -1,79 +1,100 @@
 
 
-# Plan: MMO Gevechtssysteem Upgrade
+# Analyse: Singleplayer functies die verbeterd moeten worden voor MMO
 
-## Overzicht
-Het huidige PvP-systeem is een 1-klik aanval via de server. We upgraden dit naar een volledig turn-based PvP gevecht met skills, combo's, gear-zichtbaarheid en geanimeerde combat logs — vergelijkbaar met het bestaande PvE boss-systeem.
+Na een grondige audit van de volledige codebase heb ik een duidelijk patroon gevonden: het spel heeft een **hybride architectuur** waarbij sommige systemen al via de server-side edge function draaien (trade, travel, solo ops, PvP, gangs, messaging, bounties) maar veel kernfuncties nog **puur client-side** werken via de lokale `GameContext` reducer en `localStorage`. Dit creëert inconsistentie en potentieel voor cheating.
 
-## 1. Combat Skills & Combo Systeem
+## Problematische singleplayer systemen
 
-### Nieuwe types (`src/game/types.ts`)
-- `CombatSkill` interface: id, name, desc, icon, unlockLevel, cooldownTurns, energyCost, effect (damage/heal/stun/buff/debuff)
-- `CombatBuff` interface: id, name, duration, effect (damageBoost/defenseBoost/regen/bleed)
-- Uitbreiding `CombatState`: activeBuffs[], skillCooldowns{}, comboCounter, lastAction
+### 1. Casino (volledig client-side, geen server-validatie)
+- Blackjack, Roulette, Slots, High-Low en Russian Roulette draaien volledig in de browser
+- Spelers kunnen via devtools hun geld manipuleren of winsten faken
+- **Verbetering**: Server-side casino sessies met seed-based RNG, anti-exploit limieten
 
-### Skill definities (`src/game/combatSkills.ts` — nieuw bestand)
-- **Level 1-5**: Snelle Slag (bonus dmg), Schild Muur (50% defense 2 turns)
-- **Level 6-10**: Adrenaline Rush (heal + dmg boost), Vuistcombo (3-hit chain)
-- **Level 11-15**: Dodelijke Precisie (crit guaranteed), Intimidatie (charm-based stun)
-- **Level 16+**: Executie (bonus dmg op lage HP targets), Laatste Adem (auto-heal bij <20% HP)
-- **Combo systeem**: 3 opeenvolgende aanvallen → combo meter vult → combo finisher unlocked (extra schade + stun)
+### 2. Heists (volledig client-side)
+- Planning, recon, equipment, uitvoering en beloningen worden allemaal lokaal berekend
+- Geen validatie dat de speler daadwerkelijk de juiste gear/crew/level heeft
+- **Verbetering**: Server-side heist sessies met gevalideerde fasen en beloningen
 
-## 2. PvP Turn-Based Gevecht
+### 3. Contract/Missie systeem (client-side)
+- `EXECUTE_CONTRACT` en het complete missiesysteem (briefing, encounters, keuzes) zijn client-only
+- Contractbeloningen, XP en rep worden lokaal toegekend zonder server-check
+- **Verbetering**: Server-side contract executie met gevalideerde beloningen
 
-### Edge Function (`game-action/index.ts`)
-- Nieuwe action: `pvp_combat_start` — creëert een `pvp_combat_sessions` record met beide spelers' stats
-- Nieuwe action: `pvp_combat_action` — verwerkt een turn (attack/heavy/defend/skill), berekent schade, update session
-- Bot-tegenstanders worden lokaal gesimuleerd (AI kiest random acties met weging op basis van HP)
-- Real-player PvP: async turn-based — aanvaller vecht tegen een snapshot van de verdediger (geen wachttijd nodig)
+### 4. Faction/Conquest systeem (client-side)
+- Faction relations, conquest phases, alliance pacts - allemaal lokaal
+- Spelers kunnen facties "veroveren" zonder server-validatie
+- **Verbetering**: Server-side faction state die gedeeld is tussen alle spelers
 
-### Database migratie
-- Nieuwe tabel `pvp_combat_sessions`: id, attacker_id, defender_id, attacker_state (jsonb), defender_state (jsonb), combat_log (jsonb[]), status, winner_id, created_at
-- RLS: spelers lezen eigen sessies
+### 5. Villa & Drug Empire (client-side)
+- Villa aankoop, modules, productie, dealers, NoxCrystal - volledig lokaal
+- Passieve inkomsten worden client-side berekend (manipuleerbaar)
+- **Verbetering**: Server-side villa state en productie via passive-income edge function
 
-## 3. Gear & Stats Zichtbaarheid
+### 6. Hitman/Bounty systeem (hybride, inconsistent)
+- Server-side bounties op spelers bestaan al, maar singleplayer hit contracts zijn puur lokaal
+- **Verbetering**: Hit contracts via server valideren (energy/nerve check, cooldown)
 
-### Pre-combat scherm (`PvPCombatPreview` component)
-- Toon voor het gevecht begint: beide spelers naast elkaar
-- Per speler: username, level, HP bar, uitgeruste weapon/armor/gadget met iconen
-- Stats vergelijking: Muscle/Brains/Charm als bar-vergelijking
-- Combat power schatting met breakdown
-- "VECHT" knop om het gevecht te starten
+### 7. Car Theft & Chop Shop (client-side)
+- Autodiefstal, omkatten, upgraden, verkopen - allemaal lokaal
+- **Verbetering**: Server-side gestolen auto registry (voorkomt duplicatie/exploits)
 
-### Aanpassing `handleListPlayers`
-- Return extra velden: loadout gear IDs, stats object, backstory, rep — zodat het preview-scherm deze kan tonen
+### 8. Corruption Network (client-side)
+- Corrupte contacten (rechter, advocaat, douane) worden lokaal beheerd
+- **Verbetering**: Server-side contact state met maandelijkse kosten via passive-income
 
-## 4. Combat Log & Animaties
+### 9. Day Progression / Night Report (client-side AUTO_TICK)
+- De kernloop van het spel (dag wisselen, passieve inkomsten, events) draait via een client-side timer
+- Dit is het grootste probleem: spelers kunnen de klok manipuleren
+- **Verbetering**: Server-side tick via de bestaande `passive-income` edge function
 
-### Nieuwe `PvPCombatView` component
-- Hergebruikt `AnimatedHPBar`, `TypewriterText`, `CombatAction` uit bestaande CombatView
-- **Skill buttons**: grid met 4 basis-acties + unlocked skills als extra rij
-- **Combo meter**: visuele balk die vult bij opeenvolgende aanvallen
-- **Buff/debuff indicators**: kleine iconen naast HP bars
-- **Schade popups**: floating damage numbers bij hits (motion.div met fade-up)
-- **Screen effects**: shake bij heavy hits, gold-flash bij crit, blood-flash bij grote schade
-- **Turn indicator**: "BEURT 3" banner met animatie
-- **Skill cooldown overlay**: grijze overlay + countdown op skills in cooldown
+### 10. Nemesis systeem (client-side)
+- De hele rivaal AI (spawn, combat, wraakacties, defeat choices) is lokaal
+- In een MMO zou de nemesis gedeeld of persistent moeten zijn
+- **Verbetering**: Nemesis state opslaan in DB, wraakacties via passive-income verwerken
 
-### Gevechtsresultaat
-- Uitgebreide resultaat-popup: totale schade gegeven/ontvangen, skills gebruikt, combo's bereikt, XP/geld/rep winst
-- Near-miss feedback (bestaand patroon)
+## Prioriteiten (impact vs. complexiteit)
 
-## Technische Aanpak
+```text
+Hoog impact, laag complex:
+├── Casino server-validatie (voorkomt geldexploits)
+├── Contract/Solo-op beloningen server-side valideren
+└── Villa passieve inkomsten via passive-income function
 
-### Bestanden wijzigen:
-1. `src/game/types.ts` — CombatSkill, CombatBuff types + CombatState uitbreiding
-2. `src/game/combatSkills.ts` — **nieuw** — skill definities + combo logica
-3. `src/game/engine.ts` — combatAction uitbreiden met skills, buffs, combo tracking
-4. `src/components/game/PvPAttackView.tsx` — pre-combat preview + redirect naar PvP combat
-5. `src/components/game/PvPCombatView.tsx` — **nieuw** — volledige turn-based PvP UI
-6. `src/components/game/CombatView.tsx` — skill buttons + combo meter toevoegen aan PvE
-7. `supabase/functions/game-action/index.ts` — pvp_combat_start/action handlers
-8. `src/game/reducers/combatHandlers.ts` — PvP combat dispatch handlers
-9. `src/contexts/GameContext.tsx` — nieuwe dispatch types voor PvP combat
-10. Database migratie voor `pvp_combat_sessions`
+Hoog impact, medium complex:
+├── Day progression naar server-side tick
+├── Faction conquest shared state
+└── Heist server-side sessies
 
-### Bestanden nieuw:
-- `src/game/combatSkills.ts`
-- `src/components/game/PvPCombatView.tsx`
+Medium impact:
+├── Car theft server registry
+├── Corruption network server state
+├── Hit contracts server-validatie
+└── Nemesis persistence
+```
+
+## Aanbevolen implementatievolgorde
+
+1. **Casino server-validatie** -- Nieuwe edge function actions: `casino_bet`, `casino_result` met server-side RNG seed. Voorkomt het grootste exploitrisico.
+
+2. **Passieve inkomsten centraliseren** -- De bestaande `passive-income` edge function uitbreiden met villa productie, business income, drug empire, heat decay. Dit vervangt de client-side `endTurn()`.
+
+3. **Contract/missie beloningen server-side** -- Nieuwe action `complete_contract` die crew, level, gear valideert en pas dan rewards toekent.
+
+4. **Faction state naar database** -- `faction_relations` tabel die gedeeld is. Conquest phases worden server-validated. Alliance pacts worden zichtbaar voor andere spelers.
+
+5. **Heist sessies server-side** -- Vergelijkbaar met PvP combat sessions: `heist_sessions` tabel met fase-tracking.
+
+6. **Villa/Drug Empire naar server** -- `player_villa` en `player_drug_empire` tabellen met server-side productie.
+
+7. **Overige systemen** -- Car theft registry, corruption contacts, nemesis persistence.
+
+## Technische aanpak per stap
+
+Elke stap volgt hetzelfde patroon:
+- Database migratie: nieuwe tabel(len) aanmaken
+- Edge function handler toevoegen aan `game-action/index.ts`
+- `gameApi.ts` uitbreiden met nieuwe action types
+- Client-side reducer aanpassen om server-response te gebruiken i.p.v. lokale berekening
+- Bestaande UI componenten hoeven nauwelijks te wijzigen (alleen de dispatch/API call laag)
 
