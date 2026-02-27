@@ -47,7 +47,7 @@ export function ConquestPopup() {
           <div className="p-4">
             <p className="text-xs text-muted-foreground mb-4">
               Met de leider uitgeschakeld ligt {fam.name} aan jouw voeten. 
-              Neem ze over als vazal en profiteer van hun middelen.
+              Neem ze over als vazal en profiteer 48 uur lang van hun middelen.
             </p>
 
             {/* Benefits preview */}

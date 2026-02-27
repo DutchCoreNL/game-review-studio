@@ -5,8 +5,10 @@ import { getFactionStatus, getFactionPerks, getPlayerStat, getConquestPhase, can
 import { FamilyId, FactionActionType } from '@/game/types';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
+import { CooldownTimer } from '../header/CooldownTimer';
+import { useFactionState } from '@/hooks/useFactionState';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert } from 'lucide-react';
+import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert, Users, Trophy, Timer } from 'lucide-react';
 import { useState } from 'react';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -31,7 +33,11 @@ interface FactionCardProps {
 
 export function FactionCard({ familyId }: FactionCardProps) {
   const { state, dispatch, showToast, setView } = useGame();
+  const { factions } = useFactionState();
   const [expanded, setExpanded] = useState(false);
+  
+  // Get MMO faction state from server
+  const mmoFaction = factions[familyId];
 
   const fam = FAMILIES[familyId];
   const rel = state.familyRel[familyId] || 0;
@@ -210,11 +216,37 @@ export function FactionCard({ familyId }: FactionCardProps) {
         </div>
       )}
 
-      {/* Conquered banner */}
+      {/* Conquered banner with countdown */}
       {conquered && (
-        <div className="mt-2 py-2 px-3 rounded bg-gold/10 border border-gold/20 text-center">
-          <p className="text-[0.55rem] font-bold text-gold uppercase tracking-wider">🏴 Vazalstaat — Onder jouw controle</p>
-          <p className="text-[0.45rem] text-muted-foreground mt-0.5">+€1.000/dag passief inkomen | Permanente marktkorting | Thuisdistrict bezit</p>
+        <div className="mt-2 py-2 px-3 rounded bg-gold/10 border border-gold/20">
+          <p className="text-[0.55rem] font-bold text-gold uppercase tracking-wider text-center">🏴 Vazalstaat — Tijdelijke Controle</p>
+          <p className="text-[0.45rem] text-muted-foreground mt-0.5 text-center">+€1.000/dag passief inkomen | Marktkorting | Thuisdistrict bezit</p>
+          {mmoFaction?.reset_at && (
+            <div className="mt-1.5 flex justify-center">
+              <CooldownTimer label="Reset" until={mmoFaction.reset_at} icon={<Timer size={7} />} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MMO Boss HP Bar (when not conquered) */}
+      {!conquered && mmoFaction && mmoFaction.boss_hp < mmoFaction.boss_max_hp && (
+        <div className="mt-2 bg-muted/30 rounded p-2 border border-border/50">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[0.45rem] font-bold text-blood uppercase tracking-wider">
+              <Skull size={8} className="inline mr-0.5" /> Boss HP
+            </span>
+            <span className="text-[0.5rem] font-bold">{mmoFaction.boss_hp}/{mmoFaction.boss_max_hp}</span>
+          </div>
+          <StatBar value={mmoFaction.boss_hp} max={mmoFaction.boss_max_hp} color="blood" height="sm" />
+          {mmoFaction.total_damage_dealt && Object.keys(mmoFaction.total_damage_dealt).length > 0 && (
+            <div className="flex items-center gap-1 mt-1">
+              <Users size={8} className="text-muted-foreground" />
+              <span className="text-[0.4rem] text-muted-foreground">
+                {Object.keys(mmoFaction.total_damage_dealt).length} spelers hebben aangevallen
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -247,13 +279,13 @@ export function FactionCard({ familyId }: FactionCardProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-[0.55rem]">
                     <CheckCircle size={12} className="text-gold" />
-                    <span className="text-gold font-bold">Alle voordelen actief</span>
+                    <span className="text-gold font-bold">Tijdelijke controle actief</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[0.5rem]">
                     <div className="bg-muted/50 rounded p-2 text-center">
                       <Banknote size={12} className="mx-auto text-gold mb-0.5" />
                       <span className="font-bold">+€1.000</span>
-                      <p className="text-muted-foreground text-[0.4rem]">per dag</p>
+                      <p className="text-muted-foreground text-[0.4rem]">per dag (48h)</p>
                     </div>
                     <div className="bg-muted/50 rounded p-2 text-center">
                       <Percent size={12} className="mx-auto text-emerald mb-0.5" />
@@ -271,6 +303,30 @@ export function FactionCard({ familyId }: FactionCardProps) {
                       <p className="text-muted-foreground text-[0.4rem]">thuisdistrict</p>
                     </div>
                   </div>
+
+                  {/* Damage Leaderboard */}
+                  {mmoFaction?.total_damage_dealt && Object.keys(mmoFaction.total_damage_dealt).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-1 mb-1.5">
+                        <Trophy size={10} className="text-gold" />
+                        <span className="text-[0.45rem] font-bold uppercase tracking-wider text-gold">Top Aanvallers</span>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(mmoFaction.total_damage_dealt)
+                          .sort(([, a], [, b]) => (b as number) - (a as number))
+                          .slice(0, 5)
+                          .map(([uid, dmg], i) => (
+                            <div key={uid} className="flex items-center gap-2 text-[0.5rem]">
+                              <span className={`w-4 text-center font-bold ${i === 0 ? 'text-gold' : i === 1 ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
+                                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                              </span>
+                              <span className="flex-1 truncate text-muted-foreground">{uid.slice(0, 8)}...</span>
+                              <span className="font-bold">{dmg as number} dmg</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

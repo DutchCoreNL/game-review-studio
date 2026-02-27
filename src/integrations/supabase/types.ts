@@ -204,12 +204,15 @@ export type Database = {
           conquered_by: string | null
           conquest_phase: string
           conquest_progress: number
+          conquest_reward_claimed: Json
           faction_id: string
           global_relation: number
           id: string
           last_attack_at: string | null
           last_attack_by: string | null
+          reset_at: string | null
           status: string
+          total_damage_dealt: Json
           updated_at: string
           vassal_owner_id: string | null
         }
@@ -220,12 +223,15 @@ export type Database = {
           conquered_by?: string | null
           conquest_phase?: string
           conquest_progress?: number
+          conquest_reward_claimed?: Json
           faction_id: string
           global_relation?: number
           id?: string
           last_attack_at?: string | null
           last_attack_by?: string | null
+          reset_at?: string | null
           status?: string
+          total_damage_dealt?: Json
           updated_at?: string
           vassal_owner_id?: string | null
         }
@@ -236,12 +242,15 @@ export type Database = {
           conquered_by?: string | null
           conquest_phase?: string
           conquest_progress?: number
+          conquest_reward_claimed?: Json
           faction_id?: string
           global_relation?: number
           id?: string
           last_attack_at?: string | null
           last_attack_by?: string | null
+          reset_at?: string | null
           status?: string
+          total_damage_dealt?: Json
           updated_at?: string
           vassal_owner_id?: string | null
         }

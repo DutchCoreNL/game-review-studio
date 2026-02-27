@@ -348,6 +348,61 @@ async function generateDailyDigests(supabase: any, completedDay: number, newWeat
   }
 }
 
+// ========== FACTION BOSS RESET ==========
+const FACTION_NAMES: Record<string, string> = {
+  cartel: 'Het Cartel', bikers: 'De Bikers', syndicate: 'Het Syndicaat',
+};
+
+async function resetConqueredFactions(supabase: any) {
+  try {
+    const { data: conquered } = await supabase
+      .from('faction_relations')
+      .select('faction_id, reset_at, conquered_by, total_damage_dealt')
+      .eq('status', 'vassal')
+      .not('reset_at', 'is', null);
+
+    if (!conquered || conquered.length === 0) return;
+
+    const now = new Date();
+    for (const f of conquered) {
+      if (!f.reset_at || new Date(f.reset_at) > now) continue;
+
+      // Reset faction
+      await supabase.from('faction_relations').update({
+        status: 'active',
+        boss_hp: 100,
+        boss_max_hp: 100,
+        conquest_phase: 'none',
+        conquest_progress: 0,
+        conquered_by: null,
+        conquered_at: null,
+        vassal_owner_id: null,
+        reset_at: null,
+        total_damage_dealt: {},
+        conquest_reward_claimed: [],
+        last_attack_by: null,
+        last_attack_at: null,
+        updated_at: now.toISOString(),
+      }).eq('faction_id', f.faction_id);
+
+      // Generate news
+      const name = FACTION_NAMES[f.faction_id] || f.faction_id;
+      await supabase.from('news_events').insert({
+        text: `${name} heeft zich hersteld en een nieuwe leider gekozen! De strijd kan opnieuw beginnen.`,
+        icon: '⚔️',
+        urgency: 'high',
+        category: 'faction',
+        detail: `Na 48 uur is ${name} weer op volle sterkte. Alle spelers kunnen opnieuw aanvallen.`,
+        expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+      });
+
+      console.log(`Faction ${f.faction_id} reset after 48h timer.`);
+    }
+  } catch (e) {
+    console.error('Faction reset error:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -411,8 +466,11 @@ Deno.serve(async (req) => {
       update.current_weather = weightedRandomWeather();
       update.weather_changed_at = new Date().toISOString();
 
-      // ========== GENERATE DAILY DIGESTS ==========
+    // ========== GENERATE DAILY DIGESTS ==========
       await generateDailyDigests(supabase, ws.world_day, update.current_weather);
+
+      // ========== FACTION BOSS RESET (48h timer) ==========
+      await resetConqueredFactions(supabase);
     }
 
     const { error: updateErr } = await supabase

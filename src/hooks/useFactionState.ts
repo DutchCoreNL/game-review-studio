@@ -15,6 +15,9 @@ export interface FactionState {
   global_relation: number;
   last_attack_by: string | null;
   last_attack_at: string | null;
+  reset_at: string | null;
+  total_damage_dealt: Record<string, number>;
+  conquest_reward_claimed: string[];
 }
 
 export function useFactionState() {

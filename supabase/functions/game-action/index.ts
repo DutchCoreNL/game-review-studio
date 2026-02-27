@@ -3928,27 +3928,57 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
     const newHp = Math.max(0, faction.boss_hp - damage);
     const phaseComplete = newHp <= 0;
 
+    // Track per-user damage in total_damage_dealt jsonb
+    const damageMap = faction.total_damage_dealt || {};
+    damageMap[userId] = (damageMap[userId] || 0) + damage;
+
     const updateData: any = {
       boss_hp: phaseComplete ? (phase === "leader" ? 0 : 100) : newHp,
       last_attack_by: userId,
       last_attack_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      total_damage_dealt: damageMap,
     };
 
     if (phaseComplete) {
       if (phase === "leader") {
-        // Faction conquered!
+        // Faction conquered! Set 48h reset timer
         updateData.status = "vassal";
         updateData.conquest_phase = "conquered";
         updateData.conquered_by = userId;
         updateData.conquered_at = new Date().toISOString();
         updateData.vassal_owner_id = userId;
         updateData.boss_hp = 0;
+        updateData.reset_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+        // Reward top-3 damage dealers
+        const sorted = Object.entries(damageMap as Record<string, number>)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3);
+        const rewards = [50000, 25000, 10000];
+        for (let i = 0; i < sorted.length; i++) {
+          const [dealerId] = sorted[i];
+          const reward = rewards[i] || 5000;
+          const repBonus = [50, 25, 10][i] || 5;
+          await supabase.from("player_state").update({
+            money: (await supabase.from("player_state").select("money").eq("user_id", dealerId).single()).data?.money + reward,
+            rep: (await supabase.from("player_state").select("rep").eq("user_id", dealerId).single()).data?.rep + repBonus,
+          }).eq("user_id", dealerId);
+        }
+
+        // News event
+        await insertPlayerNews(supabase, {
+          text: `👑 ${factionId} is veroverd! Een nieuwe heerser neemt de macht over.`,
+          icon: '👑',
+          urgency: 'high',
+          category: 'faction',
+          detail: `De factie is 48 uur lang onderworpen. Top aanvallers ontvangen extra beloningen.`,
+        });
       } else {
         // Phase complete, advance
         const nextPhase = validPhases[phaseIdx + 1] || "leader";
         updateData.conquest_phase = nextPhase;
-        updateData.boss_hp = phase === "defense" ? 100 : 150; // Sub-boss has more HP
+        updateData.boss_hp = phase === "defense" ? 100 : 150;
         updateData.boss_max_hp = phase === "defense" ? 100 : 150;
       }
       updateData.conquest_progress = (phaseIdx + 1) * 33;
@@ -3967,17 +3997,21 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
     const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
     const phaseName = phaseNames[phase as keyof typeof phaseNames];
 
+    // Count unique attackers
+    const attackerCount = Object.keys(damageMap).length;
+
     return {
       success: true,
       message: phaseComplete
         ? phase === "leader"
-          ? `👑 ${factionId} is veroverd! Je bent nu de eigenaar!`
+          ? `👑 ${factionId} is veroverd! Reset in 48 uur.`
           : `${phaseName} fase voltooid! Schade: ${damage}. Volgende fase ontgrendeld.`
         : `Aanval succesvol! ${damage} schade aan ${phaseName}. HP: ${newHp}/${faction.boss_max_hp}`,
       data: {
         damage, newHp, phaseComplete, chance,
         conquered: phase === "leader" && phaseComplete,
-        repGain, xpGain,
+        repGain, xpGain, attackerCount,
+        totalDamageDealt: damageMap,
       },
     };
   } else {
