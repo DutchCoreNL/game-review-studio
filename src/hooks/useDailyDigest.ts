@@ -23,36 +23,42 @@ export function useDailyDigest() {
   const [digest, setDigest] = useState<DigestData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchDigest = async (includesSeen = false) => {
+    if (!user) return;
+    const query = supabase
+      .from('daily_digests')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('world_day', { ascending: false })
+      .limit(1);
+
+    if (!includesSeen) query.eq('seen', false);
+
+    const { data, error } = await query.maybeSingle();
+    if (!error && data) {
+      setDigest(data as unknown as DigestData);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!user) { setLoading(false); return; }
-
-    const fetchDigest = async () => {
-      const { data, error } = await supabase
-        .from('daily_digests')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('seen', false)
-        .order('world_day', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!error && data) {
-        setDigest(data as unknown as DigestData);
-      }
-      setLoading(false);
-    };
-
-    fetchDigest();
+    fetchDigest(false);
   }, [user]);
 
   const markSeen = async () => {
     if (!digest) return;
-    await supabase
-      .from('daily_digests')
-      .update({ seen: true })
-      .eq('id', digest.id);
+    if (!digest.seen) {
+      await supabase
+        .from('daily_digests')
+        .update({ seen: true })
+        .eq('id', digest.id);
+    }
     setDigest(null);
   };
 
-  return { digest, loading, markSeen };
+  // Re-fetch last digest (even if seen) for manual viewing
+  const refetchLast = () => fetchDigest(true);
+
+  return { digest, loading, markSeen, refetchLast };
 }

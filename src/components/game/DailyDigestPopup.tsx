@@ -5,18 +5,31 @@ import { WEATHER_EFFECTS } from '@/game/constants';
 import nightReportBg from '@/assets/night-report-bg.jpg';
 import { useEffect, useRef } from 'react';
 
-export function DailyDigestPopup() {
+interface DailyDigestPopupProps {
+  forceOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function DailyDigestPopup({ forceOpen, onClose }: DailyDigestPopupProps = {}) {
   const { digest, markSeen } = useDailyDigest();
   const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Auto-show only works for unseen digests (not force-opened)
+  const isVisible = forceOpen || !!digest;
+
   useEffect(() => {
-    if (digest) {
+    if (digest && !forceOpen) {
       autoDismissRef.current = setTimeout(() => markSeen(), 15000);
     }
     return () => { if (autoDismissRef.current) clearTimeout(autoDismissRef.current); };
-  }, [digest]);
+  }, [digest, forceOpen]);
 
-  if (!digest) return null;
+  const handleDismiss = () => {
+    if (!forceOpen && digest) markSeen();
+    onClose?.();
+  };
+
+  if (!isVisible || !digest) return null;
 
   const { sections, weather, world_day } = digest.digest_data;
   const weatherName = WEATHER_EFFECTS[weather as keyof typeof WEATHER_EFFECTS]?.name || weather;
@@ -32,7 +45,7 @@ export function DailyDigestPopup() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-background/90 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm"
-        onClick={markSeen}
+        onClick={handleDismiss}
       >
         <motion.div
           initial={{ scale: 0.85, opacity: 0, y: 20 }}
@@ -170,7 +183,7 @@ export function DailyDigestPopup() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: d + 0.5 }}
-              onClick={markSeen}
+              onClick={handleDismiss}
               className="w-full mt-3 py-3 rounded bg-gold text-secondary-foreground font-bold text-sm uppercase tracking-wider"
               whileTap={{ scale: 0.97 }}
             >
