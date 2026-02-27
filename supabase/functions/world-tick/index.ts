@@ -128,6 +128,18 @@ async function generateAndInsertNews(supabase: any, phase: string, weather: stri
   await supabase.from('news_events').delete().lt('expires_at', new Date().toISOString());
 }
 
+// ========== BOT GANG NAMES ==========
+const BOT_GANG_NAMES = [
+  { name: 'Los Lobos', tag: 'LOB' },
+  { name: 'Iron Fist Crew', tag: 'IFC' },
+  { name: 'Neon Wolves', tag: 'NWF' },
+  { name: 'Shadow Syndicate', tag: 'SSY' },
+  { name: 'Port Authority', tag: 'PAU' },
+  { name: 'Crown Kings', tag: 'CRK' },
+  { name: 'Lowrise Reapers', tag: 'LRR' },
+  { name: 'Black Serpents', tag: 'BSP' },
+];
+
 // ========== BOT SIMULATION ==========
 const BOT_ACTIONS = [
   { action: 'travel', weight: 30 },
@@ -158,6 +170,208 @@ function pickWeighted(items: { action: string; weight: number }[]): string {
   return items[0].action;
 }
 
+// Create bot gangs if none exist yet
+async function ensureBotGangs(supabase: any, bots: any[]) {
+  try {
+    // Check if any bot gangs exist already
+    const botsWithGang = bots.filter(b => b.gang_id);
+    if (botsWithGang.length >= 3) return; // Already have enough bot gangs
+
+    // Get existing gangs to avoid duplicate names/tags
+    const { data: existingGangs } = await supabase.from('gangs').select('name, tag');
+    const usedNames = new Set((existingGangs || []).map((g: any) => g.name));
+    const usedTags = new Set((existingGangs || []).map((g: any) => g.tag));
+
+    // Pick available gang templates
+    const available = BOT_GANG_NAMES.filter(g => !usedNames.has(g.name) && !usedTags.has(g.tag));
+    if (available.length === 0) return;
+
+    // Create 2-4 bot gangs using level 5+ bots as leaders
+    const eligibleLeaders = bots.filter(b => !b.gang_id && b.level >= 5);
+    if (eligibleLeaders.length === 0) return;
+
+    const gangsToCreate = Math.min(available.length, Math.min(eligibleLeaders.length, 3));
+
+    for (let i = 0; i < gangsToCreate; i++) {
+      const leader = eligibleLeaders[i];
+      const template = available[i];
+
+      // Create the gang with bot as leader (using service role, so no RLS)
+      const { data: gang, error: gangErr } = await supabase.from('gangs').insert({
+        name: template.name,
+        tag: template.tag,
+        leader_id: leader.id,
+        description: `Bot-gang geleid door ${leader.username}`,
+        level: Math.max(1, Math.floor(leader.level / 5)),
+        treasury: Math.floor(Math.random() * 50000) + 10000,
+      }).select('id').single();
+
+      if (gangErr || !gang) {
+        console.error('Failed to create bot gang:', gangErr);
+        continue;
+      }
+
+      // Add leader as member
+      await supabase.from('gang_members').insert({
+        gang_id: gang.id,
+        user_id: leader.id,
+        role: 'leader',
+      });
+
+      // Update bot with gang_id
+      await supabase.from('bot_players').update({ gang_id: gang.id }).eq('id', leader.id);
+
+      // Add 2-4 other bots as members
+      const otherBots = bots.filter(b => !b.gang_id && b.id !== leader.id).slice(0, 2 + Math.floor(Math.random() * 3));
+      for (const member of otherBots) {
+        await supabase.from('gang_members').insert({
+          gang_id: gang.id,
+          user_id: member.id,
+          role: 'member',
+        });
+        await supabase.from('bot_players').update({ gang_id: gang.id }).eq('id', member.id);
+        member.gang_id = gang.id; // Update in-memory
+      }
+
+      // Claim a territory for this gang (only if not already claimed)
+      const homeDistrict = leader.loc || pick(DISTRICTS);
+      const { data: existingClaim } = await supabase.from('gang_territories')
+        .select('gang_id').eq('district_id', homeDistrict).maybeSingle();
+      if (!existingClaim) {
+        await supabase.from('gang_territories').insert({
+          gang_id: gang.id,
+          district_id: homeDistrict,
+          total_influence: 50 + Math.floor(Math.random() * 100),
+          defense_level: Math.floor(Math.random() * 3),
+        });
+      }
+
+      // Also add district influence for the leader
+      await supabase.from('district_influence').upsert({
+        user_id: leader.id,
+        gang_id: gang.id,
+        district_id: homeDistrict,
+        influence: 30 + Math.floor(Math.random() * 50),
+      }, { onConflict: 'user_id,district_id' }).select();
+
+      // News about the new gang
+      await supabase.from('news_events').insert({
+        text: `Nieuwe gang "${template.name}" [${template.tag}] opgericht in ${DISTRICT_NAMES[homeDistrict]}!`,
+        icon: '⚔️',
+        urgency: 'medium',
+        category: 'player',
+        expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      });
+
+      console.log(`Created bot gang: ${template.name} with leader ${leader.username}`);
+    }
+  } catch (e) {
+    console.error('Bot gang creation error:', e);
+  }
+}
+
+// Bot gangs actively contribute influence and claim territories
+async function simulateBotGangActivity(supabase: any) {
+  try {
+    // Get all bot gangs
+    const { data: botGangs } = await supabase
+      .from('bot_players')
+      .select('id, gang_id, loc, username, level')
+      .eq('is_active', true)
+      .not('gang_id', 'is', null);
+
+    if (!botGangs || botGangs.length === 0) return;
+
+    // Group by gang
+    const gangGroups: Record<string, any[]> = {};
+    for (const bot of botGangs) {
+      if (!gangGroups[bot.gang_id]) gangGroups[bot.gang_id] = [];
+      gangGroups[bot.gang_id].push(bot);
+    }
+
+    const newsToInsert: any[] = [];
+    const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
+
+    for (const [gangId, members] of Object.entries(gangGroups)) {
+      // 50% chance gang does something this tick
+      if (Math.random() > 0.5) continue;
+
+      const { data: gang } = await supabase.from('gangs').select('name, tag, level').eq('id', gangId).single();
+      if (!gang) continue;
+
+      // Pick a district where members are (or random)
+      const memberLocs = members.map(m => m.loc);
+      const targetDistrict = pick(memberLocs.length > 0 ? memberLocs : DISTRICTS);
+
+      // Contribute influence (5-20 per tick)
+      const influenceGain = 5 + Math.floor(Math.random() * 16);
+      const contributor = pick(members);
+
+      await supabase.from('district_influence').upsert({
+        user_id: contributor.id,
+        gang_id: gangId,
+        district_id: targetDistrict,
+        influence: influenceGain,
+      }, { onConflict: 'user_id,district_id' }).select();
+
+      // Update or create territory (unique on district_id — 1 gang per district)
+      const { data: existingTerritory } = await supabase
+        .from('gang_territories')
+        .select('gang_id, total_influence, defense_level')
+        .eq('district_id', targetDistrict)
+        .maybeSingle();
+
+      if (existingTerritory && existingTerritory.gang_id === gangId) {
+        // Our territory — strengthen it
+        await supabase.from('gang_territories').update({
+          total_influence: existingTerritory.total_influence + influenceGain,
+          defense_level: Math.min(5, existingTerritory.defense_level + (Math.random() < 0.1 ? 1 : 0)),
+        }).eq('district_id', targetDistrict);
+      } else if (!existingTerritory) {
+        // Unclaimed — claim it (15% chance)
+        if (Math.random() < 0.15) {
+          await supabase.from('gang_territories').insert({
+            gang_id: gangId,
+            district_id: targetDistrict,
+            total_influence: influenceGain,
+            defense_level: 0,
+          });
+
+          newsToInsert.push({
+            text: `Gang [${gang.tag}] ${gang.name} claimt territorium in ${DISTRICT_NAMES[targetDistrict]}!`,
+            icon: '🏴',
+            urgency: 'medium',
+            category: 'player',
+            expires_at: expiresAt,
+          });
+        }
+      }
+
+      // 5% chance: generate gang activity news
+      if (Math.random() < 0.05) {
+        const gangNews = [
+          `Leden van ${gang.name} gezien tijdens patrouille in ${DISTRICT_NAMES[targetDistrict]}`,
+          `${gang.name} versterkt hun positie in ${DISTRICT_NAMES[targetDistrict]}`,
+          `Schermutselingen gemeld bij territorium van ${gang.name}`,
+        ];
+        newsToInsert.push({
+          text: pick(gangNews),
+          icon: '⚔️',
+          urgency: 'low',
+          category: 'player',
+          expires_at: expiresAt,
+        });
+      }
+    }
+
+    if (newsToInsert.length > 0) {
+      await supabase.from('news_events').insert(newsToInsert);
+    }
+  } catch (e) {
+    console.error('Bot gang activity error:', e);
+  }
+}
+
 async function simulateBots(supabase: any, phase: string, worldDay: number) {
   try {
     const { data: bots } = await supabase
@@ -166,6 +380,9 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       .eq('is_active', true);
 
     if (!bots || bots.length === 0) return;
+
+    // Ensure bot gangs exist (only runs if needed)
+    await ensureBotGangs(supabase, bots);
 
     const newsToInsert: any[] = [];
     const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
@@ -228,9 +445,6 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
 
       updates.day = bot.day + 1;
 
-      if (Math.random() < 0.03 && newRep > 100) {
-        updates.districts_owned = Math.min(5, bot.districts_owned + 1);
-      }
       if (Math.random() < 0.05 && newRep > 50) {
         updates.crew_size = Math.min(4, bot.crew_size + 1);
       }
@@ -251,6 +465,9 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
     if (newsToInsert.length > 0) {
       await supabase.from('news_events').insert(newsToInsert);
     }
+
+    // Simulate bot gang activity (territory claiming, influence)
+    await simulateBotGangActivity(supabase);
   } catch (e) {
     console.error('Bot simulation error:', e);
   }

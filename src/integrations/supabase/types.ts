@@ -52,6 +52,7 @@ export type Database = {
           crew_size: number
           day: number
           districts_owned: number
+          gang_id: string | null
           hp: number
           id: string
           is_active: boolean
@@ -70,6 +71,7 @@ export type Database = {
           crew_size?: number
           day?: number
           districts_owned?: number
+          gang_id?: string | null
           hp?: number
           id?: string
           is_active?: boolean
@@ -88,6 +90,7 @@ export type Database = {
           crew_size?: number
           day?: number
           districts_owned?: number
+          gang_id?: string | null
           hp?: number
           id?: string
           is_active?: boolean
@@ -99,7 +102,15 @@ export type Database = {
           rep?: number
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bot_players_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_digests: {
         Row: {
