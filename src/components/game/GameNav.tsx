@@ -1,9 +1,10 @@
 import { useGame } from '@/contexts/GameContext';
 import { GameView } from '@/game/types';
-import { Map, Package, Crosshair, Crown, User, LucideIcon } from 'lucide-react';
+import { Map, Package, Crosshair, Crown, User, LucideIcon, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
+import { useAdmin } from '@/hooks/useAdmin';
 
 const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
   { id: 'city', label: 'KAART', icon: Map },
@@ -15,6 +16,13 @@ const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
 
 export function GameNav() {
   const { view, setView, state } = useGame();
+  const { isAdmin } = useAdmin();
+
+  const navItems = useMemo(() => {
+    const items = [...NAV_ITEMS];
+    if (isAdmin) items.push({ id: 'admin', label: 'ADMIN', icon: Shield });
+    return items;
+  }, [isAdmin]);
 
   // Compute badge counts per tab
   const badges = useMemo(() => {
@@ -45,7 +53,7 @@ export function GameNav() {
 
   return (
     <nav className="flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
-      {NAV_ITEMS.map(item => {
+      {navItems.map(item => {
         const isActive = view === item.id;
         const Icon = item.icon;
         const badge = badges[item.id];

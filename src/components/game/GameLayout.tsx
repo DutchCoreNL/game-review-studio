@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useWorldState } from '@/hooks/useWorldState';
 import { useAdmin } from '@/hooks/useAdmin';
 import { setVolume } from '@/game/sounds';
@@ -47,12 +47,15 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { MaintenanceOverlay } from './MaintenanceOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const AdminPanelView = React.lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
+
 const views: Record<string, React.ComponentType> = {
   city: MapView,
   trade: TradeView,
   ops: OperationsView,
   empire: ImperiumView,
   profile: ProfileView,
+  admin: AdminPanelView,
 };
 
 export function GameLayout() {
@@ -68,7 +71,8 @@ export function GameLayout() {
     if (state.activeCombat) {
       setMusicScene('combat');
     } else {
-      setMusicScene(view as 'city' | 'trade' | 'ops' | 'empire' | 'profile');
+      const scene = view === 'admin' ? 'profile' : view;
+      setMusicScene(scene as 'city' | 'trade' | 'ops' | 'empire' | 'profile');
     }
   }, [view, state.activeCombat]);
 
@@ -124,7 +128,9 @@ export function GameLayout() {
                 transition={{ duration: 0.15 }}
                 className="lg:max-w-[900px] lg:mx-auto"
               >
-                <ViewComponent />
+                <React.Suspense fallback={<div className="flex items-center justify-center h-32 text-muted-foreground text-xs">Laden...</div>}>
+                  <ViewComponent />
+                </React.Suspense>
               </motion.div>
             </AnimatePresence>
           </main>
