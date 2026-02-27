@@ -7,8 +7,9 @@ import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { CooldownTimer } from '../header/CooldownTimer';
 import { useFactionState } from '@/hooks/useFactionState';
+import { gameApi } from '@/lib/gameApi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert, Users, Trophy, Timer } from 'lucide-react';
+import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert, Users, Trophy, Timer, Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PlayerDetailPopup } from '../PlayerDetailPopup';
@@ -90,6 +91,9 @@ export function FactionCard({ familyId }: FactionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [attackAnim, setAttackAnim] = useState<'hit' | 'miss' | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [attackCooldownUntil, setAttackCooldownUntil] = useState<string | null>(null);
   
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
@@ -136,36 +140,29 @@ export function FactionCard({ familyId }: FactionCardProps) {
   const phaseEnemy1 = FACTION_CONQUEST_PHASES[familyId]?.phase1;
   const phaseEnemy2 = FACTION_CONQUEST_PHASES[familyId]?.phase2;
 
-  const handleAction = (actionType: FactionActionType) => {
+  const handleAction = async (actionType: FactionActionType) => {
     const actionDef = FACTION_ACTIONS.find(a => a.id === actionType);
     if (!actionDef) return;
 
     if (dead && !conquered) { showToast('Neem deze factie eerst over!', true); return; }
     if (conquered) { showToast('Deze factie is al jouw vazal.', true); return; }
-    if (hasCooldown) { showToast('Je hebt vandaag al een actie uitgevoerd bij deze factie.', true); return; }
-    if (actionDef.requiresDistrict && state.loc !== fam.home) { showToast(`Reis eerst naar ${DISTRICTS[fam.home].name}`, true); return; }
-    if (actionDef.minRelation !== null && rel < actionDef.minRelation) { showToast(`Relatie te laag (min: ${actionDef.minRelation})`, true); return; }
 
-    if (actionType === 'gift') {
-      const giftGood = FACTION_GIFTS[familyId];
-      if ((state.inventory[giftGood] || 0) < 3) {
-        const goodName = GOODS.find(g => g.id === giftGood)?.name || '';
-        showToast(`Je hebt minimaal 3x ${goodName} nodig.`, true);
-        return;
+    setActionLoading(true);
+    try {
+      const res = await gameApi.factionAction(familyId, actionType);
+      if (res.success) {
+        showToast(res.message);
+        // Also update local state for immediate feedback
+        if (res.data?.relChange) {
+          dispatch({ type: 'FACTION_ACTION', familyId, actionType });
+        }
+      } else {
+        showToast(res.message, true);
       }
+    } catch (e) {
+      showToast('Server error', true);
     }
-
-    dispatch({ type: 'FACTION_ACTION', familyId, actionType });
-
-    const actionNames: Record<string, string> = {
-      negotiate: 'Onderhandeling uitgevoerd!',
-      bribe: 'Omkoping geslaagd!',
-      intimidate: 'Intimidatie uitgevoerd!',
-      sabotage: 'Sabotage uitgevoerd!',
-      gift: 'Gift verzonden!',
-      intel: 'Informatie gekocht!',
-    };
-    showToast(actionNames[actionType] || 'Actie uitgevoerd!');
+    setActionLoading(false);
   };
 
   // Conquest now handled server-side via attack_faction phase=leader
@@ -478,27 +475,61 @@ export function FactionCard({ familyId }: FactionCardProps) {
                       </p>
                       <motion.button
                         onClick={async () => {
+                          setActionLoading(true);
                           const res = await attackFaction(familyId, serverPhase);
                           if (res.success) {
+                            const dmg = res.data?.damage;
+                            setAttackAnim(dmg > 0 ? 'hit' : 'miss');
+                            setTimeout(() => setAttackAnim(null), 1200);
+                            if (res.data?.cooldownUntil) setAttackCooldownUntil(res.data.cooldownUntil);
                             showToast(res.message);
                           } else {
                             showToast(res.message, true);
                           }
+                          setActionLoading(false);
                         }}
-                        disabled={!isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10}
+                        disabled={actionLoading || !isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10 || (attackCooldownUntil && new Date(attackCooldownUntil) > new Date())}
                         className={`w-full py-2 rounded text-xs font-bold ${
-                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10
+                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10 && !actionLoading && !(attackCooldownUntil && new Date(attackCooldownUntil) > new Date())
                             ? serverPhase === 'leader' ? 'bg-gradient-to-r from-blood to-gold text-primary-foreground' : 'bg-blood text-primary-foreground'
                             : 'bg-muted text-muted-foreground cursor-not-allowed'
                         }`}
                         whileTap={isInDistrict ? { scale: 0.95 } : {}}
                       >
-                        <Swords size={12} className="inline mr-1.5" />
-                        {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
-                          : (ps.energy || 0) < 15 ? 'TE WEINIG ENERGIE'
-                          : (ps.nerve || 0) < 10 ? 'TE WEINIG LEF'
-                          : `AANVALLEN (⚡15 💀10)`}
+                        {actionLoading ? (
+                          <span className="animate-pulse">⚔️ Aanvallen...</span>
+                        ) : (
+                          <>
+                            <Swords size={12} className="inline mr-1.5" />
+                            {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
+                              : (attackCooldownUntil && new Date(attackCooldownUntil) > new Date()) ? 'COOLDOWN...'
+                              : (ps.energy || 0) < 15 ? 'TE WEINIG ENERGIE'
+                              : (ps.nerve || 0) < 10 ? 'TE WEINIG LEF'
+                              : `AANVALLEN (⚡15 💀10)`}
+                          </>
+                        )}
                       </motion.button>
+
+                      {/* Attack visual feedback */}
+                      <AnimatePresence>
+                        {attackAnim && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.5, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: -30 }}
+                            exit={{ opacity: 0, y: -50 }}
+                            className={`absolute top-0 right-4 text-lg font-black ${attackAnim === 'hit' ? 'text-blood' : 'text-muted-foreground'}`}
+                          >
+                            {attackAnim === 'hit' ? '💥 HIT!' : '❌ MISS'}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Cooldown timer */}
+                      {attackCooldownUntil && new Date(attackCooldownUntil) > new Date() && (
+                        <div className="mt-1.5">
+                          <CooldownTimer label="Volgende aanval" until={attackCooldownUntil} icon={<Timer size={7} />} />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -514,24 +545,36 @@ export function FactionCard({ familyId }: FactionCardProps) {
                       </p>
                       <motion.button
                         onClick={async () => {
+                          setActionLoading(true);
                           const res = await attackFaction(familyId, 'defense');
                           if (res.success) {
+                            const dmg = res.data?.damage;
+                            setAttackAnim(dmg > 0 ? 'hit' : 'miss');
+                            setTimeout(() => setAttackAnim(null), 1200);
+                            if (res.data?.cooldownUntil) setAttackCooldownUntil(res.data.cooldownUntil);
                             showToast(res.message);
                           } else {
                             showToast(res.message, true);
                           }
+                          setActionLoading(false);
                         }}
-                        disabled={!isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10}
+                        disabled={actionLoading || !isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10}
                         className={`w-full py-2 rounded text-xs font-bold ${
-                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10
+                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10 && !actionLoading
                             ? 'bg-blood text-primary-foreground'
                             : 'bg-muted text-muted-foreground cursor-not-allowed'
                         }`}
                         whileTap={isInDistrict ? { scale: 0.95 } : {}}
                       >
-                        <Swords size={12} className="inline mr-1.5" />
-                        {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
-                          : `AANVAL STARTEN (⚡15 💀10)`}
+                        {actionLoading ? (
+                          <span className="animate-pulse">⚔️ Aanvallen...</span>
+                        ) : (
+                          <>
+                            <Swords size={12} className="inline mr-1.5" />
+                            {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
+                              : `AANVAL STARTEN (⚡15 💀10)`}
+                          </>
+                        )}
                       </motion.button>
                     </div>
                   )}
@@ -552,8 +595,8 @@ export function FactionCard({ familyId }: FactionCardProps) {
 
                   <div className="grid grid-cols-3 gap-1.5">
                     {FACTION_ACTIONS.map(action => {
-                      const canDo = canDoAction(action.id);
-                      const blockReason = getActionBlockReason(action.id);
+                      const canDo = canDoAction(action.id) && !actionLoading;
+                      const blockReason = actionLoading ? 'Bezig...' : getActionBlockReason(action.id);
                       const cost = getActionCost(action.id);
 
                       return (
