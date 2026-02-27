@@ -1,94 +1,102 @@
 
 
-## UI Verbeterplan — Noxhaven
+# Plan: Transformatie naar MMO Text-Based Maffia Game
 
-Na analyse van alle views, componenten en patronen identificeer ik de volgende concrete UI-problemen en oplossingen:
+Dit is een fundamentele architectuurwijziging. Het huidige spel draait volledig client-side (localStorage + Immer reducer). Een MMO zoals Barafranca/Torn vereist dat **alle gamestate server-side** leeft, met cooldown-timers, speler-vs-speler interacties en een gedeelde economie.
 
----
-
-### 1. Unified Sub-Tab Component (DRY)
-Elke view (Trade, Ops, Imperium, Profile) implementeert sub-tabs met eigen inline styling. Dit leidt tot inconsistente spacing, font-sizes en badge-stijlen.
-
-**Oplossing:** Eén `SubTabBar` component maken die overal wordt hergebruikt:
-- Horizontaal scrollbaar met `scrollbar-hide` (zoals Imperium/Profile al doen, maar Trade/Ops niet)
-- Consistent: `flex-shrink-0`, `px-3 py-2`, `text-[0.55rem]`, icoon + label + optionele badge
-- Badge-stijl unificeren (nu verschilt badge per view: dot vs. getal vs. boolean)
-
-**Bestanden:** Nieuw `src/components/game/ui/SubTabBar.tsx`, aanpassingen in `TradeView`, `OperationsView`, `ImperiumView`, `ProfileView`
+Dit is te groot voor één stap. Hieronder een gefaseerd plan.
 
 ---
 
-### 2. Profile Tabs opschonen (12 tabs → 8 gegroepeerde)
-De Profile-sectie heeft 12 sub-tabs. Dit is overweldigend op mobiel.
+## Fase 1: Server-Side Game State (fundament)
 
-**Oplossing:** Groepeer gerelateerde tabs:
-- Merge "STATS" + "CHARTS" → **STATS** (charts inline onder stats)
-- Merge "VILLA" + "💀 IMPERIUM" → **IMPERIUM** (villa-samenvatting + drug empire samen)
-- Merge "🔊 AUDIO" in een settings-icoon (⚙️) in de header of onderaan profiel
-- "📖 WIKI" verplaatsen naar main menu (hoort niet bij profiel)
-- Resultaat: **STATS, LOADOUT, NPC'S, REPUTATIE, BOGEN, TROFEEËN, ONLINE, IMPERIUM** (8 tabs)
+**Doel**: Alle spelerstaat verplaatsen van localStorage naar de database.
 
-**Bestanden:** `ProfileView.tsx`
+- Nieuwe tabel `player_state` met kolommen voor alle kernvelden: `money`, `dirty_money`, `debt`, `rep`, `heat`, `personal_heat`, `hp`, `max_hp`, `level`, `xp`, `loc`, `day`, `karma`, `energy` (nieuw), etc.
+- Nieuwe tabellen: `player_inventory`, `player_crew`, `player_vehicles`, `player_gear`, `player_districts`, `player_businesses`, `player_safehouses`, `player_villa`
+- Edge functions voor elke game-actie (trade, travel, buy, combat) die server-side validatie doen
+- RLS policies zodat spelers alleen hun eigen state kunnen lezen
+- Client wordt "thin client": stuurt acties naar server, ontvangt resultaat
+
+**Grootste verandering**: De hele `GameContext.tsx` reducer (2849 regels) en `engine.ts` (2284 regels) moeten server-side draaien via edge functions.
+
+## Fase 2: Tijdgebaseerd Systeem (Torn-stijl)
+
+**Doel**: Weg van "beurt-gebaseerd", naar realtime cooldowns en energy.
+
+- **Energy-systeem**: Elke actie kost energy, energy regenereert per minuut (zoals Torn's nerve/energy)
+- **Cooldown-timers**: Travel, crimes, attacks hebben realtime cooldowns (geen "End Turn" meer)
+- **Passief inkomen**: Cron-job (pg_cron of scheduled edge function) die elke X minuten inkomen uitkeert
+- Verwijder het "dag/nacht"-cyclus concept, vervang door realtime timers
+
+## Fase 3: Speler-vs-Speler (PvP)
+
+**Doel**: Echte multiplayer interacties.
+
+- **Aanvallen**: Spelers kunnen elkaar aanvallen (met cooldown), stelen geld/items
+- **Speler-profiel**: Publiek profiel met stats, level, gang, bezittingen
+- **Berichten**: In-game messaging tussen spelers
+- **Bounties op echte spelers**: Plaats bounties op andere spelers
+- **Hospitalisatie**: Na een aanval beland je in het ziekenhuis (realtime timer)
+- **Gevangenis**: Echte timer-based gevangenis
+
+## Fase 4: Gangs/Facties (Multiplayer)
+
+**Doel**: Spelers vormen samen gangs.
+
+- Tabel `gangs` met leader, leden, treasury, territory
+- Gang wars: gecoördineerde aanvallen op andere gangs
+- Gang chat en management
+- Territory control door gangs (niet individueel)
+
+## Fase 5: Gedeelde Economie & Markt
+
+**Doel**: Eén economie voor alle spelers.
+
+- Prijzen worden bepaald door vraag/aanbod van alle spelers
+- Player-to-player trading
+- Auction house met echte spelers
+- Bedrijven genereren inkomen server-side
 
 ---
 
-### 3. MapView Action Buttons → Contextual Action Bar
-De kaartweergave heeft 2-6 knoppen onderaan die dynamisch verschijnen/verdwijnen. Op kleine schermen wrappen ze onhandig.
+## Technische Details
 
-**Oplossing:** 
-- "DAG AFSLUITEN" wordt een vaste brede knop onderaan
-- Locatie-specifieke acties (Casino, Chop Shop, Ziekenhuis, Safehouse, Villa) worden horizontaal scrollbare icoon-knoppen boven de "DAG AFSLUITEN" knop
-- Decker-knop krijgt een speciale prominente positie als die beschikbaar is
+```text
+Huidige architectuur:
+┌──────────────┐
+│  Browser     │
+│  localStorage│──▶ GameContext (reducer) ──▶ UI
+│  + Immer     │
+└──────────────┘
 
-**Bestanden:** `MapView.tsx`
-
----
-
-### 4. Header Resource Tiles — Beter Gegroepeerd
-De resource-tiles in de header vormen een horizontale rij die op kleine schermen moeilijk leesbaar is. HP, REP, LVL staan op dezelfde lijn als HEAT, KARMA, SCHULD.
-
-**Oplossing:**
-- Splits in twee visuele groepen met een subtiele separator: **Player stats** (HP, LVL, REP) | **Risk stats** (HEAT, KARMA, AMMO)
-- Conditionals (SCHULD, SCHUIL, GOUD) worden compacter: alleen icoon + getal, geen label
-- Geld (€) verplaatsen naar een tile in de resource-rij in plaats van apart rechtsboven
-
-**Bestanden:** `GameHeader.tsx`
-
----
-
-### 5. Consistente View Layout Wrapper
-Elke view herhaalt dezelfde boilerplate: background image + gradient + `relative z-10` wrapper.
-
-**Oplossing:** Eén `ViewWrapper` component:
-```tsx
-<ViewWrapper bg={tradeBg}>
-  {children}
-</ViewWrapper>
+MMO architectuur:
+┌──────────────┐     ┌─────────────────┐     ┌──────────┐
+│  Browser     │────▶│  Edge Functions  │────▶│ Database │
+│  (thin UI)   │◀────│  (game logic)   │◀────│ (state)  │
+└──────────────┘     └─────────────────┘     └──────────┘
+                            │
+                     ┌──────┴──────┐
+                     │ Scheduled   │
+                     │ Jobs (cron) │
+                     └─────────────┘
 ```
 
-**Bestanden:** Nieuw `src/components/game/ui/ViewWrapper.tsx`, aanpassingen in alle 4 views
+**Omvang**: Dit is een project van **weken tot maanden**. De huidige codebase heeft ~10.000+ regels gamelogica die allemaal naar server-side moeten.
+
+**Aanbeveling**: Begin met **Fase 1** (server-side state) voor de kernacties (trade, travel, combat). Houd de rest voorlopig client-side en migreer stap voor stap.
 
 ---
 
-### 6. "Terug naar kaart" knoppen → Consistente back-navigatie
-MapView heeft 5 sub-views (Villa, Hospital, ChopShop, Safehouse, Casino) elk met een handmatige "← TERUG NAAR KAART" knop met inline styling.
+## Startpunt: Fase 1 - Eerste Stappen
 
-**Oplossing:** Eén `BackButton` component, of beter: verplaats deze sub-views naar een modal/sheet-patroon zodat de kaart zichtbaar blijft op de achtergrond.
+Concreet zou ik beginnen met:
 
-**Bestanden:** `MapView.tsx`, eventueel nieuw `ui/BackButton.tsx`
+1. Database-tabellen aanmaken voor `player_state` en `player_inventory`
+2. Een `game-action` edge function bouwen die acties ontvangt en server-side valideert
+3. De `TRADE`-actie als eerste migreren (server-side prijsberekening, inventory-update)
+4. Energy-systeem toevoegen (nieuw veld, regeneratie-timer)
+5. Client aanpassen om via `supabase.functions.invoke()` te werken i.p.v. lokale reducer
 
----
-
-### Technische Details
-
-| Component | Nieuw/Gewijzigd | Geschatte impact |
-|-----------|----------------|-----------------|
-| `SubTabBar.tsx` | Nieuw | Verwijdert ~80 regels duplicatie |
-| `ViewWrapper.tsx` | Nieuw | Verwijdert ~20 regels duplicatie |
-| `ProfileView.tsx` | Gewijzigd | 12→8 tabs, betere groepering |
-| `MapView.tsx` | Gewijzigd | Nettere action bar layout |
-| `GameHeader.tsx` | Gewijzigd | Betere groepering resources |
-| `TradeView.tsx` | Gewijzigd | Gebruikt SubTabBar |
-| `OperationsView.tsx` | Gewijzigd | Gebruikt SubTabBar |
-| `ImperiumView.tsx` | Gewijzigd | Gebruikt SubTabBar |
+Wil je dat ik met deze eerste fase begin?
 
