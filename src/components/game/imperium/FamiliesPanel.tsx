@@ -8,14 +8,17 @@ import { FactionCard } from '../faction/FactionCard';
 import { AlliancePactPanel } from './AlliancePactPanel';
 import { Skull, Shield } from 'lucide-react';
 import { ViewWrapper } from '../ui/ViewWrapper';
+import { useFactionState } from '@/hooks/useFactionState';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 
 export function FamiliesPanel() {
   const { state, dispatch, showToast } = useGame();
+  const { factions, usernameMap } = useFactionState();
   const charmStat = getPlayerStat(state, 'charm');
   const bribeCost = Math.max(1000, 3500 - (charmStat * 150));
 
-  const conqueredCount = state.conqueredFactions?.length || 0;
+  // Server-authoritative: count vassals from server data
+  const conqueredCount = Object.values(factions).filter(f => f.status === 'vassal').length;
   const totalFactions = Object.keys(FAMILIES).length;
 
   return (
@@ -33,13 +36,18 @@ export function FamiliesPanel() {
               </p>
             </div>
             <div className="flex gap-1">
-              {(Object.keys(FAMILIES) as FamilyId[]).map(fid => (
-                <div key={fid} className={`w-6 h-6 rounded flex items-center justify-center text-[0.5rem] font-bold ${
-                  state.conqueredFactions?.includes(fid) ? 'bg-gold text-secondary-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {state.conqueredFactions?.includes(fid) ? '👑' : '?'}
-                </div>
-              ))}
+              {(Object.keys(FAMILIES) as FamilyId[]).map(fid => {
+                const f = factions[fid];
+                const isVassal = f?.status === 'vassal';
+                const ownerName = isVassal && f?.conquered_by ? (usernameMap[f.conquered_by] || '?') : '';
+                return (
+                  <div key={fid} className={`w-6 h-6 rounded flex items-center justify-center text-[0.5rem] font-bold ${
+                    isVassal ? 'bg-gold text-secondary-foreground' : 'bg-muted text-muted-foreground'
+                  }`} title={isVassal ? `Vazal van ${ownerName}` : 'Actief'}>
+                    {isVassal ? '👑' : '?'}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -570,6 +570,50 @@ const FACTION_NAMES: Record<string, string> = {
   cartel: 'Het Cartel', bikers: 'De Bikers', syndicate: 'Het Syndicaat',
 };
 
+// ========== WEEKLY FACTION MODIFIERS ==========
+const FACTION_MODIFIERS = [
+  { id: 'fortified', name: '🛡️ Versterkt', desc: '+50% Boss HP maar dubbele rewards', hpMult: 1.5, rewardMult: 2 },
+  { id: 'weakened', name: '💀 Verzwakt', desc: '-30% Boss HP — makkelijker te verslaan', hpMult: 0.7, rewardMult: 1 },
+  { id: 'enraged', name: '🔥 Woedend', desc: 'Boss doet meer schade maar geeft +50% rep', hpMult: 1.0, rewardMult: 1.5 },
+  { id: 'bountied', name: '💰 Premiejacht', desc: 'Extra €25k voor de top-aanvaller', hpMult: 1.0, rewardMult: 1, bonusCash: 25000 },
+];
+
+async function applyWeeklyFactionModifiers(supabase: any, worldDay: number) {
+  try {
+    const factionIds = ['cartel', 'bikers', 'syndicate'];
+    // Pick a random faction and modifier
+    const targetFaction = factionIds[worldDay % factionIds.length];
+    const modifier = FACTION_MODIFIERS[worldDay % FACTION_MODIFIERS.length];
+
+    // Apply HP modifier to non-vassal factions
+    const { data: faction } = await supabase.from('faction_relations')
+      .select('*').eq('faction_id', targetFaction).maybeSingle();
+    if (faction && faction.status !== 'vassal') {
+      const newMaxHp = Math.round(100 * modifier.hpMult);
+      await supabase.from('faction_relations').update({
+        boss_max_hp: newMaxHp,
+        boss_hp: Math.min(faction.boss_hp, newMaxHp),
+        updated_at: new Date().toISOString(),
+      }).eq('faction_id', targetFaction);
+    }
+
+    // News about the modifier
+    const factionName = FACTION_NAMES[targetFaction] || targetFaction;
+    await supabase.from('news_events').insert({
+      text: `${modifier.name} — ${factionName} is deze week ${modifier.desc.toLowerCase()}!`,
+      icon: modifier.name.slice(0, 2),
+      urgency: 'high',
+      category: 'faction',
+      detail: `Wekelijkse factie-modifier: ${factionName} heeft de "${modifier.name}" status gekregen. ${modifier.desc}`,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    console.log(`Weekly faction modifier: ${targetFaction} -> ${modifier.id}`);
+  } catch (e) {
+    console.error('Faction modifier error:', e);
+  }
+}
+
 async function resetConqueredFactions(supabase: any) {
   try {
     const { data: conquered } = await supabase
@@ -646,15 +690,13 @@ Deno.serve(async (req) => {
     const nextPhase = TIME_PHASES[nextPhaseIdx];
     const isDawn = nextPhase === 'dawn';
 
-    // ========== WEEKLY EVENT: 2x XP Weekend ==========
-    // Every 7 world days (days 6-7 of each week cycle), activate 2x XP
+    // ========== WEEKLY EVENT: 2x XP Weekend + Faction Modifiers ==========
     const currentDay = isDawn ? ws.world_day + 1 : ws.world_day;
     const dayInWeek = ((currentDay - 1) % 7) + 1; // 1-7 cycle
     let activeEvent = ws.active_event;
 
     if (isDawn) {
       if (dayInWeek === 6) {
-        // Start 2x XP Weekend on day 6
         activeEvent = {
           id: '2x_xp_weekend',
           name: '⚡ 2x XP Weekend',
@@ -664,8 +706,12 @@ Deno.serve(async (req) => {
           ends_day: currentDay + 2,
         };
       } else if (dayInWeek === 1 && activeEvent?.id === '2x_xp_weekend') {
-        // End the event on the new week
         activeEvent = null;
+      }
+
+      // === WEEKLY FACTION MODIFIERS: rotate every 7 days ===
+      if (dayInWeek === 1) {
+        await applyWeeklyFactionModifiers(supabase, currentDay);
       }
     }
 

@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, DISTRICTS, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_LABELS, BOSS_DATA } from '@/game/constants';
 import { GOODS } from '@/game/constants';
-import { getFactionStatus, getFactionPerks, getPlayerStat, getConquestPhase, canStartConquestPhase } from '@/game/engine';
+import { getFactionStatus, getFactionPerks, getPlayerStat } from '@/game/engine';
 import { FamilyId, FactionActionType } from '@/game/types';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
@@ -9,7 +9,8 @@ import { CooldownTimer } from '../header/CooldownTimer';
 import { useFactionState } from '@/hooks/useFactionState';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Skull, Shield, Handshake, Banknote, Flame, Bomb, Gift, Eye, Lock, Crown, Percent, Swords, CheckCircle, Flag, Heart, Target, ShieldAlert, Users, Trophy, Timer } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { PlayerDetailPopup } from '../PlayerDetailPopup';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -34,38 +35,53 @@ interface FactionCardProps {
 
 export function FactionCard({ familyId }: FactionCardProps) {
   const { state, dispatch, showToast, setView } = useGame();
-  const { factions, usernameMap } = useFactionState();
+  const { factions, usernameMap, attackFaction } = useFactionState();
   const [expanded, setExpanded] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // Get MMO faction state from server
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
+  
+  // Get MMO faction state from server (authoritative)
   const mmoFaction = factions[familyId];
 
   const fam = FAMILIES[familyId];
   const rel = state.familyRel[familyId] || 0;
-  const dead = state.leadersDefeated.includes(familyId);
-  const conquered = state.conqueredFactions?.includes(familyId);
+  
+  // === SERVER-AUTHORITATIVE: use mmoFaction for dead/conquered/phase ===
+  const dead = mmoFaction?.boss_hp === 0 && mmoFaction?.status !== 'vassal';
+  const conquered = mmoFaction?.status === 'vassal';
+  const isMyVassal = conquered && mmoFaction?.conquered_by === currentUserId;
   const status = conquered
-    ? { label: 'VAZAL', color: 'text-gold' }
+    ? { label: isMyVassal ? 'JOUW VAZAL' : 'VAZAL', color: 'text-gold' }
+    : dead ? { label: 'VERSLAGEN', color: 'text-muted-foreground' }
     : getFactionStatus(rel);
-  const perks = getFactionPerks(rel);
+  const perks = conquered ? [] : getFactionPerks(rel);
   const cooldowns = state.factionCooldowns[familyId] || [];
   const hasCooldown = cooldowns.length > 0;
 
   const relBarPct = Math.max(0, Math.min(100, (rel + 100) / 2));
   const relBarColor = conquered ? 'gold' : rel >= 50 ? 'emerald' : rel >= 0 ? 'gold' : 'blood';
 
-  // Conquest conditions
-  const conquest = getConquestPhase(state, familyId);
-  const canConquer = dead && !conquered;
+  // === SERVER-AUTHORITATIVE: conquest phases from mmoFaction ===
+  const serverPhase = mmoFaction?.conquest_phase || 'none';
+  const serverPhaseIdx = ['none', 'defense', 'subboss', 'leader', 'conquered'].indexOf(serverPhase);
+  const canConquer = false; // No longer local — server handles conquest via attack_faction
   const canAnnex = !dead && !conquered && rel >= 100 && state.money >= 50000;
-  // Boss challenge now requires conquest phase 2
-  const canChallenge = !dead && !conquered && conquest.phase >= 2 && state.loc === fam.home;
+  const canChallenge = !dead && !conquered && serverPhaseIdx >= 2 && state.loc === fam.home;
   const isInDistrict = state.loc === fam.home;
 
-  // Conquest phase checks
-  const phase1Check = canStartConquestPhase(state, familyId, 1);
-  const phase2Check = canStartConquestPhase(state, familyId, 2);
+  // Conquest phase checks — now driven by server state
+  const canAttackPhase = (phase: string) => {
+    if (conquered || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10) return false;
+    if (phase === 'defense') return serverPhase === 'none' || serverPhase === 'defense';
+    if (phase === 'subboss') return serverPhase === 'subboss';
+    if (phase === 'leader') return serverPhase === 'leader';
+    return false;
+  };
+  const ps = state; // alias for readability
   const phaseEnemy1 = FACTION_CONQUEST_PHASES[familyId]?.phase1;
   const phaseEnemy2 = FACTION_CONQUEST_PHASES[familyId]?.phase2;
 
@@ -101,10 +117,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
     showToast(actionNames[actionType] || 'Actie uitgevoerd!');
   };
 
-  const handleConquer = () => {
-    dispatch({ type: 'CONQUER_FACTION', familyId });
-    showToast(`${fam.name} is nu jouw vazal! 👑`);
-  };
+  // Conquest now handled server-side via attack_faction phase=leader
 
   const handleAnnex = () => {
     dispatch({ type: 'ANNEX_FACTION', familyId });
@@ -222,8 +235,12 @@ export function FactionCard({ familyId }: FactionCardProps) {
       {/* Conquered banner with countdown */}
       {conquered && (
         <div className="mt-2 py-2 px-3 rounded bg-gold/10 border border-gold/20">
-          <p className="text-[0.55rem] font-bold text-gold uppercase tracking-wider text-center">🏴 Vazalstaat — Tijdelijke Controle</p>
-          <p className="text-[0.45rem] text-muted-foreground mt-0.5 text-center">+€1.000/dag passief inkomen | Marktkorting | Thuisdistrict bezit</p>
+          <p className="text-[0.55rem] font-bold text-gold uppercase tracking-wider text-center">
+            🏴 {isMyVassal ? 'Jouw Vazal' : `Vazal van ${usernameMap[mmoFaction?.conquered_by || ''] || 'iemand'}`}
+          </p>
+          <p className="text-[0.45rem] text-muted-foreground mt-0.5 text-center">
+            {isMyVassal ? '+€1.000/dag passief inkomen | Marktkorting | Thuisdistrict bezit' : 'Veroverd door een andere speler — wacht op reset'}
+          </p>
           {mmoFaction?.reset_at && (
             <div className="mt-1.5 flex justify-center">
               <CooldownTimer label="Reset" until={mmoFaction.reset_at} icon={<Timer size={7} />} />
@@ -338,26 +355,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
                 </div>
               )}
 
-              {/* === CONQUER AFTER DEFEAT === */}
-              {canConquer && (
-                <div className="mb-3">
-                  <div className="bg-gold/5 border border-gold/30 rounded p-3 text-center">
-                    <Skull size={20} className="mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs font-bold mb-1">Leider Verslagen</p>
-                    <p className="text-[0.55rem] text-muted-foreground mb-3">
-                      {fam.contact} is dood. Neem de factie over als vazal en krijg hun voordelen.
-                    </p>
-                    <motion.button
-                      onClick={handleConquer}
-                      className="w-full py-2.5 rounded text-xs font-bold bg-gold text-secondary-foreground"
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Flag size={12} className="inline mr-1.5" />
-                      NEEM OVER ALS VAZAL
-                    </motion.button>
-                  </div>
-                </div>
-              )}
+              {/* Conquer now handled server-side */}
 
               {/* === DIPLOMATIC ANNEX === */}
               {!dead && !conquered && rel >= 80 && (
@@ -389,96 +387,95 @@ export function FactionCard({ familyId }: FactionCardProps) {
                 </div>
               )}
 
-              {/* === CONQUEST PROGRESS === */}
-              {!dead && !conquered && rel <= -10 && (
+              {/* === MMO CONQUEST PROGRESS (server-driven) === */}
+              {!conquered && mmoFaction && (
                 <div className="mb-3">
                   {/* Phase progress bar */}
                   <div className="flex items-center gap-2 mb-2">
                     <Target size={12} className="text-blood" />
-                    <p className="text-[0.5rem] font-bold text-blood uppercase tracking-wider">Veroveringsfasen</p>
+                    <p className="text-[0.5rem] font-bold text-blood uppercase tracking-wider">
+                      World Boss — Veroveringsfasen
+                    </p>
                   </div>
                   <div className="flex gap-1 mb-3">
-                    {[1, 2, 3].map(p => (
+                    {['defense', 'subboss', 'leader'].map((p, i) => (
                       <div key={p} className={`flex-1 h-1.5 rounded-full ${
-                        conquest.phase >= p ? 'bg-blood' : 'bg-muted'
+                        serverPhaseIdx > i ? 'bg-blood' : serverPhase === p ? 'bg-blood/50 animate-pulse' : 'bg-muted'
                       }`} />
                     ))}
                   </div>
 
-                  {/* Phase 1: Outpost */}
-                  {conquest.phase < 1 && (
-                    <div className={`border rounded p-3 mb-2 ${phase1Check.canStart ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
+                  {/* Current active phase attack button */}
+                  {serverPhase !== 'none' && serverPhase !== 'conquered' && (
+                    <div className={`border rounded p-3 mb-2 ${isInDistrict ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        <ShieldAlert size={14} className={phase1Check.canStart ? 'text-blood' : 'text-muted-foreground'} />
-                        <p className="text-xs font-bold">Fase 1: Buitenpost Aanvallen</p>
+                        <Swords size={14} className={isInDistrict ? 'text-blood' : 'text-muted-foreground'} />
+                        <p className="text-xs font-bold">
+                          {serverPhase === 'defense' ? 'Fase 1: Verdediging Aanvallen' :
+                           serverPhase === 'subboss' ? 'Fase 2: Sub-Boss Bestormen' :
+                           'Fase 3: Leider Uitdagen'}
+                        </p>
                       </div>
                       <p className="text-[0.55rem] text-muted-foreground mb-2">
-                        Versla {phaseEnemy1?.name} om toegang te krijgen tot de binnenste verdediging.
+                        Boss HP: {mmoFaction.boss_hp}/{mmoFaction.boss_max_hp} — 
+                        {Object.keys(mmoFaction.total_damage_dealt || {}).length} spelers vallen aan
                       </p>
                       <motion.button
-                        onClick={() => { dispatch({ type: 'START_CONQUEST_PHASE', familyId, phase: 1 }); setView('city'); }}
-                        disabled={!phase1Check.canStart}
+                        onClick={async () => {
+                          const res = await attackFaction(familyId, serverPhase);
+                          if (res.success) {
+                            showToast(res.message);
+                          } else {
+                            showToast(res.message, true);
+                          }
+                        }}
+                        disabled={!isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10}
                         className={`w-full py-2 rounded text-xs font-bold ${
-                          phase1Check.canStart ? 'bg-blood text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10
+                            ? serverPhase === 'leader' ? 'bg-gradient-to-r from-blood to-gold text-primary-foreground' : 'bg-blood text-primary-foreground'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed'
                         }`}
-                        whileTap={phase1Check.canStart ? { scale: 0.95 } : {}}
+                        whileTap={isInDistrict ? { scale: 0.95 } : {}}
                       >
                         <Swords size={12} className="inline mr-1.5" />
-                        {phase1Check.canStart ? `AANVALLEN — ${phaseEnemy1?.name}` : phase1Check.reason}
+                        {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
+                          : (ps.energy || 0) < 15 ? 'TE WEINIG ENERGIE'
+                          : (ps.nerve || 0) < 10 ? 'TE WEINIG LEF'
+                          : `AANVALLEN (⚡15 💀10)`}
                       </motion.button>
                     </div>
                   )}
 
-                  {/* Phase 2: Defense */}
-                  {conquest.phase === 1 && (
-                    <div className={`border rounded p-3 mb-2 ${phase2Check.canStart ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
+                  {/* Start first attack if phase is none */}
+                  {serverPhase === 'none' && (
+                    <div className={`border rounded p-3 mb-2 ${isInDistrict ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
                       <div className="flex items-center gap-2 mb-1">
-                        <Shield size={14} className={phase2Check.canStart ? 'text-blood' : 'text-muted-foreground'} />
-                        <p className="text-xs font-bold">Fase 2: Verdediging Doorbreken</p>
+                        <ShieldAlert size={14} className={isInDistrict ? 'text-blood' : 'text-muted-foreground'} />
+                        <p className="text-xs font-bold">Start Aanval op {fam.name}</p>
                       </div>
-                      <p className="text-[0.55rem] text-muted-foreground mb-1">
-                        ✓ Buitenpost veroverd! Versla nu {phaseEnemy2?.name}.
-                      </p>
-                      <p className="text-[0.5rem] text-emerald mb-2">
-                        {phaseEnemy2?.desc}
+                      <p className="text-[0.55rem] text-muted-foreground mb-2">
+                        Val de verdediging aan samen met andere spelers. Boss HP schaalt met het aantal aanvallers.
                       </p>
                       <motion.button
-                        onClick={() => { dispatch({ type: 'START_CONQUEST_PHASE', familyId, phase: 2 }); setView('city'); }}
-                        disabled={!phase2Check.canStart}
+                        onClick={async () => {
+                          const res = await attackFaction(familyId, 'defense');
+                          if (res.success) {
+                            showToast(res.message);
+                          } else {
+                            showToast(res.message, true);
+                          }
+                        }}
+                        disabled={!isInDistrict || (ps.energy || 0) < 15 || (ps.nerve || 0) < 10}
                         className={`w-full py-2 rounded text-xs font-bold ${
-                          phase2Check.canStart ? 'bg-blood text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          isInDistrict && (ps.energy || 0) >= 15 && (ps.nerve || 0) >= 10
+                            ? 'bg-blood text-primary-foreground'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed'
                         }`}
-                        whileTap={phase2Check.canStart ? { scale: 0.95 } : {}}
+                        whileTap={isInDistrict ? { scale: 0.95 } : {}}
                       >
                         <Swords size={12} className="inline mr-1.5" />
-                        {phase2Check.canStart ? `DOORBREKEN — ${phaseEnemy2?.name}` : phase2Check.reason}
-                      </motion.button>
-                    </div>
-                  )}
-
-                  {/* Phase 3: Boss Challenge */}
-                  {conquest.phase >= 2 && (
-                    <div className={`border rounded p-3 ${canChallenge ? 'bg-blood/5 border-blood/30' : 'bg-muted/30 border-border'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Crown size={14} className={canChallenge ? 'text-gold' : 'text-muted-foreground'} />
-                        <p className="text-xs font-bold">Fase 3: Leider Uitdagen</p>
-                      </div>
-                      <p className="text-[0.55rem] text-muted-foreground mb-1">
-                        ✓ Verdediging doorbroken! De weg naar {BOSS_DATA[familyId]?.name} is vrij.
-                      </p>
-                      <p className="text-[0.5rem] text-gold mb-2">
-                        {BOSS_DATA[familyId]?.desc}
-                      </p>
-                      <motion.button
-                        onClick={handleChallenge}
-                        disabled={!canChallenge}
-                        className={`w-full py-2.5 rounded text-xs font-bold ${
-                          canChallenge ? 'bg-gradient-to-r from-blood to-gold text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
-                        }`}
-                        whileTap={canChallenge ? { scale: 0.95 } : {}}
-                      >
-                        <Swords size={12} className="inline mr-1.5" />
-                        {canChallenge ? `UITDAGEN — ${BOSS_DATA[familyId]?.name}` : `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`}
+                        {!isInDistrict ? `REIS NAAR ${DISTRICTS[fam.home].name.toUpperCase()}`
+                          : `AANVAL STARTEN (⚡15 💀10)`}
                       </motion.button>
                     </div>
                   )}
