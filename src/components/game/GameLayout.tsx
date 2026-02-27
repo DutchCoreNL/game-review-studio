@@ -21,6 +21,7 @@ import { GameToast } from './GameToast';
 import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
+import { DailyDigestPopup } from './DailyDigestPopup';
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
 import { CrewEventPopup } from './CrewEventPopup';
@@ -263,6 +264,7 @@ export function GameLayout() {
 
           {!state.tutorialDone && <TutorialOverlay />}
           {state.nightReport && <NightReport />}
+          {!state.nightReport && <DailyDigestPopup />}
           {state.activeMission && <MissionEncounterView />}
           {state.showPhone && <PhoneOverlay />}
           {state.pendingSpecChoice && <CrewSpecPopup />}
