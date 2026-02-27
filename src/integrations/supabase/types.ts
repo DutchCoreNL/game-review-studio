@@ -71,6 +71,239 @@ export type Database = {
         }
         Relationships: []
       }
+      gang_chat: {
+        Row: {
+          created_at: string
+          gang_id: string
+          id: string
+          message: string
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string
+          gang_id: string
+          id?: string
+          message: string
+          sender_id: string
+          sender_name?: string
+        }
+        Update: {
+          created_at?: string
+          gang_id?: string
+          id?: string
+          message?: string
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_chat_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gang_invites: {
+        Row: {
+          created_at: string
+          gang_id: string
+          id: string
+          invitee_id: string
+          inviter_id: string
+        }
+        Insert: {
+          created_at?: string
+          gang_id: string
+          id?: string
+          invitee_id: string
+          inviter_id: string
+        }
+        Update: {
+          created_at?: string
+          gang_id?: string
+          id?: string
+          invitee_id?: string
+          inviter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_invites_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gang_members: {
+        Row: {
+          contributed: number
+          gang_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          contributed?: number
+          gang_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          contributed?: number
+          gang_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_members_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gang_territories: {
+        Row: {
+          captured_at: string
+          defense_level: number
+          district_id: string
+          gang_id: string
+          id: string
+        }
+        Insert: {
+          captured_at?: string
+          defense_level?: number
+          district_id: string
+          gang_id: string
+          id?: string
+        }
+        Update: {
+          captured_at?: string
+          defense_level?: number
+          district_id?: string
+          gang_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_territories_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gang_wars: {
+        Row: {
+          attacker_gang_id: string
+          attacker_score: number
+          defender_gang_id: string
+          defender_score: number
+          district_id: string | null
+          ended_at: string | null
+          ends_at: string
+          id: string
+          started_at: string
+          status: string
+          winner_gang_id: string | null
+        }
+        Insert: {
+          attacker_gang_id: string
+          attacker_score?: number
+          defender_gang_id: string
+          defender_score?: number
+          district_id?: string | null
+          ended_at?: string | null
+          ends_at?: string
+          id?: string
+          started_at?: string
+          status?: string
+          winner_gang_id?: string | null
+        }
+        Update: {
+          attacker_gang_id?: string
+          attacker_score?: number
+          defender_gang_id?: string
+          defender_score?: number
+          district_id?: string | null
+          ended_at?: string | null
+          ends_at?: string
+          id?: string
+          started_at?: string
+          status?: string
+          winner_gang_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_wars_attacker_gang_id_fkey"
+            columns: ["attacker_gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gang_wars_defender_gang_id_fkey"
+            columns: ["defender_gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gangs: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          leader_id: string
+          level: number
+          max_members: number
+          name: string
+          tag: string
+          treasury: number
+          updated_at: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          leader_id: string
+          level?: number
+          max_members?: number
+          name: string
+          tag: string
+          treasury?: number
+          updated_at?: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          leader_id?: string
+          level?: number
+          max_members?: number
+          name?: string
+          tag?: string
+          treasury?: number
+          updated_at?: string
+          xp?: number
+        }
+        Relationships: []
+      }
       leaderboard_entries: {
         Row: {
           backstory: string | null

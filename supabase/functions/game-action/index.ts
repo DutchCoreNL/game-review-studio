@@ -1008,6 +1008,395 @@ async function handleDeleteMessage(supabase: any, userId: string, payload: any):
   return { success: true, message: "Bericht verwijderd." };
 }
 
+// ========== GANG SYSTEM ==========
+
+async function handleCreateGang(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { name, tag, description } = payload || {};
+  if (!name || name.length < 3 || name.length > 24) return { success: false, message: "Gangnaam moet 3-24 tekens zijn." };
+  if (!tag || tag.length < 2 || tag.length > 5) return { success: false, message: "Tag moet 2-5 tekens zijn." };
+
+  // Check not already in a gang
+  const { data: existing } = await supabase.from("gang_members").select("id").eq("user_id", userId).maybeSingle();
+  if (existing) return { success: false, message: "Je zit al in een gang." };
+
+  // Check player has enough money (€25,000 to create)
+  const { data: ps } = await supabase.from("player_state").select("money, level").eq("user_id", userId).maybeSingle();
+  if (!ps) return { success: false, message: "Speler niet gevonden." };
+  if (ps.money < 25000) return { success: false, message: "Je hebt €25.000 nodig om een gang op te richten." };
+  if (ps.level < 5) return { success: false, message: "Je moet minimaal level 5 zijn." };
+
+  // Create gang
+  const { data: gang, error: gangErr } = await supabase.from("gangs").insert({
+    name: name.trim(), tag: tag.trim().toUpperCase(), description: (description || "").trim().slice(0, 200), leader_id: userId,
+  }).select("id").single();
+
+  if (gangErr) {
+    if (gangErr.message?.includes("unique")) return { success: false, message: "Naam of tag is al in gebruik." };
+    return { success: false, message: "Kon gang niet aanmaken." };
+  }
+
+  // Add leader as member
+  await supabase.from("gang_members").insert({ gang_id: gang.id, user_id: userId, role: "leader" });
+
+  // Deduct money
+  await supabase.from("player_state").update({ money: ps.money - 25000 }).eq("user_id", userId);
+
+  return { success: true, message: `Gang "${name}" opgericht!`, data: { gangId: gang.id } };
+}
+
+async function handleGetGang(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const gangId = payload?.gangId;
+
+  // If no gangId, get user's gang
+  let targetGangId = gangId;
+  if (!targetGangId) {
+    const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+    if (!mem) return { success: true, message: "Geen gang.", data: { gang: null } };
+    targetGangId = mem.gang_id;
+  }
+
+  const [gangRes, membersRes, territoriesRes, warsRes] = await Promise.all([
+    supabase.from("gangs").select("*").eq("id", targetGangId).maybeSingle(),
+    supabase.from("gang_members").select("user_id, role, joined_at, contributed").eq("gang_id", targetGangId),
+    supabase.from("gang_territories").select("district_id, defense_level, captured_at").eq("gang_id", targetGangId),
+    supabase.from("gang_wars").select("*").or(`attacker_gang_id.eq.${targetGangId},defender_gang_id.eq.${targetGangId}`).eq("status", "active"),
+  ]);
+
+  if (!gangRes.data) return { success: false, message: "Gang niet gevonden." };
+
+  // Resolve member usernames
+  const memberIds = (membersRes.data || []).map((m: any) => m.user_id);
+  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", memberIds);
+  const nameMap: Record<string, string> = {};
+  (profiles || []).forEach((p: any) => { nameMap[p.id] = p.username; });
+
+  const members = (membersRes.data || []).map((m: any) => ({
+    userId: m.user_id, username: nameMap[m.user_id] || "Onbekend",
+    role: m.role, joinedAt: m.joined_at, contributed: m.contributed,
+  }));
+
+  // Get my membership info
+  const myMember = members.find((m: any) => m.userId === userId);
+
+  return {
+    success: true, message: "Gang opgehaald.",
+    data: {
+      gang: gangRes.data,
+      members,
+      territories: territoriesRes.data || [],
+      activeWars: warsRes.data || [],
+      myRole: myMember?.role || null,
+      isMember: !!myMember,
+    },
+  };
+}
+
+async function handleGangInvite(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { targetUserId } = payload || {};
+  if (!targetUserId) return { success: false, message: "Geen speler opgegeven." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+  if (mem.role === "member") return { success: false, message: "Alleen officers en de leader kunnen uitnodigen." };
+
+  // Check target not already in a gang
+  const { data: targetMem } = await supabase.from("gang_members").select("id").eq("user_id", targetUserId).maybeSingle();
+  if (targetMem) return { success: false, message: "Speler zit al in een gang." };
+
+  // Check member count
+  const { count } = await supabase.from("gang_members").select("id", { count: "exact", head: true }).eq("gang_id", mem.gang_id);
+  if ((count || 0) >= 20) return { success: false, message: "Gang is vol (max 20 leden)." };
+
+  const { error } = await supabase.from("gang_invites").insert({
+    gang_id: mem.gang_id, inviter_id: userId, invitee_id: targetUserId,
+  });
+
+  if (error) {
+    if (error.message?.includes("unique")) return { success: false, message: "Speler is al uitgenodigd." };
+    return { success: false, message: "Kon uitnodiging niet versturen." };
+  }
+
+  // Send in-game message
+  const { data: gang } = await supabase.from("gangs").select("name").eq("id", mem.gang_id).maybeSingle();
+  await supabase.from("player_messages").insert({
+    sender_id: userId, receiver_id: targetUserId,
+    subject: "Gang Uitnodiging",
+    body: `Je bent uitgenodigd om lid te worden van [${gang?.name || "gang"}]. Ga naar Imperium → Gang om te accepteren.`,
+  });
+
+  return { success: true, message: "Uitnodiging verstuurd!" };
+}
+
+async function handleGangAcceptInvite(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { inviteId } = payload || {};
+  if (!inviteId) return { success: false, message: "Geen uitnodiging opgegeven." };
+
+  const { data: invite } = await supabase.from("gang_invites").select("*").eq("id", inviteId).eq("invitee_id", userId).maybeSingle();
+  if (!invite) return { success: false, message: "Uitnodiging niet gevonden." };
+
+  // Check not already in a gang
+  const { data: existing } = await supabase.from("gang_members").select("id").eq("user_id", userId).maybeSingle();
+  if (existing) return { success: false, message: "Je zit al in een gang." };
+
+  // Check member count
+  const { count } = await supabase.from("gang_members").select("id", { count: "exact", head: true }).eq("gang_id", invite.gang_id);
+  if ((count || 0) >= 20) return { success: false, message: "Gang is vol." };
+
+  await supabase.from("gang_members").insert({ gang_id: invite.gang_id, user_id: userId, role: "member" });
+  await supabase.from("gang_invites").delete().eq("invitee_id", userId); // Remove all pending invites
+
+  return { success: true, message: "Je bent lid geworden van de gang!" };
+}
+
+async function handleGangLeave(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+
+  if (mem.role === "leader") {
+    // Transfer leadership or disband
+    const { data: others } = await supabase.from("gang_members").select("user_id, role")
+      .eq("gang_id", mem.gang_id).neq("user_id", userId).order("role").limit(1);
+
+    if (others && others.length > 0) {
+      // Transfer to first officer/member
+      await supabase.from("gang_members").update({ role: "leader" }).eq("user_id", others[0].user_id).eq("gang_id", mem.gang_id);
+      await supabase.from("gangs").update({ leader_id: others[0].user_id }).eq("id", mem.gang_id);
+    } else {
+      // Disband gang (CASCADE will clean up)
+      await supabase.from("gangs").delete().eq("id", mem.gang_id);
+      return { success: true, message: "Gang ontbonden (geen leden over)." };
+    }
+  }
+
+  await supabase.from("gang_members").delete().eq("user_id", userId);
+  return { success: true, message: "Je hebt de gang verlaten." };
+}
+
+async function handleGangKick(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { targetUserId } = payload || {};
+  if (!targetUserId) return { success: false, message: "Geen speler opgegeven." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem || mem.role === "member") return { success: false, message: "Geen rechten." };
+
+  const { data: target } = await supabase.from("gang_members").select("role").eq("user_id", targetUserId).eq("gang_id", mem.gang_id).maybeSingle();
+  if (!target) return { success: false, message: "Speler zit niet in jouw gang." };
+  if (target.role === "leader") return { success: false, message: "Je kunt de leader niet kicken." };
+  if (target.role === "officer" && mem.role !== "leader") return { success: false, message: "Alleen de leader kan officers kicken." };
+
+  await supabase.from("gang_members").delete().eq("user_id", targetUserId).eq("gang_id", mem.gang_id);
+  return { success: true, message: "Speler gekickt." };
+}
+
+async function handleGangPromote(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { targetUserId, newRole } = payload || {};
+  if (!targetUserId || !newRole) return { success: false, message: "Ongeldige parameters." };
+  if (!["officer", "member"].includes(newRole)) return { success: false, message: "Ongeldige rol." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem || mem.role !== "leader") return { success: false, message: "Alleen de leader kan rollen wijzigen." };
+
+  await supabase.from("gang_members").update({ role: newRole }).eq("user_id", targetUserId).eq("gang_id", mem.gang_id);
+  return { success: true, message: `Rol gewijzigd naar ${newRole}.` };
+}
+
+async function handleGangClaimTerritory(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { districtId } = payload || {};
+  if (!districtId) return { success: false, message: "Geen district opgegeven." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+  if (mem.role === "member") return { success: false, message: "Alleen officers en de leader kunnen territory claimen." };
+
+  // Check district not already claimed
+  const { data: existing } = await supabase.from("gang_territories").select("gang_id").eq("district_id", districtId).maybeSingle();
+  if (existing) {
+    if (existing.gang_id === mem.gang_id) return { success: false, message: "Jullie gang bezit dit district al." };
+    return { success: false, message: "Dit district is al geclaimd door een andere gang. Start een gang war!" };
+  }
+
+  // Cost: €50,000 from gang treasury
+  const { data: gang } = await supabase.from("gangs").select("treasury").eq("id", mem.gang_id).maybeSingle();
+  if (!gang || gang.treasury < 50000) return { success: false, message: "Gang treasury heeft €50.000 nodig. Leden kunnen doneren." };
+
+  await supabase.from("gangs").update({ treasury: gang.treasury - 50000 }).eq("id", mem.gang_id);
+  await supabase.from("gang_territories").insert({ gang_id: mem.gang_id, district_id: districtId });
+
+  return { success: true, message: `District geclaimd! Verdedig het tegen rivalen.` };
+}
+
+async function handleGangDonate(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { amount } = payload || {};
+  if (!amount || amount < 1000) return { success: false, message: "Minimaal €1.000 doneren." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+
+  const { data: ps } = await supabase.from("player_state").select("money").eq("user_id", userId).maybeSingle();
+  if (!ps || ps.money < amount) return { success: false, message: "Niet genoeg geld." };
+
+  await supabase.from("player_state").update({ money: ps.money - amount }).eq("user_id", userId);
+  await supabase.rpc("", {}).catch(() => {}); // fallback
+  // Direct update treasury
+  const { data: gang } = await supabase.from("gangs").select("treasury").eq("id", mem.gang_id).maybeSingle();
+  await supabase.from("gangs").update({ treasury: (gang?.treasury || 0) + amount }).eq("id", mem.gang_id);
+  await supabase.from("gang_members").update({ contributed: (0) }).eq("user_id", userId).eq("gang_id", mem.gang_id);
+  // Update contributed: fetch current and add
+  const { data: myMem } = await supabase.from("gang_members").select("contributed").eq("user_id", userId).eq("gang_id", mem.gang_id).maybeSingle();
+  await supabase.from("gang_members").update({ contributed: (myMem?.contributed || 0) + amount }).eq("user_id", userId).eq("gang_id", mem.gang_id);
+
+  return { success: true, message: `€${amount.toLocaleString()} gedoneerd aan de gang treasury!` };
+}
+
+async function handleGangDeclareWar(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { targetGangId, districtId } = payload || {};
+  if (!targetGangId) return { success: false, message: "Geen doelgang opgegeven." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+  if (mem.role === "member") return { success: false, message: "Alleen officers en leader kunnen oorlog verklaren." };
+  if (mem.gang_id === targetGangId) return { success: false, message: "Je kunt geen oorlog verklaren aan je eigen gang." };
+
+  // Check no active war between these gangs
+  const { data: activeWar } = await supabase.from("gang_wars").select("id").eq("status", "active")
+    .or(`and(attacker_gang_id.eq.${mem.gang_id},defender_gang_id.eq.${targetGangId}),and(attacker_gang_id.eq.${targetGangId},defender_gang_id.eq.${mem.gang_id})`)
+    .maybeSingle();
+  if (activeWar) return { success: false, message: "Er is al een actieve oorlog met deze gang." };
+
+  // Cost: €25,000
+  const { data: gang } = await supabase.from("gangs").select("treasury, name").eq("id", mem.gang_id).maybeSingle();
+  if (!gang || gang.treasury < 25000) return { success: false, message: "Gang treasury heeft €25.000 nodig." };
+
+  await supabase.from("gangs").update({ treasury: gang.treasury - 25000 }).eq("id", mem.gang_id);
+
+  const { data: war } = await supabase.from("gang_wars").insert({
+    attacker_gang_id: mem.gang_id,
+    defender_gang_id: targetGangId,
+    district_id: districtId || null,
+  }).select("id").single();
+
+  return { success: true, message: "Oorlog verklaard! 24 uur om te scoren.", data: { warId: war?.id } };
+}
+
+async function handleGangWarAttack(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { warId } = payload || {};
+  if (!warId) return { success: false, message: "Geen oorlog opgegeven." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+
+  const { data: war } = await supabase.from("gang_wars").select("*").eq("id", warId).eq("status", "active").maybeSingle();
+  if (!war) return { success: false, message: "Oorlog niet gevonden of al beëindigd." };
+
+  // Check war hasn't expired
+  if (new Date(war.ends_at) < new Date()) {
+    // End the war
+    const winner = war.attacker_score > war.defender_score ? war.attacker_gang_id :
+                   war.defender_score > war.attacker_score ? war.defender_gang_id : null;
+    await supabase.from("gang_wars").update({ status: "ended", ended_at: new Date().toISOString(), winner_gang_id: winner }).eq("id", warId);
+
+    // If there's a contested district and attacker wins, transfer it
+    if (winner && war.district_id && winner === war.attacker_gang_id) {
+      await supabase.from("gang_territories").update({ gang_id: winner }).eq("district_id", war.district_id);
+    }
+    return { success: false, message: "Oorlog is afgelopen!" };
+  }
+
+  const isAttacker = mem.gang_id === war.attacker_gang_id;
+  const isDefender = mem.gang_id === war.defender_gang_id;
+  if (!isAttacker && !isDefender) return { success: false, message: "Jouw gang is niet betrokken bij deze oorlog." };
+
+  // Cost: 10 energy, 5 nerve
+  const { data: ps } = await supabase.from("player_state").select("energy, nerve, stats, level").eq("user_id", userId).maybeSingle();
+  if (!ps) return { success: false, message: "Speler niet gevonden." };
+  if (ps.energy < 10) return { success: false, message: "Niet genoeg energy (10 nodig)." };
+  if (ps.nerve < 5) return { success: false, message: "Niet genoeg nerve (5 nodig)." };
+
+  const muscle = (ps.stats as any)?.muscle || 1;
+  const points = Math.floor(muscle * (1 + ps.level * 0.05) + Math.random() * 10);
+
+  await supabase.from("player_state").update({ energy: ps.energy - 10, nerve: ps.nerve - 5 }).eq("user_id", userId);
+
+  if (isAttacker) {
+    await supabase.from("gang_wars").update({ attacker_score: war.attacker_score + points }).eq("id", warId);
+  } else {
+    await supabase.from("gang_wars").update({ defender_score: war.defender_score + points }).eq("id", warId);
+  }
+
+  return { success: true, message: `+${points} punten gescoord voor je gang!`, data: { points } };
+}
+
+async function handleGangChat(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { message } = payload || {};
+  if (!message || message.trim().length === 0) return { success: false, message: "Bericht mag niet leeg zijn." };
+  if (message.length > 300) return { success: false, message: "Max 300 tekens." };
+
+  const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je zit niet in een gang." };
+
+  const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+
+  await supabase.from("gang_chat").insert({
+    gang_id: mem.gang_id, sender_id: userId, sender_name: profile?.username || "Onbekend",
+    message: message.trim().slice(0, 300),
+  });
+
+  return { success: true, message: "Bericht verstuurd." };
+}
+
+async function handleGetGangInvites(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: invites } = await supabase.from("gang_invites").select("id, gang_id, inviter_id, created_at").eq("invitee_id", userId);
+
+  if (!invites || invites.length === 0) return { success: true, message: "Geen uitnodigingen.", data: { invites: [] } };
+
+  // Resolve gang names and inviter names
+  const gangIds = [...new Set(invites.map((i: any) => i.gang_id))];
+  const inviterIds = [...new Set(invites.map((i: any) => i.inviter_id))];
+  const [gangsRes, profilesRes] = await Promise.all([
+    supabase.from("gangs").select("id, name, tag").in("id", gangIds),
+    supabase.from("profiles").select("id, username").in("id", inviterIds),
+  ]);
+
+  const gangMap: Record<string, any> = {};
+  (gangsRes.data || []).forEach((g: any) => { gangMap[g.id] = g; });
+  const nameMap: Record<string, string> = {};
+  (profilesRes.data || []).forEach((p: any) => { nameMap[p.id] = p.username; });
+
+  const enriched = invites.map((i: any) => ({
+    id: i.id, gangId: i.gang_id,
+    gangName: gangMap[i.gang_id]?.name || "Onbekend",
+    gangTag: gangMap[i.gang_id]?.tag || "??",
+    inviterName: nameMap[i.inviter_id] || "Onbekend",
+    createdAt: i.created_at,
+  }));
+
+  return { success: true, message: "Uitnodigingen opgehaald.", data: { invites: enriched } };
+}
+
+async function handleListGangs(supabase: any): Promise<ActionResult> {
+  const { data: gangs } = await supabase.from("gangs").select("id, name, tag, level, leader_id, created_at")
+    .order("level", { ascending: false }).limit(50);
+
+  if (!gangs || gangs.length === 0) return { success: true, message: "Geen gangs.", data: { gangs: [] } };
+
+  // Get member counts
+  const gangIds = gangs.map((g: any) => g.id);
+  const { data: members } = await supabase.from("gang_members").select("gang_id").in("gang_id", gangIds);
+  const countMap: Record<string, number> = {};
+  (members || []).forEach((m: any) => { countMap[m.gang_id] = (countMap[m.gang_id] || 0) + 1; });
+
+  // Get territory counts
+  const { data: territories } = await supabase.from("gang_territories").select("gang_id").in("gang_id", gangIds);
+  const terrMap: Record<string, number> = {};
+  (territories || []).forEach((t: any) => { terrMap[t.gang_id] = (terrMap[t.gang_id] || 0) + 1; });
+
+  const enriched = gangs.map((g: any) => ({
+    ...g, memberCount: countMap[g.id] || 0, territoryCount: terrMap[g.id] || 0,
+  }));
+
+  return { success: true, message: "Gangs opgehaald.", data: { gangs: enriched } };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -1127,6 +1516,48 @@ Deno.serve(async (req) => {
         break;
       case "delete_message":
         result = await handleDeleteMessage(supabase, user.id, payload);
+        break;
+      case "create_gang":
+        result = await handleCreateGang(supabase, user.id, payload);
+        break;
+      case "get_gang":
+        result = await handleGetGang(supabase, user.id, payload);
+        break;
+      case "gang_invite":
+        result = await handleGangInvite(supabase, user.id, payload);
+        break;
+      case "gang_accept_invite":
+        result = await handleGangAcceptInvite(supabase, user.id, payload);
+        break;
+      case "gang_leave":
+        result = await handleGangLeave(supabase, user.id);
+        break;
+      case "gang_kick":
+        result = await handleGangKick(supabase, user.id, payload);
+        break;
+      case "gang_promote":
+        result = await handleGangPromote(supabase, user.id, payload);
+        break;
+      case "gang_claim_territory":
+        result = await handleGangClaimTerritory(supabase, user.id, payload);
+        break;
+      case "gang_donate":
+        result = await handleGangDonate(supabase, user.id, payload);
+        break;
+      case "gang_declare_war":
+        result = await handleGangDeclareWar(supabase, user.id, payload);
+        break;
+      case "gang_war_attack":
+        result = await handleGangWarAttack(supabase, user.id, payload);
+        break;
+      case "gang_chat":
+        result = await handleGangChat(supabase, user.id, payload);
+        break;
+      case "get_gang_invites":
+        result = await handleGetGangInvites(supabase, user.id);
+        break;
+      case "list_gangs":
+        result = await handleListGangs(supabase);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

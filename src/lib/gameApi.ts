@@ -9,7 +9,11 @@ export type GameAction =
   | "wash_money" | "bribe_police" | "buy_business"
   | "attack" | "list_players"
   | "get_public_profile"
-  | "send_message" | "get_messages" | "read_message" | "delete_message";
+  | "send_message" | "get_messages" | "read_message" | "delete_message"
+  | "create_gang" | "get_gang" | "gang_invite" | "gang_accept_invite"
+  | "gang_leave" | "gang_kick" | "gang_promote"
+  | "gang_claim_territory" | "gang_donate" | "gang_declare_war"
+  | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs";
 
 interface GameActionResult {
   success: boolean;
@@ -57,4 +61,21 @@ export const gameApi = {
     invokeGameAction("get_messages", { folder, limit }),
   readMessage: (messageId: string) => invokeGameAction("read_message", { messageId }),
   deleteMessage: (messageId: string) => invokeGameAction("delete_message", { messageId }),
+
+  // Gang
+  createGang: (name: string, tag: string, description?: string) =>
+    invokeGameAction("create_gang", { name, tag, description }),
+  getGang: (gangId?: string) => invokeGameAction("get_gang", { gangId }),
+  gangInvite: (targetUserId: string) => invokeGameAction("gang_invite", { targetUserId }),
+  gangAcceptInvite: (inviteId: string) => invokeGameAction("gang_accept_invite", { inviteId }),
+  gangLeave: () => invokeGameAction("gang_leave"),
+  gangKick: (targetUserId: string) => invokeGameAction("gang_kick", { targetUserId }),
+  gangPromote: (targetUserId: string, newRole: string) => invokeGameAction("gang_promote", { targetUserId, newRole }),
+  gangClaimTerritory: (districtId: string) => invokeGameAction("gang_claim_territory", { districtId }),
+  gangDonate: (amount: number) => invokeGameAction("gang_donate", { amount }),
+  gangDeclareWar: (targetGangId: string, districtId?: string) => invokeGameAction("gang_declare_war", { targetGangId, districtId }),
+  gangWarAttack: (warId: string) => invokeGameAction("gang_war_attack", { warId }),
+  gangChat: (message: string) => invokeGameAction("gang_chat", { message }),
+  getGangInvites: () => invokeGameAction("get_gang_invites"),
+  listGangs: () => invokeGameAction("list_gangs"),
 };
