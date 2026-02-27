@@ -1871,6 +1871,102 @@ async function handleGetDistrictInfo(supabase: any, userId: string): Promise<Act
   };
 }
 
+async function handleDistrictLeaderboard(supabase: any): Promise<ActionResult> {
+  // Get all gang territories with gang info
+  const { data: territories } = await supabase.from("gang_territories")
+    .select("district_id, gang_id, total_influence, defense_level, gangs(name, tag, level)");
+
+  // Get all individual contributions grouped by district
+  const { data: allInfluence } = await supabase.from("district_influence")
+    .select("district_id, gang_id, user_id, influence")
+    .order("influence", { ascending: false });
+
+  // Get profiles for top contributors
+  const userIds = [...new Set((allInfluence || []).map((i: any) => i.user_id))];
+  const { data: profiles } = await supabase.from("profiles")
+    .select("id, username").in("id", userIds.length > 0 ? userIds : ["none"]);
+  const profileMap: Record<string, string> = {};
+  for (const p of (profiles || [])) profileMap[p.id] = p.username;
+
+  // Get gang names
+  const gangIds = [...new Set((allInfluence || []).map((i: any) => i.gang_id))];
+  const { data: gangs } = await supabase.from("gangs")
+    .select("id, name, tag, level").in("id", gangIds.length > 0 ? gangIds : ["none"]);
+  const gangMap: Record<string, any> = {};
+  for (const g of (gangs || [])) gangMap[g.id] = g;
+
+  // Build per-district data
+  const districtIds = ["low", "iron", "neon", "port", "crown"];
+  const result: any[] = districtIds.map(districtId => {
+    // Controlling gang (from territories)
+    const terr = (territories || []).find((t: any) => t.district_id === districtId);
+    
+    // All gangs with influence in this district
+    const distInfluence = (allInfluence || []).filter((i: any) => i.district_id === districtId);
+    
+    // Aggregate by gang
+    const gangTotals: Record<string, { gangId: string; name: string; tag: string; level: number; total: number; members: { userId: string; username: string; influence: number }[] }> = {};
+    for (const inf of distInfluence) {
+      if (!gangTotals[inf.gang_id]) {
+        const g = gangMap[inf.gang_id];
+        gangTotals[inf.gang_id] = {
+          gangId: inf.gang_id,
+          name: g?.name || "Onbekend",
+          tag: g?.tag || "??",
+          level: g?.level || 1,
+          total: 0,
+          members: [],
+        };
+      }
+      gangTotals[inf.gang_id].total += inf.influence;
+      gangTotals[inf.gang_id].members.push({
+        userId: inf.user_id,
+        username: profileMap[inf.user_id] || "Onbekend",
+        influence: inf.influence,
+      });
+    }
+
+    // Sort gangs by total influence desc
+    const gangRanking = Object.values(gangTotals)
+      .sort((a, b) => b.total - a.total);
+    
+    // Sort members within each gang
+    for (const g of gangRanking) {
+      g.members.sort((a, b) => b.influence - a.influence);
+      g.members = g.members.slice(0, 5); // top 5 per gang
+    }
+
+    // Top contributors across all gangs
+    const topContributors = distInfluence
+      .sort((a: any, b: any) => b.influence - a.influence)
+      .slice(0, 10)
+      .map((i: any) => ({
+        userId: i.user_id,
+        username: profileMap[i.user_id] || "Onbekend",
+        gangName: gangMap[i.gang_id]?.name || "?",
+        gangTag: gangMap[i.gang_id]?.tag || "?",
+        influence: i.influence,
+      }));
+
+    return {
+      districtId,
+      controller: terr ? {
+        gangId: terr.gang_id,
+        gangName: terr.gangs?.name || "Onbekend",
+        gangTag: terr.gangs?.tag || "??",
+        gangLevel: terr.gangs?.level || 1,
+        totalInfluence: terr.total_influence,
+        defenseLevel: terr.defense_level,
+      } : null,
+      gangRanking: gangRanking.slice(0, 5),
+      topContributors,
+      totalInfluence: distInfluence.reduce((s: number, i: any) => s + i.influence, 0),
+    };
+  });
+
+  return { success: true, message: "District leaderboard opgehaald.", data: { districts: result } };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -2044,6 +2140,9 @@ Deno.serve(async (req) => {
         break;
       case "place_bounty":
         result = await handlePlaceBounty(supabase, user.id, playerState, payload);
+        break;
+      case "district_leaderboard":
+        result = await handleDistrictLeaderboard(supabase);
         break;
       case "get_most_wanted":
         result = await handleGetMostWanted(supabase, user.id);
