@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo, useState } from 'react';
+import { DailyDigestPopup } from './DailyDigestPopup';
 import { useAdmin } from '@/hooks/useAdmin';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
@@ -108,7 +109,8 @@ function getCategoryForView(v: string): string | null {
 export function DesktopSidebar() {
   const { view, setView, state, dispatch } = useGame();
   const { isAdmin } = useAdmin();
-  const { digest } = useDailyDigest();
+  const { digest, refetchLast } = useDailyDigest();
+  const [showDigest, setShowDigest] = useState(false);
 
   const allCategories = useMemo(() => {
     const cats = [...CATEGORIES];
@@ -198,10 +200,11 @@ export function DesktopSidebar() {
       {/* Phone shortcut */}
       <div className="px-3 pb-4 border-t border-border pt-3 space-y-1">
         {digest && (
-          <motion.div
+          <motion.button
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3 px-3 py-2 rounded text-xs bg-gold/10 border border-gold/20"
+            onClick={() => { refetchLast(); setShowDigest(true); }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded text-xs bg-gold/10 border border-gold/20 hover:bg-gold/20 transition-all cursor-pointer"
           >
             <Newspaper size={16} className="text-gold" />
             <span className="font-semibold tracking-wider text-gold">DIGEST</span>
@@ -212,7 +215,10 @@ export function DesktopSidebar() {
             >
               !
             </motion.span>
-          </motion.div>
+          </motion.button>
+        )}
+        {showDigest && (
+          <DailyDigestPopup forceOpen onClose={() => setShowDigest(false)} />
         )}
         <button
           onClick={() => dispatch({ type: 'TOGGLE_PHONE' })}
