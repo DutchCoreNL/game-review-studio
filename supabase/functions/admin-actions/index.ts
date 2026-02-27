@@ -352,6 +352,129 @@ serve(async (req) => {
       return ok({ ok: true, message: `Broadcast sent to ${sent} players` });
     }
 
+    // ============ GLOBAL RESET ============
+
+    if (action === 'global_reset') {
+      // Delete all player data across all tables
+      const tables = [
+        'player_skills', 'player_crew', 'player_gear', 'player_inventory',
+        'player_vehicles', 'player_districts', 'player_safehouses', 'player_bounties',
+        'player_businesses', 'player_villa', 'player_messages', 'player_rivalries',
+        'pvp_combat_sessions', 'game_action_log', 'player_sanctions',
+        'gang_chat', 'gang_invites', 'gang_members', 'gang_territories', 'gang_wars',
+        'district_influence', 'news_events',
+      ];
+      for (const t of tables) {
+        await adminClient.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      // Reset player_state to defaults
+      await adminClient.from('player_state').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Reset leaderboard
+      await adminClient.from('leaderboard_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Delete gangs
+      await adminClient.from('gangs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Reset market prices
+      await adminClient.from('market_prices').update({ current_price: 100, buy_volume: 0, sell_volume: 0, price_trend: 'stable' }).neq('id', '00000000-0000-0000-0000-000000000000');
+      // Reset world state
+      await adminClient.from('world_state').update({ world_day: 1, time_of_day: 'day', current_weather: 'clear' }).eq('id', 1);
+      // Reset faction relations
+      await adminClient.from('faction_relations').update({ global_relation: 0, boss_hp: 100, boss_max_hp: 100, conquest_progress: 0, conquest_phase: 'none', status: 'active', conquered_by: null, conquered_at: null, vassal_owner_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      await logAction('global_reset', { tables_cleared: tables.length });
+      return ok({ ok: true, message: 'Global reset complete — alle spelerdata gewist' });
+    }
+
+    // ============ FORCE WORLD TICK ============
+
+    if (action === 'force_world_tick') {
+      // Call the world-tick function
+      const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/world-tick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` },
+        body: JSON.stringify({ time: new Date().toISOString() }),
+      });
+      const result = await res.json();
+      await logAction('force_world_tick', result);
+      return ok({ ok: true, message: `World tick uitgevoerd: ${result.phase || 'ok'}`, result });
+    }
+
+    // ============ CLEAR ALL NEWS ============
+
+    if (action === 'clear_news') {
+      await adminClient.from('news_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await adminClient.from('district_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('clear_news');
+      return ok({ ok: true, message: 'Alle nieuws en district events gewist' });
+    }
+
+    // ============ GRANT ITEM TO PLAYER ============
+
+    if (action === 'grant_cash') {
+      if (!targetUserId) return bad('userId required');
+      const amount = body.amount || 10000;
+      const { data: ps } = await adminClient.from('player_state').select('money').eq('user_id', targetUserId).single();
+      if (!ps) return bad('Player state not found');
+      await adminClient.from('player_state').update({ money: Number(ps.money) + amount }).eq('user_id', targetUserId);
+      await logAction('grant_cash', { amount });
+      return ok({ ok: true, message: `€${amount.toLocaleString()} toegekend` });
+    }
+
+    if (action === 'grant_xp') {
+      if (!targetUserId) return bad('userId required');
+      const amount = body.amount || 500;
+      const { data: ps } = await adminClient.from('player_state').select('xp, level, next_xp, skill_points').eq('user_id', targetUserId).single();
+      if (!ps) return bad('Player state not found');
+      let xp = ps.xp + amount;
+      let level = ps.level;
+      let nextXp = ps.next_xp;
+      let sp = ps.skill_points;
+      while (xp >= nextXp) {
+        xp -= nextXp;
+        level++;
+        nextXp = Math.floor(nextXp * 1.4);
+        sp += 2;
+      }
+      await adminClient.from('player_state').update({ xp, level, next_xp: nextXp, skill_points: sp }).eq('user_id', targetUserId);
+      await logAction('grant_xp', { amount, newLevel: level });
+      return ok({ ok: true, message: `${amount} XP toegekend (nu level ${level})` });
+    }
+
+    if (action === 'heal_all_players') {
+      await adminClient.from('player_state').update({
+        hp: 100, energy: 100, nerve: 50,
+        prison_until: null, prison_reason: null,
+        hospital_until: null, hiding_until: null,
+        heat: 0, personal_heat: 0,
+      }).neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('heal_all_players');
+      return ok({ ok: true, message: 'Alle spelers geheald en vrijgelaten' });
+    }
+
+    if (action === 'set_weather') {
+      const weather = body.weather;
+      if (!weather) return bad('weather required');
+      await adminClient.from('world_state').update({ current_weather: weather, weather_changed_at: new Date().toISOString() }).eq('id', 1);
+      await logAction('set_weather', { weather });
+      return ok({ ok: true, message: `Weer ingesteld op: ${weather}` });
+    }
+
+    if (action === 'trigger_event') {
+      const { title: eventTitle, description: eventDesc, district_id, event_type, duration_minutes } = body;
+      if (!eventTitle || !district_id) return bad('title and district_id required');
+      const expiresAt = new Date(Date.now() + (duration_minutes || 60) * 60 * 1000).toISOString();
+      await adminClient.from('district_events').insert({
+        district_id, event_type: event_type || 'admin_event', title: eventTitle,
+        description: eventDesc || null, expires_at: expiresAt,
+      });
+      // Also insert as news
+      await adminClient.from('news_events').insert({
+        text: eventTitle, category: 'world', urgency: 'high', icon: '📢',
+        detail: eventDesc || null, district_id, expires_at: expiresAt,
+      });
+      await logAction('trigger_event', { title: eventTitle, district_id });
+      return ok({ ok: true, message: `Event "${eventTitle}" getriggerd` });
+    }
+
     return bad('Unknown action');
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
