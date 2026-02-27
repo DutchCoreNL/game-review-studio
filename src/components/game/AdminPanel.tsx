@@ -7,7 +7,9 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar } from 'lucide-react';
+import { WEEK_EVENTS } from '@/game/weekEvents';
+import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { ViewWrapper } from './ui/ViewWrapper';
 
 // ====== TYPES ======
@@ -66,6 +68,8 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; variant: 'blo
   heal_all_players: { label: 'Alle geheald', icon: '💚', variant: 'emerald' },
   set_weather: { label: 'Weer gewijzigd', icon: '🌦️', variant: 'purple' },
   trigger_event: { label: 'Event getriggerd', icon: '📢', variant: 'gold' },
+  activate_week_event: { label: 'Week event', icon: '📅', variant: 'gold' },
+  deactivate_week_event: { label: 'Event gestopt', icon: '⏹️', variant: 'muted' },
 };
 
 // ====== HELPER: admin API call ======
@@ -501,6 +505,48 @@ export function AdminPanel() {
               </GameButton>
               <GameButton variant="blood" size="sm" icon={<Bomb size={10} />} onClick={() => setConfirmGlobalReset(true)}>
                 GLOBAL RESET
+              </GameButton>
+            </div>
+          </div>
+
+          {/* Week Event Activation */}
+          <div className="game-card border-gold/30">
+            <p className="text-[0.5rem] font-bold text-gold mb-2">📅 WEEK EVENT ACTIVEREN</p>
+            <div className="space-y-1.5">
+              {WEEK_EVENTS.map(evt => (
+                <button
+                  key={evt.id}
+                  className="w-full text-left bg-muted/50 hover:bg-muted rounded px-2 py-1.5 transition-colors group"
+                  onClick={async () => {
+                    const eventData = {
+                      eventId: evt.id,
+                      name: evt.name,
+                      icon: evt.icon,
+                      desc: evt.desc,
+                      startDay: 0,
+                      daysLeft: evt.duration,
+                      effects: evt.effects,
+                      claimed: false,
+                      durationDays: evt.duration,
+                    };
+                    try {
+                      const r = await adminCall('activate_week_event', { eventData });
+                      showToast(`✅ ${r.message}`);
+                    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                  }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{evt.icon}</span>
+                    <span className="text-[0.55rem] font-bold group-hover:text-gold transition-colors">{evt.name}</span>
+                    <span className="text-[0.4rem] text-muted-foreground ml-auto">{evt.duration}d</span>
+                  </div>
+                  <p className="text-[0.4rem] text-muted-foreground mt-0.5 line-clamp-1">{evt.desc}</p>
+                </button>
+              ))}
+              <GameButton variant="muted" size="sm" icon={<X size={10} />} onClick={async () => {
+                try { const r = await adminCall('deactivate_week_event'); showToast(`✅ ${r.message}`); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              }}>
+                DEACTIVEER HUIDIG EVENT
               </GameButton>
             </div>
           </div>
