@@ -7,9 +7,10 @@ import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star, Swords } from 'lucide-react';
+import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star, Swords, Trophy } from 'lucide-react';
 import { DISTRICT_IMAGES } from '@/assets/items';
 import { gameApi } from '@/lib/gameApi';
+import type { DistrictData } from '@/hooks/useDistrictData';
 
 interface DistrictTerritory {
   districtId: string;
@@ -19,7 +20,7 @@ interface DistrictTerritory {
   totalInfluence: number;
 }
 
-export function DistrictPopup() {
+export function DistrictPopup({ districtData }: { districtData?: DistrictData }) {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
   const [districtInfo, setDistrictInfo] = useState<{
     territories: DistrictTerritory[];
@@ -259,6 +260,66 @@ export function DistrictPopup() {
               Je moet in een gang zitten om invloed te kunnen bijdragen aan een district.
             </div>
           )}
+
+          {/* MMO: Mini-leaderboard — Top spelers in dit district */}
+          {districtData && (() => {
+            const topPlayers = districtData.districtPlayers[selectedDistrict] || [];
+            const playerCount = districtData.playerCounts[selectedDistrict] || 0;
+            const dangerLevel = districtData.dangerLevels[selectedDistrict] || 0;
+            const gangTerritory = districtData.territories.find(t => t.district_id === selectedDistrict);
+            const activeEvents = districtData.events.filter(e => e.district_id === selectedDistrict);
+
+            return (
+              <div className="mb-3 space-y-2">
+                {/* Active players + danger */}
+                <div className="flex items-center gap-2 text-[0.55rem]">
+                  <span className="text-ice font-semibold">👥 {playerCount} actief</span>
+                  {dangerLevel > 20 && (
+                    <span className={`font-semibold ${dangerLevel > 60 ? 'text-blood' : dangerLevel > 35 ? 'text-gold' : 'text-emerald'}`}>
+                      ⚠️ Danger: {dangerLevel}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Active events */}
+                {activeEvents.length > 0 && (
+                  <div className="space-y-1">
+                    {activeEvents.slice(0, 3).map(ev => (
+                      <div key={ev.id} className="text-[0.5rem] flex items-center gap-1.5 bg-blood/8 text-blood rounded px-2 py-1 font-semibold">
+                        <span className="animate-pulse">●</span>
+                        {ev.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Top players */}
+                {topPlayers.length > 0 && (
+                  <div className="game-card bg-muted/30 p-2">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Trophy size={10} className="text-gold" />
+                      <span className="text-[0.55rem] font-bold text-muted-foreground uppercase tracking-wider">Top Spelers</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {topPlayers.map((p, i) => (
+                        <div key={i} className="flex items-center justify-between text-[0.5rem]">
+                          <span className="text-muted-foreground">
+                            <span className={i === 0 ? 'text-gold' : i === 1 ? 'text-foreground' : 'text-muted-foreground'}>
+                              #{i + 1}
+                            </span>{' '}
+                            {p.username}
+                          </span>
+                          <span className="text-muted-foreground">
+                            Lv.{p.level} · {p.rep} rep
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Travel button (when not here) */}
           {!isHere && (

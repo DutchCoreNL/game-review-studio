@@ -2901,6 +2901,117 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
   };
 }
 
+// ========== GET DISTRICT DATA (MMO map) ==========
+
+async function handleGetDistrictData(supabase: any): Promise<ActionResult> {
+  const districts = ["port", "crown", "iron", "low", "neon"];
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+  // 1. Player counts per district (active in last 15 min)
+  const { data: playerRows } = await supabase.from("player_state")
+    .select("loc")
+    .gte("last_action_at", fifteenMinAgo);
+  
+  const playerCounts: Record<string, number> = {};
+  for (const d of districts) playerCounts[d] = 0;
+  for (const r of (playerRows || [])) {
+    if (playerCounts[r.loc] !== undefined) playerCounts[r.loc]++;
+  }
+
+  // 2. Active district events (not expired)
+  const { data: events } = await supabase.from("district_events")
+    .select("*")
+    .gte("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  // 3. Gang territories with gang info
+  const { data: terrs } = await supabase.from("gang_territories")
+    .select("district_id, gang_id, total_influence, defense_level");
+  
+  const territories: any[] = [];
+  if (terrs && terrs.length > 0) {
+    const gangIds = [...new Set(terrs.map((t: any) => t.gang_id))];
+    const { data: gangs } = await supabase.from("gangs")
+      .select("id, name, tag")
+      .in("id", gangIds);
+    const gangMap: Record<string, any> = {};
+    for (const g of (gangs || [])) gangMap[g.id] = g;
+
+    for (const t of terrs) {
+      const gang = gangMap[t.gang_id];
+      if (gang) {
+        territories.push({
+          district_id: t.district_id,
+          gang_id: t.gang_id,
+          gang_name: gang.name,
+          gang_tag: gang.tag,
+          total_influence: t.total_influence,
+          defense_level: t.defense_level,
+        });
+      }
+    }
+  }
+
+  // 4. Danger levels — based on recent PvP + active gang wars + events
+  const { data: recentPvP } = await supabase.from("game_action_log")
+    .select("action_data")
+    .eq("action_type", "attack")
+    .gte("created_at", fifteenMinAgo)
+    .limit(100);
+  
+  const { data: activeWars } = await supabase.from("gang_wars")
+    .select("district_id")
+    .eq("status", "active");
+
+  const dangerLevels: Record<string, number> = {};
+  for (const d of districts) {
+    let danger = playerCounts[d] * 2; // more players = more danger
+    // Count PvP activity
+    // Count events in this district
+    const distEvents = (events || []).filter((e: any) => e.district_id === d);
+    danger += distEvents.length * 10;
+    // Active wars in this district
+    const wars = (activeWars || []).filter((w: any) => w.district_id === d);
+    danger += wars.length * 25;
+    dangerLevels[d] = Math.min(100, danger);
+  }
+
+  // 5. Top 5 players per district
+  const districtPlayers: Record<string, any[]> = {};
+  for (const d of districts) {
+    const { data: topPlayers } = await supabase.from("player_state")
+      .select("user_id, level, rep")
+      .eq("loc", d)
+      .gte("last_action_at", fifteenMinAgo)
+      .order("rep", { ascending: false })
+      .limit(5);
+
+    if (topPlayers && topPlayers.length > 0) {
+      const userIds = topPlayers.map((p: any) => p.user_id);
+      const { data: profiles } = await supabase.from("profiles")
+        .select("id, username")
+        .in("id", userIds);
+      const profileMap: Record<string, string> = {};
+      for (const p of (profiles || [])) profileMap[p.id] = p.username;
+
+      districtPlayers[d] = topPlayers.map((p: any) => ({
+        username: profileMap[p.user_id] || "???",
+        level: p.level,
+        rep: p.rep,
+      }));
+    } else {
+      districtPlayers[d] = [];
+    }
+  }
+
+  return {
+    success: true,
+    message: "District data opgehaald.",
+    data: { playerCounts, events: events || [], territories, dangerLevels, districtPlayers },
+  };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -2948,7 +3059,7 @@ Deno.serve(async (req) => {
 
     // Get player state
     let playerState: any = null;
-    const skipPlayerStateActions = ["init_player", "save_state", "load_state"];
+    const skipPlayerStateActions = ["init_player", "save_state", "load_state", "get_district_data"];
     if (!skipPlayerStateActions.includes(action)) {
       const { data: ps } = await supabase.from("player_state").select("*").eq("user_id", user.id).maybeSingle();
       if (!ps && action !== "get_state") {
@@ -3109,12 +3220,15 @@ Deno.serve(async (req) => {
       case "gain_xp":
         result = await handleGainXp(supabase, user.id, playerState, payload);
         break;
+      case "get_district_data":
+        result = await handleGetDistrictData(supabase);
+        break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
     }
 
     // Log action (skip get_state for performance)
-    if (action !== "get_state" && action !== "save_state" && action !== "load_state") {
+    if (action !== "get_state" && action !== "save_state" && action !== "load_state" && action !== "get_district_data") {
       await supabase.from("game_action_log").insert({
         user_id: user.id, action_type: action,
         action_data: payload || {},
