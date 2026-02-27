@@ -19,7 +19,8 @@ export type GameAction =
   | "place_bounty" | "get_most_wanted"
   | "district_leaderboard"
   | "pvp_combat_start" | "pvp_combat_action"
-  | "casino_play";
+  | "casino_play"
+  | "unlock_skill" | "get_skills" | "prestige" | "gain_xp";
 
 interface GameActionResult {
   success: boolean;
@@ -111,4 +112,10 @@ export const gameApi = {
   // Cloud saves
   saveState: (saveData: any, day: number) => invokeGameAction("save_state", { saveData, day }),
   loadState: () => invokeGameAction("load_state"),
+
+  // Skill Tree & Prestige
+  unlockSkill: (skillId: string) => invokeGameAction("unlock_skill", { skillId }),
+  getSkills: () => invokeGameAction("get_skills"),
+  prestige: () => invokeGameAction("prestige"),
+  gainXp: (amount: number, source: string) => invokeGameAction("gain_xp", { amount, source }),
 };

@@ -25,6 +25,7 @@ import { ReputationLeaderboard } from './profile/ReputationLeaderboard';
 import { LeaderboardView } from './LeaderboardView';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
+import { SkillTreePanel } from './profile/SkillTreePanel';
 import profileBg from '@/assets/profile-bg.jpg';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { LinkAccountPanel } from './profile/LinkAccountPanel';
@@ -44,7 +45,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
+type ProfileTab = 'stats' | 'skills' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -86,6 +87,7 @@ export function ProfileView() {
       <SubTabBar
         tabs={[
           { id: 'stats', label: 'STATS', icon: <BarChart3 size={11} /> },
+          { id: 'skills', label: 'SKILLS', icon: <Star size={11} /> },
           { id: 'loadout', label: 'LOADOUT', icon: <Shield size={11} /> },
           { id: 'contacts', label: 'NPC\'S', icon: <Users size={11} /> },
           { id: 'districts', label: 'REPUTATIE', icon: <MapPin size={11} /> },
@@ -225,6 +227,8 @@ export function ProfileView() {
           </div>
         </>
       )}
+
+      {profileTab === 'skills' && <SkillTreePanel />}
 
       {profileTab === 'contacts' && <NpcRelationsPanel />}
 

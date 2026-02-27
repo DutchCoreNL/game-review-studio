@@ -2737,6 +2737,170 @@ async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload:
   };
 }
 
+// ========== SKILL TREE CONSTANTS (server-side) ==========
+
+const SKILL_TREE_NODES: Record<string, { branch: string; tier: number; cost: number; requires: string | null; maxLevel: number; effects: { type: string; stat?: string; value: number; key?: string }[] }> = {
+  brawler:      { branch: 'muscle', tier: 1, cost: 1, requires: null, maxLevel: 3, effects: [{ type: 'stat_bonus', stat: 'muscle', value: 1 }, { type: 'passive', key: 'crit_chance', value: 3 }] },
+  tank:         { branch: 'muscle', tier: 2, cost: 2, requires: 'brawler', maxLevel: 3, effects: [{ type: 'passive', key: 'max_hp_bonus', value: 15 }, { type: 'passive', key: 'damage_reduction', value: 5 }] },
+  berserker:    { branch: 'muscle', tier: 3, cost: 3, requires: 'tank', maxLevel: 2, effects: [{ type: 'passive', key: 'lifesteal', value: 8 }, { type: 'passive', key: 'low_hp_damage', value: 20 }] },
+  hacker:       { branch: 'brains', tier: 1, cost: 1, requires: null, maxLevel: 3, effects: [{ type: 'stat_bonus', stat: 'brains', value: 1 }, { type: 'passive', key: 'hack_success', value: 5 }] },
+  strategist:   { branch: 'brains', tier: 2, cost: 2, requires: 'hacker', maxLevel: 3, effects: [{ type: 'passive', key: 'trade_bonus', value: 4 }, { type: 'passive', key: 'heist_intel', value: 10 }] },
+  mastermind:   { branch: 'brains', tier: 3, cost: 3, requires: 'strategist', maxLevel: 2, effects: [{ type: 'passive', key: 'xp_bonus', value: 10 }, { type: 'passive', key: 'cooldown_reduction', value: 15 }] },
+  smooth_talker:{ branch: 'charm', tier: 1, cost: 1, requires: null, maxLevel: 3, effects: [{ type: 'stat_bonus', stat: 'charm', value: 1 }, { type: 'passive', key: 'npc_relation', value: 5 }] },
+  negotiator:   { branch: 'charm', tier: 2, cost: 2, requires: 'smooth_talker', maxLevel: 3, effects: [{ type: 'passive', key: 'recruit_chance', value: 8 }, { type: 'passive', key: 'corruption_discount', value: 10 }] },
+  kingpin:      { branch: 'charm', tier: 3, cost: 3, requires: 'negotiator', maxLevel: 2, effects: [{ type: 'passive', key: 'rep_multiplier', value: 15 }, { type: 'passive', key: 'intimidation', value: 20 }] },
+};
+
+const TIER_LEVEL_REQ: Record<number, number> = { 1: 1, 2: 10, 3: 25 };
+const XP_SCALE = 1.4;
+const SP_PER_LEVEL = 2;
+const PRESTIGE_REQ_LEVEL = 50;
+const PRESTIGE_MAX = 10;
+
+// ========== UNLOCK SKILL ==========
+
+async function handleUnlockSkill(supabase: any, userId: string, ps: any, payload: { skillId: string }): Promise<ActionResult> {
+  const { skillId } = payload;
+  if (!skillId) return { success: false, message: "Geen skill opgegeven." };
+
+  const node = SKILL_TREE_NODES[skillId];
+  if (!node) return { success: false, message: "Onbekende skill." };
+
+  // Get current skills
+  const { data: skills } = await supabase.from("player_skills").select("skill_id, level").eq("user_id", userId);
+  const skillMap: Record<string, number> = {};
+  for (const s of (skills || [])) skillMap[s.skill_id] = s.level;
+
+  const currentLevel = skillMap[skillId] || 0;
+  if (currentLevel >= node.maxLevel) return { success: false, message: "Max level bereikt." };
+  if (ps.skill_points < node.cost) return { success: false, message: `${node.cost} SP nodig (heb: ${ps.skill_points}).` };
+  if (ps.level < (TIER_LEVEL_REQ[node.tier] || 1)) return { success: false, message: `Level ${TIER_LEVEL_REQ[node.tier]} vereist.` };
+
+  // Check parent requirement
+  if (node.requires) {
+    const parentLevel = skillMap[node.requires] || 0;
+    if (parentLevel < 1) return { success: false, message: `Vereist: ${node.requires}` };
+  }
+
+  // Unlock/upgrade the skill
+  if (currentLevel === 0) {
+    await supabase.from("player_skills").insert({ user_id: userId, skill_id: skillId, level: 1 });
+  } else {
+    await supabase.from("player_skills").update({ level: currentLevel + 1 }).eq("user_id", userId).eq("skill_id", skillId);
+  }
+
+  // Deduct SP
+  const newSP = ps.skill_points - node.cost;
+  await supabase.from("player_state").update({ skill_points: newSP }).eq("user_id", userId);
+
+  // Return updated skills
+  const { data: updatedSkills } = await supabase.from("player_skills").select("skill_id, level").eq("user_id", userId);
+  const skillList = (updatedSkills || []).map((s: any) => ({ skillId: s.skill_id, level: s.level }));
+
+  return {
+    success: true,
+    message: `${skillId} ${currentLevel === 0 ? 'ontgrendeld' : `→ level ${currentLevel + 1}`}!`,
+    data: { skills: skillList, skillPoints: newSP },
+  };
+}
+
+// ========== GET SKILLS ==========
+
+async function handleGetSkills(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: skills } = await supabase.from("player_skills").select("skill_id, level").eq("user_id", userId);
+  return {
+    success: true,
+    message: "Skills opgehaald.",
+    data: { skills: (skills || []).map((s: any) => ({ skillId: s.skill_id, level: s.level })) },
+  };
+}
+
+// ========== PRESTIGE ==========
+
+async function handlePrestige(supabase: any, userId: string, ps: any): Promise<ActionResult> {
+  if (ps.level < PRESTIGE_REQ_LEVEL) return { success: false, message: `Level ${PRESTIGE_REQ_LEVEL} vereist (heb: ${ps.level}).` };
+  const currentPrestige = ps.prestige_level || 0;
+  if (currentPrestige >= PRESTIGE_MAX) return { success: false, message: "Maximum prestige bereikt." };
+
+  const newPrestige = currentPrestige + 1;
+
+  // Reset level, XP, skill points but keep prestige bonuses
+  await supabase.from("player_state").update({
+    level: 1, xp: 0, next_xp: 100, skill_points: 2,
+    prestige_level: newPrestige,
+    xp_streak: 0,
+  }).eq("user_id", userId);
+
+  // Clear all skills (fresh start)
+  await supabase.from("player_skills").delete().eq("user_id", userId);
+
+  return {
+    success: true,
+    message: `Prestige ${newPrestige}! Level gereset met +${newPrestige * 5}% permanente XP bonus.`,
+    data: { prestigeLevel: newPrestige },
+  };
+}
+
+// ========== GAIN XP (server-validated) ==========
+
+async function handleGainXp(supabase: any, userId: string, ps: any, payload: { amount: number; source: string }): Promise<ActionResult> {
+  let { amount, source } = payload;
+  if (!amount || amount <= 0) return { success: false, message: "Ongeldige XP." };
+  if (amount > 10000) amount = 10000; // anti-exploit cap
+
+  // Calculate multipliers
+  let multiplier = 1.0;
+
+  // District bonus
+  const districtBonuses: Record<string, number> = { port: 0.05, iron: 0.10, neon: 0.15, crown: 0.20 };
+  multiplier += districtBonuses[ps.loc] || 0;
+
+  // Streak bonus (+2% per streak, max 20%)
+  const streak = Math.min(10, ps.xp_streak || 0);
+  multiplier += streak * 0.02;
+
+  // Prestige bonus (+5% per prestige level)
+  multiplier += (ps.prestige_level || 0) * 0.05;
+
+  // Gang bonus (+10% if in gang)
+  const { data: gangMember } = await supabase.from("gang_members").select("id").eq("user_id", userId).limit(1);
+  if (gangMember && gangMember.length > 0) multiplier += 0.10;
+
+  // Mastermind skill bonus
+  const { data: mastermindSkill } = await supabase.from("player_skills").select("level").eq("user_id", userId).eq("skill_id", "mastermind").maybeSingle();
+  if (mastermindSkill) multiplier += mastermindSkill.level * 0.10;
+
+  const totalXp = Math.floor(amount * multiplier);
+  let newXp = ps.xp + totalXp;
+  let newLevel = ps.level;
+  let newNextXp = ps.next_xp;
+  let newSP = ps.skill_points;
+  let levelUps = 0;
+
+  // Process level ups
+  while (newXp >= newNextXp) {
+    newXp -= newNextXp;
+    newLevel++;
+    levelUps++;
+    newSP += SP_PER_LEVEL;
+    newNextXp = Math.floor(newNextXp * XP_SCALE);
+  }
+
+  // Increment streak
+  const newStreak = (ps.xp_streak || 0) + 1;
+
+  await supabase.from("player_state").update({
+    xp: newXp, level: newLevel, next_xp: newNextXp,
+    skill_points: newSP, xp_streak: newStreak,
+  }).eq("user_id", userId);
+
+  return {
+    success: true,
+    message: levelUps > 0 ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP` : `+${totalXp} XP (×${multiplier.toFixed(2)})`,
+    data: { xpGained: totalXp, multiplier, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak },
+  };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -2932,6 +3096,18 @@ Deno.serve(async (req) => {
         break;
       case "casino_play":
         result = await handleCasinoPlay(supabase, user.id, playerState, payload);
+        break;
+      case "unlock_skill":
+        result = await handleUnlockSkill(supabase, user.id, playerState, payload);
+        break;
+      case "get_skills":
+        result = await handleGetSkills(supabase, user.id);
+        break;
+      case "prestige":
+        result = await handlePrestige(supabase, user.id, playerState);
+        break;
+      case "gain_xp":
+        result = await handleGainXp(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

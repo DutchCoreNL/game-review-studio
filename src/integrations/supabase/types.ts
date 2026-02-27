@@ -806,6 +806,30 @@ export type Database = {
         }
         Relationships: []
       }
+      player_skills: {
+        Row: {
+          id: string
+          level: number
+          skill_id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          level?: number
+          skill_id: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          level?: number
+          skill_id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       player_state: {
         Row: {
           ammo: number
@@ -848,6 +872,7 @@ export type Database = {
           next_xp: number
           personal_heat: number
           police_rel: number
+          prestige_level: number
           prison_reason: string | null
           prison_until: string | null
           rep: number
@@ -868,6 +893,7 @@ export type Database = {
           user_id: string
           wash_used_today: number
           xp: number
+          xp_streak: number
         }
         Insert: {
           ammo?: number
@@ -910,6 +936,7 @@ export type Database = {
           next_xp?: number
           personal_heat?: number
           police_rel?: number
+          prestige_level?: number
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
@@ -930,6 +957,7 @@ export type Database = {
           user_id: string
           wash_used_today?: number
           xp?: number
+          xp_streak?: number
         }
         Update: {
           ammo?: number
@@ -972,6 +1000,7 @@ export type Database = {
           next_xp?: number
           personal_heat?: number
           police_rel?: number
+          prestige_level?: number
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
@@ -992,6 +1021,7 @@ export type Database = {
           user_id?: string
           wash_used_today?: number
           xp?: number
+          xp_streak?: number
         }
         Relationships: []
       }

@@ -1113,6 +1113,11 @@ export interface GameState {
   gangDistricts: string[]; // districts owned by player's gang (derived from server)
   gangId: string | null; // player's current gang ID
 
+  // ========== SKILL TREE & PRESTIGE STATE ==========
+  unlockedSkills: { skillId: string; level: number }[];
+  prestigeLevel: number;
+  xpStreak: number; // consecutive actions without hospitalization
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
