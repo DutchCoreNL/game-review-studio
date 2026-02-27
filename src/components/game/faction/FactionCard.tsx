@@ -33,7 +33,7 @@ interface FactionCardProps {
 
 export function FactionCard({ familyId }: FactionCardProps) {
   const { state, dispatch, showToast, setView } = useGame();
-  const { factions } = useFactionState();
+  const { factions, usernameMap } = useFactionState();
   const [expanded, setExpanded] = useState(false);
   
   // Get MMO faction state from server
@@ -320,7 +320,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
                               <span className={`w-4 text-center font-bold ${i === 0 ? 'text-gold' : i === 1 ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
                                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                               </span>
-                              <span className="flex-1 truncate text-muted-foreground">{uid.slice(0, 8)}...</span>
+                              <span className="flex-1 truncate text-muted-foreground">{usernameMap[uid] || uid.slice(0, 8) + '...'}</span>
                               <span className="font-bold">{dmg as number} dmg</span>
                             </div>
                           ))}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { gameApi } from '@/lib/gameApi';
 
@@ -23,6 +23,7 @@ export interface FactionState {
 export function useFactionState() {
   const [factions, setFactions] = useState<Record<string, FactionState>>({});
   const [loading, setLoading] = useState(true);
+  const [usernameMap, setUsernameMap] = useState<Record<string, string>>({});
 
   const fetchFactions = useCallback(async () => {
     const res = await gameApi.getFactionState();
@@ -32,10 +33,40 @@ export function useFactionState() {
     setLoading(false);
   }, []);
 
+  // Collect all unique user IDs from damage leaderboards
+  const allDamageUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    Object.values(factions).forEach(f => {
+      if (f.total_damage_dealt) {
+        Object.keys(f.total_damage_dealt).forEach(uid => ids.add(uid));
+      }
+    });
+    return Array.from(ids);
+  }, [factions]);
+
+  // Fetch usernames for damage dealer UUIDs
+  useEffect(() => {
+    const missing = allDamageUserIds.filter(id => !usernameMap[id]);
+    if (missing.length === 0) return;
+
+    supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', missing)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setUsernameMap(prev => {
+            const next = { ...prev };
+            data.forEach(p => { next[p.id] = p.username; });
+            return next;
+          });
+        }
+      });
+  }, [allDamageUserIds]);
+
   useEffect(() => {
     fetchFactions();
 
-    // Realtime subscription
     const channel = supabase
       .channel('faction-relations-realtime')
       .on('postgres_changes', {
@@ -58,5 +89,5 @@ export function useFactionState() {
     return res;
   }, []);
 
-  return { factions, loading, attackFaction, refetch: fetchFactions };
+  return { factions, loading, attackFaction, refetch: fetchFactions, usernameMap };
 }
