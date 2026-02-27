@@ -390,6 +390,7 @@ export interface Vehicle {
   armor: number;
   charm: number;
   desc: string;
+  reqPrestige?: number; // minimum prestige level required
 }
 
 export interface Good {
