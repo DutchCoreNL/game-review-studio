@@ -1,5 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useCallback, useEffect } from 'react';
+import { useWorldState } from '@/hooks/useWorldState';
+import { useAdmin } from '@/hooks/useAdmin';
 import { setVolume } from '@/game/sounds';
 import { setMusicScene, stopMusic, setMusicVolume } from '@/game/sounds/ambientMusic';
 import { startAmbiance, stopAmbiance, setAmbianceVolume, setWeather } from '@/game/sounds/cityAmbiance';
@@ -42,6 +44,7 @@ import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { SanctionBanner } from './SanctionBanner';
 import { DesktopSidebar } from './DesktopSidebar';
+import { MaintenanceOverlay } from './MaintenanceOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -54,6 +57,9 @@ const views: Record<string, React.ComponentType> = {
 
 export function GameLayout() {
   const { view, state, dispatch, xpBreakdown, clearXpBreakdown } = useGame();
+
+  const { isAdmin } = useAdmin();
+  const worldState = useWorldState();
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
@@ -166,6 +172,9 @@ export function GameLayout() {
           {state.pendingCinematic && <CinematicOverlay />}
           {state.backstory === null && state.tutorialDone && (
             <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
+          )}
+          {worldState.maintenanceMode && !isAdmin && (
+            <MaintenanceOverlay message={worldState.maintenanceMessage} />
           )}
         </div>
       </div>

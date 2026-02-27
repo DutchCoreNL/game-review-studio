@@ -19,6 +19,8 @@ export interface WorldState {
   weather: WeatherType;
   nextCycleAt: string;
   activeEvent: WorldEvent | null;
+  maintenanceMode: boolean;
+  maintenanceMessage: string | null;
 }
 
 const DEFAULT_STATE: WorldState = {
@@ -27,6 +29,8 @@ const DEFAULT_STATE: WorldState = {
   weather: 'clear',
   nextCycleAt: new Date().toISOString(),
   activeEvent: null,
+  maintenanceMode: false,
+  maintenanceMessage: null,
 };
 
 export function useWorldState() {
@@ -48,6 +52,8 @@ export function useWorldState() {
           weather: data.current_weather as WeatherType,
           nextCycleAt: data.next_cycle_at,
           activeEvent: (data as any).active_event ?? null,
+          maintenanceMode: (data as any).maintenance_mode ?? false,
+          maintenanceMessage: (data as any).maintenance_message ?? null,
         });
       }
       setLoading(false);
@@ -69,6 +75,8 @@ export function useWorldState() {
           weather: d.current_weather as WeatherType,
           nextCycleAt: d.next_cycle_at,
           activeEvent: d.active_event ?? null,
+          maintenanceMode: d.maintenance_mode ?? false,
+          maintenanceMessage: d.maintenance_message ?? null,
         });
       })
       .subscribe();

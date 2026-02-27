@@ -1318,6 +1318,8 @@ export type Database = {
           active_event: Json | null
           current_weather: string
           id: number
+          maintenance_message: string | null
+          maintenance_mode: boolean
           next_cycle_at: string
           time_of_day: string
           updated_at: string
@@ -1328,6 +1330,8 @@ export type Database = {
           active_event?: Json | null
           current_weather?: string
           id?: number
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
           next_cycle_at?: string
           time_of_day?: string
           updated_at?: string
@@ -1338,6 +1342,8 @@ export type Database = {
           active_event?: Json | null
           current_weather?: string
           id?: number
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
           next_cycle_at?: string
           time_of_day?: string
           updated_at?: string

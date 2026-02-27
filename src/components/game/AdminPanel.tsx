@@ -115,6 +115,8 @@ export function AdminPanel() {
   const [worldStats, setWorldStats] = useState<WorldStats | null>(null);
   const [worldLoading, setWorldLoading] = useState(false);
   const [confirmGlobalReset, setConfirmGlobalReset] = useState(false);
+  const [maintenanceOn, setMaintenanceOn] = useState(false);
+  const [maintenanceMsg, setMaintenanceMsg] = useState('');
   const [eventForm, setEventForm] = useState({ title: '', description: '', district_id: 'low', duration: 60 });
   const [grantTarget, setGrantTarget] = useState('');
   const [grantAmount, setGrantAmount] = useState(10000);
@@ -136,7 +138,16 @@ export function AdminPanel() {
   const fetchLogs = async () => { setLogsLoading(true); try { const d = await adminCall('get_logs'); setLogs(d.logs || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setLogsLoading(false); };
   const fetchPrices = async () => { setPricesLoading(true); try { const d = await adminCall('get_market_prices'); setPrices(d.prices || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setPricesLoading(false); };
   const fetchBots = async () => { setBotsLoading(true); try { const d = await adminCall('get_bots'); setBots(d.bots || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setBotsLoading(false); };
-  const fetchWorldStats = async () => { setWorldLoading(true); try { const d = await adminCall('get_world_stats'); setWorldStats(d.stats); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setWorldLoading(false); };
+  const fetchWorldStats = async () => {
+    setWorldLoading(true);
+    try {
+      const [d, m] = await Promise.all([adminCall('get_world_stats'), adminCall('get_maintenance')]);
+      setWorldStats(d.stats);
+      setMaintenanceOn(!!m.maintenance_mode);
+      setMaintenanceMsg(m.maintenance_message || '');
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setWorldLoading(false);
+  };
 
   useEffect(() => { if (isAdmin) fetchEntries(); }, [isAdmin]);
   useEffect(() => {
@@ -431,6 +442,35 @@ export function AdminPanel() {
           </div>
 
           {/* ====== ADMIN ACTIES ====== */}
+          {/* Maintenance mode toggle */}
+          <div className={`game-card ${maintenanceOn ? 'border-gold/50 bg-gold/5' : ''}`}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[0.5rem] font-bold text-muted-foreground">🔧 ONDERHOUDSMODUS</p>
+              <button
+                onClick={async () => {
+                  const newState = !maintenanceOn;
+                  try {
+                    await adminCall('set_maintenance', { enabled: newState, message: maintenanceMsg || null });
+                    setMaintenanceOn(newState);
+                    showToast(newState ? '🔧 Onderhoudsmodus AAN' : '✅ Onderhoudsmodus UIT');
+                  } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                }}
+                className={`relative w-10 h-5 rounded-full transition-colors ${maintenanceOn ? 'bg-gold' : 'bg-muted'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background transition-transform ${maintenanceOn ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+            <input
+              value={maintenanceMsg}
+              onChange={e => setMaintenanceMsg(e.target.value)}
+              placeholder="Optioneel bericht voor spelers..."
+              className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
+            />
+            {maintenanceOn && (
+              <p className="text-[0.45rem] text-gold mt-1.5">⚠️ Alle niet-admin spelers zien nu het onderhoudsscherm</p>
+            )}
+          </div>
+
           <div className="game-card border-blood/30">
             <p className="text-[0.5rem] font-bold text-blood mb-2">⚡ ADMIN ACTIES</p>
             <div className="grid grid-cols-2 gap-1.5">
