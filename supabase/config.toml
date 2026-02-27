@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.game-action]
 verify_jwt = false
+
+[functions.passive-income]
+verify_jwt = false
