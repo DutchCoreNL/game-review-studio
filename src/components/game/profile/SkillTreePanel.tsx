@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { SKILL_NODES, BRANCH_INFO, canUnlockSkill, getSkillLevel, PRESTIGE_CONFIG, LEVEL_GATES, type SkillBranch } from '@/game/skillTree';
+import { SKILL_NODES, BRANCH_INFO, canUnlockSkill, getSkillLevel, PRESTIGE_CONFIG, LEVEL_GATES, type SkillBranch, type SkillEffect } from '@/game/skillTree';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Brain, Gem, Star, Crown, Zap, Lock, ChevronRight, Trophy } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const BRANCH_ICONS: Record<SkillBranch, React.ReactNode> = {
   muscle: <Swords size={14} />,
@@ -232,15 +233,46 @@ export function SkillTreePanel() {
                     </div>
                     <p className="text-[0.45rem] text-muted-foreground">{node.desc}</p>
                     
-                    {/* Effects */}
+                    {/* Effects with tooltips */}
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {node.effects.map((e, i) => (
-                        <span key={i} className={`text-[0.4rem] px-1 py-0.5 rounded font-semibold ${
-                          currentLevel > 0 ? 'bg-gold/10 text-gold' : 'bg-muted/50 text-muted-foreground'
-                        }`}>
-                          {e.label}
-                        </span>
-                      ))}
+                      {node.effects.map((e, i) => {
+                        const curVal = e.value ? e.value * currentLevel : 0;
+                        const nextVal = e.value ? e.value * Math.min(currentLevel + 1, node.maxLevel) : 0;
+                        return (
+                          <TooltipProvider key={i} delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className={`text-[0.4rem] px-1 py-0.5 rounded font-semibold cursor-help border border-transparent hover:border-gold/30 transition-colors ${
+                                  currentLevel > 0 ? 'bg-gold/10 text-gold' : 'bg-muted/50 text-muted-foreground'
+                                }`}>
+                                  {e.label}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-card border-border text-foreground max-w-[180px] p-2">
+                                <p className="text-[0.55rem] font-bold mb-1">{e.label}</p>
+                                {e.value != null && (
+                                  <div className="space-y-0.5 text-[0.5rem]">
+                                    <div className="flex justify-between gap-3">
+                                      <span className="text-muted-foreground">Huidig:</span>
+                                      <span className={currentLevel > 0 ? 'text-gold font-semibold' : 'text-muted-foreground'}>{curVal > 0 ? `+${curVal}${e.key && !e.stat ? '%' : ''}` : '—'}</span>
+                                    </div>
+                                    {!isMaxed && (
+                                      <div className="flex justify-between gap-3">
+                                        <span className="text-muted-foreground">Volgend:</span>
+                                        <span className="text-emerald font-semibold">+{nextVal}{e.key && !e.stat ? '%' : ''}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between gap-3">
+                                      <span className="text-muted-foreground">Max (Lv{node.maxLevel}):</span>
+                                      <span className="text-ice font-semibold">+{e.value * node.maxLevel}{e.key && !e.stat ? '%' : ''}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })}
                     </div>
 
                     {/* Level bar */}
