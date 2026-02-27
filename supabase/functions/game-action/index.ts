@@ -1341,7 +1341,7 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
   // Get real players in the same district, excluding self, hospital, prison
   const { data: players } = await supabase
     .from("player_state")
-    .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until")
+    .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until, stats, loadout, backstory, rep")
     .eq("loc", ps.loc)
     .neq("user_id", userId)
     .eq("game_over", false)
@@ -1369,6 +1369,10 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
       level: p.level,
       hp: p.hp,
       maxHp: p.max_hp,
+      stats: p.stats || { muscle: 1, brains: 1, charm: 1 },
+      loadout: p.loadout || { weapon: null, armor: null, gadget: null },
+      backstory: p.backstory || null,
+      rep: p.rep || 0,
       isBot: false,
     }));
 
@@ -1390,6 +1394,10 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
           level: bot.level,
           hp: bot.hp,
           maxHp: bot.max_hp,
+          stats: { muscle: Math.floor(bot.level * 1.5) + 3, brains: Math.floor(bot.level * 0.8), charm: Math.floor(bot.level * 0.5) },
+          loadout: { weapon: null, armor: null, gadget: null },
+          backstory: bot.backstory || null,
+          rep: bot.rep || 0,
           isBot: true,
         });
       }

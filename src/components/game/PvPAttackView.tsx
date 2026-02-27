@@ -3,6 +3,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/hooks/useAuth';
 import { gameApi } from '@/lib/gameApi';
 import { PvPPlayerInfo } from '@/game/types';
+import { GEAR as GEAR_DATA } from '@/game/constants';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -10,7 +11,7 @@ import { StatBar } from './ui/StatBar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User, Eye } from 'lucide-react';
+import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User, Eye, X, Crosshair } from 'lucide-react';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
 import { Mail } from 'lucide-react';
 import { MessagesComposePopup } from './MessagesComposePopup';
@@ -27,6 +28,147 @@ interface AttackResult {
   targetName: string;
   attackerPower: number;
   defenderPower: number;
+}
+
+function getGearName(gearId: string | null): string {
+  if (!gearId) return '—';
+  const g = GEAR_DATA.find(g => g.id === gearId);
+  return g ? g.name : gearId;
+}
+
+function calcCombatPower(stats: { muscle: number; brains: number; charm: number }, level: number, loadout: Record<string, string | null>): number {
+  let base = stats.muscle * 3 + stats.brains + stats.charm;
+  for (const gearId of Object.values(loadout)) {
+    if (!gearId) continue;
+    const g = GEAR_DATA.find(g => g.id === gearId);
+    if (g) base += Object.values(g.stats).reduce((a, b) => a + b, 0) * 2;
+  }
+  return Math.floor(base * (1 + level * 0.1));
+}
+
+function StatCompareBar({ label, icon, playerVal, enemyVal, color }: { label: string; icon: string; playerVal: number; enemyVal: number; color: string }) {
+  const max = Math.max(playerVal, enemyVal, 1);
+  return (
+    <div className="flex items-center gap-1.5 text-[0.5rem]">
+      <span className="w-3 text-center">{icon}</span>
+      <span className="w-10 text-right text-emerald font-bold tabular-nums">{playerVal}</span>
+      <div className="flex-1 flex h-1.5 gap-0.5">
+        <div className="flex-1 flex justify-end"><div className={`h-full rounded-l bg-emerald`} style={{ width: `${(playerVal / max) * 100}%` }} /></div>
+        <div className="flex-1"><div className={`h-full rounded-r bg-blood`} style={{ width: `${(enemyVal / max) * 100}%` }} /></div>
+      </div>
+      <span className="w-10 text-blood font-bold tabular-nums">{enemyVal}</span>
+      <span className="w-12 text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function PreCombatPreview({ player, target, onFight, onClose, canAttack }: {
+  player: { stats: { muscle: number; brains: number; charm: number }; level: number; hp: number; maxHp: number; loadout: Record<string, string | null>; username: string };
+  target: PlayerTarget;
+  onFight: () => void;
+  onClose: () => void;
+  canAttack: boolean;
+}) {
+  const pStats = player.stats;
+  const tStats = target.stats || { muscle: 1, brains: 1, charm: 1 };
+  const tLoadout = target.loadout || { weapon: null, armor: null, gadget: null };
+  const pPower = calcCombatPower(pStats, player.level, player.loadout);
+  const tPower = calcCombatPower(tStats, target.level, tLoadout);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="game-card w-full max-w-sm border border-gold/20"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <SectionHeader title="Gevecht Preview" icon={<Crosshair size={12} />} />
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+        </div>
+
+        {/* Fighter cards side by side */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {/* Player */}
+          <div className="bg-emerald/5 border border-emerald/20 rounded p-2">
+            <div className="text-center mb-1.5">
+              <span className="text-[0.5rem] text-emerald font-bold uppercase tracking-wider">JIJ</span>
+              <p className="font-bold text-xs truncate">{player.username}</p>
+              <GameBadge variant="emerald" size="xs">Lv.{player.level}</GameBadge>
+            </div>
+            <div className="flex items-center gap-1 mb-1.5">
+              <Heart size={7} className="text-blood" />
+              <StatBar value={player.hp} max={player.maxHp} color="blood" height="sm" />
+            </div>
+            <div className="space-y-0.5 text-[0.45rem] text-muted-foreground">
+              <p>🔫 {getGearName(player.loadout.weapon)}</p>
+              <p>🛡️ {getGearName(player.loadout.armor)}</p>
+              <p>📱 {getGearName(player.loadout.gadget)}</p>
+            </div>
+          </div>
+          {/* Target */}
+          <div className="bg-blood/5 border border-blood/20 rounded p-2">
+            <div className="text-center mb-1.5">
+              <span className="text-[0.5rem] text-blood font-bold uppercase tracking-wider">VIJAND</span>
+              <p className="font-bold text-xs truncate">{target.username}</p>
+              <GameBadge variant="blood" size="xs">Lv.{target.level}</GameBadge>
+            </div>
+            <div className="flex items-center gap-1 mb-1.5">
+              <Heart size={7} className="text-blood" />
+              <StatBar value={target.hp} max={target.maxHp} color="blood" height="sm" />
+            </div>
+            <div className="space-y-0.5 text-[0.45rem] text-muted-foreground">
+              <p>🔫 {getGearName(tLoadout.weapon)}</p>
+              <p>🛡️ {getGearName(tLoadout.armor)}</p>
+              <p>📱 {getGearName(tLoadout.gadget)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats comparison */}
+        <div className="space-y-1 mb-3">
+          <StatCompareBar label="Kracht" icon="💪" playerVal={pStats.muscle} enemyVal={tStats.muscle} color="gold" />
+          <StatCompareBar label="Vernuft" icon="🧠" playerVal={pStats.brains} enemyVal={tStats.brains} color="gold" />
+          <StatCompareBar label="Charisma" icon="😎" playerVal={pStats.charm} enemyVal={tStats.charm} color="gold" />
+        </div>
+
+        {/* Combat power */}
+        <div className="flex items-center justify-between bg-muted/30 rounded p-2 mb-3">
+          <div className="text-center">
+            <span className="text-[0.45rem] text-muted-foreground uppercase">Jouw Power</span>
+            <p className={`font-bold text-sm ${pPower >= tPower ? 'text-emerald' : 'text-gold'}`}>{pPower}</p>
+          </div>
+          <Swords size={16} className="text-gold" />
+          <div className="text-center">
+            <span className="text-[0.45rem] text-muted-foreground uppercase">Vijand Power</span>
+            <p className={`font-bold text-sm ${tPower > pPower ? 'text-blood' : 'text-gold'}`}>{tPower}</p>
+          </div>
+        </div>
+
+        {target.rep !== undefined && target.rep > 0 && (
+          <p className="text-[0.45rem] text-muted-foreground mb-2">⭐ Rep: {target.rep}</p>
+        )}
+
+        <GameButton
+          variant="blood"
+          className="w-full"
+          disabled={!canAttack}
+          glow={canAttack}
+          onClick={onFight}
+        >
+          <Swords size={12} /> VECHT!
+        </GameButton>
+      </motion.div>
+    </motion.div>
+  );
 }
 
 export function PvPAttackView() {
@@ -207,11 +349,18 @@ export function PvPAttackView() {
                   </GameButton>
                 )}
                 <GameButton
+                  variant="muted"
+                  size="sm"
+                  onClick={() => setPreviewTarget(p)}
+                >
+                  <Eye size={10} />
+                </GameButton>
+                <GameButton
                   variant={canAttack ? 'blood' : 'muted'}
                   size="sm"
                   disabled={!canAttack}
                   glow={canAttack}
-                  onClick={() => setConfirmTarget(p)}
+                  onClick={() => setPreviewTarget(p)}
                 >
                   <Swords size={10} />
                 </GameButton>
@@ -230,7 +379,27 @@ export function PvPAttackView() {
         </div>
       )}
 
-      {/* Confirm Dialog */}
+      {/* Pre-Combat Preview */}
+      <AnimatePresence>
+        {previewTarget && (
+          <PreCombatPreview
+            player={{
+              stats: state.player.stats,
+              level: state.player.level,
+              hp: state.playerHP,
+              maxHp: state.playerMaxHP,
+              loadout: state.player.loadout,
+              username: 'Jij',
+            }}
+            target={previewTarget}
+            canAttack={canAttack}
+            onFight={() => { executeAttack(previewTarget); setPreviewTarget(null); }}
+            onClose={() => setPreviewTarget(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Confirm Dialog (legacy fallback) */}
       <ConfirmDialog
         open={confirmTarget !== null}
         title="Aanval Bevestigen"
