@@ -3169,6 +3169,106 @@ async function handleGetDistrictData(supabase: any): Promise<ActionResult> {
   };
 }
 
+// ========== ACCEPT CONTRACT (server-side generation) ==========
+
+const CONTRACT_TEMPLATES_SERVER = [
+  { name: "Koeriersdienst", risk: 15, heat: 8, rewardBase: 1200, type: "delivery" },
+  { name: "Rivalen Intimideren", risk: 45, heat: 25, rewardBase: 3500, type: "combat" },
+  { name: "Inbraak", risk: 55, heat: 35, rewardBase: 5500, type: "stealth" },
+  { name: "Datadiefstal", risk: 40, heat: 12, rewardBase: 4000, type: "tech" },
+  { name: "Wapenlevering", risk: 35, heat: 20, rewardBase: 2800, type: "delivery" },
+  { name: "Bescherming Bieden", risk: 25, heat: 10, rewardBase: 2000, type: "combat" },
+  { name: "Surveillance Missie", risk: 30, heat: 8, rewardBase: 2500, type: "tech" },
+  { name: "Safe Kraken", risk: 65, heat: 40, rewardBase: 8000, type: "stealth" },
+  { name: "Smokkelroute Openen", risk: 50, heat: 30, rewardBase: 6000, type: "delivery" },
+  { name: "Server Hack", risk: 60, heat: 15, rewardBase: 7000, type: "tech" },
+];
+
+const FACTION_IDS = ["bikers", "cartel", "syndicate"];
+
+async function handleAcceptContract(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Energy check
+  const energyCost = 5;
+  if (ps.energy < energyCost) return { success: false, message: `Niet genoeg energy om een contract te zoeken (nodig: ${energyCost}).` };
+
+  // Load save_data
+  const { data: stateRow } = await supabase.from("player_state")
+    .select("save_data").eq("user_id", userId).maybeSingle();
+  if (!stateRow?.save_data) return { success: false, message: "Geen speeldata gevonden." };
+
+  const saveData = typeof stateRow.save_data === "string" ? JSON.parse(stateRow.save_data) : { ...stateRow.save_data };
+  const activeContracts = saveData.activeContracts || [];
+
+  // Max 5 active contracts
+  if (activeContracts.length >= 5) {
+    return { success: false, message: "Je hebt al 5 actieve contracten. Voltooi of verwijder er eerst één." };
+  }
+
+  // Check which factions are active (not conquered)
+  const { data: factionRows } = await supabase.from("faction_relations")
+    .select("faction_id, status, conquest_phase")
+    .in("status", ["active"]);
+  const activeFactions = (factionRows || []).map((f: any) => f.faction_id).filter((fid: string) => FACTION_IDS.includes(fid));
+  const factions = activeFactions.length >= 2 ? activeFactions : FACTION_IDS;
+
+  // Time-of-day modifiers
+  const timeMods = await getTimeModifiers(supabase);
+
+  // Generate contract server-side
+  const template = CONTRACT_TEMPLATES_SERVER[Math.floor(Math.random() * CONTRACT_TEMPLATES_SERVER.length)];
+  const dayScaling = 1 + Math.min(ps.day * 0.05, 3.0);
+  const levelBonus = 1 + ps.level * 0.05;
+  const nightRewardMult = timeMods.phase === "night" ? 1.2 : timeMods.phase === "dusk" ? 1.1 : 1.0;
+
+  const employer = factions[Math.floor(Math.random() * factions.length)];
+  let target = factions[Math.floor(Math.random() * factions.length)];
+  let attempts = 0;
+  while (target === employer && factions.length >= 2 && attempts < 10) {
+    target = factions[Math.floor(Math.random() * factions.length)];
+    attempts++;
+  }
+
+  const contractId = Date.now() + Math.floor(Math.random() * 10000);
+  const risk = Math.min(95, Math.floor(template.risk + ps.day / 2));
+  const heat = Math.floor(template.heat * timeMods.heatMultiplier);
+  const reward = Math.floor(template.rewardBase * dayScaling * levelBonus * nightRewardMult);
+  const xp = Math.floor(35 + ps.day * 2);
+
+  const newContract = {
+    id: contractId,
+    name: template.name,
+    type: template.type,
+    employer,
+    target,
+    risk,
+    heat,
+    reward,
+    xp,
+  };
+
+  activeContracts.push(newContract);
+  saveData.activeContracts = activeContracts;
+
+  // Deduct energy, update save_data
+  await supabase.from("player_state").update({
+    save_data: saveData,
+    energy: ps.energy - energyCost,
+    last_action_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  const nightLabel = timeMods.phase === "night" ? " 🌙" : timeMods.phase === "dusk" ? " 🌆" : "";
+
+  return {
+    success: true,
+    message: `Nieuw contract aangenomen: ${template.name}${nightLabel} — €${reward.toLocaleString()} beloning, ${risk}% risico.`,
+    data: { contract: newContract, saveData, timeBonus: timeMods.phase },
+  };
+}
+
 // ========== COMPLETE CONTRACT (server-validated) ==========
 
 const CONTRACT_TYPES: Record<string, { baseReward: [number, number]; baseXp: [number, number]; baseHeat: [number, number]; baseRep: [number, number] }> = {
@@ -3926,6 +4026,9 @@ Deno.serve(async (req) => {
         break;
       case "get_district_data":
         result = await handleGetDistrictData(supabase);
+        break;
+      case "accept_contract":
+        result = await handleAcceptContract(supabase, user.id, playerState, payload);
         break;
       case "complete_contract":
         result = await handleCompleteContract(supabase, user.id, playerState, payload);
