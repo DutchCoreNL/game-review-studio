@@ -1,176 +1,63 @@
 
 
-# Plan: MMO Codebase Audit & Verbeteringen
+# Plan: Uitgebreid Admin Paneel
 
-Na een grondige analyse van de codebase zijn er meerdere gebieden die niet passen bij de MMO-architectuur of verbeterd moeten worden. Hieronder een overzicht per categorie.
-
----
-
-## 1. localStorage als primaire opslag verwijderen
-
-**Probleem**: `engine.ts` slaat nog steeds alles op in localStorage (`SAVE_KEY = 'noxhaven_save_v11'`). Dit is nu een fallback, maar de code behandelt het nog als primair.
-
-**Aanpassing**:
-- `saveGame()` en `loadGame()` in `engine.ts` omzetten naar een secundaire cache (fallback bij offline)
-- Bij inloggen altijd cloud save laden als primaire bron
-- localStorage alleen gebruiken als offline buffer, niet als source-of-truth
-- Verwijder de oude save-key migratie (`noxhaven_save_v10`, `v9`, `v8`)
+Het huidige admin paneel heeft alleen **Spelers** (leaderboard entries) en **Logboek**. We voegen de volgende tabs/functies toe:
 
 ---
 
-## 2. END_TURN knop verwijderen — volledig AUTO_TICK
+## Nieuwe Admin Tabs
 
-**Probleem**: De `END_TURN` actie bestaat nog steeds naast `AUTO_TICK`. In een MMO is er geen "dag afsluiten" knop — tijd loopt door.
+### 1. ECONOMIE tab
+- **Marktprijzen bekijken & aanpassen** — lees `market_prices` tabel, inline editing van `current_price` en `price_trend`
+- **Globale prijsmultiplicator** — alle prijzen tijdelijk verhogen/verlagen (event-achtig)
 
-**Aanpassing**:
-- Verwijder de `END_TURN` dispatch en UI-knop volledig
-- Consolideer alle logica uit `END_TURN` case in de `AUTO_TICK` case (die nu al grotendeels hetzelfde doet)
-- Verwijder referenties naar "Dag Afsluiten" in de UI
+### 2. BOTS tab
+- **Alle 50 bots bekijken** uit `bot_players`
+- **Bot stats inline aanpassen** (level, cash, rep, loc, actief/inactief toggle)
+- **Nieuwe bot toevoegen** of bestaande verwijderen
+- **Bulk-actie**: randomize alle bot locaties
 
----
+### 3. SPELER DETAILS tab (uitbreiding bestaand)
+- **Bekijk volledige `player_state`** van een speler (niet alleen leaderboard)
+- **Pas player_state velden aan**: money, hp, energy, nerve, heat, prison_until, hospital_until, loc, level, xp
+- **Teleporteer speler** naar ander district
+- **Geef/neem items**: cash, dirty_money, energy refill
+- **Forceer uit gevangenis/ziekenhuis**
 
-## 3. Prijzen server-side maken (niet client-side genereren)
+### 4. WERELD tab
+- **Server statistieken**: totaal actieve spelers, totaal cash in omloop, gemiddeld level
+- **District overzicht**: hoeveel spelers per district
+- **Ganglijst**: alle gangs met leden-count, treasury, level
+- **Actieve gang wars** bekijken
 
-**Probleem**: `generatePrices()` in `engine.ts` genereert prijzen client-side met `Math.random()`. In een MMO moeten alle spelers dezelfde prijzen zien.
-
-**Aanpassing**:
-- Prijzen worden al bijgehouden in `market_prices` tabel — gebruik deze als enige bron
-- Verwijder client-side `generatePrices()` aanroepen
-- MarketPanel en TradeView moeten data uit de database laden (wat deels al gebeurt)
-- De `passive-income` cron job beheert al de prijsevolutie — dit wordt de enige prijsbron
-
----
-
-## 4. Energy/Nerve systeem activeren in de UI
-
-**Probleem**: Energy en nerve zijn gedefinieerd in de types en server-state, maar worden nog niet consequent afgedwongen. Acties kosten momenteel geen energy/nerve.
-
-**Aanpassing**:
-- Elke actie (trade, solo_op, travel, combat) moet energy of nerve kosten
-- Toon energy/nerve balken prominent in de GameHeader
-- Regeneratie-timers visueel tonen (countdown tot volgende +1 energy)
-- Server-side validatie dat energy/nerve voldoende is
+### 5. BERICHTEN tab
+- **Systeem-broadcast sturen** naar alle spelers (via `player_messages` met sender_id = admin)
+- **Specifieke speler een bericht sturen**
 
 ---
 
-## 5. Cooldowns afdwingen in de UI
+## Technische Aanpak
 
-**Probleem**: `travelCooldownUntil`, `crimeCooldownUntil`, `attackCooldownUntil`, `heistCooldownUntil` bestaan maar worden niet visueel afgedwongen.
+### Edge Function (`admin-actions/index.ts`) — nieuwe actions:
+- `get_player_state` — volledige player_state ophalen voor userId
+- `edit_player_state` — specifieke velden van player_state aanpassen
+- `get_market_prices` — alle marktprijzen ophalen  
+- `edit_market_price` — prijs/trend van een specifiek goed aanpassen
+- `get_bots` — alle bot_players ophalen
+- `edit_bot` / `delete_bot` / `create_bot` — bot CRUD
+- `randomize_bot_locations` — alle bots verplaatsen naar willekeurige districten
+- `get_world_stats` — aggregated queries (totaal spelers, totaal cash, per district)
+- `get_gangs` — alle gangs met member count
+- `send_broadcast` — insert bericht naar alle actieve spelers
+- `send_message` — insert bericht naar specifieke speler
 
-**Aanpassing**:
-- Knoppen disablen wanneer cooldown actief is
-- Countdown-timer tonen op geblokkeerde acties
-- Server-side cooldown-validatie in de edge function (al deels aanwezig)
+### AdminPanel.tsx:
+- Voeg 5 tabs toe: SPELERS, ECONOMIE, BOTS, WERELD, BERICHTEN, LOGBOEK
+- Elk met eigen state, fetch-functies en inline editing UI
+- Hergebruik bestaande `game-card`, `GameButton`, `GameBadge`, `SubTabBar` componenten
 
----
-
-## 6. Client-side game logica reduceren
-
-**Probleem**: De reducer in `GameContext.tsx` (3091 regels) en `engine.ts` (2284 regels) bevatten alle game-logica client-side. Dit is exploiteerbaar in een MMO.
-
-**Aanpassing (gefaseerd)**:
-- **Fase A**: Kritieke acties (trade, combat, operations) moeten resultaat van server accepteren, niet lokaal berekenen
-- **Fase B**: Niet-kritieke acties (UI state, popups, navigation) kunnen client-side blijven
-- De `SERVER_ACTIONS` set in `useServerSync.ts` uitbreiden met meer acties (momenteel maar 12 van 100+)
-
----
-
-## 7. Gevangenis & Hospitalisatie naar realtime timers
-
-**Probleem**: Gevangenis (`prison.daysRemaining`) en hospitalisatie tellen af per game-dag. In een MMO moeten dit realtime timers zijn.
-
-**Aanpassing**:
-- `prison_until` en `hospital_until` kolommen bestaan al in `player_state`
-- Gebruik deze ISO-timestamps i.p.v. dagentellers
-- UI toont countdown-klok (uren/minuten) i.p.v. "X dagen"
-- Automatische release wanneer timestamp verloopt
-
----
-
-## 8. Leaderboard-sync automatiseren
-
-**Probleem**: Leaderboard sync is handmatig (knop in WiFi-popup). In een MMO moet dit automatisch gebeuren.
-
-**Aanpassing**:
-- Sync automatisch bij cloud save (elke 2 minuten)
-- Verwijder handmatige sync-knop of maak optioneel
-- Edge function `save_state` kan tegelijk leaderboard updaten
-
----
-
-## 9. Gang-systeem koppelen aan database
-
-**Probleem**: Gang-tabellen (`gangs`, `gang_members`, `gang_territories`, etc.) bestaan in de database maar worden nog niet vanuit de client aangestuurd.
-
-**Aanpassing**:
-- GangView koppelen aan de database-tabellen via Supabase queries
-- Gang-acties (join, leave, contribute) via edge function
-- Realtime gang-chat via Supabase Realtime (tabel `gang_chat` bestaat al)
-
----
-
-## 10. Verwijder single-player remnants
-
-**Probleem**: Diverse systemen zijn puur single-player en passen niet in een MMO:
-- **New Game Plus** (NG+): Geen reset in een MMO
-- **Victory Screen / Game Over**: Een MMO eindigt niet
-- **Run History**: Geen "runs" in een persistent world
-- **Tick Interval config**: Spelers mogen de tijdssnelheid niet aanpassen
-
-**Aanpassing**:
-- NG+ systeem verwijderen of omzetten naar een "Prestige" systeem (reset met bonussen, maar behoud MMO-wereld)
-- Victory/Game Over verwijderen of omzetten naar "Season milestones"
-- `tickIntervalMinutes` vast op server zetten, niet configureerbaar per speler
-
----
-
-## 11. NPC Facties → Gedeelde wereld-state
-
-**Probleem**: Factie-relaties, conquest-status en leiders zijn per-speler opgeslagen. In een MMO zouden facties gedeeld moeten zijn.
-
-**Aanpassing (toekomst)**:
-- Factie-status (conquered, leader alive) naar een gedeelde server-tabel
-- Speler-specifieke relaties blijven per-speler
-- Conquest-events worden server-wide events
-
----
-
-## Prioritering
-
-```text
-HOOG (nu doen):
-├── #2 END_TURN verwijderen → AUTO_TICK only
-├── #3 Prijzen alleen uit database
-├── #5 Cooldown-timers in UI
-└── #7 Prison/Hospital naar realtime
-
-MIDDEL (volgende sprint):
-├── #1 localStorage als fallback only
-├── #4 Energy/Nerve afdwingen
-├── #6 Meer acties server-side
-└── #8 Auto leaderboard sync
-
-LAAG (later):
-├── #9  Gang-systeem activeren
-├── #10 SP remnants opschonen
-└── #11 Gedeelde factie-state
-```
-
----
-
-## Technische Details
-
-### Bestanden die aangepast worden (HOOG prioriteit):
-- `src/game/engine.ts` — `endTurn()`, `generatePrices()`, `saveGame()`/`loadGame()` aanpassen
-- `src/contexts/GameContext.tsx` — `END_TURN` case verwijderen, cooldown-checks toevoegen
-- `src/components/game/GameHeader.tsx` — energy/nerve bars, cooldown-timers
-- `src/components/game/trade/MarketPanel.tsx` — database als enige prijsbron
-- `src/components/game/OperationsView.tsx` — cooldown + energy checks
-- `src/components/game/PrisonOverlay.tsx` — realtime countdown
-- `src/components/game/HospitalStayOverlay.tsx` — realtime countdown
-- `src/hooks/useServerSync.ts` — meer acties toevoegen aan SERVER_ACTIONS
-
-### Database wijzigingen:
-- Geen nieuwe tabellen nodig — alles bestaat al
-- Eventueel `tick_interval_minutes` verwijderen uit client en vast op server zetten
+### Bestanden:
+- `supabase/functions/admin-actions/index.ts` — uitbreiden met ~10 nieuwe actions
+- `src/components/game/AdminPanel.tsx` — uitbreiden met nieuwe tabs en UI
 
