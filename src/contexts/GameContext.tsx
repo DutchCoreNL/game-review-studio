@@ -216,7 +216,11 @@ type GameAction =
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
   | { type: 'AUTO_TICK' }
-  | { type: 'RESET' };
+  | { type: 'RESET' }
+  // PvP Turn-Based Combat
+  | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
+  | { type: 'PVP_COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'skill' | 'combo_finisher'; skillId?: string }
+  | { type: 'END_PVP_COMBAT' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -2573,6 +2577,54 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.generateContracts(fresh);
       fresh.dailyNews = generateDailyNews(fresh);
       return fresh;
+    }
+
+    case 'START_PVP_COMBAT': {
+      const target = action.target;
+      const { createPvPCombatState } = require('../game/combatSkills');
+      const attackerStats = {
+        muscle: Engine.getPlayerStat(s, 'muscle'),
+        brains: Engine.getPlayerStat(s, 'brains'),
+        charm: Engine.getPlayerStat(s, 'charm'),
+      };
+      s.activePvPCombat = createPvPCombatState(
+        'player', s.player.level >= 1 ? 'Jij' : 'Speler',
+        s.player.level, s.playerHP, s.playerMaxHP, attackerStats, s.player.loadout,
+        target.userId, target.username, target.level, target.hp, target.maxHp,
+        target.stats || { muscle: Math.floor(target.level * 1.5) + 3, brains: Math.floor(target.level * 0.8), charm: Math.floor(target.level * 0.5) },
+        target.loadout || { weapon: null, armor: null, gadget: null },
+      );
+      s.screenEffect = 'shake';
+      return s;
+    }
+
+    case 'PVP_COMBAT_ACTION': {
+      if (!s.activePvPCombat || s.activePvPCombat.finished) return s;
+      const { pvpCombatTurn } = require('../game/combatSkills');
+      const newCombat = pvpCombatTurn(s.activePvPCombat, action.action, action.skillId);
+      s.activePvPCombat = newCombat;
+      // Screen effects
+      if (newCombat.finished && newCombat.won) s.screenEffect = 'gold-flash';
+      else if (newCombat.finished && !newCombat.won) s.screenEffect = 'blood-flash';
+      else if (action.action === 'heavy') s.screenEffect = 'shake';
+      return s;
+    }
+
+    case 'END_PVP_COMBAT': {
+      if (s.activePvPCombat) {
+        if (s.activePvPCombat.won) {
+          s.rep += 15;
+          const stolen = Math.floor(Math.random() * 2000 + 500);
+          s.money += stolen;
+          s.stats.totalEarned += stolen;
+          s.lastRewardAmount = stolen;
+          Engine.gainXp(s, 50);
+        } else {
+          s.playerHP = Math.max(1, s.activePvPCombat.attackerHP);
+        }
+        s.activePvPCombat = null;
+      }
+      return s;
     }
 
     case 'ADD_MARKET_ALERT': {
