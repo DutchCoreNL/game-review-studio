@@ -3194,6 +3194,17 @@ async function handleAcceptContract(supabase: any, userId: string, ps: any, payl
   const energyCost = 5;
   if (ps.energy < energyCost) return { success: false, message: `Niet genoeg energy om een contract te zoeken (nodig: ${energyCost}).` };
 
+  // Rate limit: max 3 contracts accepted per hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentAccepts } = await supabase.from("game_action_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("action_type", "accept_contract")
+    .gte("created_at", oneHourAgo);
+  if ((recentAccepts || 0) >= 3) {
+    return { success: false, message: "Je kunt maximaal 3 contracten per uur aannemen. Probeer later opnieuw." };
+  }
+
   // Load save_data
   const { data: stateRow } = await supabase.from("player_state")
     .select("save_data").eq("user_id", userId).maybeSingle();
@@ -3298,6 +3309,22 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
     const remaining = Math.ceil((new Date(ps.crime_cooldown_until).getTime() - Date.now()) / 1000);
     return { success: false, message: `Crime cooldown actief. Wacht nog ${remaining}s.` };
   }
+
+  // Anti-abuse: rate limit completions (max 10 per hour)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentCompletions } = await supabase.from("game_action_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("action_type", "complete_contract")
+    .gte("created_at", oneHourAgo);
+  if ((recentCompletions || 0) >= 10) {
+    return { success: false, message: "Te veel contracten in korte tijd. Wacht even." };
+  }
+
+  // Anti-abuse: validate input ranges
+  if (typeof contractId !== "number" || contractId < 0) return { success: false, message: "Ongeldig contract ID." };
+  if (typeof successRate !== "number" || successRate < 0 || successRate > 1) return { success: false, message: "Ongeldige success rate." };
+  if (typeof encounterCount !== "number" || encounterCount < 1 || encounterCount > 10) return { success: false, message: "Ongeldig aantal encounters." };
 
   // Validate contract type exists
   const typeDef = CONTRACT_TYPES[contractType];
