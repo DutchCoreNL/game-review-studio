@@ -44,7 +44,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Forbidden: admin role required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { action, entryId, userId: targetUserId, reason, duration, targetUsername } = await req.json();
+    const { action, entryId, userId: targetUserId, reason, duration, targetUsername, stats } = await req.json();
 
     // Helper to log admin actions
     const logAction = async (actionName: string, details?: Record<string, unknown>) => {
@@ -120,6 +120,20 @@ serve(async (req) => {
       if (error) throw error;
       await logAction('revoke_sanction', { sanctionId: entryId });
       return new Response(JSON.stringify({ ok: true, message: 'Sanction revoked' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (action === 'edit_entry') {
+      if (!entryId || !stats) return new Response(JSON.stringify({ error: 'entryId and stats required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const allowedFields = ['rep', 'cash', 'day', 'level', 'districts_owned', 'crew_size', 'karma', 'username'];
+      const updates: Record<string, unknown> = {};
+      for (const key of allowedFields) {
+        if (stats[key] !== undefined) updates[key] = stats[key];
+      }
+      if (Object.keys(updates).length === 0) return new Response(JSON.stringify({ error: 'No valid fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const { error } = await adminClient.from('leaderboard_entries').update(updates).eq('id', entryId);
+      if (error) throw error;
+      await logAction('edit_entry', { entryId, changes: updates });
+      return new Response(JSON.stringify({ ok: true, message: 'Entry updated' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === 'get_logs') {

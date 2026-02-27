@@ -7,7 +7,7 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil } from 'lucide-react';
 
 interface LeaderboardEntry {
   id: string;
@@ -56,13 +56,14 @@ function detectSuspicion(entry: LeaderboardEntry): SuspicionReason[] {
   return reasons;
 }
 
-const ACTION_LABELS: Record<string, { label: string; icon: string; variant: 'blood' | 'gold' | 'purple' | 'muted' }> = {
+const ACTION_LABELS: Record<string, { label: string; icon: string; variant: 'blood' | 'gold' | 'purple' | 'muted' | 'emerald' }> = {
   delete_entry: { label: 'Verwijderd', icon: '🗑️', variant: 'blood' },
   reset_entry: { label: 'Gereset', icon: '🔄', variant: 'gold' },
   ban_player: { label: 'Gebanned', icon: '🚫', variant: 'blood' },
   warn_player: { label: 'Waarschuwing', icon: '⚠️', variant: 'gold' },
   mute_player: { label: 'Gemute', icon: '🔇', variant: 'purple' },
   revoke_sanction: { label: 'Sanctie ingetrokken', icon: '↩️', variant: 'muted' },
+  edit_entry: { label: 'Aangepast', icon: '✏️', variant: 'emerald' },
 };
 
 export function AdminPanel() {
@@ -80,6 +81,8 @@ export function AdminPanel() {
   const [historyPopup, setHistoryPopup] = useState<{ entry: LeaderboardEntry; sanctions: Sanction[] } | null>(null);
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [editPopup, setEditPopup] = useState<LeaderboardEntry | null>(null);
+  const [editStats, setEditStats] = useState<Record<string, number | string>>({});
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -253,6 +256,10 @@ export function AdminPanel() {
                         )}
                       </div>
                       <div className="flex gap-1 flex-wrap justify-end">
+                        <button onClick={() => { setEditPopup(entry); setEditStats({ username: entry.username, rep: entry.rep, cash: entry.cash, day: entry.day, level: entry.level, districts_owned: entry.districts_owned, crew_size: entry.crew_size, karma: entry.karma }); }} disabled={!!actionLoading}
+                          className="p-1.5 rounded bg-emerald/10 border border-emerald/30 text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-50" title="Bewerk stats">
+                          <Pencil size={10} />
+                        </button>
                         <button onClick={() => { setSanctionPopup({ entry, mode: 'warn' }); setSanctionReason(''); }} disabled={!!actionLoading}
                           className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Waarschuwing">
                           <MessageCircleWarning size={10} />
@@ -334,6 +341,61 @@ export function AdminPanel() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit popup */}
+      {editPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="game-card w-full max-w-xs space-y-3 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold flex items-center gap-1.5">
+                <Pencil size={12} className="text-emerald" /> Stats Bewerken
+              </h3>
+              <button onClick={() => setEditPopup(null)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+            </div>
+            <p className="text-[0.55rem] text-muted-foreground">Speler: <span className="text-foreground font-bold">{editPopup.username}</span></p>
+            <div className="space-y-2">
+              {([
+                { key: 'username', label: 'Naam', type: 'text' },
+                { key: 'cash', label: 'Cash (€)', type: 'number' },
+                { key: 'rep', label: 'REP', type: 'number' },
+                { key: 'level', label: 'Level', type: 'number' },
+                { key: 'day', label: 'Dag', type: 'number' },
+                { key: 'districts_owned', label: 'Districten', type: 'number' },
+                { key: 'crew_size', label: 'Crew', type: 'number' },
+                { key: 'karma', label: 'Karma', type: 'number' },
+              ] as const).map(field => (
+                <div key={field.key} className="flex items-center gap-2">
+                  <label className="text-[0.5rem] text-muted-foreground w-16 shrink-0">{field.label}</label>
+                  <input
+                    type={field.type}
+                    value={editStats[field.key] ?? ''}
+                    onChange={e => setEditStats(prev => ({ ...prev, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                    className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <GameButton variant="muted" size="sm" onClick={() => setEditPopup(null)} className="flex-1">ANNULEER</GameButton>
+              <GameButton variant="emerald" size="sm" onClick={async () => {
+                setActionLoading(editPopup.id);
+                try {
+                  const { error } = await supabase.functions.invoke('admin-actions', {
+                    body: { action: 'edit_entry', entryId: editPopup.id, userId: editPopup.user_id, targetUsername: editPopup.username, stats: editStats },
+                  });
+                  if (error) throw error;
+                  showToast(`✅ Stats aangepast: ${editPopup.username}`);
+                  setEditPopup(null);
+                  fetchEntries();
+                } catch (err: any) {
+                  showToast(`❌ Fout: ${err.message}`, true);
+                }
+                setActionLoading(null);
+              }} className="flex-1">OPSLAAN</GameButton>
+            </div>
+          </div>
         </div>
       )}
 
