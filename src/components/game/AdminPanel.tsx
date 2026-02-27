@@ -7,42 +7,26 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search } from 'lucide-react';
+
+// ====== TYPES ======
 
 interface LeaderboardEntry {
-  id: string;
-  user_id: string;
-  username: string;
-  rep: number;
-  cash: number;
-  day: number;
-  level: number;
-  districts_owned: number;
-  crew_size: number;
-  karma: number;
-  updated_at: string;
+  id: string; user_id: string; username: string; rep: number; cash: number; day: number;
+  level: number; districts_owned: number; crew_size: number; karma: number; updated_at: string;
 }
+interface Sanction { id: string; type: string; reason: string; active: boolean; expires_at: string | null; created_at: string; }
+interface AdminLog { id: string; admin_id: string; action: string; target_user_id: string | null; target_username: string | null; details: Record<string, unknown> | null; created_at: string; }
+interface BotPlayer { id: string; username: string; level: number; hp: number; max_hp: number; cash: number; rep: number; loc: string; is_active: boolean; karma: number; crew_size: number; districts_owned: number; day: number; backstory: string | null; }
+interface MarketPrice { id: string; good_id: string; district_id: string; current_price: number; price_trend: string; buy_volume: number; sell_volume: number; }
+interface WorldStats { total_players: number; active_states: number; total_cash: number; avg_level: number; district_counts: Record<string, number>; gangs: { id: string; name: string; tag: string; level: number; treasury: number; member_count: number }[]; active_wars: unknown[]; }
 
-interface Sanction {
-  id: string;
-  type: string;
-  reason: string;
-  active: boolean;
-  expires_at: string | null;
-  created_at: string;
-}
-
-interface AdminLog {
-  id: string;
-  admin_id: string;
-  action: string;
-  target_user_id: string | null;
-  target_username: string | null;
-  details: Record<string, unknown> | null;
-  created_at: string;
-}
-
+type TabId = 'players' | 'economy' | 'bots' | 'world' | 'messages' | 'logs';
 type SuspicionReason = string;
+
+const DISTRICTS = ['low', 'port', 'neon', 'iron', 'crown'];
+const DISTRICT_LABELS: Record<string, string> = { low: 'Lowtown', port: 'De Haven', neon: 'Neon Mile', iron: 'IJzerbuurt', crown: 'De Kroon' };
+const TREND_OPTIONS = ['rising', 'stable', 'falling', 'volatile'];
 
 function detectSuspicion(entry: LeaderboardEntry): SuspicionReason[] {
   const reasons: SuspicionReason[] = [];
@@ -64,171 +48,185 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; variant: 'blo
   mute_player: { label: 'Gemute', icon: '🔇', variant: 'purple' },
   revoke_sanction: { label: 'Sanctie ingetrokken', icon: '↩️', variant: 'muted' },
   edit_entry: { label: 'Aangepast', icon: '✏️', variant: 'emerald' },
+  edit_player_state: { label: 'State gewijzigd', icon: '🎮', variant: 'emerald' },
+  edit_market_price: { label: 'Prijs gewijzigd', icon: '💹', variant: 'gold' },
+  bulk_update_prices: { label: 'Bulk prijzen', icon: '📊', variant: 'gold' },
+  edit_bot: { label: 'Bot aangepast', icon: '🤖', variant: 'emerald' },
+  delete_bot: { label: 'Bot verwijderd', icon: '🗑️', variant: 'blood' },
+  create_bot: { label: 'Bot aangemaakt', icon: '➕', variant: 'emerald' },
+  randomize_bot_locations: { label: 'Bots verplaatst', icon: '🔀', variant: 'purple' },
+  send_message: { label: 'Bericht gestuurd', icon: '💬', variant: 'muted' },
+  send_broadcast: { label: 'Broadcast', icon: '📢', variant: 'gold' },
 };
 
+// ====== HELPER: admin API call ======
+async function adminCall(action: string, extra: Record<string, unknown> = {}) {
+  const { data, error } = await supabase.functions.invoke('admin-actions', { body: { action, ...extra } });
+  if (error) throw error;
+  return data;
+}
+
+// ====== MAIN COMPONENT ======
 export function AdminPanel() {
   const { isAdmin, loading: adminLoading } = useAdmin();
   const { showToast } = useGame();
-  const [tab, setTab] = useState<'players' | 'logs'>('players');
+  const [tab, setTab] = useState<TabId>('players');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // -- Players tab state --
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'delete' | 'reset' | 'ban'; entry: LeaderboardEntry } | null>(null);
   const [filterSuspicious, setFilterSuspicious] = useState(false);
   const [sanctionPopup, setSanctionPopup] = useState<{ entry: LeaderboardEntry; mode: 'warn' | 'mute' } | null>(null);
   const [sanctionReason, setSanctionReason] = useState('');
   const [muteDuration, setMuteDuration] = useState(24);
   const [historyPopup, setHistoryPopup] = useState<{ entry: LeaderboardEntry; sanctions: Sanction[] } | null>(null);
-  const [logs, setLogs] = useState<AdminLog[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
   const [editPopup, setEditPopup] = useState<LeaderboardEntry | null>(null);
   const [editStats, setEditStats] = useState<Record<string, number | string>>({});
+  // Player state detail
+  const [playerStatePopup, setPlayerStatePopup] = useState<{ entry: LeaderboardEntry; state: Record<string, unknown> | null } | null>(null);
+  const [playerStateEdits, setPlayerStateEdits] = useState<Record<string, unknown>>({});
 
-  const fetchEntries = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('leaderboard_entries').select('*').order('rep', { ascending: false }).limit(100);
-    setEntries((data as LeaderboardEntry[]) || []);
-    setLoading(false);
-  };
+  // -- Economy tab state --
+  const [prices, setPrices] = useState<MarketPrice[]>([]);
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [priceEditId, setPriceEditId] = useState<string | null>(null);
+  const [priceEditVals, setPriceEditVals] = useState<{ current_price: number; price_trend: string }>({ current_price: 0, price_trend: 'stable' });
+  const [multiplier, setMultiplier] = useState('1.0');
 
-  const fetchLogs = async () => {
-    setLogsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-actions', { body: { action: 'get_logs' } });
-      if (error) throw error;
-      setLogs(data.logs || []);
-    } catch (err: any) {
-      showToast(`❌ Fout: ${err.message}`, true);
-    }
-    setLogsLoading(false);
-  };
+  // -- Bots tab state --
+  const [bots, setBots] = useState<BotPlayer[]>([]);
+  const [botsLoading, setBotsLoading] = useState(false);
+  const [botEditId, setBotEditId] = useState<string | null>(null);
+  const [botEditVals, setBotEditVals] = useState<Record<string, unknown>>({});
+  const [showNewBot, setShowNewBot] = useState(false);
+  const [newBotName, setNewBotName] = useState('');
 
-  useEffect(() => {
-    if (isAdmin) fetchEntries();
-  }, [isAdmin]);
+  // -- World tab state --
+  const [worldStats, setWorldStats] = useState<WorldStats | null>(null);
+  const [worldLoading, setWorldLoading] = useState(false);
 
+  // -- Messages tab state --
+  const [msgMode, setMsgMode] = useState<'single' | 'broadcast'>('broadcast');
+  const [msgReceiver, setMsgReceiver] = useState('');
+  const [msgSubject, setMsgSubject] = useState('');
+  const [msgBody, setMsgBody] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+
+  // -- Logs tab state --
+  const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // ====== FETCH HELPERS ======
+  const fetchEntries = async () => { setLoading(true); const { data } = await supabase.from('leaderboard_entries').select('*').order('rep', { ascending: false }).limit(100); setEntries((data as LeaderboardEntry[]) || []); setLoading(false); };
+  const fetchLogs = async () => { setLogsLoading(true); try { const d = await adminCall('get_logs'); setLogs(d.logs || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setLogsLoading(false); };
+  const fetchPrices = async () => { setPricesLoading(true); try { const d = await adminCall('get_market_prices'); setPrices(d.prices || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setPricesLoading(false); };
+  const fetchBots = async () => { setBotsLoading(true); try { const d = await adminCall('get_bots'); setBots(d.bots || []); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setBotsLoading(false); };
+  const fetchWorldStats = async () => { setWorldLoading(true); try { const d = await adminCall('get_world_stats'); setWorldStats(d.stats); } catch (e: any) { showToast(`❌ ${e.message}`, true); } setWorldLoading(false); };
+
+  useEffect(() => { if (isAdmin) fetchEntries(); }, [isAdmin]);
   useEffect(() => {
     if (tab === 'logs' && logs.length === 0) fetchLogs();
+    if (tab === 'economy' && prices.length === 0) fetchPrices();
+    if (tab === 'bots' && bots.length === 0) fetchBots();
+    if (tab === 'world' && !worldStats) fetchWorldStats();
   }, [tab]);
 
-  const suspicionMap = useMemo(() => {
-    const map = new Map<string, SuspicionReason[]>();
-    entries.forEach(e => {
-      const reasons = detectSuspicion(e);
-      if (reasons.length > 0) map.set(e.id, reasons);
-    });
-    return map;
-  }, [entries]);
-
+  const suspicionMap = useMemo(() => { const m = new Map<string, SuspicionReason[]>(); entries.forEach(e => { const r = detectSuspicion(e); if (r.length > 0) m.set(e.id, r); }); return m; }, [entries]);
   const suspiciousCount = suspicionMap.size;
-  const displayEntries = useMemo(() => {
-    if (!filterSuspicious) return entries;
-    return entries.filter(e => suspicionMap.has(e.id));
-  }, [entries, filterSuspicious, suspicionMap]);
+  const displayEntries = useMemo(() => filterSuspicious ? entries.filter(e => suspicionMap.has(e.id)) : entries, [entries, filterSuspicious, suspicionMap]);
 
   if (adminLoading) return <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div>;
   if (!isAdmin) return null;
 
+  // ====== PLAYER ACTIONS ======
   const executeAction = async (type: string, entry: LeaderboardEntry) => {
     setActionLoading(entry.id);
     try {
-      const actionMap: Record<string, object> = {
+      const map: Record<string, object> = {
         delete: { action: 'delete_entry', entryId: entry.id, userId: entry.user_id, targetUsername: entry.username },
         reset: { action: 'reset_entry', entryId: entry.id, userId: entry.user_id, targetUsername: entry.username },
         ban: { action: 'ban_player', entryId: entry.id, userId: entry.user_id, targetUsername: entry.username },
       };
-      const { error } = await supabase.functions.invoke('admin-actions', { body: actionMap[type] });
+      const { error } = await supabase.functions.invoke('admin-actions', { body: map[type] });
       if (error) throw error;
       showToast(`✅ ${type === 'delete' ? 'Verwijderd' : type === 'reset' ? 'Gereset' : 'Gebanned'}: ${entry.username}`);
       fetchEntries();
-    } catch (err: any) {
-      showToast(`❌ Fout: ${err.message}`, true);
-    }
-    setActionLoading(null);
-    setConfirmAction(null);
+    } catch (err: any) { showToast(`❌ ${err.message}`, true); }
+    setActionLoading(null); setConfirmAction(null);
   };
 
   const executeSanction = async () => {
     if (!sanctionPopup) return;
     setActionLoading(sanctionPopup.entry.id);
     try {
-      const body: Record<string, unknown> = {
-        action: sanctionPopup.mode === 'warn' ? 'warn_player' : 'mute_player',
-        userId: sanctionPopup.entry.user_id,
-        targetUsername: sanctionPopup.entry.username,
-        reason: sanctionReason || undefined,
-      };
-      if (sanctionPopup.mode === 'mute') body.duration = muteDuration;
-      const { error } = await supabase.functions.invoke('admin-actions', { body });
+      const b: Record<string, unknown> = { action: sanctionPopup.mode === 'warn' ? 'warn_player' : 'mute_player', userId: sanctionPopup.entry.user_id, targetUsername: sanctionPopup.entry.username, reason: sanctionReason || undefined };
+      if (sanctionPopup.mode === 'mute') b.duration = muteDuration;
+      const { error } = await supabase.functions.invoke('admin-actions', { body: b });
       if (error) throw error;
-      showToast(`✅ ${sanctionPopup.mode === 'warn' ? 'Waarschuwing gestuurd' : `Gemute voor ${muteDuration}u`}: ${sanctionPopup.entry.username}`);
-    } catch (err: any) {
-      showToast(`❌ Fout: ${err.message}`, true);
-    }
-    setActionLoading(null);
-    setSanctionPopup(null);
-    setSanctionReason('');
-    setMuteDuration(24);
+      showToast(`✅ ${sanctionPopup.mode === 'warn' ? 'Waarschuwing' : `Gemute ${muteDuration}u`}: ${sanctionPopup.entry.username}`);
+    } catch (err: any) { showToast(`❌ ${err.message}`, true); }
+    setActionLoading(null); setSanctionPopup(null); setSanctionReason(''); setMuteDuration(24);
   };
 
   const fetchSanctions = async (entry: LeaderboardEntry) => {
     setActionLoading(entry.id);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-actions', { body: { action: 'get_sanctions', userId: entry.user_id } });
-      if (error) throw error;
-      setHistoryPopup({ entry, sanctions: data.sanctions || [] });
-    } catch (err: any) {
-      showToast(`❌ Fout: ${err.message}`, true);
-    }
+    try { const d = await adminCall('get_sanctions', { userId: entry.user_id }); setHistoryPopup({ entry, sanctions: d.sanctions || [] }); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
     setActionLoading(null);
   };
 
-  const revokeSanction = async (sanctionId: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('admin-actions', { body: { action: 'revoke_sanction', entryId: sanctionId } });
-      if (error) throw error;
-      showToast('✅ Sanctie ingetrokken');
-      if (historyPopup) fetchSanctions(historyPopup.entry);
-    } catch (err: any) {
-      showToast(`❌ Fout: ${err.message}`, true);
-    }
+  const revokeSanction = async (sid: string) => {
+    try { await adminCall('revoke_sanction', { entryId: sid }); showToast('✅ Sanctie ingetrokken'); if (historyPopup) fetchSanctions(historyPopup.entry); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
   };
 
+  const openPlayerState = async (entry: LeaderboardEntry) => {
+    setActionLoading(entry.id);
+    try { const d = await adminCall('get_player_state', { userId: entry.user_id }); setPlayerStatePopup({ entry, state: d.player_state }); setPlayerStateEdits({}); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setActionLoading(null);
+  };
+
+  const savePlayerState = async () => {
+    if (!playerStatePopup) return;
+    try {
+      await adminCall('edit_player_state', { userId: playerStatePopup.entry.user_id, targetUsername: playerStatePopup.entry.username, stats: playerStateEdits });
+      showToast('✅ Player state opgeslagen');
+      setPlayerStatePopup(null);
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+  };
+
+  // ====== RENDER ======
   return (
     <div>
       <SectionHeader title="Admin Paneel" icon={<Shield size={12} />} badge="ADMIN" badgeColor="blood" />
 
       <SubTabBar
         tabs={[
-          { id: 'players', label: 'SPELERS', icon: <Shield size={10} /> },
+          { id: 'players', label: 'SPELERS', icon: <User size={10} /> },
+          { id: 'economy', label: 'ECONOMIE', icon: <TrendingUp size={10} /> },
+          { id: 'bots', label: 'BOTS', icon: <Bot size={10} /> },
+          { id: 'world', label: 'WERELD', icon: <Globe size={10} /> },
+          { id: 'messages', label: 'BERICHTEN', icon: <Send size={10} /> },
           { id: 'logs', label: 'LOGBOEK', icon: <ScrollText size={10} /> },
         ]}
         active={tab}
-        onChange={(t) => setTab(t as 'players' | 'logs')}
+        onChange={(t) => setTab(t as TabId)}
       />
 
+      {/* ======== SPELERS TAB ======== */}
       {tab === 'players' && (
         <>
           <div className="flex items-center justify-between mb-3 mt-2">
             <div className="flex items-center gap-2">
               <p className="text-[0.55rem] text-muted-foreground">{entries.length} spelers</p>
-              {suspiciousCount > 0 && (
-                <GameBadge variant="gold" size="xs"><AlertTriangle size={8} /> {suspiciousCount} verdacht</GameBadge>
-              )}
+              {suspiciousCount > 0 && <GameBadge variant="gold" size="xs"><AlertTriangle size={8} /> {suspiciousCount} verdacht</GameBadge>}
             </div>
             <div className="flex gap-1">
-              {suspiciousCount > 0 && (
-                <GameButton variant={filterSuspicious ? 'gold' : 'muted'} size="sm" icon={<Filter size={10} />} onClick={() => setFilterSuspicious(!filterSuspicious)}>
-                  {filterSuspicious ? 'ALLE' : 'VERDACHT'}
-                </GameButton>
-              )}
+              {suspiciousCount > 0 && <GameButton variant={filterSuspicious ? 'gold' : 'muted'} size="sm" icon={<Filter size={10} />} onClick={() => setFilterSuspicious(!filterSuspicious)}>{filterSuspicious ? 'ALLE' : 'VERDACHT'}</GameButton>}
               <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchEntries}>REFRESH</GameButton>
             </div>
           </div>
-
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div>
-          ) : (
+          {loading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
             <div className="space-y-1.5">
               {displayEntries.map((entry, i) => {
                 const reasons = suspicionMap.get(entry.id);
@@ -244,72 +242,305 @@ export function AdminPanel() {
                           <span className="text-[0.45rem] text-muted-foreground">Lv.{entry.level}</span>
                         </div>
                         <div className="flex items-center gap-2 text-[0.45rem] text-muted-foreground">
-                          <span>REP {entry.rep}</span>
-                          <span>€{entry.cash.toLocaleString()}</span>
-                          <span>Dag {entry.day}</span>
-                          <span>🏠{entry.districts_owned}</span>
+                          <span>REP {entry.rep}</span><span>€{entry.cash.toLocaleString()}</span><span>Dag {entry.day}</span><span>🏠{entry.districts_owned}</span>
                         </div>
-                        {isSuspicious && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {reasons.map((r, ri) => <GameBadge key={ri} variant="gold" size="xs">{r}</GameBadge>)}
-                          </div>
-                        )}
+                        {isSuspicious && <div className="flex flex-wrap gap-1 mt-1">{reasons.map((r, ri) => <GameBadge key={ri} variant="gold" size="xs">{r}</GameBadge>)}</div>}
                       </div>
                       <div className="flex gap-1 flex-wrap justify-end">
-                        <button onClick={() => { setEditPopup(entry); setEditStats({ username: entry.username, rep: entry.rep, cash: entry.cash, day: entry.day, level: entry.level, districts_owned: entry.districts_owned, crew_size: entry.crew_size, karma: entry.karma }); }} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-emerald/10 border border-emerald/30 text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-50" title="Bewerk stats">
-                          <Pencil size={10} />
-                        </button>
-                        <button onClick={() => { setSanctionPopup({ entry, mode: 'warn' }); setSanctionReason(''); }} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Waarschuwing">
-                          <MessageCircleWarning size={10} />
-                        </button>
-                        <button onClick={() => { setSanctionPopup({ entry, mode: 'mute' }); setSanctionReason(''); setMuteDuration(24); }} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-ice/10 border border-ice/30 text-ice hover:bg-ice/20 transition-colors disabled:opacity-50" title="Mute">
-                          <VolumeX size={10} />
-                        </button>
-                        <button onClick={() => fetchSanctions(entry)} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-muted border border-border text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50" title="Geschiedenis">
-                          <History size={10} />
-                        </button>
-                        <button onClick={() => setConfirmAction({ type: 'reset', entry })} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Reset stats">
-                          <RotateCcw size={10} />
-                        </button>
-                        <button onClick={() => setConfirmAction({ type: 'delete', entry })} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Verwijder">
-                          <Trash2 size={10} />
-                        </button>
-                        <button onClick={() => setConfirmAction({ type: 'ban', entry })} disabled={!!actionLoading}
-                          className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Ban">
-                          <Ban size={10} />
-                        </button>
+                        <button onClick={() => openPlayerState(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50" title="Player State"><Search size={10} /></button>
+                        <button onClick={() => { setEditPopup(entry); setEditStats({ username: entry.username, rep: entry.rep, cash: entry.cash, day: entry.day, level: entry.level, districts_owned: entry.districts_owned, crew_size: entry.crew_size, karma: entry.karma }); }} disabled={!!actionLoading} className="p-1.5 rounded bg-emerald/10 border border-emerald/30 text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-50" title="Bewerk"><Pencil size={10} /></button>
+                        <button onClick={() => { setSanctionPopup({ entry, mode: 'warn' }); setSanctionReason(''); }} disabled={!!actionLoading} className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Waarschuwing"><MessageCircleWarning size={10} /></button>
+                        <button onClick={() => { setSanctionPopup({ entry, mode: 'mute' }); setSanctionReason(''); setMuteDuration(24); }} disabled={!!actionLoading} className="p-1.5 rounded bg-ice/10 border border-ice/30 text-ice hover:bg-ice/20 transition-colors disabled:opacity-50" title="Mute"><VolumeX size={10} /></button>
+                        <button onClick={() => fetchSanctions(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-muted border border-border text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50" title="Geschiedenis"><History size={10} /></button>
+                        <button onClick={() => setConfirmAction({ type: 'reset', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Reset"><RotateCcw size={10} /></button>
+                        <button onClick={() => setConfirmAction({ type: 'delete', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Verwijder"><Trash2 size={10} /></button>
+                        <button onClick={() => setConfirmAction({ type: 'ban', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Ban"><Ban size={10} /></button>
                       </div>
                     </div>
                   </div>
                 );
               })}
-              {displayEntries.length === 0 && (
-                <div className="text-center py-6 text-muted-foreground text-xs">
-                  {filterSuspicious ? 'Geen verdachte spelers gevonden 🎉' : 'Geen entries gevonden'}
-                </div>
-              )}
+              {displayEntries.length === 0 && <div className="text-center py-6 text-muted-foreground text-xs">{filterSuspicious ? 'Geen verdachte spelers 🎉' : 'Geen entries'}</div>}
             </div>
           )}
         </>
       )}
 
+      {/* ======== ECONOMIE TAB ======== */}
+      {tab === 'economy' && (
+        <div className="mt-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[0.55rem] text-muted-foreground">{prices.length} prijzen</p>
+            <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchPrices}>REFRESH</GameButton>
+          </div>
+
+          {/* Bulk multiplier */}
+          <div className="game-card">
+            <p className="text-[0.5rem] font-bold text-muted-foreground mb-1.5">GLOBALE PRIJSMULTIPLICATOR</p>
+            <div className="flex items-center gap-2">
+              {['0.5', '0.75', '1.0', '1.25', '1.5', '2.0'].map(v => (
+                <button key={v} onClick={() => setMultiplier(v)} className={`text-[0.5rem] px-2 py-1 rounded border font-bold ${multiplier === v ? 'bg-gold/20 border-gold/50 text-gold' : 'bg-muted border-border text-muted-foreground'}`}>x{v}</button>
+              ))}
+              <GameButton variant="gold" size="sm" onClick={async () => {
+                try { await adminCall('bulk_update_prices', { multiplier: parseFloat(multiplier) }); showToast(`✅ Prijzen x${multiplier}`); fetchPrices(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              }}>TOEPASSEN</GameButton>
+            </div>
+          </div>
+
+          {pricesLoading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
+            <div className="space-y-1">
+              {prices.map(p => (
+                <div key={p.id} className="game-card flex items-center gap-2 text-[0.5rem]">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-bold text-xs">{p.good_id}</span>
+                    <span className="text-muted-foreground ml-1.5">{DISTRICT_LABELS[p.district_id] || p.district_id}</span>
+                  </div>
+                  {priceEditId === p.id ? (
+                    <div className="flex items-center gap-1">
+                      <input type="number" value={priceEditVals.current_price} onChange={e => setPriceEditVals(v => ({ ...v, current_price: Number(e.target.value) }))} className="w-16 bg-background border border-border rounded px-1 py-0.5 text-xs" />
+                      <select value={priceEditVals.price_trend} onChange={e => setPriceEditVals(v => ({ ...v, price_trend: e.target.value }))} className="bg-background border border-border rounded px-1 py-0.5 text-xs">
+                        {TREND_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <GameButton variant="emerald" size="sm" onClick={async () => {
+                        try { await adminCall('edit_market_price', { priceId: p.id, ...priceEditVals }); showToast('✅ Prijs opgeslagen'); setPriceEditId(null); fetchPrices(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                      }}>✓</GameButton>
+                      <button onClick={() => setPriceEditId(null)} className="text-muted-foreground hover:text-foreground"><X size={10} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">€{p.current_price.toLocaleString()}</span>
+                      <GameBadge variant={p.price_trend === 'rising' ? 'emerald' : p.price_trend === 'falling' ? 'blood' : p.price_trend === 'volatile' ? 'gold' : 'muted'} size="xs">{p.price_trend}</GameBadge>
+                      <button onClick={() => { setPriceEditId(p.id); setPriceEditVals({ current_price: p.current_price, price_trend: p.price_trend }); }} className="text-muted-foreground hover:text-foreground"><Pencil size={10} /></button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======== BOTS TAB ======== */}
+      {tab === 'bots' && (
+        <div className="mt-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[0.55rem] text-muted-foreground">{bots.length} bots</p>
+            <div className="flex gap-1">
+              <GameButton variant="purple" size="sm" icon={<Shuffle size={10} />} onClick={async () => {
+                try { await adminCall('randomize_bot_locations'); showToast('✅ Bot locaties gerandomized'); fetchBots(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              }}>SHUFFLE</GameButton>
+              <GameButton variant="emerald" size="sm" icon={<Plus size={10} />} onClick={() => setShowNewBot(true)}>NIEUW</GameButton>
+              <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchBots}>REFRESH</GameButton>
+            </div>
+          </div>
+
+          {/* New bot form */}
+          {showNewBot && (
+            <div className="game-card space-y-2">
+              <p className="text-[0.5rem] font-bold text-muted-foreground">NIEUWE BOT</p>
+              <input value={newBotName} onChange={e => setNewBotName(e.target.value)} placeholder="Username..." className="w-full bg-background border border-border rounded px-2 py-1 text-xs" />
+              <div className="flex gap-2">
+                <GameButton variant="muted" size="sm" onClick={() => { setShowNewBot(false); setNewBotName(''); }}>ANNULEER</GameButton>
+                <GameButton variant="emerald" size="sm" onClick={async () => {
+                  if (!newBotName.trim()) return;
+                  try { await adminCall('create_bot', { stats: { username: newBotName.trim() } }); showToast('✅ Bot aangemaakt'); setShowNewBot(false); setNewBotName(''); fetchBots(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                }}>AANMAKEN</GameButton>
+              </div>
+            </div>
+          )}
+
+          {botsLoading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
+            <div className="space-y-1">
+              {bots.map(bot => (
+                <div key={bot.id} className={`game-card ${!bot.is_active ? 'opacity-50' : ''}`}>
+                  {botEditId === bot.id ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { key: 'username', label: 'Naam', type: 'text' },
+                          { key: 'level', label: 'Level', type: 'number' },
+                          { key: 'cash', label: 'Cash', type: 'number' },
+                          { key: 'rep', label: 'REP', type: 'number' },
+                          { key: 'hp', label: 'HP', type: 'number' },
+                          { key: 'karma', label: 'Karma', type: 'number' },
+                        ].map(f => (
+                          <div key={f.key} className="flex items-center gap-1">
+                            <label className="text-[0.45rem] text-muted-foreground w-10 shrink-0">{f.label}</label>
+                            <input type={f.type} value={String(botEditVals[f.key] ?? '')} onChange={e => setBotEditVals(v => ({ ...v, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value }))} className="flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-[0.5rem]" />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[0.45rem] text-muted-foreground">District:</label>
+                        <select value={String(botEditVals.loc || bot.loc)} onChange={e => setBotEditVals(v => ({ ...v, loc: e.target.value }))} className="bg-background border border-border rounded px-1.5 py-0.5 text-[0.5rem]">
+                          {DISTRICTS.map(d => <option key={d} value={d}>{DISTRICT_LABELS[d]}</option>)}
+                        </select>
+                        <label className="text-[0.45rem] text-muted-foreground ml-2">Actief:</label>
+                        <input type="checkbox" checked={!!botEditVals.is_active} onChange={e => setBotEditVals(v => ({ ...v, is_active: e.target.checked }))} />
+                      </div>
+                      <div className="flex gap-2">
+                        <GameButton variant="muted" size="sm" onClick={() => setBotEditId(null)}>ANNULEER</GameButton>
+                        <GameButton variant="emerald" size="sm" onClick={async () => {
+                          try { await adminCall('edit_bot', { botId: bot.id, stats: botEditVals }); showToast('✅ Bot opgeslagen'); setBotEditId(null); fetchBots(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                        }}>OPSLAAN</GameButton>
+                        <GameButton variant="blood" size="sm" onClick={async () => {
+                          try { await adminCall('delete_bot', { botId: bot.id }); showToast('✅ Bot verwijderd'); setBotEditId(null); fetchBots(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                        }}>VERWIJDER</GameButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold truncate">{bot.username}</span>
+                          <span className="text-[0.45rem] text-muted-foreground">Lv.{bot.level}</span>
+                          {!bot.is_active && <GameBadge variant="muted" size="xs">INACTIEF</GameBadge>}
+                        </div>
+                        <div className="flex items-center gap-2 text-[0.45rem] text-muted-foreground">
+                          <span>€{Number(bot.cash).toLocaleString()}</span><span>REP {bot.rep}</span><span><MapPin size={8} className="inline" /> {DISTRICT_LABELS[bot.loc]}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => { setBotEditId(bot.id); setBotEditVals({ username: bot.username, level: bot.level, cash: bot.cash, rep: bot.rep, hp: bot.hp, karma: bot.karma, loc: bot.loc, is_active: bot.is_active }); }} className="p-1.5 rounded bg-muted border border-border text-muted-foreground hover:text-foreground"><Pencil size={10} /></button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======== WERELD TAB ======== */}
+      {tab === 'world' && (
+        <div className="mt-2 space-y-3">
+          <div className="flex justify-end">
+            <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchWorldStats}>REFRESH</GameButton>
+          </div>
+          {worldLoading || !worldStats ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
+            <>
+              {/* Server stats */}
+              <div className="game-card">
+                <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">SERVER STATISTIEKEN</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Actieve spelers', value: worldStats.active_states },
+                    { label: 'Leaderboard entries', value: worldStats.total_players },
+                    { label: 'Totaal cash in omloop', value: `€${worldStats.total_cash.toLocaleString()}` },
+                    { label: 'Gemiddeld level', value: worldStats.avg_level },
+                  ].map(s => (
+                    <div key={s.label} className="bg-muted/50 rounded px-2 py-1.5">
+                      <p className="text-[0.45rem] text-muted-foreground">{s.label}</p>
+                      <p className="text-xs font-bold">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* District counts */}
+              <div className="game-card">
+                <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">SPELERS PER DISTRICT</p>
+                <div className="space-y-1">
+                  {DISTRICTS.map(d => (
+                    <div key={d} className="flex items-center justify-between bg-muted/50 rounded px-2 py-1">
+                      <span className="text-[0.5rem] text-muted-foreground">{DISTRICT_LABELS[d]}</span>
+                      <span className="text-xs font-bold">{worldStats.district_counts[d] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gangs */}
+              <div className="game-card">
+                <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">GANGS ({worldStats.gangs.length})</p>
+                {worldStats.gangs.length === 0 ? <p className="text-[0.5rem] text-muted-foreground">Geen gangs</p> : (
+                  <div className="space-y-1">
+                    {worldStats.gangs.map(g => (
+                      <div key={g.id} className="flex items-center justify-between bg-muted/50 rounded px-2 py-1">
+                        <div>
+                          <span className="text-xs font-bold">[{g.tag}] {g.name}</span>
+                          <span className="text-[0.45rem] text-muted-foreground ml-1.5">Lv.{g.level}</span>
+                        </div>
+                        <div className="text-[0.45rem] text-muted-foreground flex gap-2">
+                          <span>👥 {g.member_count}</span>
+                          <span>💰 €{Number(g.treasury).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Active wars */}
+              <div className="game-card">
+                <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">ACTIEVE GANG WARS ({worldStats.active_wars.length})</p>
+                {worldStats.active_wars.length === 0 ? <p className="text-[0.5rem] text-muted-foreground">Geen actieve oorlogen</p> : (
+                  <div className="space-y-1">
+                    {worldStats.active_wars.map((w: any) => (
+                      <div key={w.id} className="bg-blood/10 border border-blood/30 rounded px-2 py-1 text-[0.5rem]">
+                        <span className="font-bold">⚔️ War</span>
+                        <span className="text-muted-foreground ml-1.5">Score: {w.attacker_score} vs {w.defender_score}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ======== BERICHTEN TAB ======== */}
+      {tab === 'messages' && (
+        <div className="mt-2 space-y-3">
+          <div className="flex gap-1.5">
+            <GameButton variant={msgMode === 'broadcast' ? 'gold' : 'muted'} size="sm" onClick={() => setMsgMode('broadcast')}>📢 BROADCAST</GameButton>
+            <GameButton variant={msgMode === 'single' ? 'gold' : 'muted'} size="sm" onClick={() => setMsgMode('single')}>💬 INDIVIDUEEL</GameButton>
+          </div>
+
+          <div className="game-card space-y-2">
+            {msgMode === 'single' && (
+              <div>
+                <label className="text-[0.5rem] text-muted-foreground">Ontvanger (user_id):</label>
+                <input value={msgReceiver} onChange={e => setMsgReceiver(e.target.value)} placeholder="UUID..." className="w-full bg-background border border-border rounded px-2 py-1 text-xs mt-0.5" />
+              </div>
+            )}
+            <div>
+              <label className="text-[0.5rem] text-muted-foreground">Onderwerp:</label>
+              <input value={msgSubject} onChange={e => setMsgSubject(e.target.value)} placeholder="📢 Systeembericht" className="w-full bg-background border border-border rounded px-2 py-1 text-xs mt-0.5" />
+            </div>
+            <div>
+              <label className="text-[0.5rem] text-muted-foreground">Bericht:</label>
+              <textarea value={msgBody} onChange={e => setMsgBody(e.target.value)} placeholder="Typ je bericht..." className="w-full bg-background border border-border rounded p-2 text-xs h-20 resize-none mt-0.5" />
+            </div>
+            <GameButton variant="gold" size="sm" icon={<Send size={10} />} disabled={msgSending || !msgBody.trim()} onClick={async () => {
+              setMsgSending(true);
+              try {
+                if (msgMode === 'broadcast') {
+                  await adminCall('send_broadcast', { subject: msgSubject || undefined, messageBody: msgBody });
+                  showToast('✅ Broadcast verzonden');
+                } else {
+                  if (!msgReceiver.trim()) { showToast('❌ Vul een ontvanger in', true); setMsgSending(false); return; }
+                  await adminCall('send_message', { receiverId: msgReceiver.trim(), subject: msgSubject || undefined, messageBody: msgBody });
+                  showToast('✅ Bericht verzonden');
+                }
+                setMsgBody(''); setMsgSubject(''); setMsgReceiver('');
+              } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              setMsgSending(false);
+            }}>
+              {msgMode === 'broadcast' ? 'VERZEND BROADCAST' : 'VERSTUUR'}
+            </GameButton>
+          </div>
+        </div>
+      )}
+
+      {/* ======== LOGBOEK TAB ======== */}
       {tab === 'logs' && (
         <div className="mt-2">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[0.55rem] text-muted-foreground">{logs.length} recente acties</p>
             <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchLogs}>REFRESH</GameButton>
           </div>
-          {logsLoading ? (
-            <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div>
-          ) : logs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-xs">Nog geen admin-acties gelogd</div>
-          ) : (
+          {logsLoading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : logs.length === 0 ? <div className="text-center py-8 text-muted-foreground text-xs">Nog geen admin-acties gelogd</div> : (
             <div className="space-y-1.5">
               {logs.map(log => {
                 const info = ACTION_LABELS[log.action] || { label: log.action, icon: '📋', variant: 'muted' as const };
@@ -321,19 +552,11 @@ export function AdminPanel() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <GameBadge variant={info.variant} size="xs">{info.label}</GameBadge>
-                          {log.target_username && (
-                            <span className="text-xs font-bold">{log.target_username}</span>
-                          )}
+                          {log.target_username && <span className="text-xs font-bold">{log.target_username}</span>}
                         </div>
-                        {details?.reason && (
-                          <p className="text-[0.5rem] text-muted-foreground mt-0.5">"{String(details.reason)}"</p>
-                        )}
-                        {details?.duration && (
-                          <span className="text-[0.45rem] text-muted-foreground">Duur: {String(details.duration)}u</span>
-                        )}
-                        <p className="text-[0.45rem] text-muted-foreground mt-0.5">
-                          {new Date(log.created_at).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        {details?.reason && <p className="text-[0.5rem] text-muted-foreground mt-0.5">"{String(details.reason)}"</p>}
+                        {details?.duration && <span className="text-[0.45rem] text-muted-foreground">Duur: {String(details.duration)}u</span>}
+                        <p className="text-[0.45rem] text-muted-foreground mt-0.5">{new Date(log.created_at).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                     </div>
                   </div>
@@ -344,14 +567,83 @@ export function AdminPanel() {
         </div>
       )}
 
-      {/* Edit popup */}
+      {/* ======== POPUPS ======== */}
+
+      {/* Player State Detail Popup */}
+      {playerStatePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="game-card w-full max-w-sm space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold flex items-center gap-1.5"><User size={12} className="text-primary" /> Player State: {playerStatePopup.entry.username}</h3>
+              <button onClick={() => setPlayerStatePopup(null)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+            </div>
+            {!playerStatePopup.state ? <p className="text-[0.55rem] text-muted-foreground">Geen player state gevonden</p> : (
+              <>
+                <div className="space-y-1.5">
+                  {([
+                    { key: 'money', label: 'Cash (€)', type: 'number' },
+                    { key: 'dirty_money', label: 'Dirty Money', type: 'number' },
+                    { key: 'debt', label: 'Schuld', type: 'number' },
+                    { key: 'hp', label: 'HP', type: 'number' },
+                    { key: 'max_hp', label: 'Max HP', type: 'number' },
+                    { key: 'energy', label: 'Energy', type: 'number' },
+                    { key: 'max_energy', label: 'Max Energy', type: 'number' },
+                    { key: 'nerve', label: 'Nerve', type: 'number' },
+                    { key: 'max_nerve', label: 'Max Nerve', type: 'number' },
+                    { key: 'heat', label: 'Heat', type: 'number' },
+                    { key: 'personal_heat', label: 'Personal Heat', type: 'number' },
+                    { key: 'karma', label: 'Karma', type: 'number' },
+                    { key: 'rep', label: 'REP', type: 'number' },
+                    { key: 'level', label: 'Level', type: 'number' },
+                    { key: 'xp', label: 'XP', type: 'number' },
+                    { key: 'day', label: 'Dag', type: 'number' },
+                    { key: 'ammo', label: 'Ammo', type: 'number' },
+                    { key: 'skill_points', label: 'Skill Points', type: 'number' },
+                  ] as const).map(f => (
+                    <div key={f.key} className="flex items-center gap-2">
+                      <label className="text-[0.5rem] text-muted-foreground w-20 shrink-0">{f.label}</label>
+                      <span className="text-[0.5rem] text-muted-foreground w-16">{String((playerStatePopup.state as any)[f.key])}</span>
+                      <input type={f.type} placeholder="nieuw..." value={playerStateEdits[f.key] !== undefined ? String(playerStateEdits[f.key]) : ''} onChange={e => setPlayerStateEdits(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-[0.5rem]" />
+                    </div>
+                  ))}
+                  {/* Location */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-[0.5rem] text-muted-foreground w-20 shrink-0">District</label>
+                    <span className="text-[0.5rem] text-muted-foreground w-16">{DISTRICT_LABELS[(playerStatePopup.state as any).loc] || (playerStatePopup.state as any).loc}</span>
+                    <select value={playerStateEdits.loc !== undefined ? String(playerStateEdits.loc) : ''} onChange={e => setPlayerStateEdits(prev => ({ ...prev, loc: e.target.value || undefined }))} className="flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-[0.5rem]">
+                      <option value="">— behoud —</option>
+                      {DISTRICTS.map(d => <option key={d} value={d}>{DISTRICT_LABELS[d]}</option>)}
+                    </select>
+                  </div>
+                  {/* Quick release buttons */}
+                  <div className="flex gap-2 pt-1">
+                    {(playerStatePopup.state as any).prison_until && (
+                      <GameButton variant="gold" size="sm" onClick={() => setPlayerStateEdits(prev => ({ ...prev, prison_until: '', prison_reason: '' }))}>🔓 UIT GEVANGENIS</GameButton>
+                    )}
+                    {(playerStatePopup.state as any).hospital_until && (
+                      <GameButton variant="emerald" size="sm" onClick={() => setPlayerStateEdits(prev => ({ ...prev, hospital_until: '' }))}>🏥 UIT ZIEKENHUIS</GameButton>
+                    )}
+                    {(playerStatePopup.state as any).hiding_until && (
+                      <GameButton variant="muted" size="sm" onClick={() => setPlayerStateEdits(prev => ({ ...prev, hiding_until: '' }))}>👁 STOP HIDING</GameButton>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <GameButton variant="muted" size="sm" onClick={() => setPlayerStatePopup(null)} className="flex-1">SLUITEN</GameButton>
+                  <GameButton variant="emerald" size="sm" onClick={savePlayerState} disabled={Object.keys(playerStateEdits).length === 0} className="flex-1">OPSLAAN</GameButton>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit leaderboard popup */}
       {editPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="game-card w-full max-w-xs space-y-3 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold flex items-center gap-1.5">
-                <Pencil size={12} className="text-emerald" /> Stats Bewerken
-              </h3>
+              <h3 className="text-xs font-bold flex items-center gap-1.5"><Pencil size={12} className="text-emerald" /> Stats Bewerken</h3>
               <button onClick={() => setEditPopup(null)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
             </div>
             <p className="text-[0.55rem] text-muted-foreground">Speler: <span className="text-foreground font-bold">{editPopup.username}</span></p>
@@ -368,12 +660,7 @@ export function AdminPanel() {
               ] as const).map(field => (
                 <div key={field.key} className="flex items-center gap-2">
                   <label className="text-[0.5rem] text-muted-foreground w-16 shrink-0">{field.label}</label>
-                  <input
-                    type={field.type}
-                    value={editStats[field.key] ?? ''}
-                    onChange={e => setEditStats(prev => ({ ...prev, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                    className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                  />
+                  <input type={field.type} value={editStats[field.key] ?? ''} onChange={e => setEditStats(prev => ({ ...prev, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))} className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground" />
                 </div>
               ))}
             </div>
@@ -382,16 +669,11 @@ export function AdminPanel() {
               <GameButton variant="emerald" size="sm" onClick={async () => {
                 setActionLoading(editPopup.id);
                 try {
-                  const { error } = await supabase.functions.invoke('admin-actions', {
-                    body: { action: 'edit_entry', entryId: editPopup.id, userId: editPopup.user_id, targetUsername: editPopup.username, stats: editStats },
-                  });
+                  const { error } = await supabase.functions.invoke('admin-actions', { body: { action: 'edit_entry', entryId: editPopup.id, userId: editPopup.user_id, targetUsername: editPopup.username, stats: editStats } });
                   if (error) throw error;
                   showToast(`✅ Stats aangepast: ${editPopup.username}`);
-                  setEditPopup(null);
-                  fetchEntries();
-                } catch (err: any) {
-                  showToast(`❌ Fout: ${err.message}`, true);
-                }
+                  setEditPopup(null); fetchEntries();
+                } catch (err: any) { showToast(`❌ ${err.message}`, true); }
                 setActionLoading(null);
               }} className="flex-1">OPSLAAN</GameButton>
             </div>
@@ -410,14 +692,12 @@ export function AdminPanel() {
               <button onClick={() => setSanctionPopup(null)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
             </div>
             <p className="text-[0.55rem] text-muted-foreground">Speler: <span className="text-foreground font-bold">{sanctionPopup.entry.username}</span></p>
-            <textarea value={sanctionReason} onChange={e => setSanctionReason(e.target.value)} placeholder="Reden (optioneel)..."
-              className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground resize-none h-16" />
+            <textarea value={sanctionReason} onChange={e => setSanctionReason(e.target.value)} placeholder="Reden (optioneel)..." className="w-full bg-background border border-border rounded p-2 text-xs text-foreground placeholder:text-muted-foreground resize-none h-16" />
             {sanctionPopup.mode === 'mute' && (
               <div className="flex items-center gap-2">
                 <span className="text-[0.55rem] text-muted-foreground">Duur:</span>
                 {[1, 6, 24, 72, 168].map(h => (
-                  <button key={h} onClick={() => setMuteDuration(h)}
-                    className={`text-[0.5rem] px-1.5 py-0.5 rounded border font-bold transition-colors ${muteDuration === h ? 'bg-ice/20 border-ice/50 text-ice' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
+                  <button key={h} onClick={() => setMuteDuration(h)} className={`text-[0.5rem] px-1.5 py-0.5 rounded border font-bold transition-colors ${muteDuration === h ? 'bg-ice/20 border-ice/50 text-ice' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
                     {h < 24 ? `${h}u` : `${h / 24}d`}
                   </button>
                 ))}
@@ -425,9 +705,7 @@ export function AdminPanel() {
             )}
             <div className="flex gap-2">
               <GameButton variant="muted" size="sm" onClick={() => setSanctionPopup(null)} className="flex-1">ANNULEER</GameButton>
-              <GameButton variant={sanctionPopup.mode === 'warn' ? 'gold' : 'purple'} size="sm" onClick={executeSanction} className="flex-1">
-                {sanctionPopup.mode === 'warn' ? 'WAARSCHUW' : 'MUTE'}
-              </GameButton>
+              <GameButton variant={sanctionPopup.mode === 'warn' ? 'gold' : 'purple'} size="sm" onClick={executeSanction} className="flex-1">{sanctionPopup.mode === 'warn' ? 'WAARSCHUW' : 'MUTE'}</GameButton>
             </div>
           </div>
         </div>
@@ -441,9 +719,7 @@ export function AdminPanel() {
               <h3 className="text-xs font-bold flex items-center gap-1.5"><History size={12} /> Sancties: {historyPopup.entry.username}</h3>
               <button onClick={() => setHistoryPopup(null)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
             </div>
-            {historyPopup.sanctions.length === 0 ? (
-              <p className="text-[0.55rem] text-muted-foreground text-center py-4">Geen sancties gevonden</p>
-            ) : (
+            {historyPopup.sanctions.length === 0 ? <p className="text-[0.55rem] text-muted-foreground text-center py-4">Geen sancties</p> : (
               <div className="space-y-1.5">
                 {historyPopup.sanctions.map(s => (
                   <div key={s.id} className={`p-2 rounded border text-[0.5rem] space-y-0.5 ${s.active ? 'border-gold/30 bg-gold/5' : 'border-border bg-muted/50 opacity-60'}`}>
@@ -468,11 +744,9 @@ export function AdminPanel() {
         open={!!confirmAction}
         title={confirmAction?.type === 'delete' ? 'Entry Verwijderen' : confirmAction?.type === 'reset' ? 'Stats Resetten' : 'Speler Bannen'}
         message={
-          confirmAction?.type === 'delete'
-            ? `Weet je zeker dat je de leaderboard entry van "${confirmAction.entry.username}" wilt verwijderen?`
-            : confirmAction?.type === 'reset'
-            ? `Weet je zeker dat je alle stats van "${confirmAction?.entry.username}" wilt resetten naar 0?`
-            : `Weet je zeker dat je "${confirmAction?.entry.username}" permanent wilt bannen? Dit kan niet ongedaan worden.`
+          confirmAction?.type === 'delete' ? `Verwijder leaderboard entry van "${confirmAction.entry.username}"?`
+            : confirmAction?.type === 'reset' ? `Reset alle stats van "${confirmAction?.entry.username}" naar 0?`
+            : `Ban "${confirmAction?.entry.username}" permanent? Dit kan niet ongedaan worden.`
         }
         confirmText={confirmAction?.type === 'ban' ? 'BAN PERMANENT' : confirmAction?.type === 'delete' ? 'VERWIJDER' : 'RESET'}
         variant="danger"
