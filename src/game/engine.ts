@@ -821,6 +821,10 @@ export function endTurn(state: GameState): NightReportData {
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   // Karma: Eerbaar extra heat decay
   pDecay += getKarmaHeatDecayBonus(state);
+  // MMO Perk: Straatkind heat reduction bonus
+  if (state.mmoPerkFlags?.heatReductionBonus) {
+    pDecay = Math.floor(pDecay * (1 + state.mmoPerkFlags.heatReductionBonus));
+  }
   // Safehouse heat reduction
   if (state.safehouses) {
     state.safehouses.forEach(sh => {
@@ -1400,6 +1404,10 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     if (good?.faction && (state.familyRel[good.faction] || 0) > 50) {
       buyPrice = Math.floor(buyPrice * 0.7);
     }
+    // MMO Perk: Bankier trade discount
+    if (state.mmoPerkFlags?.tradeDiscount) {
+      buyPrice = Math.floor(buyPrice * (1 - state.mmoPerkFlags.tradeDiscount));
+    }
     if (getAverageHeat(state) > 50) buyPrice = Math.floor(buyPrice * 1.2);
 
     const actualQty = Math.min(maxBuy, Math.floor(state.money / buyPrice));
@@ -1428,7 +1436,11 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
 
     const actualQty = Math.min(quantity, owned);
     const karmaSellBonus = getKarmaTradeSellBonus(state);
-    const sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus + karmaSellBonus));
+    let sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus + karmaSellBonus));
+    // MMO Perk: Bankier trade bonus (better sell prices)
+    if (state.mmoPerkFlags?.tradeDiscount) {
+      sellPrice = Math.floor(sellPrice * (1 + state.mmoPerkFlags.tradeDiscount * 0.5));
+    }
     const totalRevenue = sellPrice * actualQty;
 
     state.money += totalRevenue;

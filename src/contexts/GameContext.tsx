@@ -2572,13 +2572,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         brains: Engine.getPlayerStat(s, 'brains'),
         charm: Engine.getPlayerStat(s, 'charm'),
       };
-      s.activePvPCombat = createPvPCombatState(
+      const pvpState = createPvPCombatState(
         'player', s.player.level >= 1 ? 'Jij' : 'Speler',
         s.player.level, s.playerHP, s.playerMaxHP, attackerStats, s.player.loadout,
         target.userId, target.username, target.level, target.hp, target.maxHp,
         target.stats || { muscle: Math.floor(target.level * 1.5) + 3, brains: Math.floor(target.level * 0.8), charm: Math.floor(target.level * 0.5) },
         target.loadout || { weapon: null, armor: null, gadget: null },
       );
+      // MMO Perk: Weduwnaar PvP damage bonus
+      if (s.mmoPerkFlags?.pvpDamageBonus) {
+        pvpState.attackerPvpDamageBonus = s.mmoPerkFlags.pvpDamageBonus;
+      }
+      s.activePvPCombat = pvpState;
       s.screenEffect = 'shake';
       return s;
     }
