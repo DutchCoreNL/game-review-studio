@@ -12,6 +12,7 @@ import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
+import { getWeekEventXpMultiplier } from './weekEvents';
 
 // localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
@@ -1446,12 +1447,16 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
 }
 
 export function gainXp(state: GameState, amount: number, source: string = 'action'): boolean {
+  // Apply week event XP multiplier (e.g. 2x XP Weekend)
+  const weekMultiplier = getWeekEventXpMultiplier(state);
+  const finalAmount = Math.floor(amount * weekMultiplier);
+
   // Queue XP for server-side processing (server applies multipliers, level-ups, SP)
   if (!state._pendingXpGains) state._pendingXpGains = [];
-  state._pendingXpGains.push({ amount, source });
+  state._pendingXpGains.push({ amount: finalAmount, source });
   
-  // Optimistic local preview (no multipliers — server is authoritative)
-  state.player.xp += amount;
+  // Optimistic local preview with week event multiplier applied
+  state.player.xp += finalAmount;
   if (state.player.xp >= state.player.nextXp) {
     state.player.xp -= state.player.nextXp;
     state.player.level++;
