@@ -12,6 +12,8 @@ export function useMuteStatus(): MuteStatus {
   const [status, setStatus] = useState<MuteStatus>({ isMuted: false, reason: null, expiresAt: null, loading: true });
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setStatus(s => ({ ...s, loading: false })); return; }
@@ -30,12 +32,21 @@ export function useMuteStatus(): MuteStatus {
         const now = new Date();
         if (!mute.expires_at || new Date(mute.expires_at) > now) {
           setStatus({ isMuted: true, reason: mute.reason, expiresAt: mute.expires_at, loading: false });
+          // Auto-unmute when expiry is reached
+          if (mute.expires_at) {
+            const ms = new Date(mute.expires_at).getTime() - now.getTime();
+            timer = setTimeout(() => {
+              setStatus({ isMuted: false, reason: null, expiresAt: null, loading: false });
+            }, Math.max(ms, 0));
+          }
           return;
         }
       }
       setStatus({ isMuted: false, reason: null, expiresAt: null, loading: false });
     };
     check();
+
+    return () => { if (timer) clearTimeout(timer); };
   }, []);
 
   return status;
