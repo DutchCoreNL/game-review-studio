@@ -96,7 +96,8 @@ const DrugEmpireStatsPanel = React.lazy(() => import('./profile/DrugEmpireStatsP
 const AudioSettingsPanel = React.lazy(() => import('./profile/AudioSettingsPanel').then(m => ({ default: m.AudioSettingsPanel })));
 const LoadoutPanel = React.lazy(() => import('./profile/LoadoutPanel').then(m => ({ default: m.LoadoutPanel })));
 const TrophiesPanel = React.lazy(() => import('./profile/TrophiesPanel').then(m => ({ default: m.TrophiesPanel })));
-
+const EducationView = React.lazy(() => import('./EducationView').then(m => ({ default: m.EducationView })));
+const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ default: m.PropertiesView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -146,6 +147,8 @@ const views: Record<string, React.ComponentType> = {
   messages: MessagesView,
   'imperium-stats': DrugEmpireStatsPanel,
   settings: AudioSettingsPanel,
+  education: EducationView,
+  properties: PropertiesView,
   // Admin
   admin: AdminPanelView,
 };
@@ -155,7 +158,7 @@ function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profil
   if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
-  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts'].includes(v)) return 'empire';
+  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties'].includes(v)) return 'empire';
   return 'profile';
 }
 
