@@ -3932,6 +3932,10 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
     const damageMap = faction.total_damage_dealt || {};
     damageMap[userId] = (damageMap[userId] || 0) + damage;
 
+    // Fetch attacker username for news
+    const { data: attackerProfile } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+    const attackerName = attackerProfile?.username || "Een onbekende speler";
+
     const updateData: any = {
       boss_hp: phaseComplete ? (phase === "leader" ? 0 : 100) : newHp,
       last_attack_by: userId,
@@ -3939,6 +3943,18 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
       updated_at: new Date().toISOString(),
       total_damage_dealt: damageMap,
     };
+
+    // News event for every successful hit (low urgency)
+    if (!phaseComplete) {
+      const hpPct = Math.round((newHp / faction.boss_max_hp) * 100);
+      await insertPlayerNews(supabase, {
+        text: `⚔️ ${attackerName} valt de ${factionId} aan! Boss HP: ${hpPct}%`,
+        icon: '⚔️',
+        urgency: 'low',
+        category: 'faction',
+        detail: `${attackerName} heeft ${damage} schade toegebracht aan de ${factionId} boss. HP: ${newHp}/${faction.boss_max_hp}. ${Object.keys(damageMap).length} speler(s) hebben tot nu toe aangevallen.`,
+      });
+    }
 
     if (phaseComplete) {
       if (phase === "leader") {
@@ -3966,13 +3982,13 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
           }).eq("user_id", dealerId);
         }
 
-        // News event
+        // Conquest news event (high urgency)
         await insertPlayerNews(supabase, {
-          text: `👑 ${factionId} is veroverd! Een nieuwe heerser neemt de macht over.`,
+          text: `👑 ${attackerName} heeft de ${factionId} veroverd!`,
           icon: '👑',
           urgency: 'high',
           category: 'faction',
-          detail: `De factie is 48 uur lang onderworpen. Top aanvallers ontvangen extra beloningen.`,
+          detail: `De ${factionId} is verslagen en 48 uur lang onderworpen door ${attackerName}. ${Object.keys(damageMap).length} spelers vochten mee. Top aanvallers ontvangen extra beloningen.`,
         });
       } else {
         // Phase complete, advance
@@ -3980,6 +3996,19 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         updateData.conquest_phase = nextPhase;
         updateData.boss_hp = phase === "defense" ? 100 : 150;
         updateData.boss_max_hp = phase === "defense" ? 100 : 150;
+
+        const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
+        const phaseName = phaseNames[phase as keyof typeof phaseNames];
+        const nextPhaseName = phaseNames[nextPhase as keyof typeof phaseNames] || nextPhase;
+
+        // Phase complete news event (medium urgency)
+        await insertPlayerNews(supabase, {
+          text: `🔥 ${factionId} ${phaseName}-fase doorbroken! ${nextPhaseName} ontgrendeld.`,
+          icon: '🔥',
+          urgency: 'medium',
+          category: 'faction',
+          detail: `${attackerName} heeft de ${phaseName} fase van de ${factionId} doorbroken met de beslissende klap. De ${nextPhaseName} fase is nu beschikbaar voor alle spelers.`,
+        });
       }
       updateData.conquest_progress = (phaseIdx + 1) * 33;
     }
