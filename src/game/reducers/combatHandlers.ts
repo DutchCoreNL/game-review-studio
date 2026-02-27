@@ -337,7 +337,7 @@ export function handleResolveFinalBoss(s: GameState): void {
 export function handleNewGamePlus(s: GameState): GameState {
   const ngPlus = createNewGamePlus(s);
   Engine.generatePrices(ngPlus);
-  Engine.generateContracts(ngPlus);
+  // Contracts generated server-side via gameApi.acceptContract()
   return ngPlus;
 }
 
