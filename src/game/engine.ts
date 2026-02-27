@@ -1368,6 +1368,20 @@ export function endTurn(state: GameState): NightReportData {
   const hpRegen = Math.min(baseRegen * regenMultiplier, state.playerMaxHP - state.playerHP);
   if (hpRegen > 0) state.playerHP += hpRegen;
 
+  // Crafting output for the current day
+  if (state.craftLog && state.craftLog.length > 0) {
+    const todayCrafts = state.craftLog.filter(e => e.day === state.day);
+    if (todayCrafts.length > 0) {
+      report.craftingOutput = todayCrafts.map(e => ({
+        recipeName: e.recipeName,
+        icon: '⚗️',
+        outputAmount: e.outputAmount,
+        outputGood: e.outputGoodId,
+        estimatedValue: e.estimatedValue,
+      }));
+    }
+  }
+
   state.nightReport = report;
 
   return report;

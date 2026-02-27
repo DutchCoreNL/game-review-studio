@@ -665,6 +665,8 @@ export interface NightReportData {
   stockEvent?: { name: string; desc: string } | null;
   // Goods price changes
   priceChanges?: { goodId: GoodId; goodName: string; oldPrice: number; newPrice: number; changePercent: number }[];
+  // Crafting output
+  craftingOutput?: { recipeName: string; icon: string; outputAmount: number; outputGood: string; estimatedValue: number }[];
 }
 
 export interface ExpiryWarning {
