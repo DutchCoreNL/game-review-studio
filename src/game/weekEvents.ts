@@ -16,7 +16,7 @@ export interface WeekEvent {
 }
 
 export interface WeekEventEffect {
-  type: 'money_bonus' | 'trade_bonus' | 'heat_reduction' | 'rep_bonus' | 'xp_bonus' | 'casino_bonus' | 'combat_bonus' | 'crew_heal' | 'heat_surge' | 'price_crash' | 'price_surge' | 'faction_gift' | 'heat_freeze';
+  type: 'money_bonus' | 'trade_bonus' | 'heat_reduction' | 'rep_bonus' | 'xp_bonus' | 'casino_bonus' | 'combat_bonus' | 'crew_heal' | 'heat_surge' | 'price_crash' | 'price_surge' | 'faction_gift' | 'heat_freeze' | 'ammo_production_mult' | 'ammo_price_mult';
   value: number;
   desc: string;
 }
@@ -160,6 +160,30 @@ export const WEEK_EVENTS: WeekEvent[] = [
       { type: 'trade_bonus', value: 40, desc: '+40% handelswinst' },
     ],
   },
+  {
+    id: 'ammo_blockade',
+    name: 'Wapenblokkade',
+    icon: '🚫',
+    desc: 'Internationale sancties sluiten smokkelroutes. Munitieproductie gehalveerd, prijzen verdubbeld!',
+    duration: 3,
+    effects: [
+      { type: 'ammo_production_mult', value: 50, desc: 'Fabrieksproductie -50%' },
+      { type: 'ammo_price_mult', value: 200, desc: 'Munitieprijzen +100%' },
+      { type: 'money_bonus', value: 5000, desc: '€5.000 smokkelcompensatie' },
+    ],
+  },
+  {
+    id: 'ammo_flood',
+    name: 'Wapensmokkel Express',
+    icon: '📦',
+    desc: 'Een lading gestolen legervoorraden overspoelt Noxhaven. Goedkope munitie overal!',
+    duration: 3,
+    effects: [
+      { type: 'ammo_production_mult', value: 150, desc: 'Fabrieksproductie +50%' },
+      { type: 'ammo_price_mult', value: 70, desc: 'Munitieprijzen -30%' },
+      { type: 'money_bonus', value: 2000, desc: '€2.000 smokkelbonus' },
+    ],
+  },
 ];
 
 /** Check if a week event should trigger (called during end_turn) */
@@ -279,4 +303,20 @@ export function getWeekEventCombatMultiplier(state: GameState): number {
   if (!event || event.daysLeft <= 0) return 1;
   const combatEffect = event.effects.find(e => e.type === 'combat_bonus');
   return combatEffect ? combatEffect.value : 1;
+}
+
+/** Get ammo production multiplier from week event (percentage, 100 = normal) */
+export function getWeekEventAmmoProductionMult(state: GameState): number {
+  const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  if (!event || event.daysLeft <= 0) return 100;
+  const effect = event.effects.find(e => e.type === 'ammo_production_mult');
+  return effect ? effect.value : 100;
+}
+
+/** Get ammo price multiplier from week event (percentage, 100 = normal) */
+export function getWeekEventAmmoPriceMult(state: GameState): number {
+  const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  if (!event || event.daysLeft <= 0) return 100;
+  const effect = event.effects.find(e => e.type === 'ammo_price_mult');
+  return effect ? effect.value : 100;
 }
