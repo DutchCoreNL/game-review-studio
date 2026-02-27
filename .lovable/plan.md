@@ -1,56 +1,82 @@
 
 
-## Plan: Stadskaart verbeteren voor MMO
+## Dag/Nacht Systeem MMO Verbetering
 
-De kaart is momenteel puur single-player — je ziet alleen je eigen positie. Voor een MMO moet de kaart een **levende, gedeelde wereld** tonen met andere spelers, gang-activiteit en realtime events.
+### Huidige situatie
+- Weer en dag-cyclus zijn **per speler** — elke speler heeft z'n eigen `weather` en `day` in `save_data`
+- Weer wordt random gerold bij elke `AUTO_TICK` (client-side) en `process-turn` (server-side)
+- Geen gedeeld dag/nacht concept — spelers zitten op verschillende "dagen" en zien ander weer
+- `tickIntervalMinutes = 30` (elke 30 min realtime = 1 game dag)
 
-### Verbeteringen
+### Plan: Gedeeld Wereld-Tijd Systeem
 
-**1. Andere spelers op de kaart tonen**
-- Query `player_state` (kolom `loc`) via een nieuwe edge function action `get_district_players` die per district het aantal online spelers telt (actief in de laatste 15 min)
-- Toon per district een klein teller-badge met het aantal actieve spelers (bijv. "👥 12")
-- Optioneel: toon 3-5 bewegende speler-dots per district als visueel element
+**1. Database: `world_state` tabel aanmaken**
+- Eén rij met global state: `current_weather`, `time_of_day` (dawn/day/dusk/night), `world_day`, `next_cycle_at` (timestamp)
+- Realtime enabled zodat alle clients live updates krijgen
+- Weercyclus draait elke ~2 uur realtime (4 fases van 30 min: dawn → day → dusk → night)
+- Weer verandert bij elke `dawn` (nieuw dag-begin)
 
-**2. Gang territorium-kleuren op de kaart**
-- Query `gang_territories` en toon de dominante gang per district met hun kleur/tag
-- Verander de district-label border-kleur naar de gang-kleur als een gang het controleert
-- Toon gang-tag naast de district-naam (bijv. "[SYN] Crown Heights")
+**2. Edge function: `world-tick` cron function**
+- Draait elke 30 minuten via pg_cron of external cron
+- Roteert `time_of_day`: dawn → day → dusk → night → dawn (= nieuwe dag)
+- Bij dawn: random nieuw weer, increment `world_day`, insert `district_events` voor weer-gerelateerde events
+- Update `world_state` tabel — realtime push naar alle clients
 
-**3. Realtime district-events**
-- Maak een `district_events` tabel (id, district_id, event_type, message, created_at, expires_at)
-- Events: gang wars, police raids, market crashes, bounty hunts
-- Toon als pulserende iconen op de kaart met tooltips
-- Vul vanuit de `passive-income` edge function of game-actions
+**3. Client hook: `useWorldState()`**
+- Realtime subscription op `world_state` tabel
+- Geeft `timeOfDay`, `weather`, `worldDay` terug
+- Vervangt per-speler `state.weather` met gedeelde wereld-staat
 
-**4. District "Danger Level" indicator**
-- Bereken per district: aantal recente PvP fights + politie heat + gang war status
-- Toon als kleur-gradient overlay op het district (groen→geel→rood)
-- Update elke 30 seconden via polling
+**4. Visuele dag/nacht effecten**
+- `CityMap` en `WeatherOverlay` krijgen `timeOfDay`-bewuste styling:
+  - **Dawn**: warm oranje tint, zachte schaduwen
+  - **Day**: helder, standaard
+  - **Dusk**: paars/roze gradient, langere schaduwen
+  - **Night**: donkerblauw overlay, neon glows feller, straatverlichting aan
+- `GameHeader` toont dag/nacht-icoon (☀️🌅🌙) naast weer-icoon
+- Achtergrond-tint verandert subtiel op alle views
 
-**5. Mini-leaderboard per district**
-- Bij het klikken op een district, toon de top 5 spelers die daar actief zijn
-- Query `player_state` + `profiles` gefilterd op `loc = district_id`
+**5. Gameplay-effecten per tijdsfase**
+- **Night**: +15% crime success, +10% heat gain, dealers verdienen meer, politie raids minder frequent
+- **Dawn**: energy regen bonus (+5 extra)
+- **Day**: standaard
+- **Dusk**: handel bonussen, marktprijzen fluctueren meer
+- Deze modifiers worden server-side toegepast in `game-action` en `process-turn`
 
-**6. Live activity feed op de kaart**
-- Vervang de huidige statische `NewsTicker` met realtime events uit de database
-- Toon recente PvP kills, grote trades, gang conquests als scrollende ticker
-
-### Implementatiestappen
-
-1. **Database**: Maak `district_events` tabel + enable realtime op `gang_territories`
-2. **Edge function**: Nieuwe action `get_district_players` die speler-counts per district + recente events retourneert
-3. **CityMap component**: Voeg `PlayerCountBadge` per district toe — klein donker label met 👥 count
-4. **CityMap component**: Voeg `GangTerritoryOverlay` toe — gekleurde district borders op basis van gang_territories data
-5. **CityMap component**: Voeg `DistrictEventMarkers` toe — pulserende iconen voor actieve events
-6. **CityMap component**: Voeg `DangerLevelOverlay` toe — subtiele kleur-tint per district op basis van activiteit
-7. **DistrictPopup**: Voeg mini-leaderboard toe met top 5 actieve spelers in dat district
-8. **MapView**: Hook up polling (elke 30s) voor district data + realtime subscription voor gang territory changes
-9. **NewsTicker**: Vervang client-side nieuws met server-side realtime events
+**6. Aanpassingen bestaande code**
+- `GameContext.tsx` AUTO_TICK: weer niet meer per-speler rollen, lees van `world_state`
+- `process-turn`: weer-effecten lezen van `world_state` in plaats van per-speler random
+- `GameHeader`: weer en tijd-icoon tonen vanuit `useWorldState()`
+- `NightReport`: toont "Nacht X" met gedeelde world day
 
 ### Technische details
 
-- `district_events` schema: `id uuid, district_id text, event_type text, title text, description text, data jsonb, created_at timestamptz, expires_at timestamptz`
-- RLS: iedereen kan lezen (publiek zichtbaar), alleen service_role kan schrijven
-- Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.district_events;`
-- Polling endpoint retourneert: `{ playerCounts: Record<DistrictId, number>, recentEvents: DistrictEvent[], territories: GangTerritory[] }`
+```text
+world_state (1 rij)
+├── id: 1 (singleton)
+├── world_day: integer
+├── time_of_day: 'dawn' | 'day' | 'dusk' | 'night'
+├── current_weather: WeatherType
+├── next_cycle_at: timestamptz
+├── weather_changed_at: timestamptz
+└── updated_at: timestamptz
+
+Cyclus (2 uur = 1 volledige dag):
+dawn (30m) → day (30m) → dusk (30m) → night (30m) → dawn...
+
+world-tick edge function (elke 30 min):
+1. Lees world_state
+2. Roteer time_of_day
+3. Als dawn → nieuw weer + world_day++
+4. Update world_state
+5. Insert district_event voor weer/tijd-wijziging
+```
+
+### Implementatie-volgorde
+1. Maak `world_state` tabel + seed met initiële waarden
+2. Maak `world-tick` edge function
+3. Maak `useWorldState()` hook
+4. Update `GameHeader` met dag/nacht + weer uit world state
+5. Update `CityMap`/`WeatherOverlay` met time-of-day visuele effecten
+6. Update `game-action`/`process-turn` om world state te lezen voor modifiers
 
