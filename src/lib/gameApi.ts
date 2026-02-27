@@ -22,6 +22,8 @@ export type GameAction =
   | "casino_play"
   | "unlock_skill" | "get_skills" | "prestige" | "gain_xp"
   | "get_district_data"
+  | "complete_contract"
+  | "complete_hit"
   | "process_turn";
 
 interface GameActionResult {
@@ -123,6 +125,12 @@ export const gameApi = {
 
   // District MMO data
   getDistrictData: () => invokeGameAction("get_district_data"),
+
+  // Server-validated contract/hit completion
+  completeContract: (contractId: number, contractType: string, successRate: number, encounterCount: number) =>
+    invokeGameAction("complete_contract", { contractId, contractType, successRate, encounterCount }),
+  completeHit: (hitId: string) =>
+    invokeGameAction("complete_hit", { hitId }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
