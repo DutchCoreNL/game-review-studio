@@ -7,13 +7,14 @@ import {
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings,
-  ShieldAlert, LucideIcon, Phone,
+  ShieldAlert, LucideIcon, Phone, Newspaper,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo, useState } from 'react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useDailyDigest } from '@/hooks/useDailyDigest';
 
 interface Category {
   label: string;
@@ -102,6 +103,7 @@ function getCategoryForView(v: string): string | null {
 export function DesktopSidebar() {
   const { view, setView, state, dispatch } = useGame();
   const { isAdmin } = useAdmin();
+  const { digest } = useDailyDigest();
 
   const allCategories = useMemo(() => {
     const cats = [...CATEGORIES];
@@ -189,7 +191,24 @@ export function DesktopSidebar() {
       </nav>
 
       {/* Phone shortcut */}
-      <div className="px-3 pb-4 border-t border-border pt-3">
+      <div className="px-3 pb-4 border-t border-border pt-3 space-y-1">
+        {digest && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-3 px-3 py-2 rounded text-xs bg-gold/10 border border-gold/20"
+          >
+            <Newspaper size={16} className="text-gold" />
+            <span className="font-semibold tracking-wider text-gold">DIGEST</span>
+            <motion.span
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="ml-auto min-w-[18px] h-[18px] bg-gold text-secondary-foreground rounded-full text-[0.5rem] font-bold flex items-center justify-center"
+            >
+              !
+            </motion.span>
+          </motion.div>
+        )}
         <button
           onClick={() => dispatch({ type: 'TOGGLE_PHONE' })}
           className="w-full flex items-center gap-3 px-3 py-2 rounded text-xs text-muted-foreground hover:text-gold hover:bg-muted/30 transition-all relative"
