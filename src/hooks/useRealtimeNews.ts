@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { NewsItem } from '@/game/newsGenerator';
 
@@ -24,11 +24,20 @@ function rowToNewsItem(row: NewsEventRow): NewsItem {
   };
 }
 
-export function useRealtimeNews(fallbackItems: NewsItem[]): NewsItem[] {
+export interface RealtimeNewsResult {
+  items: NewsItem[];
+  breakingItem: NewsItem | null;
+  clearBreaking: () => void;
+}
+
+export function useRealtimeNews(fallbackItems: NewsItem[]): RealtimeNewsResult {
   const [serverNews, setServerNews] = useState<NewsItem[]>([]);
+  const [breakingItem, setBreakingItem] = useState<NewsItem | null>(null);
+  const breakingTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const clearBreaking = useCallback(() => setBreakingItem(null), []);
 
   useEffect(() => {
-    // Fetch recent non-expired news
     const fetchNews = async () => {
       const { data } = await supabase
         .from('news_events')
@@ -44,7 +53,6 @@ export function useRealtimeNews(fallbackItems: NewsItem[]): NewsItem[] {
 
     fetchNews();
 
-    // Subscribe to realtime inserts
     const channel = supabase
       .channel('news_events_realtime')
       .on(
@@ -52,16 +60,24 @@ export function useRealtimeNews(fallbackItems: NewsItem[]): NewsItem[] {
         { event: 'INSERT', schema: 'public', table: 'news_events' },
         (payload) => {
           const row = payload.new as NewsEventRow;
-          setServerNews(prev => [rowToNewsItem(row), ...prev].slice(0, 10));
+          const item = rowToNewsItem(row);
+          setServerNews(prev => [item, ...prev].slice(0, 10));
+
+          if (row.urgency === 'high') {
+            setBreakingItem(item);
+            clearTimeout(breakingTimer.current);
+            breakingTimer.current = setTimeout(() => setBreakingItem(null), 4000);
+          }
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      clearTimeout(breakingTimer.current);
     };
   }, []);
 
-  // Use server news if available, fall back to client-generated
-  return serverNews.length > 0 ? serverNews : fallbackItems;
+  const items = serverNews.length > 0 ? serverNews : fallbackItems;
+  return { items, breakingItem, clearBreaking };
 }

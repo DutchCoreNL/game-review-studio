@@ -10,6 +10,7 @@ import { VillaView } from './villa/VillaView';
 import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { NewsTicker } from './map/NewsTicker';
+import { BreakingNewsFlash } from './map/BreakingNewsFlash';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useRef, useEffect } from 'react';
 import { Dices, Wrench, Home, Building2, Swords, Heart } from 'lucide-react';
@@ -45,7 +46,7 @@ export function MapView() {
     }
   }, [state.loc]);
 
-  const newsItems = useRealtimeNews(state.dailyNews);
+  const { items: newsItems, breakingItem, clearBreaking } = useRealtimeNews(state.dailyNews);
 
   // Auto-tick is now handled by GameContext — no manual end-turn needed
 
@@ -101,6 +102,7 @@ export function MapView() {
     <div className="relative">
       <HidingOverlay />
       <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
+      <BreakingNewsFlash item={breakingItem} onDone={clearBreaking} />
       <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
 
       <div className="mb-3">
