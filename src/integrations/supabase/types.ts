@@ -458,6 +458,45 @@ export type Database = {
         }
         Relationships: []
       }
+      player_bounties: {
+        Row: {
+          amount: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          placer_id: string
+          reason: string
+          status: string
+          target_id: string
+        }
+        Insert: {
+          amount?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          placer_id: string
+          reason?: string
+          status?: string
+          target_id: string
+        }
+        Update: {
+          amount?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          placer_id?: string
+          reason?: string
+          status?: string
+          target_id?: string
+        }
+        Relationships: []
+      }
       player_businesses: {
         Row: {
           acquired_at: string
@@ -620,6 +659,36 @@ export type Database = {
           receiver_id?: string
           sender_id?: string
           subject?: string
+        }
+        Relationships: []
+      }
+      player_rivalries: {
+        Row: {
+          created_at: string
+          id: string
+          last_interaction: string
+          player_id: string
+          rival_id: string
+          rivalry_score: number
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_interaction?: string
+          player_id: string
+          rival_id: string
+          rivalry_score?: number
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_interaction?: string
+          player_id?: string
+          rival_id?: string
+          rivalry_score?: number
+          source?: string
         }
         Relationships: []
       }

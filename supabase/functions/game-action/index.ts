@@ -809,17 +809,52 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
     if (hospitalUntil) {
       targetUpdate.hospital_until = hospitalUntil;
       targetUpdate.hospitalizations = (target.hospitalizations || 0) + 1;
-      targetUpdate.hp = target.max_hp || 100; // Heal on hospital admit
+      targetUpdate.hp = target.max_hp || 100;
     }
     await supabase.from("player_state").update(targetUpdate).eq("user_id", targetUserId);
 
+    // === RIVALRY: create/update rivalry on PvP ===
+    await upsertRivalry(supabase, userId, targetUserId, 10, "pvp");
+
+    // === BOUNTY: check if target has active bounty, claim it ===
+    const { data: bounties } = await supabase.from("player_bounties")
+      .select("*").eq("target_id", targetUserId).eq("status", "active");
+    let bountyBonus = 0;
+    for (const b of (bounties || [])) {
+      if (b.placer_id !== userId) { // Can't claim own bounty
+        bountyBonus += b.amount;
+        await supabase.from("player_bounties").update({
+          status: "claimed", claimed_by: userId, claimed_at: now.toISOString(),
+        }).eq("id", b.id);
+      }
+    }
+    if (bountyBonus > 0) {
+      await supabase.from("player_state").update({
+        money: (ps.money || 0) + stolen + bountyBonus,
+      }).eq("user_id", userId);
+    }
+
+    // === REVENGE BONUS: check if target attacked us recently ===
+    const { data: recentRivalry } = await supabase.from("player_rivalries")
+      .select("rivalry_score").eq("player_id", targetUserId).eq("rival_id", userId).maybeSingle();
+    const revengeBonus = (recentRivalry && recentRivalry.rivalry_score >= 10) ? Math.floor(stolen * 0.5) : 0;
+    if (revengeBonus > 0) {
+      await supabase.from("player_state").update({
+        money: (ps.money || 0) + stolen + bountyBonus + revengeBonus,
+        rep: (ps.rep || 0) + 25,
+      }).eq("user_id", userId);
+    }
+
     const hospitalMsg = hospitalUntil ? ` ${targetName} is gehospitaliseerd!` : "";
+    const bountyMsg = bountyBonus > 0 ? ` 🎯 Premie geclaimed: €${bountyBonus.toLocaleString()}!` : "";
+    const revengeMsg = revengeBonus > 0 ? ` ⚔️ Wraakbonus: +€${revengeBonus.toLocaleString()}!` : "";
     return {
       success: true,
-      message: `Je hebt ${targetName} verslagen! €${stolen.toLocaleString()} gestolen.${hospitalMsg}`,
+      message: `Je hebt ${targetName} verslagen! €${stolen.toLocaleString()} gestolen.${hospitalMsg}${bountyMsg}${revengeMsg}`,
       data: {
         won: true, stolen, damage: dmgToTarget, targetHospitalized: !!hospitalUntil,
         targetName, attackerPower: Math.round(attackerPower), defenderPower: Math.round(defenderPower),
+        bountyBonus, revengeBonus,
       },
     };
   } else {
@@ -1530,6 +1565,159 @@ function getGangTerritoryDiscount(gangLevel: number): number {
   return 0;
 }
 
+// ========== RIVALRY & BOUNTY HELPERS ==========
+
+async function upsertRivalry(supabase: any, playerId: string, rivalId: string, score: number, source: string) {
+  const { data: existing } = await supabase.from("player_rivalries")
+    .select("id, rivalry_score").eq("player_id", playerId).eq("rival_id", rivalId).maybeSingle();
+  if (existing) {
+    await supabase.from("player_rivalries").update({
+      rivalry_score: existing.rivalry_score + score,
+      source, last_interaction: new Date().toISOString(),
+    }).eq("id", existing.id);
+  } else {
+    await supabase.from("player_rivalries").insert({
+      player_id: playerId, rival_id: rivalId, rivalry_score: score, source,
+    });
+  }
+  // Also create reverse rivalry (so both sides see it)
+  const { data: reverse } = await supabase.from("player_rivalries")
+    .select("id, rivalry_score").eq("player_id", rivalId).eq("rival_id", playerId).maybeSingle();
+  if (reverse) {
+    await supabase.from("player_rivalries").update({
+      rivalry_score: reverse.rivalry_score + Math.floor(score / 2),
+      last_interaction: new Date().toISOString(),
+    }).eq("id", reverse.id);
+  } else {
+    await supabase.from("player_rivalries").insert({
+      player_id: rivalId, rival_id: playerId, rivalry_score: Math.floor(score / 2), source,
+    });
+  }
+}
+
+// ========== MOST WANTED / BOUNTY ACTIONS ==========
+
+async function handlePlaceBounty(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { targetUserId, amount } = payload || {};
+  if (!targetUserId || !amount) return { success: false, message: "Ongeldige parameters." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt geen premie op jezelf zetten." };
+  if (amount < 1000) return { success: false, message: "Minimaal €1.000 premie." };
+  if (amount > 500000) return { success: false, message: "Maximaal €500.000 premie." };
+  if (ps.money < amount) return { success: false, message: "Niet genoeg geld." };
+
+  // Check target exists
+  const { data: target } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+  if (!target) return { success: false, message: "Speler niet gevonden." };
+
+  // Check if already has active bounty on this target
+  const { data: existing } = await supabase.from("player_bounties")
+    .select("id").eq("placer_id", userId).eq("target_id", targetUserId).eq("status", "active").maybeSingle();
+  if (existing) return { success: false, message: "Je hebt al een actieve premie op dit doelwit." };
+
+  // Deduct money
+  await supabase.from("player_state").update({
+    money: ps.money - amount,
+    stats_total_spent: (ps.stats_total_spent || 0) + amount,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Create bounty
+  await supabase.from("player_bounties").insert({
+    placer_id: userId, target_id: targetUserId, amount, reason: "rivalry",
+  });
+
+  // Create rivalry from bounty
+  await upsertRivalry(supabase, userId, targetUserId, 15, "bounty");
+
+  return {
+    success: true,
+    message: `🎯 Premie van €${amount.toLocaleString()} geplaatst op ${target.username}!`,
+    data: { targetName: target.username, amount },
+  };
+}
+
+async function handleGetMostWanted(supabase: any, userId: string): Promise<ActionResult> {
+  // Get top bounties (active)
+  const { data: bounties } = await supabase.from("player_bounties")
+    .select("id, target_id, amount, placer_id, reason, created_at, expires_at")
+    .eq("status", "active")
+    .order("amount", { ascending: false })
+    .limit(20);
+
+  // Get unique target IDs for profile lookup
+  const targetIds = [...new Set((bounties || []).map((b: any) => b.target_id))];
+  const placerIds = [...new Set((bounties || []).map((b: any) => b.placer_id))];
+  const allIds = [...new Set([...targetIds, ...placerIds])];
+
+  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", allIds);
+  const profileMap: Record<string, string> = {};
+  for (const p of (profiles || [])) profileMap[p.id] = p.username;
+
+  // Get player's own rivalries
+  const { data: rivalries } = await supabase.from("player_rivalries")
+    .select("rival_id, rivalry_score, source, last_interaction")
+    .eq("player_id", userId)
+    .order("rivalry_score", { ascending: false })
+    .limit(10);
+
+  // Enrich rivalries with profiles and state
+  const rivalIds = (rivalries || []).map((r: any) => r.rival_id);
+  const { data: rivalStates } = await supabase.from("player_state")
+    .select("user_id, level, rep, loc")
+    .in("user_id", rivalIds.length > 0 ? rivalIds : ["none"]);
+  const stateMap: Record<string, any> = {};
+  for (const s of (rivalStates || [])) stateMap[s.user_id] = s;
+
+  // Aggregate bounties per target
+  const bountyTotals: Record<string, number> = {};
+  for (const b of (bounties || [])) {
+    bountyTotals[b.target_id] = (bountyTotals[b.target_id] || 0) + b.amount;
+  }
+
+  // Build Most Wanted list (top targets by total bounty)
+  const mostWanted = Object.entries(bountyTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([targetId, totalBounty], i) => ({
+      rank: i + 1,
+      userId: targetId,
+      username: profileMap[targetId] || "Onbekend",
+      totalBounty,
+      bountyCount: (bounties || []).filter((b: any) => b.target_id === targetId).length,
+    }));
+
+  return {
+    success: true,
+    message: "Most Wanted opgehaald.",
+    data: {
+      mostWanted,
+      myRivals: (rivalries || []).map((r: any) => ({
+        userId: r.rival_id,
+        username: profileMap[r.rival_id] || "Onbekend",
+        score: r.rivalry_score,
+        source: r.source,
+        level: stateMap[r.rival_id]?.level || 1,
+        rep: stateMap[r.rival_id]?.rep || 0,
+        loc: stateMap[r.rival_id]?.loc || "?",
+        lastInteraction: r.last_interaction,
+      })),
+      activeBounties: (bounties || []).map((b: any) => ({
+        id: b.id,
+        targetId: b.target_id,
+        targetName: profileMap[b.target_id] || "Onbekend",
+        placerName: profileMap[b.placer_id] || "Anoniem",
+        amount: b.amount,
+        expiresAt: b.expires_at,
+      })),
+      myBounties: (bounties || []).filter((b: any) => b.target_id === userId).map((b: any) => ({
+        id: b.id,
+        placerName: profileMap[b.placer_id] || "Anoniem",
+        amount: b.amount,
+      })),
+    },
+  };
+}
+
 // ========== DISTRICT INFLUENCE ==========
 
 async function handleContributeInfluence(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
@@ -1838,6 +2026,12 @@ Deno.serve(async (req) => {
         break;
       case "get_district_info":
         result = await handleGetDistrictInfo(supabase, user.id);
+        break;
+      case "place_bounty":
+        result = await handlePlaceBounty(supabase, user.id, playerState, payload);
+        break;
+      case "get_most_wanted":
+        result = await handleGetMostWanted(supabase, user.id);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
