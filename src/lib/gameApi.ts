@@ -7,7 +7,8 @@ export type GameAction =
   | "buy_gear" | "equip_gear" | "unequip_gear"
   | "buy_vehicle" | "switch_vehicle"
   | "wash_money" | "bribe_police" | "buy_business"
-  | "attack" | "list_players";
+  | "attack" | "list_players"
+  | "get_public_profile";
 
 interface GameActionResult {
   success: boolean;
@@ -48,4 +49,5 @@ export const gameApi = {
   buyBusiness: (businessId: string) => invokeGameAction("buy_business", { businessId }),
   attack: (targetUserId: string) => invokeGameAction("attack", { targetUserId }),
   listPlayers: () => invokeGameAction("list_players"),
+  getPublicProfile: (targetUserId: string) => invokeGameAction("get_public_profile", { targetUserId }),
 };
