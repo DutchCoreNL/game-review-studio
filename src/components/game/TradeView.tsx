@@ -1,4 +1,4 @@
-import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX } from 'lucide-react';
+import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX, Globe } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
@@ -11,12 +11,13 @@ import { MarketAnalysisPanel } from './trade/MarketAnalysisPanel';
 import { AuctionPanel } from './trade/AuctionPanel';
 import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
+import { GlobalMarketPanel } from './trade/GlobalMarketPanel';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { useMuteStatus } from '@/hooks/useMuteStatus';
 import tradeBg from '@/assets/trade-bg.jpg';
 
-type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
+type TradeSubTab = 'market' | 'analysis' | 'global' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
 
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
@@ -42,6 +43,7 @@ export function TradeView() {
   const tabs: SubTab<TradeSubTab>[] = [
     { id: 'market', label: 'MARKT', icon: <ShoppingBag size={11} /> },
     { id: 'analysis', label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
+    { id: 'global', label: 'GLOBAAL', icon: <Globe size={11} /> },
     { id: 'auction', label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
     { id: 'stocks', label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
     { id: 'launder', label: 'WITWAS', icon: <Droplets size={11} /> },
@@ -71,6 +73,7 @@ export function TradeView() {
           <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as TradeSubTab)} />
           {subTab === 'market' && <MarketPanel />}
           {subTab === 'analysis' && <MarketAnalysisPanel />}
+          {subTab === 'global' && <GlobalMarketPanel />}
           {subTab === 'auction' && <AuctionPanel />}
           {subTab === 'stocks' && <StockMarketPanel />}
           {subTab === 'launder' && <LaunderingPanel />}
