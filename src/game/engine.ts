@@ -8,6 +8,7 @@ import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFin
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
 import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
 import { processDrugEmpireNight, createDrugEmpireState, shouldShowDrugEmpire, NOXCRYSTAL_HEAT } from './drugEmpire';
+import { getCurrentProperty } from './properties';
 import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
@@ -151,7 +152,6 @@ export function recalcMaxInv(state: GameState): number {
     inv += 10;
   }
   // Property storage bonus
-  const { getCurrentProperty } = require('./properties');
   const prop = getCurrentProperty(state.propertyId);
   if (prop?.bonuses?.storageSlots) inv += prop.bonuses.storageSlots;
   return inv;
@@ -1066,7 +1066,6 @@ export function endTurn(state: GameState): NightReportData {
   });
 
   // === PROPERTY PASSIVE INCOME ===
-  const { getCurrentProperty } = require('./properties');
   const currentProp = getCurrentProperty(state.propertyId);
   if (currentProp?.bonuses?.passiveIncome) {
     state.money += currentProp.bonuses.passiveIncome;
