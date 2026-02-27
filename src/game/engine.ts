@@ -13,6 +13,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 
+// localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
 
 // ========== AMMO HELPERS ==========
@@ -76,31 +77,21 @@ export function isFactionActive(state: GameState, familyId: FamilyId): boolean {
   return true;
 }
 
+/** Save to localStorage as offline cache (NOT primary storage — cloud save is primary) */
 export function saveGame(state: GameState): void {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    localStorage.setItem('noxhaven_last_save_time', Date.now().toString());
   } catch (e) {
-    console.error('Save failed:', e);
+    console.error('Local cache save failed:', e);
   }
 }
 
+/** Load from localStorage offline cache (fallback only — cloud save is primary) */
 export function loadGame(): GameState | null {
   try {
-    // Try current version first
-    let data = localStorage.getItem(SAVE_KEY);
+    const data = localStorage.getItem(SAVE_KEY);
     if (data) return JSON.parse(data);
-    // Migrate from older versions
-    for (const oldKey of ['noxhaven_save_v10', 'noxhaven_save_v9', 'noxhaven_save_v8']) {
-      data = localStorage.getItem(oldKey);
-      if (data) {
-        const old = JSON.parse(data);
-        if (!old.stats) old.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: old.day || 0 };
-        if (!old.nightReport) old.nightReport = null;
-        localStorage.setItem(SAVE_KEY, JSON.stringify(old));
-        localStorage.removeItem(oldKey);
-        return old;
-      }
-    }
     return null;
   } catch {
     return null;
@@ -109,6 +100,7 @@ export function loadGame(): GameState | null {
 
 export function deleteGame(): void {
   localStorage.removeItem(SAVE_KEY);
+  localStorage.removeItem('noxhaven_last_save_time');
 }
 
 export function getPlayerStat(state: GameState, stat: StatId): number {

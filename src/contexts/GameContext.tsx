@@ -47,7 +47,7 @@ type GameAction =
   | { type: 'TRAVEL'; to: DistrictId }
   | { type: 'BUY_DISTRICT'; id: DistrictId }
   | { type: 'SPEND_MONEY'; amount: number }
-  | { type: 'END_TURN' }
+  // END_TURN removed — MMO uses AUTO_TICK only
   | { type: 'DISMISS_NIGHT_REPORT' }
   | { type: 'RECRUIT' }
   | { type: 'HEAL_CREW'; crewIndex: number }
@@ -226,6 +226,42 @@ function syncChallenges(s: GameState): void {
   s.dailyChallenges = updateChallengeProgress(s.dailyChallenges, s.dailyProgress, s.heat);
 }
 
+/** Energy/Nerve cost constants for MMO actions */
+const ENERGY_COSTS: Record<string, number> = {
+  TRADE: 2, TRAVEL: 5, SOLO_OP: 10, EXECUTE_CONTRACT: 15, START_COMBAT: 8,
+  START_NEMESIS_COMBAT: 10, EXECUTE_HIT: 12, LAUNCH_HEIST: 20, BUY_DISTRICT: 5,
+  ATTEMPT_CAR_THEFT: 8, START_RACE: 5, CRAFT_ITEM: 3,
+};
+const NERVE_COSTS: Record<string, number> = {
+  SOLO_OP: 5, EXECUTE_HIT: 8, START_COMBAT: 10, START_NEMESIS_COMBAT: 15,
+  LAUNCH_HEIST: 15, ATTEMPT_ESCAPE: 10, ATTEMPT_CAR_THEFT: 5, START_RACE: 3,
+};
+
+/** Check if a cooldown is active */
+function isCooldownActive(until: string | null): boolean {
+  if (!until) return false;
+  return new Date(until).getTime() > Date.now();
+}
+
+/** Deduct energy/nerve and set regen timers */
+function deductEnergy(s: GameState, amount: number): boolean {
+  if (s.energy < amount) return false;
+  s.energy -= amount;
+  // Set regen timer if not already ticking
+  if (!s.energyRegenAt || new Date(s.energyRegenAt).getTime() <= Date.now()) {
+    s.energyRegenAt = new Date(Date.now() + 60000).toISOString(); // 1 min per energy
+  }
+  return true;
+}
+function deductNerve(s: GameState, amount: number): boolean {
+  if (s.nerve < amount) return false;
+  s.nerve -= amount;
+  if (!s.nerveRegenAt || new Date(s.nerveRegenAt).getTime() <= Date.now()) {
+    s.nerveRegenAt = new Date(Date.now() + 120000).toISOString(); // 2 min per nerve
+  }
+  return true;
+}
+
 function gameReducer(state: GameState, action: GameAction): GameState {
   return produce(state, (s) => {
 
@@ -275,7 +311,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRADE': {
-      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s; // Can't trade while hiding, in prison or hospital
+      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s;
+      // Energy cost
+      const tradeCost = ENERGY_COSTS.TRADE || 2;
+      if (s.energy < tradeCost) return s; // Not enough energy
+      deductEnergy(s, tradeCost);
       // Wanted check before trade
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -334,7 +374,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRAVEL': {
-      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s; // Can't travel while hiding, in prison or hospital
+      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s;
+      // Cooldown check
+      if (isCooldownActive(s.travelCooldownUntil)) return s;
+      // Energy cost
+      if (!deductEnergy(s, ENERGY_COSTS.TRAVEL || 5)) return s;
+      // Set travel cooldown (30 seconds)
+      s.travelCooldownUntil = new Date(Date.now() + 30000).toISOString();
       // Wanted check before travel
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -413,213 +459,48 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'END_TURN': {
-      if (s.debt > 250000) return s;
-      Engine.endTurn(s);
-      Engine.checkAchievements(s);
-      const oldPhase = s.endgamePhase;
-      s.endgamePhase = calculateEndgamePhase(s);
-
-      // Endgame phase change notifications
-      if (oldPhase !== s.endgamePhase) {
-        const msg = getPhaseUpMessage(oldPhase, s.endgamePhase);
-        if (msg) {
-          addPhoneMessage(s, 'system', msg, 'info');
-        }
-        // Special messages when reaching onderwerelds_koning
-        if (s.endgamePhase === 'onderwerelds_koning') {
-          addPhoneMessage(s, 'Commissaris Decker', 'Ik weet wie je bent. Ik weet wat je hebt gedaan. Geniet van je laatste dagen van vrijheid.', 'threat');
-          addPhoneMessage(s, 'anonymous', '⚠️ Operatie Gerechtigheid is geactiveerd. De NHPD mobiliseert al haar middelen.', 'warning');
-        }
-      }
-
-      // Roll for street event
-      const endTurnEvent = rollStreetEvent(s, 'end_turn');
-      if (endTurnEvent) {
-        s.pendingStreetEvent = endTurnEvent;
-        s.streetEventResult = null;
-      }
-
-      // Endgame events: random events when all factions conquered
-      if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
-        // Initialize seen events tracker
-        if (!s.seenEndgameEvents) s.seenEndgameEvents = [];
-        const egEvent = getEndgameEvent(s);
-        if (egEvent) {
-          s.seenEndgameEvents.push(egEvent.id);
-          // Apply event effects
-          if (egEvent.reward.money) {
-            if (egEvent.reward.money > 0) {
-              s.money += egEvent.reward.money;
-              s.stats.totalEarned += egEvent.reward.money;
-            } else {
-              const cost = Math.abs(egEvent.reward.money);
-              if (s.money >= cost) {
-                s.money -= cost;
-                s.stats.totalSpent += cost;
-              }
-            }
-          }
-          if (egEvent.reward.rep) s.rep += egEvent.reward.rep;
-          if (egEvent.reward.xp) Engine.gainXp(s, egEvent.reward.xp);
-          if (egEvent.reward.heat) Engine.splitHeat(s, egEvent.reward.heat, 0.5);
-          addPhoneMessage(s, 'NHPD', `${egEvent.icon} ${egEvent.title}: ${egEvent.desc}`, egEvent.reward.heat ? 'threat' : 'opportunity');
-        }
-      }
-
-      // Story arcs: check triggers and progression (skip while in prison)
-      if (!s.prison) {
-        checkArcTriggers(s);
-        if (!s.pendingStreetEvent) {
-          checkArcProgression(s);
-        }
-      }
-      // Car orders: generate new orders every 3 days, max 3 active
-      if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {
-        // Remove expired orders
-        s.carOrders = s.carOrders.filter(o => o.deadline >= s.day);
-        // Add new order
-        const randomCar = STEALABLE_CARS[Math.floor(Math.random() * STEALABLE_CARS.length)];
-        const client = CAR_ORDER_CLIENTS[Math.floor(Math.random() * CAR_ORDER_CLIENTS.length)];
-        const bonusPercent = 20 + Math.floor(Math.random() * 60); // 20-80% bonus
-        const newOrderClient = `${client.emoji} ${client.name}`;
-        s.carOrders.push({
-          id: `order_${s.day}_${Math.floor(Math.random() * 1000)}`,
-          carTypeId: randomCar.id,
-          clientName: newOrderClient,
-          bonusPercent,
-          deadline: s.day + 5 + Math.floor(Math.random() * 5),
-          desc: `Zoekt een ${randomCar.name}. Betaalt ${bonusPercent}% extra.`,
-        });
-        // Send phone notification about the new order
-        addPhoneMessage(s, newOrderClient, `Ik zoek een ${randomCar.name}. Ik betaal ${bonusPercent}% extra boven marktwaarde. Lever binnen ${5 + Math.floor(Math.random() * 5)} dagen.`, 'opportunity');
-      }
-      // Decay stolen car condition slightly
-      s.stolenCars.forEach(car => {
-        if (!car.omgekat) car.condition = Math.max(20, car.condition - 1);
-      });
-      // Daily challenges: generate new ones if day changed, reset daily progress
-      if (s.challengeDay !== s.day) {
-        s.dailyChallenges = generateDailyChallenges(s);
-        s.challengeDay = s.day;
-        s.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0, hits_completed: 0 };
-      }
-      // Check low_heat challenge at end of turn
-      syncChallenges(s);
-      // NPC encounters
-      if (!s.pendingStreetEvent && !s.pendingArcEvent) {
-        const npcEnc = rollNpcEncounter(s);
-        if (npcEnc) {
-          addPhoneMessage(s, npcEnc.npcId, npcEnc.message, 'info');
-        }
-        // NPC interactive events
-        if (!(s as any).pendingNpcEvent) {
-          const npcEvt = rollNpcEvent(s);
-          if (npcEvt) {
-            (s as any).pendingNpcEvent = npcEvt;
-          }
-        }
-      }
-      // NPC passive bonuses
-      const npcBonuses = applyNpcBonuses(s);
-      if (npcBonuses.extraHeatDecay > 0) {
-        Engine.addPersonalHeat(s, -npcBonuses.extraHeatDecay);
-        Engine.recomputeHeat(s);
-      }
-      if (npcBonuses.crewHealBonus > 0) {
-        s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
-      }
-      // Apply missing NPC bonuses (Luna free crew, etc.)
-      applyMissingNpcBonuses(s);
-      // Week events
-      const weekEvt = checkWeekEvent(s);
-      if (weekEvt) (s as any).activeWeekEvent = weekEvt;
-      processWeekEvent(s);
-      // Generate hit contracts
-      s.hitContracts = generateHitContracts(s);
-      // Generate daily news
-      s.dailyNews = generateDailyNews(s);
-      // Small chance to find ammo after successful missions/operations
-      if (Math.random() < 0.2) {
-        const foundAmmo = 2 + Math.floor(Math.random() * 4);
-        s.ammo = Math.min(99, (s.ammo || 0) + foundAmmo);
-      }
-      // === RACING: Reset daily cooldown ===
-      s.raceUsedToday = false;
-      // === DEALER: Fluctuate vehicle prices ===
-      if (!s.vehiclePriceModifiers) s.vehiclePriceModifiers = {};
-      for (const v of VEHICLES) {
-        const current = s.vehiclePriceModifiers[v.id] ?? 1;
-        const change = -0.10 + Math.random() * 0.25; // -10% to +15%
-        s.vehiclePriceModifiers[v.id] = Math.max(0.7, Math.min(1.3, current + change * 0.3));
-      }
-      // === DEALER: Generate deal every 5 days ===
-      if (s.day % 5 === 0) {
-        const ownedIds = s.ownedVehicles.map(v => v.id);
-        const candidates = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
-        if (candidates.length > 0) {
-          const pick = candidates[Math.floor(Math.random() * candidates.length)];
-          s.dealerDeal = {
-            vehicleId: pick.id,
-            discount: 0.2 + Math.random() * 0.1, // 20-30%
-            expiresDay: s.day + 1,
-          };
-          addPhoneMessage(s, '🏪 Dealer', `Speciale aanbieding: ${pick.name} met ${Math.round((0.2 + Math.random() * 0.1) * 100)}% korting! Alleen vandaag.`, 'opportunity');
-        }
-      }
-      // === UNIQUE VEHICLES: Check unlock conditions ===
-      const checkUniqueUnlock = (checkId: string): boolean => {
-        switch (checkId) {
-          case 'final_boss': return s.finalBossDefeated;
-          case 'all_factions': return (s.conqueredFactions?.length || 0) >= 3;
-          case 'nemesis_gen3': return (s.nemesis?.generation || 1) > 3;
-          case 'all_vehicles': return VEHICLES.every(v => s.ownedVehicles.some(ov => ov.id === v.id));
-          default: return false;
-        }
-      };
-      for (const uv of UNIQUE_VEHICLES) {
-        if (!s.ownedVehicles.some(ov => ov.id === uv.id) && checkUniqueUnlock(uv.unlockCheck)) {
-          s.ownedVehicles.push({ id: uv.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
-          addPhoneMessage(s, '🏆 UNIEK', `Je hebt ${uv.name} ontgrendeld! ${uv.desc}`, 'opportunity');
-        }
-      }
-      // === CINEMATIC TRIGGERS at end of turn ===
-      if (!s.pendingCinematic) {
-        // Check arrest cinematic
-        if (s.prison) {
-          const arrestCinematic = checkCinematicTrigger(s, 'arrested');
-          if (arrestCinematic) s.pendingCinematic = arrestCinematic;
-        }
-        // Check crew defection cinematic
-        if (s.nightReport?.crewDefections && s.nightReport.crewDefections.length > 0) {
-          const betrayalCinematic = checkCinematicTrigger(s, 'crew_defected');
-          if (betrayalCinematic) s.pendingCinematic = betrayalCinematic;
-        }
-        // Check milestone cinematics (godfather, rise_to_power)
-        if (!s.pendingCinematic) {
-          const endCinematic = checkCinematicTrigger(s);
-          if (endCinematic) s.pendingCinematic = endCinematic;
-        }
-      }
-      // Sync to online leaderboard
-      syncLeaderboard({
-        rep: s.rep,
-        cash: s.money,
-        day: s.day,
-        level: s.player.level,
-        districts_owned: s.ownedDistricts.length,
-        crew_size: s.crew.length,
-        karma: s.karma || 0,
-        backstory: s.backstory || null,
-      });
-
-      return s;
+    // END_TURN removed — all day progression now goes through AUTO_TICK
+    // Legacy dispatches are caught here and redirected
+    case 'END_TURN' as any: {
+      // Redirect to AUTO_TICK for backwards compatibility (prison/hospital wait buttons)
+      // Fall through to AUTO_TICK
     }
 
     case 'AUTO_TICK': {
-      // Automatic day progression — replaces manual END_TURN
+      // Automatic day progression — the ONLY way days advance in MMO
       if (s.debt > 250000) return s;
       if (s.gameOver || s.victoryData) return s;
+      
+      // === ENERGY/NERVE REGENERATION ===
+      const now = Date.now();
+      // Regenerate energy (1 per minute)
+      if (s.energy < s.maxEnergy) {
+        const energyRegenTime = s.energyRegenAt ? new Date(s.energyRegenAt).getTime() : 0;
+        if (now >= energyRegenTime) {
+          const minutesPassed = energyRegenTime > 0 ? Math.floor((now - energyRegenTime) / 60000) + 1 : 1;
+          const regenAmount = Math.min(minutesPassed, s.maxEnergy - s.energy);
+          s.energy = Math.min(s.maxEnergy, s.energy + regenAmount);
+          if (s.energy < s.maxEnergy) {
+            s.energyRegenAt = new Date(now + 60000).toISOString();
+          } else {
+            s.energyRegenAt = null as any;
+          }
+        }
+      }
+      // Regenerate nerve (1 per 2 minutes)
+      if (s.nerve < s.maxNerve) {
+        const nerveRegenTime = s.nerveRegenAt ? new Date(s.nerveRegenAt).getTime() : 0;
+        if (now >= nerveRegenTime) {
+          const minutesPassed = nerveRegenTime > 0 ? Math.floor((now - nerveRegenTime) / 120000) + 1 : 1;
+          const regenAmount = Math.min(minutesPassed, s.maxNerve - s.nerve);
+          s.nerve = Math.min(s.maxNerve, s.nerve + regenAmount);
+          if (s.nerve < s.maxNerve) {
+            s.nerveRegenAt = new Date(now + 120000).toISOString();
+          } else {
+            s.nerveRegenAt = null as any;
+          }
+        }
+      }
       
       Engine.endTurn(s);
       Engine.checkAchievements(s);
@@ -940,6 +821,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SOLO_OP': {
       if ((s.hidingDays || 0) > 0 || s.prison) return s;
+      // Cooldown check
+      if (isCooldownActive(s.crimeCooldownUntil)) return s;
+      // Energy + Nerve cost
+      if (!deductEnergy(s, ENERGY_COSTS.SOLO_OP || 10)) return s;
+      if (!deductNerve(s, NERVE_COSTS.SOLO_OP || 5)) return s;
+      // Set crime cooldown (60 seconds)
+      s.crimeCooldownUntil = new Date(Date.now() + 60000).toISOString();
       const soloOpDef = SOLO_OPERATIONS.find(o => o.id === action.opId);
       const soloResult = Engine.performSoloOp(s, action.opId);
       // Store near-miss for toast display (transient)
@@ -1052,6 +940,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'START_COMBAT': {
+      // Cooldown check
+      if (isCooldownActive(s.attackCooldownUntil)) return s;
+      // Energy + Nerve cost
+      if (!deductEnergy(s, ENERGY_COSTS.START_COMBAT || 8)) return s;
+      if (!deductNerve(s, NERVE_COSTS.START_COMBAT || 10)) return s;
+      // Set attack cooldown (2 minutes)
+      s.attackCooldownUntil = new Date(Date.now() + 120000).toISOString();
       const combat = Engine.startCombat(s, action.familyId);
       if (combat) s.activeCombat = combat;
       return s;
@@ -3054,13 +2949,36 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     return () => { if (autoTickRef.current) clearInterval(autoTickRef.current); };
   }, [state.lastTickAt, state.tickIntervalMinutes, state.gameOver, state.victoryData, dispatch]);
 
-  // Generate prices if empty
+  // Generate prices from server if empty (fallback to client-side)
   useEffect(() => {
     if (!state.prices || Object.keys(state.prices).length === 0) {
-      const s = { ...state };
-      Engine.generatePrices(s);
-      Engine.generateContracts(s);
-      rawDispatch({ type: 'SET_STATE', state: s });
+      // Try to load from server first; fallback to local generation
+      (async () => {
+        try {
+          const res = await import('@/lib/gameApi').then(m => m.gameApi.getMarketPrices());
+          if (res.success && res.data?.prices) {
+            // Server prices available — set them into state
+            const prices: Record<string, Record<string, number>> = {};
+            const trends: Record<string, string> = {};
+            Object.entries(res.data.prices as Record<string, Record<string, any>>).forEach(([distId, goods]) => {
+              prices[distId] = {};
+              Object.entries(goods).forEach(([gid, data]: [string, any]) => {
+                prices[distId][gid] = data.price || data.current_price || 0;
+                trends[gid] = data.trend || data.price_trend || 'stable';
+              });
+            });
+            const s = { ...state, prices, priceTrends: { ...state.priceTrends, ...trends } };
+            Engine.generateContracts(s);
+            rawDispatch({ type: 'SET_STATE', state: s });
+            return;
+          }
+        } catch {}
+        // Fallback: generate locally
+        const s = { ...state };
+        Engine.generatePrices(s);
+        Engine.generateContracts(s);
+        rawDispatch({ type: 'SET_STATE', state: s });
+      })();
     }
   }, []);
 

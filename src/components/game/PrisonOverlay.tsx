@@ -28,6 +28,13 @@ function PrisonOverlayInner() {
   const [showDice, setShowDice] = useState(false);
   const [diceBet, setDiceBet] = useState(50);
   const hasPlayedAlarm = useRef(false);
+  const [, setTick] = useState(0);
+
+  // Re-render every second for countdown timer
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Play alarm on mount (arrest)
   useEffect(() => {
@@ -49,6 +56,20 @@ function PrisonOverlayInner() {
 
   // Progress
   const progressPct = prison.totalSentence > 0 ? (prison.dayServed / prison.totalSentence) * 100 : 0;
+
+  // Realtime countdown: each game-day = tickIntervalMinutes (default 30min)
+  const tickMs = (state.tickIntervalMinutes || 30) * 60 * 1000;
+  const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
+  const releaseTime = lastTick + (prison.daysRemaining * tickMs);
+  const msLeft = Math.max(0, releaseTime - Date.now());
+  const hoursLeft = Math.floor(msLeft / 3600000);
+  const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+  const secsLeft = Math.floor((msLeft % 60000) / 1000);
+  const realtimeCountdown = hoursLeft > 0 
+    ? `${hoursLeft}u ${minsLeft}m` 
+    : minsLeft > 0 
+      ? `${minsLeft}m ${secsLeft}s` 
+      : `${secsLeft}s`;
 
   // Escape chance breakdown
   const baseChance = PRISON_ESCAPE_BASE_CHANCE;
@@ -112,9 +133,9 @@ function PrisonOverlayInner() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-black text-blood leading-none">{prison.daysRemaining}</span>
-                  <p className="text-[0.45rem] text-blood/70 uppercase tracking-wider">
-                    {prison.daysRemaining === 1 ? 'dag' : 'dagen'} over
+                  <span className="text-lg font-black text-blood leading-none">{realtimeCountdown}</span>
+                  <p className="text-[0.4rem] text-blood/70 uppercase tracking-wider mt-0.5">
+                    ({prison.daysRemaining} {prison.daysRemaining === 1 ? 'dag' : 'dagen'})
                   </p>
                 </div>
               </div>
@@ -282,7 +303,7 @@ function PrisonOverlayInner() {
                 size="md"
                 fullWidth
                 icon={<Clock size={14} />}
-                onClick={() => dispatch({ type: 'END_TURN' })}
+                onClick={() => dispatch({ type: 'AUTO_TICK' })}
               >
                 WACHT DE DAG AF
               </GameButton>

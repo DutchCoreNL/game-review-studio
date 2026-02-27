@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
 import { Heart, Clock, DollarSign, AlertTriangle, Skull } from 'lucide-react';
+import { useState } from 'react';
 import { GameButton } from './ui/GameButton';
 import { HOSPITAL_STAY_DAYS, MAX_HOSPITALIZATIONS } from '@/game/constants';
 import { playNegativeSound } from '@/game/sounds';
@@ -16,6 +17,7 @@ function HospitalInner() {
   const { state, dispatch } = useGame();
   const hospital = state.hospital!;
   const hasPlayedSound = useRef(false);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!hasPlayedSound.current) {
@@ -24,11 +26,32 @@ function HospitalInner() {
     }
   }, []);
 
+  // Re-render every second for countdown
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
   const progressPct = hospital.totalDays > 0
     ? ((hospital.totalDays - hospital.daysRemaining) / hospital.totalDays) * 100
     : 0;
 
+  // Realtime countdown
+  const tickMs = (state.tickIntervalMinutes || 30) * 60 * 1000;
+  const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
+  const releaseTime = lastTick + (hospital.daysRemaining * tickMs);
+  const msLeft = Math.max(0, releaseTime - Date.now());
+  const hoursLeft = Math.floor(msLeft / 3600000);
+  const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+  const secsLeft = Math.floor((msLeft % 60000) / 1000);
+  const realtimeCountdown = hoursLeft > 0 
+    ? `${hoursLeft}u ${minsLeft}m` 
+    : minsLeft > 0 
+      ? `${minsLeft}m ${secsLeft}s` 
+      : `${secsLeft}s`;
+
   const hospitalizationsLeft = MAX_HOSPITALIZATIONS - (state.hospitalizations || 0);
+
 
   return (
     <>
@@ -76,9 +99,9 @@ function HospitalInner() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-black text-blood leading-none">{hospital.daysRemaining}</span>
-                  <p className="text-[0.45rem] text-blood/70 uppercase tracking-wider">
-                    {hospital.daysRemaining === 1 ? 'dag' : 'dagen'} over
+                  <span className="text-lg font-black text-blood leading-none">{realtimeCountdown}</span>
+                  <p className="text-[0.4rem] text-blood/70 uppercase tracking-wider mt-0.5">
+                    ({hospital.daysRemaining} {hospital.daysRemaining === 1 ? 'dag' : 'dagen'})
                   </p>
                 </div>
               </div>
@@ -129,7 +152,7 @@ function HospitalInner() {
               size="md"
               fullWidth
               icon={<Clock size={14} />}
-              onClick={() => dispatch({ type: 'END_TURN' })}
+              onClick={() => dispatch({ type: 'AUTO_TICK' })}
             >
               WACHT DE DAG AF
             </GameButton>
