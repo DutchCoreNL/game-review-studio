@@ -2,11 +2,13 @@ import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute, Safehous
 import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WeatherOverlay } from './map/WeatherOverlay';
+import { TimeOfDayOverlay } from './map/TimeOfDayOverlay';
 import { NemesisMarker } from './map/NemesisMarker';
 import { CityAmbience } from './map/CityAmbience';
 import { SkylineEffect, MapOverlayUI } from './map/SkylineEffect';
 import cityMapBg from '@/assets/city-map-bg.png';
 import type { DistrictData, DistrictEvent, GangTerritoryInfo } from '@/hooks/useDistrictData';
+import type { TimeOfDay } from '@/hooks/useWorldState';
 
 interface CityMapProps {
   playerLocation: DistrictId;
@@ -18,6 +20,7 @@ interface CityMapProps {
   vehicleHeat: number;
   personalHeat: number;
   weather: WeatherType;
+  timeOfDay?: TimeOfDay;
   nemesis: NemesisState | null;
   travelAnim: { from: DistrictId; to: DistrictId } | null;
   onSelectDistrict: (id: DistrictId) => void;
@@ -335,7 +338,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick, districtData }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, timeOfDay, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick, districtData }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -738,6 +741,8 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
         {/* === WEATHER OVERLAY === */}
         <WeatherOverlay weather={weather} />
+        {/* === TIME OF DAY OVERLAY === */}
+        <TimeOfDayOverlay timeOfDay={timeOfDay || 'day'} />
 
         {/* === HEAT OVERLAY === */}
         <HeatOverlay heat={heat} vehicleHeat={vehicleHeat} personalHeat={personalHeat} />

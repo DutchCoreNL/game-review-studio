@@ -18,6 +18,7 @@ import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
 import { useDistrictData } from '@/hooks/useDistrictData';
+import { useWorldState } from '@/hooks/useWorldState';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -31,6 +32,7 @@ export function MapView() {
   const prevLoc = useRef(state.loc);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const districtData = useDistrictData(true);
+  const worldState = useWorldState();
 
   // Detect location changes and trigger travel animation
   useEffect(() => {
@@ -110,7 +112,8 @@ export function MapView() {
           heat={state.heat}
           vehicleHeat={state.ownedVehicles.find(v => v.id === state.activeVehicle)?.vehicleHeat ?? 0}
           personalHeat={state.personalHeat ?? 0}
-          weather={state.weather}
+          weather={worldState.weather}
+          timeOfDay={worldState.timeOfDay}
           nemesis={state.nemesis}
           travelAnim={travelAnim}
           onSelectDistrict={selectDistrict}
