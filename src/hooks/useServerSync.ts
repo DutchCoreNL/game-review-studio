@@ -30,8 +30,12 @@ export interface ServerSyncState {
   loading: boolean;
   syncing: boolean;
   lastSync: Date | null;
+  lastCloudSave: Date | null;
+  cloudSaveVersion: number;
   error: string | null;
 }
+
+const CLOUD_SAVE_INTERVAL = 2 * 60 * 1000; // 2 minutes
 
 export function useServerSync(
   localDispatch: (action: any) => void,
@@ -39,9 +43,16 @@ export function useServerSync(
 ) {
   const { user } = useAuth();
   const [syncState, setSyncState] = useState<ServerSyncState>({
-    loading: false, syncing: false, lastSync: null, error: null,
+    loading: false, syncing: false, lastSync: null, lastCloudSave: null, cloudSaveVersion: 0, error: null,
   });
   const initialSyncDone = useRef(false);
+  const cloudSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stateRef = useRef<GameState | null>(null);
+
+  // Keep a ref to the latest state for the auto-save timer
+  const updateStateRef = useCallback((state: GameState) => {
+    stateRef.current = state;
+  }, []);
 
   // Fetch server state on mount (if logged in)
   const fetchServerState = useCallback(async () => {
@@ -50,11 +61,9 @@ export function useServerSync(
     try {
       const result = await invokeGameAction('get_state');
       if (result.success && result.data) {
-        // Merge server fields into local state
         mergeServerState(localDispatch, result.data);
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else if (!result.success && result.message?.includes('Geen spelerstaat')) {
-        // Init player on server
         const initResult = await invokeGameAction('init_player');
         if (initResult.success && initResult.data) {
           mergeServerState(localDispatch, initResult.data);
@@ -68,12 +77,93 @@ export function useServerSync(
     }
   }, [user, localDispatch]);
 
+  // ========== CLOUD SAVE ==========
+  const saveToCloud = useCallback(async () => {
+    if (!user || !stateRef.current) return;
+    const state = stateRef.current;
+    if (state.gameOver) return; // Don't save game over state
+    
+    setSyncState(s => ({ ...s, syncing: true }));
+    try {
+      const result = await invokeGameAction('save_state', { saveData: state, day: state.day });
+      if (result.success) {
+        setSyncState(s => ({
+          ...s, syncing: false, lastCloudSave: new Date(),
+          cloudSaveVersion: result.data?.saveVersion || s.cloudSaveVersion + 1,
+        }));
+      } else {
+        setSyncState(s => ({ ...s, syncing: false }));
+      }
+    } catch {
+      setSyncState(s => ({ ...s, syncing: false }));
+    }
+  }, [user]);
+
+  // ========== CLOUD LOAD (with conflict resolution: newest wins) ==========
+  const loadFromCloud = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    setSyncState(s => ({ ...s, loading: true }));
+    try {
+      const result = await invokeGameAction('load_state');
+      if (result.success && result.data?.saveData) {
+        const cloudState = result.data.saveData as GameState;
+        const cloudDay = result.data.day || cloudState.day || 0;
+        const cloudTime = result.data.lastSaveAt ? new Date(result.data.lastSaveAt).getTime() : 0;
+        
+        // Compare with local state
+        const localState = stateRef.current;
+        const localDay = localState?.day || 0;
+        const localSaveTime = localStorage.getItem('noxhaven_last_save_time');
+        const localTime = localSaveTime ? parseInt(localSaveTime) : 0;
+
+        // Newest wins: compare day first, then timestamp
+        const cloudIsNewer = cloudDay > localDay || (cloudDay === localDay && cloudTime > localTime);
+        
+        if (cloudIsNewer) {
+          // Load cloud save
+          localDispatch({ type: 'SET_STATE', state: cloudState });
+          showToast('☁️ Cloud save geladen — welkom terug!');
+          setSyncState(s => ({
+            ...s, loading: false, lastCloudSave: new Date(cloudTime),
+            cloudSaveVersion: result.data?.saveVersion || 0,
+          }));
+          return true;
+        } else {
+          // Local is newer, keep it and push to cloud
+          setSyncState(s => ({ ...s, loading: false }));
+          // Auto-save local state to cloud
+          setTimeout(saveToCloud, 1000);
+          return false;
+        }
+      }
+      setSyncState(s => ({ ...s, loading: false }));
+      return false;
+    } catch {
+      setSyncState(s => ({ ...s, loading: false }));
+      return false;
+    }
+  }, [user, localDispatch, showToast, saveToCloud]);
+
+  // Initial sync: try cloud load first
   useEffect(() => {
     if (user && !initialSyncDone.current) {
       initialSyncDone.current = true;
-      fetchServerState();
+      // First try to load cloud save, then fetch server state for MMO fields
+      loadFromCloud().then(() => fetchServerState());
     }
-  }, [user, fetchServerState]);
+  }, [user, loadFromCloud, fetchServerState]);
+
+  // Auto-save to cloud every 2 minutes
+  useEffect(() => {
+    if (!user) {
+      if (cloudSaveTimerRef.current) clearInterval(cloudSaveTimerRef.current);
+      return;
+    }
+    cloudSaveTimerRef.current = setInterval(saveToCloud, CLOUD_SAVE_INTERVAL);
+    return () => {
+      if (cloudSaveTimerRef.current) clearInterval(cloudSaveTimerRef.current);
+    };
+  }, [user, saveToCloud]);
 
   // Server-aware dispatch: intercepts server actions
   const serverDispatch = useCallback(async (action: any) => {
@@ -93,7 +183,6 @@ export function useServerSync(
       const result = await invokeGameAction(mapping.action as any, mapping.payload(action));
       if (result.success) {
         showToast(result.message);
-        // Re-fetch full state from server to stay in sync
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
           mergeServerState(localDispatch, stateResult.data);
@@ -103,19 +192,17 @@ export function useServerSync(
       }
     } catch (e: any) {
       showToast('Verbindingsfout met server.', true);
-      // Fallback to local action
       localDispatch(action);
     }
     setSyncState(s => ({ ...s, syncing: false, lastSync: new Date() }));
   }, [user, localDispatch, showToast]);
 
-  return { serverDispatch, syncState, fetchServerState };
+  return { serverDispatch, syncState, fetchServerState, saveToCloud, loadFromCloud, updateStateRef };
 }
 
 /** Merge server get_state response into local GameState via MERGE_SERVER_STATE dispatch */
 function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>) {
-  // get_state returns { playerState, inventory, gear, vehicles, districts, businesses, crew, villa, gangDistricts, allDistricts }
-  const ps = data.playerState || data; // fallback to flat structure for backwards compat
+  const ps = data.playerState || data;
 
   dispatch({
     type: 'MERGE_SERVER_STATE',
@@ -152,7 +239,6 @@ function mergeServerState(dispatch: (action: any) => void, data: Record<string, 
         stats: ps.stats ?? undefined,
         loadout: ps.loadout ?? undefined,
       },
-      // Sync districts: personal + gang territories combined
       allDistricts: data.allDistricts ?? undefined,
       gangDistricts: data.gangDistricts ?? undefined,
       serverSynced: true,

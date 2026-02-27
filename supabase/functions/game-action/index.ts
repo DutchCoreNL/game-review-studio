@@ -656,6 +656,53 @@ async function handleInitPlayer(supabase: any, userId: string): Promise<ActionRe
   return { success: true, message: "Nieuwe speler aangemaakt!", data: { existing: false } };
 }
 
+// ========== CLOUD SAVE / LOAD ==========
+
+async function handleSaveState(supabase: any, userId: string, payload: { saveData: any; day: number }): Promise<ActionResult> {
+  if (!payload?.saveData) return { success: false, message: "Geen save data ontvangen." };
+
+  // Strip sensitive/transient fields before storing
+  const cleanData = { ...payload.saveData };
+  delete cleanData.showPhone;
+  delete cleanData.activeCombat;
+  delete cleanData.pendingMinigame;
+  delete cleanData.screenEffect;
+
+  const { data: existing } = await supabase.from("player_state")
+    .select("save_version").eq("user_id", userId).maybeSingle();
+
+  const newVersion = (existing?.save_version || 0) + 1;
+
+  const { error } = await supabase.from("player_state").update({
+    save_data: cleanData,
+    save_version: newVersion,
+    last_save_at: new Date().toISOString(),
+    day: payload.day || cleanData.day || 1,
+  }).eq("user_id", userId);
+
+  if (error) return { success: false, message: `Save mislukt: ${error.message}` };
+  return { success: true, message: "Cloud save opgeslagen.", data: { saveVersion: newVersion } };
+}
+
+async function handleLoadState(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: ps } = await supabase.from("player_state")
+    .select("save_data, save_version, last_save_at, day")
+    .eq("user_id", userId).maybeSingle();
+
+  if (!ps || !ps.save_data) return { success: false, message: "Geen cloud save gevonden." };
+
+  return {
+    success: true,
+    message: "Cloud save geladen.",
+    data: {
+      saveData: ps.save_data,
+      saveVersion: ps.save_version,
+      lastSaveAt: ps.last_save_at,
+      day: ps.day,
+    },
+  };
+}
+
 // ========== GET STATE ==========
 
 async function handleGetState(supabase: any, userId: string): Promise<ActionResult> {
@@ -2147,12 +2194,18 @@ Deno.serve(async (req) => {
       case "get_most_wanted":
         result = await handleGetMostWanted(supabase, user.id);
         break;
+      case "save_state":
+        result = await handleSaveState(supabase, user.id, payload);
+        break;
+      case "load_state":
+        result = await handleLoadState(supabase, user.id);
+        break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
     }
 
     // Log action (skip get_state for performance)
-    if (action !== "get_state") {
+    if (action !== "get_state" && action !== "save_state" && action !== "load_state") {
       await supabase.from("game_action_log").insert({
         user_id: user.id, action_type: action,
         action_data: payload || {},
