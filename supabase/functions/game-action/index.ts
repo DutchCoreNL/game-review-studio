@@ -3918,6 +3918,8 @@ async function handleGetFactionState(supabase: any): Promise<ActionResult> {
   return { success: true, message: "OK", data: { factions } };
 }
 
+const FACTION_ATTACK_COOLDOWN_SECONDS = 600; // 10 minutes between faction attacks
+
 async function handleAttackFaction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
   const { factionId, phase } = payload || {};
   if (!factionId || !phase) return { success: false, message: "Ongeldige aanval data." };
@@ -3936,6 +3938,17 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
     .select("*").eq("faction_id", factionId).maybeSingle();
   if (!faction) return { success: false, message: "Factie niet gevonden." };
   if (faction.status === "vassal") return { success: false, message: `${factionId} is al een vazal.` };
+
+  // === 10-MIN COOLDOWN CHECK ===
+  if (faction.last_attack_by === userId && faction.last_attack_at) {
+    const elapsed = (Date.now() - new Date(faction.last_attack_at).getTime()) / 1000;
+    if (elapsed < FACTION_ATTACK_COOLDOWN_SECONDS) {
+      const remaining = Math.ceil(FACTION_ATTACK_COOLDOWN_SECONDS - elapsed);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      return { success: false, message: `Cooldown! Wacht nog ${mins}m ${secs}s voordat je deze factie opnieuw kunt aanvallen.` };
+    }
+  }
 
   // Validate phase progression
   const validPhases = ["defense", "subboss", "leader"];
@@ -3989,9 +4002,9 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
       gangDamageMap[attackerGangId][userId] = (gangDamageMap[attackerGangId][userId] || 0) + damage;
     }
 
-    // === BOSS HP SCALING: scale max HP based on unique attackers ===
+    // === BOSS HP SCALING: +30/attacker, cap 800 ===
     const uniqueAttackers = Object.keys(damageMap).length;
-    const scaledMaxHp = Math.min(500, faction.boss_max_hp + (uniqueAttackers > 1 ? (uniqueAttackers - 1) * 20 : 0));
+    const scaledMaxHp = Math.min(800, faction.boss_max_hp + (uniqueAttackers > 1 ? (uniqueAttackers - 1) * 30 : 0));
     const newMaxHp = Math.max(faction.boss_max_hp, scaledMaxHp);
     const hpBoost = newMaxHp - faction.boss_max_hp;
     const adjustedCurrentHp = faction.boss_hp + hpBoost;
@@ -4015,13 +4028,13 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
 
     // News event for every successful hit
     if (!phaseComplete) {
-      const hpPct = Math.round((newHp / faction.boss_max_hp) * 100);
+      const hpPct = Math.round((newHp / newMaxHp) * 100);
       await insertPlayerNews(supabase, {
         text: `⚔️ ${attackerName} valt de ${factionId} aan! Boss HP: ${hpPct}%`,
         icon: '⚔️',
         urgency: 'low',
         category: 'faction',
-        detail: `${attackerName} heeft ${damage} schade toegebracht aan de ${factionId} boss. HP: ${newHp}/${faction.boss_max_hp}. ${Object.keys(damageMap).length} speler(s) hebben tot nu toe aangevallen.`,
+        detail: `${attackerName} heeft ${damage} schade toegebracht aan de ${factionId} boss. HP: ${newHp}/${newMaxHp}. ${Object.keys(damageMap).length} speler(s) hebben tot nu toe aangevallen.`,
       });
     }
 
@@ -4036,11 +4049,11 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         updateData.boss_hp = 0;
         updateData.reset_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-        // === GANG ALLIANCE REWARD DISTRIBUTION ===
-        // Rewards are distributed proportionally based on damage contribution
+        // === DYNAMIC REWARD POOL: scales with contributors ===
         const totalDamage = Object.values(damageMap as Record<string, number>).reduce((a, b) => a + b, 0);
-        const baseRewardPool = 100000; // Total reward pool
-        const baseRepPool = 100;
+        const contributorCount = Object.keys(damageMap).length;
+        const baseRewardPool = 100000 + (contributorCount * 15000); // +15k per contributor
+        const baseRepPool = 100 + (contributorCount * 10); // +10 rep per contributor
 
         // Distribute to all contributors proportionally
         const sorted = Object.entries(damageMap as Record<string, number>)
@@ -4068,7 +4081,7 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
             sender_id: userId,
             receiver_id: dealerId,
             subject: `🏴 Factie ${factionId} Veroverd!`,
-            body: `${rankEmoji} Je hebt ${dealerDmg} schade bijgedragen (${Math.round(proportion * 100)}%) en ontvangt €${reward.toLocaleString()} + ${repBonus} rep.`,
+            body: `${rankEmoji} Je hebt ${dealerDmg} schade bijgedragen (${Math.round(proportion * 100)}%) en ontvangt €${reward.toLocaleString()} + ${repBonus} rep.\n\nReward pool: €${baseRewardPool.toLocaleString()} (${contributorCount} bijdragers).`,
           });
         }
 
@@ -4077,26 +4090,24 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         for (const [gangId, members] of Object.entries(gangDamageMap)) {
           const gangTotalDmg = Object.values(members).reduce((a, b) => a + b, 0);
           const gangProportion = gangTotalDmg / totalDamage;
-          const gangBonus = Math.floor(20000 * gangProportion); // Gang treasury bonus
+          const gangBonus = Math.floor(20000 * gangProportion);
           
-          // Fetch gang name
           const { data: gangData } = await supabase.from("gangs")
             .select("name, treasury").eq("id", gangId).single();
           if (gangData) {
             gangNames[gangId] = gangData.name;
             await supabase.from("gangs").update({
               treasury: gangData.treasury + gangBonus,
-              xp: gangBonus, // Use as increment placeholder
+              xp: gangBonus,
             }).eq("id", gangId);
           }
 
-          // Notify non-contributing gang members (passive gang bonus)
           const { data: allGangMembers } = await supabase.from("gang_members")
             .select("user_id").eq("gang_id", gangId);
           if (allGangMembers) {
             const contributorIds = new Set(Object.keys(members));
             for (const member of allGangMembers) {
-              if (contributorIds.has(member.user_id)) continue; // already rewarded above
+              if (contributorIds.has(member.user_id)) continue;
               const passiveReward = Math.floor(2000 * gangProportion);
               const { data: memberState } = await supabase.from("player_state")
                 .select("money, rep").eq("user_id", member.user_id).single();
@@ -4116,7 +4127,6 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
           }
         }
 
-        // Build gang summary for news
         const gangSummary = Object.entries(gangDamageMap)
           .map(([gid, members]) => {
             const total = Object.values(members).reduce((a, b) => a + b, 0);
@@ -4133,22 +4143,19 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
           icon: '👑',
           urgency: 'high',
           category: 'faction',
-          detail: `De ${factionId} is verslagen en 48 uur lang onderworpen. ${Object.keys(damageMap).length} spelers vochten mee. Rewards verdeeld op basis van bijdrage.${gangNewsDetail}`,
+          detail: `De ${factionId} is verslagen en 48 uur lang onderworpen. ${contributorCount} spelers vochten mee. Reward pool: €${baseRewardPool.toLocaleString()}.${gangNewsDetail}`,
         });
       } else {
         // Phase complete, advance
         const nextPhase = validPhases[phaseIdx + 1] || "leader";
         updateData.conquest_phase = nextPhase;
-        // Reset HP for next phase (base values, will scale with attackers)
         updateData.boss_hp = phase === "defense" ? 100 : 150;
         updateData.boss_max_hp = phase === "defense" ? 100 : 150;
-        // Keep damage map for cumulative tracking across phases
 
         const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
         const phaseName = phaseNames[phase as keyof typeof phaseNames];
         const nextPhaseName = phaseNames[nextPhase as keyof typeof phaseNames] || nextPhase;
 
-        // Phase complete news event (medium urgency)
         await insertPlayerNews(supabase, {
           text: `🔥 ${factionId} ${phaseName}-fase doorbroken! ${nextPhaseName} ontgrendeld.`,
           icon: '🔥',
@@ -4172,9 +4179,10 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
 
     const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
     const phaseName = phaseNames[phase as keyof typeof phaseNames];
-
-    // Count unique attackers
     const attackerCount = Object.keys(damageMap).length;
+
+    // Calculate cooldown expiry for client
+    const cooldownUntil = new Date(Date.now() + FACTION_ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
 
     return {
       success: true,
@@ -4182,12 +4190,13 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         ? phase === "leader"
           ? `👑 ${factionId} is veroverd! Reset in 48 uur.`
           : `${phaseName} fase voltooid! Schade: ${damage}. Volgende fase ontgrendeld.`
-        : `Aanval succesvol! ${damage} schade aan ${phaseName}. HP: ${newHp}/${faction.boss_max_hp}`,
+        : `Aanval succesvol! ${damage} schade aan ${phaseName}. HP: ${newHp}/${newMaxHp}`,
       data: {
-        damage, newHp, phaseComplete, chance,
+        damage, newHp, newMaxHp, phaseComplete, chance,
         conquered: phase === "leader" && phaseComplete,
         repGain, xpGain, attackerCount,
         totalDamageDealt: damageMap,
+        cooldownUntil,
       },
     };
   } else {
@@ -4202,12 +4211,171 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
       personal_heat: Math.min(100, (ps.personal_heat || 0) + heatGain),
     }).eq("user_id", userId);
 
+    const cooldownUntil = new Date(Date.now() + FACTION_ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+
     return {
       success: true,
       message: `Aanval mislukt! Je hebt ${playerDamage} schade geleden en ${heatGain} heat opgelopen.`,
-      data: { damage: 0, playerDamage, heatGain, chance, conquered: false },
+      data: { damage: 0, playerDamage, heatGain, chance, conquered: false, cooldownUntil },
     };
   }
+}
+
+// ========== FACTION ACTIONS (server-validated) ==========
+
+const FACTION_ACTION_DEFS: Record<string, { baseCost: number; requiresDistrict: boolean; minRel: number | null; maxRel: number | null }> = {
+  negotiate: { baseCost: 2000, requiresDistrict: true, minRel: -50, maxRel: null },
+  bribe: { baseCost: 5000, requiresDistrict: false, minRel: null, maxRel: null },
+  intimidate: { baseCost: 0, requiresDistrict: true, minRel: null, maxRel: null },
+  sabotage: { baseCost: 1000, requiresDistrict: true, minRel: null, maxRel: null },
+  gift: { baseCost: 0, requiresDistrict: false, minRel: null, maxRel: null },
+  intel: { baseCost: 3000, requiresDistrict: false, minRel: 20, maxRel: null },
+};
+
+const FACTION_GIFT_GOODS: Record<string, string> = { cartel: 'drugs', syndicate: 'tech', bikers: 'weapons' };
+
+async function handleFactionAction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { factionId, actionType } = payload || {};
+  if (!factionId || !actionType) return { success: false, message: "Ongeldige parameters." };
+
+  const actionDef = FACTION_ACTION_DEFS[actionType];
+  if (!actionDef) return { success: false, message: "Onbekende factie-actie." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Get faction state
+  const { data: faction } = await supabase.from("faction_relations")
+    .select("*").eq("faction_id", factionId).maybeSingle();
+  if (!faction) return { success: false, message: "Factie niet gevonden." };
+  if (faction.status === "vassal") return { success: false, message: "Deze factie is al een vazal." };
+
+  const rel = faction.global_relation || 0;
+
+  // Check min relation
+  if (actionDef.minRel !== null && rel < actionDef.minRel) {
+    return { success: false, message: `Relatie te laag (min: ${actionDef.minRel}, huidig: ${rel}).` };
+  }
+
+  // Check district requirement
+  if (actionDef.requiresDistrict) {
+    const factionHomes: Record<string, string> = { cartel: 'port', syndicate: 'crown', bikers: 'iron' };
+    const homeDistrict = factionHomes[factionId];
+    if (homeDistrict && ps.loc !== homeDistrict) {
+      return { success: false, message: `Reis eerst naar het thuisdistrict van deze factie.` };
+    }
+  }
+
+  // Calculate actual cost
+  const stats = ps.stats || {};
+  const loadout = ps.loadout || {};
+  const charm = getPlayerStat(stats, loadout, "charm");
+
+  let cost = 0;
+  let relChange = 0;
+  let repChange = 0;
+  let message = "";
+
+  switch (actionType) {
+    case 'negotiate': {
+      cost = Math.max(500, 2000 - (charm * 100));
+      if (ps.money < cost) return { success: false, message: `Te weinig geld (€${cost} nodig).` };
+      const base = 5 + Math.floor(charm / 2);
+      relChange = base + Math.floor(Math.random() * 5);
+      repChange = 2;
+      message = `Onderhandeling geslaagd! Relatie +${relChange}.`;
+      break;
+    }
+    case 'bribe': {
+      cost = 5000 + Math.floor(Math.abs(rel) * 30);
+      if (ps.money < cost) return { success: false, message: `Te weinig geld (€${cost} nodig).` };
+      relChange = 8 + Math.floor(Math.random() * 8);
+      repChange = -1;
+      message = `Omkoping geslaagd! Relatie +${relChange}.`;
+      break;
+    }
+    case 'intimidate': {
+      const success = Math.random() < 0.6 + (charm * 0.02);
+      if (success) {
+        relChange = -(5 + Math.floor(Math.random() * 5));
+        repChange = 5 + Math.floor(Math.random() * 5);
+        message = `Intimidatie geslaagd! Rep +${repChange}, Relatie ${relChange}.`;
+      } else {
+        relChange = -(10 + Math.floor(Math.random() * 5));
+        repChange = -2;
+        message = `Intimidatie gefaald! Relatie ${relChange}.`;
+      }
+      break;
+    }
+    case 'sabotage': {
+      cost = 1000;
+      if (ps.money < cost) return { success: false, message: `Te weinig geld (€${cost} nodig).` };
+      const success = Math.random() < 0.5 + (getPlayerStat(stats, loadout, "brains") * 0.03);
+      if (success) {
+        relChange = -(8 + Math.floor(Math.random() * 8));
+        repChange = 8;
+        message = `Sabotage geslaagd! Rep +${repChange}, Relatie ${relChange}.`;
+      } else {
+        relChange = -(15 + Math.floor(Math.random() * 5));
+        repChange = -3;
+        message = `Sabotage ontdekt! Relatie ${relChange}.`;
+      }
+      break;
+    }
+    case 'gift': {
+      const giftGood = FACTION_GIFT_GOODS[factionId];
+      if (!giftGood) return { success: false, message: "Deze factie accepteert geen giften." };
+      // Check inventory
+      const { data: inv } = await supabase.from("player_inventory")
+        .select("quantity").eq("user_id", userId).eq("good_id", giftGood).maybeSingle();
+      if (!inv || inv.quantity < 3) return { success: false, message: `Je hebt minimaal 3 stuks nodig.` };
+      // Consume 3 goods
+      await supabase.from("player_inventory").update({ quantity: inv.quantity - 3 })
+        .eq("user_id", userId).eq("good_id", giftGood);
+      relChange = 12 + Math.floor(Math.random() * 6);
+      repChange = 3;
+      message = `Gift geaccepteerd! Relatie +${relChange}.`;
+      break;
+    }
+    case 'intel': {
+      cost = 3000;
+      if (ps.money < cost) return { success: false, message: `Te weinig geld (€${cost} nodig).` };
+      relChange = 3;
+      repChange = 5;
+      message = `Intel gekocht! Je hebt waardevolle informatie verkregen. Rep +${repChange}.`;
+      break;
+    }
+    default:
+      return { success: false, message: "Onbekende actie." };
+  }
+
+  // Deduct money
+  if (cost > 0) {
+    await supabase.from("player_state").update({
+      money: ps.money - cost,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+  }
+
+  // Update faction relation
+  const newRel = Math.max(-100, Math.min(100, rel + relChange));
+  await supabase.from("faction_relations").update({
+    global_relation: newRel,
+    updated_at: new Date().toISOString(),
+  }).eq("faction_id", factionId);
+
+  // Update player rep
+  if (repChange !== 0) {
+    await supabase.from("player_state").update({
+      rep: Math.max(0, (ps.rep || 0) + repChange),
+    }).eq("user_id", userId);
+  }
+
+  return {
+    success: true,
+    message,
+    data: { relChange, newRelation: newRel, repChange, cost, actionType },
+  };
 }
 
 // ========== MAIN HANDLER ==========
@@ -4446,6 +4614,9 @@ Deno.serve(async (req) => {
         break;
       case "attack_faction":
         result = await handleAttackFaction(supabase, user.id, playerState, payload);
+        break;
+      case "faction_action":
+        result = await handleFactionAction(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
