@@ -13,7 +13,8 @@ export type GameAction =
   | "create_gang" | "get_gang" | "gang_invite" | "gang_accept_invite"
   | "gang_leave" | "gang_kick" | "gang_promote"
   | "gang_claim_territory" | "gang_donate" | "gang_declare_war"
-  | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs";
+  | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs"
+  | "contribute_influence" | "get_district_info";
 
 interface GameActionResult {
   success: boolean;
@@ -78,4 +79,9 @@ export const gameApi = {
   gangChat: (message: string) => invokeGameAction("gang_chat", { message }),
   getGangInvites: () => invokeGameAction("get_gang_invites"),
   listGangs: () => invokeGameAction("list_gangs"),
+
+  // District Influence
+  contributeInfluence: (districtId: string, amount: number) =>
+    invokeGameAction("contribute_influence", { districtId, amount }),
+  getDistrictInfo: () => invokeGameAction("get_district_info"),
 };

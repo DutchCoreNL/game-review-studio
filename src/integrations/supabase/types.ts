@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      district_influence: {
+        Row: {
+          district_id: string
+          gang_id: string
+          id: string
+          influence: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          district_id: string
+          gang_id: string
+          id?: string
+          influence?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          district_id?: string
+          gang_id?: string
+          id?: string
+          influence?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "district_influence_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_action_log: {
         Row: {
           action_data: Json | null
@@ -180,6 +215,7 @@ export type Database = {
           district_id: string
           gang_id: string
           id: string
+          total_influence: number
         }
         Insert: {
           captured_at?: string
@@ -187,6 +223,7 @@ export type Database = {
           district_id: string
           gang_id: string
           id?: string
+          total_influence?: number
         }
         Update: {
           captured_at?: string
@@ -194,6 +231,7 @@ export type Database = {
           district_id?: string
           gang_id?: string
           id?: string
+          total_influence?: number
         }
         Relationships: [
           {

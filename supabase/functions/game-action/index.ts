@@ -1464,6 +1464,144 @@ function getGangTerritoryDiscount(gangLevel: number): number {
   return 0;
 }
 
+// ========== DISTRICT INFLUENCE ==========
+
+async function handleContributeInfluence(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { districtId, amount } = payload || {};
+  if (!districtId || !amount || amount < 500) return { success: false, message: "Minimaal €500 invloed bijdragen." };
+
+  const validDistricts = ["port", "crown", "iron", "low", "neon"];
+  if (!validDistricts.includes(districtId)) return { success: false, message: "Ongeldig district." };
+
+  // Must be in a gang
+  const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!mem) return { success: false, message: "Je moet in een gang zitten om invloed bij te dragen." };
+
+  // Must be in the district
+  if (ps.loc !== districtId) return { success: false, message: "Je moet in dit district zijn." };
+
+  // Check money
+  if (ps.money < amount) return { success: false, message: "Niet genoeg geld." };
+
+  // Convert money to influence (€500 = 1 influence point)
+  const influenceGain = Math.floor(amount / 500);
+  const actualCost = influenceGain * 500;
+
+  // Update player money
+  await supabase.from("player_state").update({
+    money: ps.money - actualCost,
+    stats_total_spent: (ps.stats_total_spent || 0) + actualCost,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Upsert influence record
+  const { data: existing } = await supabase.from("district_influence")
+    .select("id, influence").eq("user_id", userId).eq("district_id", districtId).maybeSingle();
+
+  if (existing) {
+    await supabase.from("district_influence").update({
+      influence: existing.influence + influenceGain,
+      gang_id: mem.gang_id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", existing.id);
+  } else {
+    await supabase.from("district_influence").insert({
+      user_id: userId, gang_id: mem.gang_id, district_id: districtId, influence: influenceGain,
+    });
+  }
+
+  // Check if gang has enough influence to claim the territory
+  const { data: gangInfluence } = await supabase.from("district_influence")
+    .select("influence").eq("gang_id", mem.gang_id).eq("district_id", districtId);
+  const totalGangInfluence = (gangInfluence || []).reduce((s: number, r: any) => s + (r.influence || 0), 0);
+
+  // Threshold to control a district: 100 influence
+  const CONTROL_THRESHOLD = 100;
+  let controlMsg = "";
+
+  if (totalGangInfluence >= CONTROL_THRESHOLD) {
+    // Check if already controlled by this gang
+    const { data: existingTerritory } = await supabase.from("gang_territories")
+      .select("gang_id").eq("district_id", districtId).maybeSingle();
+
+    if (!existingTerritory) {
+      // Claim it
+      await supabase.from("gang_territories").insert({
+        gang_id: mem.gang_id, district_id: districtId, total_influence: totalGangInfluence,
+      });
+      const xpResult = await addGangXP(supabase, mem.gang_id, 200);
+      controlMsg = ` 🏴 Jullie gang controleert nu ${districtId}! +200 Gang XP.${xpResult.leveled ? ` Level ${xpResult.newLevel}!` : ""}`;
+    } else if (existingTerritory.gang_id !== mem.gang_id) {
+      // Contested — need to also overcome the existing gang's influence
+      const { data: defenderInfluence } = await supabase.from("district_influence")
+        .select("influence").eq("gang_id", existingTerritory.gang_id).eq("district_id", districtId);
+      const defTotal = (defenderInfluence || []).reduce((s: number, r: any) => s + (r.influence || 0), 0);
+
+      if (totalGangInfluence > defTotal + 50) {
+        // Overtake
+        await supabase.from("gang_territories").update({
+          gang_id: mem.gang_id, total_influence: totalGangInfluence, captured_at: new Date().toISOString(),
+        }).eq("district_id", districtId);
+        const xpResult = await addGangXP(supabase, mem.gang_id, 300);
+        controlMsg = ` ⚔️ District overgenomen van vijandige gang! +300 Gang XP.${xpResult.leveled ? ` Level ${xpResult.newLevel}!` : ""}`;
+      }
+    } else {
+      // Update total influence
+      await supabase.from("gang_territories").update({ total_influence: totalGangInfluence }).eq("district_id", districtId);
+    }
+  }
+
+  return {
+    success: true,
+    message: `+${influenceGain} invloed in ${districtId} (€${actualCost.toLocaleString()}).${controlMsg}`,
+    data: { influenceGain, totalGangInfluence, controlThreshold: CONTROL_THRESHOLD },
+  };
+}
+
+async function handleGetDistrictInfo(supabase: any, userId: string): Promise<ActionResult> {
+  // Get all gang territories
+  const { data: territories } = await supabase.from("gang_territories")
+    .select("district_id, gang_id, total_influence, gangs(name, tag)");
+
+  // Get player's gang
+  const { data: mem } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+
+  // Get player's influence
+  const { data: myInfluence } = await supabase.from("district_influence")
+    .select("district_id, influence").eq("user_id", userId);
+
+  // Get gang's total influence per district (if in gang)
+  let gangInfluence: any[] = [];
+  if (mem) {
+    const { data: gi } = await supabase.from("district_influence")
+      .select("district_id, influence").eq("gang_id", mem.gang_id);
+    gangInfluence = gi || [];
+  }
+
+  // Aggregate gang influence per district
+  const gangInfluenceMap: Record<string, number> = {};
+  for (const gi of gangInfluence) {
+    gangInfluenceMap[gi.district_id] = (gangInfluenceMap[gi.district_id] || 0) + gi.influence;
+  }
+
+  return {
+    success: true,
+    message: "District info opgehaald.",
+    data: {
+      territories: (territories || []).map((t: any) => ({
+        districtId: t.district_id,
+        gangId: t.gang_id,
+        gangName: t.gangs?.name || "Onbekend",
+        gangTag: t.gangs?.tag || "??",
+        totalInfluence: t.total_influence,
+      })),
+      myInfluence: (myInfluence || []).reduce((m: any, r: any) => { m[r.district_id] = r.influence; return m; }, {}),
+      gangInfluence: gangInfluenceMap,
+      gangId: mem?.gang_id || null,
+    },
+  };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -1625,6 +1763,12 @@ Deno.serve(async (req) => {
         break;
       case "list_gangs":
         result = await handleListGangs(supabase);
+        break;
+      case "contribute_influence":
+        result = await handleContributeInfluence(supabase, user.id, playerState, payload);
+        break;
+      case "get_district_info":
+        result = await handleGetDistrictInfo(supabase, user.id);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

@@ -1798,6 +1798,8 @@ export function createInitialState(): import('./types').GameState {
     serverSynced: false,
     lastTickAt: new Date().toISOString(),
     tickIntervalMinutes: 30,
+    gangDistricts: [],
+    gangId: null,
   };
 }
 

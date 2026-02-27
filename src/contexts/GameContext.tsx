@@ -46,6 +46,7 @@ type GameAction =
   | { type: 'TRADE'; gid: GoodId; mode: TradeMode; quantity?: number }
   | { type: 'TRAVEL'; to: DistrictId }
   | { type: 'BUY_DISTRICT'; id: DistrictId }
+  | { type: 'SPEND_MONEY'; amount: number }
   | { type: 'END_TURN' }
   | { type: 'DISMISS_NIGHT_REPORT' }
   | { type: 'RECRUIT' }
@@ -399,16 +400,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'BUY_DISTRICT': {
-      const d = DISTRICTS[action.id];
-      if (!d || s.money < d.cost || s.loc !== action.id) return s;
-      s.money -= d.cost;
-      s.stats.totalSpent += d.cost;
-      s.ownedDistricts.push(action.id);
-      Engine.gainXp(s, 50);
-      s.maxInv = Engine.recalcMaxInv(s);
-      // Cinematic trigger: first district
-      const distCinematic = checkCinematicTrigger(s, 'district_bought');
-      if (distCinematic) s.pendingCinematic = distCinematic;
+      // Legacy: individual district buying disabled in gang-based system
+      // Districts are now controlled via gang influence on the server
+      return s;
+    }
+
+    case 'SPEND_MONEY': {
+      const amt = (action as any).amount || 0;
+      if (s.money < amt) return s;
+      s.money -= amt;
+      s.stats.totalSpent += amt;
       return s;
     }
 
@@ -2954,6 +2955,9 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.lastTickAt === undefined) saved.lastTickAt = new Date().toISOString();
       if (saved.tickIntervalMinutes === undefined) saved.tickIntervalMinutes = 30;
       if (saved.serverSynced === undefined) saved.serverSynced = false;
+      // Gang territory migration
+      if (!saved.gangDistricts) saved.gangDistricts = [];
+      if (saved.gangId === undefined) saved.gangId = null;
       return saved;
     }
     const fresh = createInitialState();
