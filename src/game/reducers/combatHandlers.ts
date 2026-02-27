@@ -1,5 +1,6 @@
 import { GameState, FamilyId, FactionActionType } from '../types';
 import * as Engine from '../engine';
+import { COMBAT_SKILLS, isSkillOnCooldown, tickCooldowns, tickBuffs, hasActiveBuff, COMBO_THRESHOLD, COMBO_FINISHER_DAMAGE, COMBO_FINISHER_STUN_CHANCE, BUFF_DEFS, getAvailableSkills } from '../combatSkills';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, createNewGamePlus, getDeckDialogue } from '../endgame';
 import { checkCinematicTrigger } from '../cinematics';
@@ -16,11 +17,181 @@ export function handleStartNemesisCombat(s: GameState): void {
   if (combat) s.activeCombat = combat;
 }
 
-export function handleCombatAction(s: GameState, combatAction: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical'): void {
+export function handleCombatAction(s: GameState, combatAction: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' | 'skill' | 'combo_finisher', skillId?: string): void {
   if (!s.activeCombat) return;
-  const hpBefore = s.activeCombat.playerHP;
-  const enemyHpBefore = s.activeCombat.targetHP;
-  Engine.combatAction(s, combatAction);
+  const combat = s.activeCombat;
+  const hpBefore = combat.playerHP;
+  const enemyHpBefore = combat.targetHP;
+
+  // Handle skill action
+  if (combatAction === 'skill' && skillId) {
+    const skill = COMBAT_SKILLS.find(sk => sk.id === skillId);
+    if (!skill || isSkillOnCooldown(skillId, combat.skillCooldowns)) return;
+    combat.turn++;
+    combat.skillCooldowns[skillId] = skill.cooldownTurns;
+    const muscle = Engine.getPlayerStat(s, 'muscle');
+    const brains = Engine.getPlayerStat(s, 'brains');
+    const charm = Engine.getPlayerStat(s, 'charm');
+    const eff = skill.effect;
+    let playerDamage = 0;
+    let isAttack = false;
+
+    switch (eff.type) {
+      case 'damage':
+        playerDamage = Math.floor(muscle * 2 + (eff.value || 8) + Math.random() * 5);
+        combat.logs.push(`${skill.icon} ${skill.name}! ${playerDamage} schade!`);
+        isAttack = true;
+        break;
+      case 'buff':
+        combat.activeBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
+        combat.logs.push(`${skill.icon} ${skill.name} geactiveerd! ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
+        break;
+      case 'heal_and_buff':
+        combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + (eff.healAmount || 0));
+        combat.activeBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
+        combat.logs.push(`${skill.icon} ${skill.name}! +${eff.healAmount} HP, ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
+        break;
+      case 'multi_hit': {
+        const hits = eff.hits || 3;
+        let totalDmg = 0;
+        for (let i = 0; i < hits; i++) {
+          totalDmg += Math.floor((eff.damagePerHit || 6) + muscle * 0.8 + Math.random() * 3);
+        }
+        playerDamage = totalDmg;
+        combat.logs.push(`${skill.icon} ${skill.name}! ${hits}x treffer = ${totalDmg} totale schade!`);
+        isAttack = true;
+        break;
+      }
+      case 'crit': {
+        const baseDmg = Math.floor(10 + muscle * 2.5 + Math.random() * 8);
+        playerDamage = Math.floor(baseDmg * (eff.multiplier || 2.5));
+        combat.logs.push(`${skill.icon} ${skill.name}! KRITIEK! ${playerDamage} schade!`);
+        isAttack = true;
+        break;
+      }
+      case 'stun': {
+        const statVal = eff.stat === 'charm' ? charm : eff.stat === 'brains' ? brains : muscle;
+        const chance = (eff.chance || 0.7) + statVal * 0.02;
+        if (Math.random() < chance) {
+          combat.stunned = true;
+          playerDamage = Math.floor(3 + charm);
+          combat.logs.push(`${skill.icon} ${skill.name}! Vijand STUNNED! +${playerDamage} schade.`);
+        } else {
+          combat.logs.push(`${skill.icon} ${skill.name} mislukt!`);
+        }
+        isAttack = true;
+        break;
+      }
+      case 'execute': {
+        const thresholdHP = combat.enemyMaxHP * (eff.thresholdPct || 0.3);
+        if (combat.targetHP <= thresholdHP) {
+          playerDamage = Math.floor(muscle * 3 + (eff.bonusDamage || 25) + Math.random() * 10);
+          combat.logs.push(`${skill.icon} ${skill.name}! Doelwit is zwak — ${playerDamage} EXECUTIE schade!`);
+        } else {
+          playerDamage = Math.floor(muscle * 2 + Math.random() * 8);
+          combat.logs.push(`${skill.icon} ${skill.name}! ${playerDamage} schade. (HP te hoog voor bonus)`);
+        }
+        isAttack = true;
+        break;
+      }
+      default: break;
+    }
+
+    if (isAttack && playerDamage > 0) combat.comboCounter++;
+    if (hasActiveBuff(combat.activeBuffs, 'damage_boost') && playerDamage > 0) {
+      playerDamage = Math.floor(playerDamage * 1.3);
+    }
+    combat.targetHP = Math.max(0, combat.targetHP - playerDamage);
+
+    if (combat.targetHP <= 0) {
+      combat.finished = true;
+      combat.won = true;
+      combat.logs.push(`${combat.targetName} is verslagen!`);
+    } else if (!combat.stunned) {
+      // Enemy counterattack (simplified)
+      const defBoost = hasActiveBuff(combat.activeBuffs, 'defense_boost') ? 0.5 : 0;
+      let enemyDmg = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6));
+      if (defBoost > 0) enemyDmg = Math.floor(enemyDmg * (1 - defBoost));
+      combat.playerHP = Math.max(0, combat.playerHP - enemyDmg);
+      combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDmg} schade!`);
+      if (combat.playerHP <= 0) {
+        combat.finished = true;
+        combat.won = false;
+        combat.logs.push('Je bent verslagen...');
+      }
+    } else {
+      combat.logs.push(`${combat.targetName} is verdoofd en kan niet aanvallen!`);
+      combat.stunned = false;
+    }
+
+    // Tick buffs/cooldowns
+    combat.activeBuffs = tickBuffs(combat.activeBuffs);
+    combat.skillCooldowns = tickCooldowns(combat.skillCooldowns);
+    combat.lastAction = 'skill';
+
+    // Laatste Adem passive
+    const laatsteAdem = COMBAT_SKILLS.find(sk => sk.id === 'laatste_adem');
+    if (laatsteAdem && s.player.level >= laatsteAdem.unlockLevel && combat.playerHP > 0) {
+      if (combat.playerHP < combat.playerMaxHP * 0.2 && !isSkillOnCooldown('laatste_adem', combat.skillCooldowns)) {
+        combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + 30);
+        combat.skillCooldowns['laatste_adem'] = laatsteAdem.cooldownTurns;
+        combat.logs.push('🫁 Laatste Adem activeert! +30 HP!');
+      }
+    }
+  } else if (combatAction === 'combo_finisher') {
+    if (combat.comboCounter < COMBO_THRESHOLD) return;
+    combat.turn++;
+    const muscle = Engine.getPlayerStat(s, 'muscle');
+    let playerDamage = COMBO_FINISHER_DAMAGE + Math.floor(muscle * 2);
+    if (hasActiveBuff(combat.activeBuffs, 'damage_boost')) playerDamage = Math.floor(playerDamage * 1.3);
+    combat.logs.push(`🔥 COMBO FINISHER! ${playerDamage} schade!`);
+    if (Math.random() < COMBO_FINISHER_STUN_CHANCE) {
+      combat.stunned = true;
+      combat.logs.push('💫 Vijand is STUNNED!');
+    }
+    combat.comboCounter = 0;
+    combat.targetHP = Math.max(0, combat.targetHP - playerDamage);
+
+    if (combat.targetHP <= 0) {
+      combat.finished = true;
+      combat.won = true;
+      combat.logs.push(`${combat.targetName} is verslagen!`);
+    } else if (!combat.stunned) {
+      let enemyDmg = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6));
+      combat.playerHP = Math.max(0, combat.playerHP - enemyDmg);
+      combat.logs.push(`${combat.targetName} slaat terug voor ${enemyDmg} schade!`);
+      if (combat.playerHP <= 0) {
+        combat.finished = true;
+        combat.won = false;
+        combat.logs.push('Je bent verslagen...');
+      }
+    } else {
+      combat.logs.push(`${combat.targetName} is verdoofd!`);
+      combat.stunned = false;
+    }
+    combat.activeBuffs = tickBuffs(combat.activeBuffs);
+    combat.skillCooldowns = tickCooldowns(combat.skillCooldowns);
+    combat.lastAction = 'combo_finisher';
+  } else {
+    // Standard combat actions (attack/heavy/defend/environment/tactical)
+    Engine.combatAction(s, combatAction as 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical');
+
+    // Track combo for standard attacks
+    if ((combatAction === 'attack' || combatAction === 'heavy') && combat.targetHP < enemyHpBefore) {
+      combat.comboCounter++;
+    } else if (combatAction === 'defend') {
+      combat.comboCounter = 0;
+    }
+
+    // Tick PvE buffs/cooldowns each turn
+    combat.activeBuffs = tickBuffs(combat.activeBuffs);
+    combat.skillCooldowns = tickCooldowns(combat.skillCooldowns);
+    combat.lastAction = combatAction;
+
+    // Apply defense boost from buffs to reduce enemy damage retroactively
+    // (already handled by engine for standard actions, buff effects apply next turn)
+  }
+
   Engine.checkAchievements(s);
   if (s.activeCombat && s.activeCombat.bossPhase) {
     const dialogue = getDeckDialogue(s.activeCombat);
@@ -33,7 +204,7 @@ export function handleCombatAction(s: GameState, combatAction: 'attack' | 'heavy
     const playerDefeated = s.activeCombat.finished && !s.activeCombat.won;
     if (enemyDefeated) s.screenEffect = 'gold-flash';
     else if (playerDefeated) s.screenEffect = 'blood-flash';
-    else if (combatAction === 'heavy' && dealtHeavyDamage) s.screenEffect = 'shake';
+    else if ((combatAction === 'heavy' || combatAction === 'combo_finisher') && dealtHeavyDamage) s.screenEffect = 'shake';
     else if (playerTookDamage && (hpBefore - s.activeCombat.playerHP) > 10) s.screenEffect = 'blood-flash';
   }
   if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.bossPhase === 2) {

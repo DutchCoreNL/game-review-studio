@@ -558,6 +558,11 @@ export interface CombatState {
   isNemesis?: boolean;
   bossPhase?: number; // 1 = SWAT, 2 = Decker
   conquestPhase?: 1 | 2; // faction conquest sub-boss phase
+  // MMO combat skill/combo fields
+  activeBuffs: CombatBuff[];
+  skillCooldowns: Record<string, number>;
+  comboCounter: number;
+  lastAction: string | null;
 }
 
 // ========== COMBAT SKILL TYPES ==========

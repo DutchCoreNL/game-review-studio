@@ -10,9 +10,10 @@ import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair } from 'lucide-react';
+import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair, Flame } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound } from '@/game/sounds';
+import { getAvailableSkills, isSkillOnCooldown, COMBO_THRESHOLD, BUFF_DEFS } from '@/game/combatSkills';
 
 // ========== Combat Action Button ==========
 
@@ -105,6 +106,66 @@ function AnimatedHPBar({ label, current, max, color, flashColor }: {
             />
           )}
         </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+// ========== Skill Buttons ==========
+
+function SkillButtons({ combat, dispatch, playerLevel }: {
+  combat: { skillCooldowns: Record<string, number>; finished: boolean };
+  dispatch: (action: any) => void;
+  playerLevel: number;
+}) {
+  const skills = useMemo(() => getAvailableSkills(playerLevel), [playerLevel]);
+  // Filter out passive skills (emergency_heal)
+  const activeSkills = skills.filter(s => s.effect.type !== 'emergency_heal');
+
+  if (activeSkills.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="mt-3"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Zap size={9} className="text-game-purple" />
+        <span className="text-[0.5rem] font-bold text-game-purple uppercase tracking-wider">Skills</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {activeSkills.map(skill => {
+          const onCooldown = isSkillOnCooldown(skill.id, combat.skillCooldowns);
+          const cd = combat.skillCooldowns[skill.id] || 0;
+          return (
+            <motion.button
+              key={skill.id}
+              disabled={onCooldown || combat.finished}
+              onClick={() => {
+                if (!onCooldown) {
+                  playHitSound();
+                  dispatch({ type: 'COMBAT_ACTION', action: 'skill', skillId: skill.id });
+                }
+              }}
+              className={`relative py-2 px-2 rounded text-[0.5rem] font-bold flex flex-col items-center gap-0.5 transition-all ${
+                onCooldown
+                  ? 'bg-muted/50 text-muted-foreground opacity-50 cursor-not-allowed'
+                  : 'bg-game-purple/15 border border-game-purple/40 text-game-purple hover:bg-game-purple/25'
+              }`}
+              whileTap={onCooldown ? {} : { scale: 0.92 }}
+            >
+              <span className="text-sm">{skill.icon}</span>
+              <span className="leading-tight text-center">{skill.name}</span>
+              {onCooldown && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded">
+                  <span className="text-[0.6rem] font-bold text-muted-foreground">{cd}🔄</span>
+                </div>
+              )}
+            </motion.button>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -304,6 +365,65 @@ function ActiveCombat() {
               />
             </motion.div>
           )}
+
+          {/* Combo Meter */}
+          {combat.comboCounter > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Flame size={10} className="text-gold" />
+                <span className="text-[0.5rem] font-bold text-gold uppercase tracking-wider">
+                  Combo {combat.comboCounter}/{COMBO_THRESHOLD}
+                </span>
+              </div>
+              <div className="relative h-2 bg-muted rounded overflow-hidden">
+                <motion.div
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold to-blood rounded"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (combat.comboCounter / COMBO_THRESHOLD) * 100)}%` }}
+                  transition={{ type: 'spring', stiffness: 200 }}
+                />
+              </div>
+              {combat.comboCounter >= COMBO_THRESHOLD && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mt-2"
+                >
+                  <CombatAction
+                    icon={<Flame size={14} />}
+                    label="COMBO FINISHER"
+                    sub="Massieve schade + stun kans"
+                    onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
+                    variant="gold"
+                  />
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Active Buffs */}
+          {combat.activeBuffs.length > 0 && (
+            <div className="flex gap-1 mt-2 flex-wrap">
+              {combat.activeBuffs.map((buff, i) => (
+                <motion.div
+                  key={`${buff.id}-${i}`}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold/10 border border-gold/30"
+                >
+                  <span className="text-[0.5rem]">{BUFF_DEFS[buff.id]?.icon || '✨'}</span>
+                  <span className="text-[0.45rem] text-gold font-bold">{buff.duration}t</span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Skill Buttons */}
+          <SkillButtons combat={combat} dispatch={dispatch} playerLevel={state.player.level} />
         </>
       ) : (
         <CombatResult />

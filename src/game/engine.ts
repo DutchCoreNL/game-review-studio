@@ -1663,6 +1663,10 @@ export function startConquestPhase(state: GameState, familyId: FamilyId, phase: 
     finished: false,
     won: false,
     conquestPhase: phase,
+    activeBuffs: [],
+    skillCooldowns: {},
+    comboCounter: 0,
+    lastAction: null,
   };
 }
 
@@ -1726,6 +1730,10 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
     turn: 0,
     finished: false,
     won: false,
+    activeBuffs: [],
+    skillCooldowns: {},
+    comboCounter: 0,
+    lastAction: null,
   };
 }
 

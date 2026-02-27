@@ -25,6 +25,7 @@ import { resolveCrewEvent } from '../game/crewEvents';
 import { checkCinematicTrigger, applyCinematicChoice, markCinematicSeen } from '../game/cinematics';
 import { generateDailyNews } from '../game/newsGenerator';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
+import { handleCombatAction } from '../game/reducers/combatHandlers';
 
 interface GameContextType {
   state: GameState;
@@ -75,7 +76,7 @@ type GameAction =
   | { type: 'CASINO_WIN'; amount: number }
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'START_NEMESIS_COMBAT' }
-  | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' }
+  | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' | 'skill' | 'combo_finisher'; skillId?: string }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
@@ -1010,43 +1011,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'COMBAT_ACTION': {
       if (!s.activeCombat) return s;
-      const hpBefore = s.activeCombat.playerHP;
-      const enemyHpBefore = s.activeCombat.targetHP;
-      Engine.combatAction(s, action.action);
-      Engine.checkAchievements(s);
-
-      // Add boss dialogue if applicable
-      if (s.activeCombat && s.activeCombat.bossPhase) {
-        const dialogue = getDeckDialogue(s.activeCombat);
-        if (dialogue) {
-          s.activeCombat.logs.push(dialogue);
-        }
-      }
-
-      // Trigger screen effects based on combat outcome
-      if (s.activeCombat) {
-        const playerTookDamage = s.activeCombat.playerHP < hpBefore;
-        const dealtHeavyDamage = (enemyHpBefore - s.activeCombat.targetHP) > 15;
-        const enemyDefeated = s.activeCombat.finished && s.activeCombat.won;
-        const playerDefeated = s.activeCombat.finished && !s.activeCombat.won;
-
-        if (enemyDefeated) {
-          s.screenEffect = 'gold-flash';
-        } else if (playerDefeated) {
-          s.screenEffect = 'blood-flash';
-        } else if (action.action === 'heavy' && dealtHeavyDamage) {
-          s.screenEffect = 'shake';
-        } else if (playerTookDamage && (hpBefore - s.activeCombat.playerHP) > 10) {
-          s.screenEffect = 'blood-flash';
-        }
-      }
-
-      // Check if this was the final boss phase 2 and it was won
-      if (s.activeCombat?.finished && s.activeCombat?.won && s.activeCombat?.bossPhase === 2) {
-        s._finalBossWon = true;
-      }
-      // Update endgame phase after combat
-      s.endgamePhase = calculateEndgamePhase(s);
+      handleCombatAction(s, action.action, action.skillId);
       return s;
     }
 

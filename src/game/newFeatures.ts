@@ -583,6 +583,10 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
     finished: false,
     won: false,
     isNemesis: true,
+    activeBuffs: [],
+    skillCooldowns: {},
+    comboCounter: 0,
+    lastAction: null,
   };
 }
 
