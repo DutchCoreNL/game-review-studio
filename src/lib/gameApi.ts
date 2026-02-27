@@ -24,6 +24,8 @@ export type GameAction =
   | "get_district_data"
   | "complete_contract"
   | "complete_hit"
+  | "get_faction_state"
+  | "attack_faction"
   | "process_turn";
 
 interface GameActionResult {
@@ -131,6 +133,11 @@ export const gameApi = {
     invokeGameAction("complete_contract", { contractId, contractType, successRate, encounterCount }),
   completeHit: (hitId: string) =>
     invokeGameAction("complete_hit", { hitId }),
+
+  // Faction MMO state
+  getFactionState: () => invokeGameAction("get_faction_state"),
+  attackFaction: (factionId: string, phase: string) =>
+    invokeGameAction("attack_faction", { factionId, phase }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })

@@ -166,6 +166,57 @@ export type Database = {
           },
         ]
       }
+      faction_relations: {
+        Row: {
+          boss_hp: number
+          boss_max_hp: number
+          conquered_at: string | null
+          conquered_by: string | null
+          conquest_phase: string
+          conquest_progress: number
+          faction_id: string
+          global_relation: number
+          id: string
+          last_attack_at: string | null
+          last_attack_by: string | null
+          status: string
+          updated_at: string
+          vassal_owner_id: string | null
+        }
+        Insert: {
+          boss_hp?: number
+          boss_max_hp?: number
+          conquered_at?: string | null
+          conquered_by?: string | null
+          conquest_phase?: string
+          conquest_progress?: number
+          faction_id: string
+          global_relation?: number
+          id?: string
+          last_attack_at?: string | null
+          last_attack_by?: string | null
+          status?: string
+          updated_at?: string
+          vassal_owner_id?: string | null
+        }
+        Update: {
+          boss_hp?: number
+          boss_max_hp?: number
+          conquered_at?: string | null
+          conquered_by?: string | null
+          conquest_phase?: string
+          conquest_progress?: number
+          faction_id?: string
+          global_relation?: number
+          id?: string
+          last_attack_at?: string | null
+          last_attack_by?: string | null
+          status?: string
+          updated_at?: string
+          vassal_owner_id?: string | null
+        }
+        Relationships: []
+      }
       game_action_log: {
         Row: {
           action_data: Json | null

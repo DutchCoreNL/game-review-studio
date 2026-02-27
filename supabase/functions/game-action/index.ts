@@ -3393,6 +3393,147 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
   }
 }
 
+// ========== FACTION STATE (MMO shared) ==========
+
+async function handleGetFactionState(supabase: any): Promise<ActionResult> {
+  const { data, error } = await supabase.from("faction_relations").select("*");
+  if (error) return { success: false, message: "Kan factiestatus niet laden." };
+  const factions: Record<string, any> = {};
+  for (const f of data || []) factions[f.faction_id] = f;
+  return { success: true, message: "OK", data: { factions } };
+}
+
+async function handleAttackFaction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { factionId, phase } = payload || {};
+  if (!factionId || !phase) return { success: false, message: "Ongeldige aanval data." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Energy check
+  if ((ps.energy || 0) < 15) return { success: false, message: "Niet genoeg energie (15 nodig)." };
+
+  // Nerve check
+  if ((ps.nerve || 0) < 10) return { success: false, message: "Niet genoeg lef (10 nodig)." };
+
+  // Get current faction state
+  const { data: faction } = await supabase.from("faction_relations")
+    .select("*").eq("faction_id", factionId).maybeSingle();
+  if (!faction) return { success: false, message: "Factie niet gevonden." };
+  if (faction.status === "vassal") return { success: false, message: `${factionId} is al een vazal.` };
+
+  // Validate phase progression
+  const validPhases = ["defense", "subboss", "leader"];
+  if (!validPhases.includes(phase)) return { success: false, message: "Ongeldige fase." };
+
+  const phaseIdx = validPhases.indexOf(phase);
+  const currentIdx = faction.conquest_phase === "none" ? -1 : validPhases.indexOf(faction.conquest_phase);
+  if (phaseIdx > currentIdx + 1) return { success: false, message: "Je moet eerst de vorige fase voltooien." };
+
+  // Server-side combat calculation
+  const stats = ps.stats || {};
+  const loadout = ps.loadout || {};
+  const muscle = getPlayerStat(stats, loadout, "muscle");
+  const brains = getPlayerStat(stats, loadout, "brains");
+
+  const phaseDifficulty = { defense: 30, subboss: 50, leader: 75 };
+  const difficulty = phaseDifficulty[phase as keyof typeof phaseDifficulty];
+
+  let chance = 40;
+  chance += muscle * 3;
+  chance += brains * 1.5;
+  chance += ps.level * 1.5;
+  chance -= difficulty;
+  chance = Math.max(10, Math.min(90, Math.round(chance)));
+
+  const roll = Math.random() * 100;
+  const success = roll < chance;
+
+  // Consume energy/nerve
+  await supabase.from("player_state").update({
+    energy: Math.max(0, (ps.energy || 0) - 15),
+    nerve: Math.max(0, (ps.nerve || 0) - 10),
+    last_action_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  if (success) {
+    const damage = 15 + Math.floor(Math.random() * 20) + Math.floor(muscle * 1.5);
+    const newHp = Math.max(0, faction.boss_hp - damage);
+    const phaseComplete = newHp <= 0;
+
+    const updateData: any = {
+      boss_hp: phaseComplete ? (phase === "leader" ? 0 : 100) : newHp,
+      last_attack_by: userId,
+      last_attack_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (phaseComplete) {
+      if (phase === "leader") {
+        // Faction conquered!
+        updateData.status = "vassal";
+        updateData.conquest_phase = "conquered";
+        updateData.conquered_by = userId;
+        updateData.conquered_at = new Date().toISOString();
+        updateData.vassal_owner_id = userId;
+        updateData.boss_hp = 0;
+      } else {
+        // Phase complete, advance
+        const nextPhase = validPhases[phaseIdx + 1] || "leader";
+        updateData.conquest_phase = nextPhase;
+        updateData.boss_hp = phase === "defense" ? 100 : 150; // Sub-boss has more HP
+        updateData.boss_max_hp = phase === "defense" ? 100 : 150;
+      }
+      updateData.conquest_progress = (phaseIdx + 1) * 33;
+    }
+
+    await supabase.from("faction_relations").update(updateData).eq("faction_id", factionId);
+
+    // Award rep/xp to attacker
+    const repGain = phaseComplete ? (phase === "leader" ? 100 : 30) : 10;
+    const xpGain = phaseComplete ? (phase === "leader" ? 150 : 50) : 20;
+    await supabase.from("player_state").update({
+      rep: (ps.rep || 0) + repGain,
+      xp: (ps.xp || 0) + xpGain,
+    }).eq("user_id", userId);
+
+    const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
+    const phaseName = phaseNames[phase as keyof typeof phaseNames];
+
+    return {
+      success: true,
+      message: phaseComplete
+        ? phase === "leader"
+          ? `👑 ${factionId} is veroverd! Je bent nu de eigenaar!`
+          : `${phaseName} fase voltooid! Schade: ${damage}. Volgende fase ontgrendeld.`
+        : `Aanval succesvol! ${damage} schade aan ${phaseName}. HP: ${newHp}/${faction.boss_max_hp}`,
+      data: {
+        damage, newHp, phaseComplete, chance,
+        conquered: phase === "leader" && phaseComplete,
+        repGain, xpGain,
+      },
+    };
+  } else {
+    // Failed attack — player takes damage
+    const playerDamage = 10 + Math.floor(Math.random() * 15);
+    const newPlayerHp = Math.max(1, (ps.hp || 100) - playerDamage);
+    const heatGain = 5 + Math.floor(Math.random() * 8);
+
+    await supabase.from("player_state").update({
+      hp: newPlayerHp,
+      heat: Math.min(100, (ps.heat || 0) + heatGain),
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + heatGain),
+    }).eq("user_id", userId);
+
+    return {
+      success: true,
+      message: `Aanval mislukt! Je hebt ${playerDamage} schade geleden en ${heatGain} heat opgelopen.`,
+      data: { damage: 0, playerDamage, heatGain, chance, conquered: false },
+    };
+  }
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -3440,7 +3581,7 @@ Deno.serve(async (req) => {
 
     // Get player state
     let playerState: any = null;
-    const skipPlayerStateActions = ["init_player", "save_state", "load_state", "get_district_data"];
+    const skipPlayerStateActions = ["init_player", "save_state", "load_state", "get_district_data", "get_faction_state"];
     if (!skipPlayerStateActions.includes(action)) {
       const { data: ps } = await supabase.from("player_state").select("*").eq("user_id", user.id).maybeSingle();
       if (!ps && action !== "get_state") {
@@ -3610,12 +3751,18 @@ Deno.serve(async (req) => {
       case "complete_hit":
         result = await handleCompleteHit(supabase, user.id, playerState, payload);
         break;
+      case "get_faction_state":
+        result = await handleGetFactionState(supabase);
+        break;
+      case "attack_faction":
+        result = await handleAttackFaction(supabase, user.id, playerState, payload);
+        break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
     }
 
     // Log action (skip get_state for performance)
-    if (action !== "get_state" && action !== "save_state" && action !== "load_state" && action !== "get_district_data") {
+    if (action !== "get_state" && action !== "save_state" && action !== "load_state" && action !== "get_district_data" && action !== "get_faction_state") {
       await supabase.from("game_action_log").insert({
         user_id: user.id, action_type: action,
         action_data: payload || {},
