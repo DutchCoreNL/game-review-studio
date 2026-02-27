@@ -1,82 +1,106 @@
 
 
-## Dag/Nacht Systeem MMO Verbetering
+## Plan: Popup Sidebar Navigation
 
-### Huidige situatie
-- Weer en dag-cyclus zijn **per speler** — elke speler heeft z'n eigen `weather` en `day` in `save_data`
-- Weer wordt random gerold bij elke `AUTO_TICK` (client-side) en `process-turn` (server-side)
-- Geen gedeeld dag/nacht concept — spelers zitten op verschillende "dagen" en zien ander weer
-- `tickIntervalMinutes = 30` (elke 30 min realtime = 1 game dag)
+### Probleem nu
+De 5 hoofd-tabs bevatten elk te veel sub-tabs:
+- **MISSIES**: 9 sub-tabs (Solo, Contracts, Crew, Hits, Heists, Bounties, Wanted, Challenges, PvP)
+- **HANDEL**: 8 sub-tabs (Markt, Analyse, Globaal, Veiling, Beurs, Witwas, Gear, Log)
+- **IMPERIUM**: 7 sub-tabs (Garage, Business, Facties, Gang, Oorlog, Wijken, Corruptie)
+- **PROFIEL**: 12 sub-tabs (Stats, Skills, Loadout, NPCs, Reputatie, Bogen, Trofeeën, Online, Mail, Imperium, Settings, Admin)
 
-### Plan: Gedeeld Wereld-Tijd Systeem
-
-**1. Database: `world_state` tabel aanmaken**
-- Eén rij met global state: `current_weather`, `time_of_day` (dawn/day/dusk/night), `world_day`, `next_cycle_at` (timestamp)
-- Realtime enabled zodat alle clients live updates krijgen
-- Weercyclus draait elke ~2 uur realtime (4 fases van 30 min: dawn → day → dusk → night)
-- Weer verandert bij elke `dawn` (nieuw dag-begin)
-
-**2. Edge function: `world-tick` cron function**
-- Draait elke 30 minuten via pg_cron of external cron
-- Roteert `time_of_day`: dawn → day → dusk → night → dawn (= nieuwe dag)
-- Bij dawn: random nieuw weer, increment `world_day`, insert `district_events` voor weer-gerelateerde events
-- Update `world_state` tabel — realtime push naar alle clients
-
-**3. Client hook: `useWorldState()`**
-- Realtime subscription op `world_state` tabel
-- Geeft `timeOfDay`, `weather`, `worldDay` terug
-- Vervangt per-speler `state.weather` met gedeelde wereld-staat
-
-**4. Visuele dag/nacht effecten**
-- `CityMap` en `WeatherOverlay` krijgen `timeOfDay`-bewuste styling:
-  - **Dawn**: warm oranje tint, zachte schaduwen
-  - **Day**: helder, standaard
-  - **Dusk**: paars/roze gradient, langere schaduwen
-  - **Night**: donkerblauw overlay, neon glows feller, straatverlichting aan
-- `GameHeader` toont dag/nacht-icoon (☀️🌅🌙) naast weer-icoon
-- Achtergrond-tint verandert subtiel op alle views
-
-**5. Gameplay-effecten per tijdsfase**
-- **Night**: +15% crime success, +10% heat gain, dealers verdienen meer, politie raids minder frequent
-- **Dawn**: energy regen bonus (+5 extra)
-- **Day**: standaard
-- **Dusk**: handel bonussen, marktprijzen fluctueren meer
-- Deze modifiers worden server-side toegepast in `game-action` en `process-turn`
-
-**6. Aanpassingen bestaande code**
-- `GameContext.tsx` AUTO_TICK: weer niet meer per-speler rollen, lees van `world_state`
-- `process-turn`: weer-effecten lezen van `world_state` in plaats van per-speler random
-- `GameHeader`: weer en tijd-icoon tonen vanuit `useWorldState()`
-- `NightReport`: toont "Nacht X" met gedeelde world day
-
-### Technische details
+### Nieuwe indeling — Sidebar met categorieën
 
 ```text
-world_state (1 rij)
-├── id: 1 (singleton)
-├── world_day: integer
-├── time_of_day: 'dawn' | 'day' | 'dusk' | 'night'
-├── current_weather: WeatherType
-├── next_cycle_at: timestamptz
-├── weather_changed_at: timestamptz
-└── updated_at: timestamptz
-
-Cyclus (2 uur = 1 volledige dag):
-dawn (30m) → day (30m) → dusk (30m) → night (30m) → dawn...
-
-world-tick edge function (elke 30 min):
-1. Lees world_state
-2. Roteer time_of_day
-3. Als dawn → nieuw weer + world_day++
-4. Update world_state
-5. Insert district_event voor weer/tijd-wijziging
+┌──────────────────────────┐
+│  NOXHAVEN     Dag 42  ✕  │
+│──────────────────────────│
+│  🗺  STAD                │
+│     Kaart                │
+│     Casino               │
+│     Ziekenhuis           │
+│     Safehouse            │
+│     Villa                │
+│──────────────────────────│
+│  ⚔  ACTIES               │
+│     Operaties            │
+│     Contracten           │
+│     Heists               │
+│     Bounties             │
+│     PvP                  │
+│     Dagelijks            │
+│──────────────────────────│
+│  💰 HANDEL               │
+│     Markt                │
+│     Analyse              │
+│     Veiling              │
+│     Beurs                │
+│     Witwassen            │
+│     Gear                 │
+│──────────────────────────│
+│  👥 CREW & OORLOG        │
+│     Crew                 │
+│     Facties              │
+│     Gang                 │
+│     Oorlog               │
+│     Corruptie            │
+│──────────────────────────│
+│  🏛  IMPERIUM             │
+│     Business             │
+│     Garage               │
+│     Wijken               │
+│──────────────────────────│
+│  👤 PROFIEL              │
+│     Stats & Skills       │
+│     Loadout              │
+│     NPC Relaties         │
+│     Reputatie            │
+│     Story Arcs           │
+│     Trofeeën            │
+│     Leaderboard          │
+│     Berichten            │
+│     Instellingen         │
+│──────────────────────────│
+│  🛡  ADMIN (als admin)    │
+└──────────────────────────┘
 ```
 
-### Implementatie-volgorde
-1. Maak `world_state` tabel + seed met initiële waarden
-2. Maak `world-tick` edge function
-3. Maak `useWorldState()` hook
-4. Update `GameHeader` met dag/nacht + weer uit world state
-5. Update `CityMap`/`WeatherOverlay` met time-of-day visuele effecten
-6. Update `game-action`/`process-turn` om world state te lezen voor modifiers
+### Technische aanpak
+
+1. **Nieuw `GameView` type uitbreiden** — `src/game/types.ts`  
+   Voeg alle directe views toe als eigen `GameView` waarden (bijv. `'casino'`, `'safehouse'`, `'villa'`, `'heists'`, `'bounties'`, `'pvp'`, `'crew'`, `'garage'`, `'business'`, etc.) zodat elke sidebar-entry direct een view opent zonder sub-tab logica.
+
+2. **Nieuw component: `GameSidebar.tsx`**  
+   - Gebruikt de bestaande `Sheet` component (slide-in van links)
+   - Gegroepeerde menu-items met iconen en categorie-headers
+   - Badge counts per item (bestaande logica hergebruiken)
+   - Sluit automatisch bij selectie
+   - Geopend via een hamburger-knop in de `GameHeader`
+
+3. **`GameHeader.tsx` aanpassen**  
+   - Hamburger menu-knop toevoegen (linksboven)
+   - Sidebar open/close state beheren
+
+4. **`GameNav.tsx` vervangen**  
+   - De bottom nav bar wordt vervangen door een minimale bar met max 4-5 snelkoppelingen (Kaart, Acties, Handel, Imperium, Menu) OF wordt volledig verwijderd ten gunste van alleen de sidebar
+
+5. **`DesktopSidebar.tsx` aanpassen**  
+   - Desktop sidebar krijgt dezelfde gecategoriseerde structuur
+   - Altijd zichtbaar op desktop, collapsible naar iconen
+
+6. **View routing in `GameLayout.tsx` aanpassen**  
+   - De `views` record uitbreiden met alle nieuwe directe views
+   - Sub-views als Casino, Villa, Safehouse uit MapView halen naar eigen top-level views
+   - Bestaande sub-tab componenten hergebruiken als standalone views
+
+7. **Bestaande sub-tab views vereenvoudigen**  
+   - `OperationsView`, `TradeView`, `ImperiumView`, `ProfileView` worden ofwel gesplitst in aparte views, ofwel behouden als container maar met minder sub-tabs doordat items nu direct bereikbaar zijn via de sidebar
+
+### Aanpak voor bottom nav (mobiel)
+
+De bottom nav blijft bestaan maar wordt vereenvoudigd tot 4 items + menu-knop:
+```text
+[ 🗺 Kaart | ⚔ Acties | 💰 Handel | 🏛 Imperium | ☰ Menu ]
+```
+De "Menu" knop opent de volledige sidebar sheet. Profiel en andere secties zijn dan via het menu bereikbaar.
 
