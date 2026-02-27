@@ -3,7 +3,7 @@
  * Generates personality-based events for crew members, with choices and consequences.
  */
 
-import type { GameState, PersonalityTrait, CrewMember, DistrictId, FamilyId } from './types';
+import type { GameState, PersonalityTrait, CrewMember, CrewRole, DistrictId, FamilyId } from './types';
 import { addPhoneMessage } from './newFeatures';
 
 export interface CrewEventChoice {
@@ -311,6 +311,173 @@ const PERSONALITY_EVENTS: Record<PersonalityTrait, EventTemplate[]> = {
   ],
 };
 
+// ========== ROLE-BASED PERSONAL DILEMMA EVENTS ==========
+
+interface RoleDilemmaTemplate {
+  id: string;
+  /** Only triggers for this role */
+  role: CrewRole;
+  /** Minimum loyalty for this event to appear (personal dilemmas need some relationship) */
+  minLoyalty: number;
+  message: (name: string, district: string) => string;
+  choices: CrewEventChoice[];
+  resolve: (choiceId: string, state: GameState, crewIndex: number) => CrewEventResult;
+}
+
+const ROLE_DILEMMA_EVENTS: RoleDilemmaTemplate[] = [
+  // ===== CHAUFFEUR DILEMMAS =====
+  {
+    id: 'chauffeur_brother',
+    role: 'Chauffeur',
+    minLoyalty: 25,
+    message: (name) => `Baas... mijn jongere broertje is gearresteerd voor joyriding. Hij is 17. Ik kan hem eruit kopen voor €4.000, of ik haal hem er zelf uit — maar dat kost heat. Wat moet ik doen?`,
+    choices: [
+      { id: 'pay', label: 'Betaal het', desc: 'Koop zijn broer vrij (€4.000)' },
+      { id: 'breakout', label: 'Haal hem eruit', desc: 'Riskante bevrijding' },
+      { id: 'leave', label: 'Laat maar', desc: 'Niet jouw probleem' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'pay': return { text: 'Zijn broertje is vrij. Hij zal dit nooit vergeten. "Je bent meer dan een baas."', loyaltyChange: 30, moneyChange: -4000, heatChange: 0, repChange: 5, karmaChange: 8 };
+        case 'breakout': return { text: 'De bevrijding lukt, maar de politie is woedend. Zijn broertje is veilig.', loyaltyChange: 25, moneyChange: 0, heatChange: 15, repChange: 10, karmaChange: -3 };
+        default: return { text: '"Oké." Hij zegt verder niets, maar je ziet iets breken in zijn ogen.', loyaltyChange: -25, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: -5 };
+      }
+    },
+  },
+  {
+    id: 'chauffeur_race_debt',
+    role: 'Chauffeur',
+    minLoyalty: 40,
+    message: (name) => `Voor ik bij jou kwam, had ik een racecarrière. Maar ik heb nog een schuld van €6.000 bij de oude racebaan-eigenaar. Hij dreigt mijn familie lastig te vallen. Kun je helpen?`,
+    choices: [
+      { id: 'pay_debt', label: 'Schuld afbetalen', desc: 'Betaal €6.000' },
+      { id: 'intimidate', label: 'Intimideren', desc: 'Stuur een boodschap naar de eigenaar' },
+      { id: 'ignore', label: 'Jouw probleem', desc: 'Los het zelf op' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'pay_debt': return { text: 'Schuld vereffend. Hij rijdt nu met een gerust hart — en sneller dan ooit.', loyaltyChange: 25, moneyChange: -6000, heatChange: 0, repChange: 0, karmaChange: 5 };
+        case 'intimidate': return { text: 'De eigenaar begrijpt de boodschap. Maar je hebt een vijand gemaakt.', loyaltyChange: 15, moneyChange: 0, heatChange: 8, repChange: 5, karmaChange: -8 };
+        default: return { text: 'Hij is stil. De schuld vreet aan hem en zijn focus verslechtert.', loyaltyChange: -20, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: 0 };
+      }
+    },
+  },
+
+  // ===== ENFORCER DILEMMAS =====
+  {
+    id: 'enforcer_old_friend',
+    role: 'Enforcer',
+    minLoyalty: 30,
+    message: (name) => `Baas, ik moet je iets vertellen. Een doelwit op de hitlijst... dat is mijn oude jeugdvriend. We groeiden samen op. Ik kan dit niet doen. Niet hem. Geef me een andere opdracht.`,
+    choices: [
+      { id: 'spare', label: 'Vriend sparen', desc: 'Geef hem een andere taak' },
+      { id: 'force', label: 'Opdracht is opdracht', desc: 'Dwing hem' },
+      { id: 'go_yourself', label: 'Ik doe het zelf', desc: 'Neem het over' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'spare': return { text: 'Hij is dankbaar. "Sommige dingen zijn belangrijker dan de business." Zijn respect voor jou groeit.', loyaltyChange: 30, moneyChange: 0, heatChange: 0, repChange: -5, karmaChange: 10 };
+        case 'force': return { text: 'Hij doet het. Maar als hij terugkomt, is hij een ander mens. Hij praat niet meer.', loyaltyChange: -30, moneyChange: 0, heatChange: 0, repChange: 10, karmaChange: -15 };
+        default: return { text: 'Hij knikt. "Bedankt." Hij weet dat je hem hebt beschermd, op jouw manier.', loyaltyChange: 20, moneyChange: 0, heatChange: 5, repChange: 5, karmaChange: 3 };
+      }
+    },
+  },
+  {
+    id: 'enforcer_ptsd',
+    role: 'Enforcer',
+    minLoyalty: 50,
+    message: (name) => `Ik slaap niet meer. Elke nacht zie ik de gezichten. Ik heb hulp nodig, baas. Professionele hulp. Maar dat kost geld en tijd — een week geen gevechten.`,
+    choices: [
+      { id: 'therapy', label: 'Betaal therapie', desc: '€3.000 + 1 week geen gevechten' },
+      { id: 'drink', label: 'Drink erover heen', desc: 'Geef hem een fles en een klap op de schouder' },
+      { id: 'fire', label: 'Zwak excuus', desc: 'Als je niet kunt werken, ben je nutteloos' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'therapy': return { text: 'Na een week is hij terug. Scherper. Stabieler. "Je hebt mijn leven gered, baas."', loyaltyChange: 35, moneyChange: -3000, heatChange: 0, repChange: 0, karmaChange: 12 };
+        case 'drink': return { text: 'Hij drinkt. Het helpt even. Maar de nachtmerries komen terug.', loyaltyChange: -5, moneyChange: -200, heatChange: 0, repChange: 0, karmaChange: -3 };
+        default: return { text: 'Zijn ogen worden hard. "Dan weet ik genoeg." Zijn loyaliteit daalt drastisch.', loyaltyChange: -35, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: -10 };
+      }
+    },
+  },
+
+  // ===== HACKER DILEMMAS =====
+  {
+    id: 'hacker_identity',
+    role: 'Hacker',
+    minLoyalty: 25,
+    message: (name) => `Ik heb iets ontdekt tijdens het hacken. Mijn echte identiteit is gelekt op het darkweb. Iemand verkoopt mijn gegevens. Ik moet verdwijnen of de bron elimineren. Help me.`,
+    choices: [
+      { id: 'hunt', label: 'Bron vinden', desc: 'Spoor de verkoper op' },
+      { id: 'new_id', label: 'Nieuwe identiteit', desc: 'Betaal €5.000 voor een nieuw leven' },
+      { id: 'nothing', label: 'Niet mijn zorg', desc: 'Jouw digitale problemen' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'hunt': return { text: 'Samen traceren jullie de verkoper. Het lek is gedicht. Hij hackt nu met hernieuwde passie.', loyaltyChange: 25, moneyChange: 0, heatChange: 5, repChange: 10, karmaChange: -3 };
+        case 'new_id': return { text: 'Nieuwe identiteit aangemaakt. Hij is veilig en eeuwig dankbaar.', loyaltyChange: 30, moneyChange: -5000, heatChange: -5, repChange: 0, karmaChange: 5 };
+        default: return { text: 'Hij verdwijnt een week. Als hij terugkomt, vertrouwt hij je niet meer.', loyaltyChange: -25, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: -3 };
+      }
+    },
+  },
+  {
+    id: 'hacker_ethics',
+    role: 'Hacker',
+    minLoyalty: 45,
+    message: (name) => `Baas, ik heb per ongeluk het ziekenhuis-systeem gehackt in plaats van het banknetwerk. Ik kan patiëntgegevens verkopen voor €8.000... maar dat voelt verkeerd. Wat doen we?`,
+    choices: [
+      { id: 'sell', label: 'Verkopen', desc: 'Data is data. €8.000 winst.' },
+      { id: 'delete', label: 'Wissen', desc: 'Vernietig de data' },
+      { id: 'ransom', label: 'Losgeld', desc: 'Laat het ziekenhuis betalen voor hun eigen data' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'sell': return { text: 'De data is verkocht. Het geld stroomt binnen, maar het voelt smerig.', loyaltyChange: -10, moneyChange: 8000, heatChange: 10, repChange: -10, karmaChange: -20 };
+        case 'delete': return { text: '"Bedankt, baas. Er zijn grenzen." Hij respecteert je meer dan ooit.', loyaltyChange: 30, moneyChange: 0, heatChange: 0, repChange: 5, karmaChange: 15 };
+        default: return { text: 'Het ziekenhuis betaalt. Maar het nieuws lekt en je reputatie lijdt.', loyaltyChange: 0, moneyChange: 5000, heatChange: 12, repChange: -15, karmaChange: -12 };
+      }
+    },
+  },
+
+  // ===== SMOKKELAAR DILEMMAS =====
+  {
+    id: 'smokkelaar_family',
+    role: 'Smokkelaar',
+    minLoyalty: 30,
+    message: (name) => `Mijn zus zit vast in het buitenland. Geen papieren. Ik kan haar via mijn smokkelroute hierheen halen, maar dan ligt die route een week plat. Of je betaalt €3.500 voor een legale route.`,
+    choices: [
+      { id: 'smuggle', label: 'Smokkelroute', desc: 'Gebruik de route (1 week geen smokkel)' },
+      { id: 'pay_legal', label: 'Legaal regelen', desc: 'Betaal €3.500' },
+      { id: 'refuse', label: 'Niet mogelijk', desc: 'De route is te belangrijk' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'smuggle': return { text: 'Zijn zus is veilig. Hij huilt voor het eerst in jaren. "Ik sta bij je in het krijt."', loyaltyChange: 35, moneyChange: 0, heatChange: 3, repChange: 0, karmaChange: 8 };
+        case 'pay_legal': return { text: 'Alles geregeld. Zijn zus arriveert veilig. De route blijft open.', loyaltyChange: 30, moneyChange: -3500, heatChange: 0, repChange: 0, karmaChange: 10 };
+        default: return { text: '"Ik dacht dat je anders was." De teleurstelling snijdt dieper dan woede.', loyaltyChange: -30, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: -8 };
+      }
+    },
+  },
+  {
+    id: 'smokkelaar_conscience',
+    role: 'Smokkelaar',
+    minLoyalty: 50,
+    message: (name) => `Er is een nieuwe lading binnengekomen. Maar ik heb ontdekt dat er mensen bij zitten. Vluchtelingen. Ze wilden alleen maar een beter leven. Ik smokkel goederen, geen mensen. Wat doen we?`,
+    choices: [
+      { id: 'free', label: 'Laat ze vrij', desc: 'Verlies de lading, red de mensen' },
+      { id: 'deliver', label: 'Doorleveren', desc: 'Het is business' },
+      { id: 'help_resettle', label: 'Hervestigen', desc: 'Help ze op een veilige plek (€2.000)' },
+    ],
+    resolve: (choiceId) => {
+      switch (choiceId) {
+        case 'free': return { text: 'De vluchtelingen zijn vrij. Je verliest de lading maar wint respect. "Dít is waarom ik voor jou werk."', loyaltyChange: 30, moneyChange: -2000, heatChange: 0, repChange: 15, karmaChange: 20 };
+        case 'deliver': return { text: 'De levering is gedaan. Maar hij kijkt je niet meer in de ogen.', loyaltyChange: -25, moneyChange: 5000, heatChange: 5, repChange: -10, karmaChange: -25 };
+        default: return { text: 'Ze zijn veilig gehervestigd. Een goede daad in een duistere wereld.', loyaltyChange: 35, moneyChange: -2000, heatChange: 0, repChange: 10, karmaChange: 18 };
+      }
+    },
+  },
+];
+
 // ========== DISTRICT NAMES FOR MESSAGES ==========
 
 const DISTRICT_DISPLAY: Record<DistrictId, string> = {
@@ -350,12 +517,31 @@ export function rollCrewEvent(state: GameState): CrewLoyaltyEvent | null {
 
     if (Math.random() >= chance) continue;
 
-    // Pick a random event for this personality
+    // 40% chance to roll a personal dilemma instead of a personality event
+    const eligibleDilemmas = ROLE_DILEMMA_EVENTS.filter(
+      d => d.role === member.role && member.loyalty >= d.minLoyalty
+    );
+    const useDilemma = eligibleDilemmas.length > 0 && Math.random() < 0.4;
+
+    const districtName = DISTRICT_DISPLAY[state.loc] || 'de stad';
+
+    if (useDilemma) {
+      const dilemma = eligibleDilemmas[Math.floor(Math.random() * eligibleDilemmas.length)];
+      return {
+        id: `${dilemma.id}_${state.day}_${i}`,
+        crewIndex: i,
+        crewName: member.name,
+        personality,
+        message: dilemma.message(member.name, districtName),
+        choices: dilemma.choices,
+        day: state.day,
+      };
+    }
+
+    // Pick a random personality event
     const templates = PERSONALITY_EVENTS[personality];
     if (!templates || templates.length === 0) continue;
     const template = templates[Math.floor(Math.random() * templates.length)];
-
-    const districtName = DISTRICT_DISPLAY[state.loc] || 'de stad';
 
     return {
       id: `${template.id}_${state.day}_${i}`,
@@ -374,10 +560,13 @@ export function rollCrewEvent(state: GameState): CrewLoyaltyEvent | null {
 /** Resolve a crew event choice */
 export function resolveCrewEvent(state: GameState, event: CrewLoyaltyEvent, choiceId: string): CrewEventResult {
   const personality = event.personality;
+  // Try personality templates first, then role dilemma templates
   const templates = PERSONALITY_EVENTS[personality];
-  const templateId = event.id.split('_').slice(0, -2).join('_'); // extract original template id
-  // Find matching template by checking id prefix
-  const template = templates?.find(t => event.id.startsWith(t.id));
+  let template: EventTemplate | RoleDilemmaTemplate | undefined = templates?.find(t => event.id.startsWith(t.id));
+
+  if (!template) {
+    template = ROLE_DILEMMA_EVENTS.find(d => event.id.startsWith(d.id));
+  }
   
   if (!template) {
     return { text: 'Iets ging mis.', loyaltyChange: 0, moneyChange: 0, heatChange: 0, repChange: 0, karmaChange: 0 };
