@@ -631,8 +631,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         switch (checkId) {
           case 'final_boss': return s.finalBossDefeated;
           case 'all_factions': return (s.conqueredFactions?.length || 0) >= 3;
-          case 'nemesis_gen3': return (s.nemesis?.generation || 1) > 3;
-          case 'all_vehicles': return VEHICLES.every(v => s.ownedVehicles.some(ov => ov.id === v.id));
+          case 'nemesis_gen3': return (s.nemesis?.generation || 1) >= 3;
+          case 'all_vehicles': return VEHICLES.filter(v => !v.reqPrestige).every(v => s.ownedVehicles.some(ov => ov.id === v.id));
           default: return false;
         }
       };
