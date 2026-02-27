@@ -1,57 +1,43 @@
 
 
-## Plan: Fix Sidebar Navigation View Mapping
+## Plan: Factie World Boss Systeem
 
-### Problemen gevonden
+### Huidige situatie
+- `faction_relations` tabel bestaat al met gedeelde boss HP, conquest phases, en `conquered_by`/`vassal_owner_id`
+- `handleAttackFaction` in game-action verwerkt al schade server-side
+- Probleem: na verovering blijft de factie permanent "vassal" voor één speler — geen reset, geen competitie
 
-De sidebar definieert ~35 navigatie-items, maar veel view-mappings in `GameLayout.tsx` wijzen naar container-views (`OperationsView`, `ImperiumView`, `ProfileView`) die hun eigen sub-tab state hebben. Hierdoor opent bijv. "Contracten" altijd de OperationsView op de 'solo' tab in plaats van 'contracts'.
+### Wat verandert
 
-Specifieke issues:
-- `contracts` → `OperationsView` (opent altijd op 'solo')
-- `crew` → `OperationsView` (opent altijd op 'solo')  
-- `families` → `ImperiumView` (opent altijd op 'garage')
-- `business` → `ImperiumView` (opent altijd op 'garage')
-- `loadout` → `ProfileView` (opent altijd op 'stats')
-- `trophies` → `ProfileView` (opent altijd op 'stats')
-- `BusinessPanel` en `FamiliesPanel` zijn private functies in `ImperiumView.tsx` en niet importeerbaar
-- ProfileView toont nog steeds alle sub-tabs als duplicaat van de sidebar
+**Database (migration):**
+- Kolom `reset_at` (timestamptz) toevoegen aan `faction_relations` — wanneer de boss respawnt
+- Kolom `total_damage_dealt` (jsonb, default `{}`) — tracked per-user schade bijdrage voor rewards
+- Kolom `conquest_reward_claimed` (jsonb, default `[]`) — voorkomt dubbele reward claims
 
-### Implementatiestappen
+**Edge function `world-tick`:**
+- Bij elke tick: check of veroverde facties voorbij hun `reset_at` zijn (48 uur na conquest)
+- Zo ja: reset faction naar `active`, boss_hp naar 100, conquest_phase naar `none`, wis conquered_by
+- Genereer een news_event: "De [factie] heeft zich hersteld en een nieuwe leider gekozen!"
 
-1. **Exporteer `BusinessPanel` en `FamiliesPanel` uit `ImperiumView.tsx`**
-   - Maak ze `export function` i.p.v. private functions
-   - Of verplaats ze naar eigen bestanden
+**Edge function `game-action` (handleAttackFaction):**
+- Track individuele schade in `total_damage_dealt` jsonb: `{ "user-id": 150, "user-id-2": 80 }`
+- Bij conquest: zet `reset_at = now() + 48h`, geef top-3 damage dealers extra rewards
+- De `conquered_by` speler krijgt tijdelijke vazal-bonussen (48h passief inkomen)
 
-2. **Extraheer `StatsPanel`, `LoadoutPanel`, `TrophiesPanel` uit `ProfileView.tsx`**
-   - De inline code voor `stats`, `loadout` en `trophies` tabs moet als aparte exporteerbare componenten bestaan
-   - ProfileView kan dan een wrapper blijven die de juiste sub-component rendert op basis van de huidige `view`
+**Frontend FactionCard:**
+- Toon gedeelde boss HP bar met "X spelers hebben aangevallen" indicator
+- Bij veroverde factie: toon countdown timer tot reset
+- Toon damage leaderboard (top aanvallers) per factie
+- Verwijder permanent "vazal" state — vervang door tijdelijke controle indicator
 
-3. **Extraheer `CrewPanel` en `ContractsPanel` uit `OperationsView.tsx`**  
-   - De inline code voor `crew` en `contracts` sub-tabs wordt aparte componenten
+**Frontend useFactionState hook:**
+- Voeg `resetCountdown` berekening toe op basis van `reset_at`
+- Realtime updates werken al via postgres_changes subscription
 
-4. **Update `GameLayout.tsx` view mapping**
-   - Elke sidebar-entry wijst naar het correcte standalone component:
-     - `contracts` → `ContractsPanel`
-     - `crew` → `CrewPanel`  
-     - `families` → `FamiliesPanel`
-     - `business` → `BusinessPanel`
-     - `loadout` → `LoadoutPanel`
-     - `trophies` → `TrophiesPanel`
-     - `profile` → `StatsPanel` (of een vereenvoudigde ProfileView zonder sub-tabs)
-
-5. **Verwijder SubTabBar uit OperationsView, ImperiumView, ProfileView**
-   - Deze container-views worden niet meer direct gebruikt
-   - Of: vereenvoudig ze tot alleen hun "hoofd" content (solo ops, stats overview)
-   - De sub-tab navigatie is nu volledig vervangen door de sidebar
-
-6. **`ops` view vereenvoudigen**
-   - `OperationsView` wordt de "Solo Operaties" view zonder sub-tabs
-   - Alle andere sub-tabs zijn nu standalone views via de sidebar
-
-### Technische details
-
-- Circa 6 nieuwe component-bestanden of exports
-- `GameLayout.tsx` views record wordt bijgewerkt met correcte imports
-- Geen database- of type-wijzigingen nodig — `GameView` type is al compleet
-- De `DesktopSidebar` en `GameSidebar` hoeven niet aangepast te worden
+### Stappen
+1. Database migration: `reset_at`, `total_damage_dealt`, `conquest_reward_claimed` kolommen
+2. Update `world-tick`: faction reset logica bij verlopen timer
+3. Update `game-action/handleAttackFaction`: damage tracking per user, reset_at bij conquest, rewards voor top damage dealers
+4. Update `FactionCard`: countdown timer, damage leaderboard, gedeelde boss HP indicator
+5. Update `FamiliesPanel`/`useFactionState`: verwerk nieuwe velden
 
