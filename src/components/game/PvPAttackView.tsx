@@ -195,13 +195,15 @@ export function PvPAttackView() {
                 </div>
               </div>
               <div className="flex gap-1">
-                <GameButton
-                  variant="muted"
-                  size="sm"
-                  onClick={() => setMessageTarget({ userId: p.userId, username: p.username })}
-                >
-                  <Mail size={10} />
-                </GameButton>
+                {!p.userId.startsWith('bot_') && (
+                  <GameButton
+                    variant="muted"
+                    size="sm"
+                    onClick={() => setMessageTarget({ userId: p.userId, username: p.username })}
+                  >
+                    <Mail size={10} />
+                  </GameButton>
+                )}
                 <GameButton
                   variant={canAttack ? 'blood' : 'muted'}
                   size="sm"

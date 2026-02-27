@@ -38,12 +38,53 @@ export function LeaderboardView() {
 
   const fetchLeaderboard = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const TARGET_COUNT = 50;
+
+    // Fetch real players
+    const { data: realData } = await supabase
       .from('leaderboard_entries')
       .select('*')
       .order(sortBy, { ascending: false })
-      .limit(50);
-    setEntries((data as LeaderboardEntry[]) || []);
+      .limit(TARGET_COUNT);
+
+    const realEntries = (realData as LeaderboardEntry[]) || [];
+
+    // Fill with bots if needed
+    const botsNeeded = Math.max(0, TARGET_COUNT - realEntries.length);
+    if (botsNeeded > 0) {
+      const { data: bots } = await supabase
+        .from('bot_players')
+        .select('*')
+        .eq('is_active', true)
+        .limit(botsNeeded);
+
+      if (bots && bots.length > 0) {
+        const botEntries: LeaderboardEntry[] = bots.map((b: any) => ({
+          id: b.id,
+          user_id: `bot_${b.id}`,
+          username: b.username,
+          rep: b.rep,
+          cash: b.cash,
+          day: b.day,
+          level: b.level,
+          districts_owned: b.districts_owned,
+          crew_size: b.crew_size,
+          karma: b.karma,
+          backstory: b.backstory,
+          updated_at: b.created_at,
+        }));
+        realEntries.push(...botEntries);
+      }
+    }
+
+    // Re-sort combined list
+    realEntries.sort((a, b) => {
+      const valA = sortBy === 'cash' ? Number(a[sortBy]) : a[sortBy];
+      const valB = sortBy === 'cash' ? Number(b[sortBy]) : b[sortBy];
+      return (valB as number) - (valA as number);
+    });
+
+    setEntries(realEntries.slice(0, TARGET_COUNT));
     setLoading(false);
   };
 
