@@ -108,6 +108,7 @@ type GameAction =
   | { type: 'DISMISS_SPEC_CHOICE' }
   | { type: 'TOGGLE_PHONE' }
   | { type: 'READ_MESSAGE'; messageId: string }
+  | { type: 'READ_ALL_MESSAGES' }
   | { type: 'TRACK_BLACKJACK_WIN' }
   | { type: 'RESET_BLACKJACK_STREAK' }
   | { type: 'TRACK_HIGHLOW_ROUND'; round: number }
@@ -1345,6 +1346,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         msg.read = true;
         s.phone.unread = Math.max(0, s.phone.unread - 1);
       }
+      return s;
+    }
+
+    case 'READ_ALL_MESSAGES': {
+      s.phone.messages.forEach(m => { m.read = true; });
+      s.phone.unread = 0;
       return s;
     }
 

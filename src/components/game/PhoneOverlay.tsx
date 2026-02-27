@@ -54,9 +54,19 @@ export function PhoneOverlay() {
                 </span>
               )}
             </div>
-            <button onClick={() => dispatch({ type: 'TOGGLE_PHONE' })} className="text-muted-foreground hover:text-foreground">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              {state.phone.unread > 0 && (
+                <button
+                  onClick={() => dispatch({ type: 'READ_ALL_MESSAGES' })}
+                  className="text-[0.5rem] text-gold hover:text-gold/80 uppercase tracking-wider font-bold"
+                >
+                  Alles gelezen
+                </button>
+              )}
+              <button onClick={() => dispatch({ type: 'TOGGLE_PHONE' })} className="text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto game-scroll space-y-2">
