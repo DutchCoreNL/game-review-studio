@@ -221,7 +221,7 @@ export function GameLayout() {
     if (serverEventId !== prevActiveEventRef.current) {
       prevActiveEventRef.current = serverEventId;
       if (serverEvent && serverEvent.daysLeft > 0) {
-        (state as any).activeWeekEvent = serverEvent;
+        dispatch({ type: 'SET_WEEK_EVENT', event: serverEvent });
       }
     }
   }, [worldState.activeEvent]);
