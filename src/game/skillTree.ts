@@ -145,17 +145,34 @@ export const LEVEL_GATES: { level: number; unlocks: string[] }[] = [
 
 // ========== PRESTIGE CONFIG ==========
 
+export interface PrestigePerk {
+  level: number;
+  label: string;
+  icon: string;
+  desc: string;
+  cash_bonus: number;
+  sp_carry: number;
+  stat_bonus?: Record<string, number>;
+  max_hp_bonus?: number;
+  max_energy_bonus?: number;
+}
+
 export const PRESTIGE_CONFIG = {
   requiredLevel: 50,
-  xpBonusPerLevel: 0.05, // +5% per prestige
+  xpBonusPerLevel: 0.05,
   maxPrestige: 10,
   rewards: [
-    { level: 1, reward: 'Prestige Badge 🥇', desc: 'Gouden badge naast je naam' },
-    { level: 2, reward: 'Elite Contracts ⚡', desc: 'Toegang tot elite contracten' },
-    { level: 3, reward: 'Prestige Gear 🔮', desc: 'Unieke prestige wapens' },
-    { level: 5, reward: 'Prestige Villa 🏰', desc: 'Speciale villa modules' },
-    { level: 10, reward: 'Legende Status 💀', desc: 'Permanente leaderboard vermelding' },
-  ],
+    { level: 1, label: 'Prestige I', icon: '🥇', desc: 'Gouden badge + €25K startbonus', cash_bonus: 25000, sp_carry: 2 },
+    { level: 2, label: 'Prestige II', icon: '⚡', desc: 'Elite Contracts + Kracht +2, HP +10', cash_bonus: 50000, sp_carry: 3, stat_bonus: { muscle: 2 }, max_hp_bonus: 10 },
+    { level: 3, label: 'Prestige III', icon: '🔮', desc: 'Prestige Gear + Vernuft +2, Energy +10', cash_bonus: 75000, sp_carry: 4, stat_bonus: { brains: 2 }, max_energy_bonus: 10 },
+    { level: 4, label: 'Prestige IV', icon: '🎖️', desc: 'Veteraan + Charisma +2, HP +15', cash_bonus: 100000, sp_carry: 5, stat_bonus: { charm: 2 }, max_hp_bonus: 15 },
+    { level: 5, label: 'Prestige V', icon: '🏰', desc: 'Prestige Villa + Kracht/Vernuft +2, Energy +15', cash_bonus: 150000, sp_carry: 6, stat_bonus: { muscle: 2, brains: 2 }, max_energy_bonus: 15 },
+    { level: 6, label: 'Prestige VI', icon: '👑', desc: 'Onderwerelds Icoon + Kracht +3, Charisma +2, HP +20', cash_bonus: 200000, sp_carry: 7, stat_bonus: { muscle: 3, charm: 2 }, max_hp_bonus: 20 },
+    { level: 7, label: 'Prestige VII', icon: '🌑', desc: 'Schaduwkoning + Vernuft/Charisma +3, Energy +20', cash_bonus: 250000, sp_carry: 8, stat_bonus: { brains: 3, charm: 3 }, max_energy_bonus: 20 },
+    { level: 8, label: 'Prestige VIII', icon: '💀', desc: 'Onsterfelijk + Alle stats +3, HP +25', cash_bonus: 350000, sp_carry: 9, stat_bonus: { muscle: 3, brains: 3, charm: 3 }, max_hp_bonus: 25 },
+    { level: 9, label: 'Prestige IX', icon: '🔱', desc: 'Godfather + Alle stats +5, HP +30, Energy +25', cash_bonus: 500000, sp_carry: 10, stat_bonus: { muscle: 5, brains: 5, charm: 5 }, max_hp_bonus: 30, max_energy_bonus: 25 },
+    { level: 10, label: 'Prestige X', icon: '🌟', desc: 'Legende + Alle stats +8, HP +50, Energy +50, €1M', cash_bonus: 1000000, sp_carry: 15, stat_bonus: { muscle: 8, brains: 8, charm: 8 }, max_hp_bonus: 50, max_energy_bonus: 50 },
+  ] as PrestigePerk[],
 };
 
 /** Get total skill level for a given skill across all levels */
