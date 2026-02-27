@@ -151,6 +151,7 @@ type GameAction =
   | { type: 'DISMISS_FLASHBACK' }
   // Hitman & Ammo actions
   | { type: 'BUY_AMMO'; packId: string; ammoType: import('../game/types').AmmoType }
+  | { type: 'LOAD_AMMO_FROM_INVENTORY'; ammoType: import('../game/types').AmmoType; quantity: number }
   | { type: 'EXECUTE_HIT'; hitId: string }
   | { type: 'CRUSH_CAR'; carId: string }
   // Prison actions
@@ -1865,6 +1866,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= pack.cost;
       s.stats.totalSpent += pack.cost;
       s.ammoStock[aType] = Math.min(99, (s.ammoStock[aType] || 0) + pack.amount);
+      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
+      return s;
+    }
+
+    case 'LOAD_AMMO_FROM_INVENTORY': {
+      // Convert "weapons" goods from inventory into ammo
+      const weaponsOwned = s.inventory.weapons || 0;
+      if (weaponsOwned <= 0) return s;
+      const qty = Math.min(action.quantity, weaponsOwned);
+      const ammoPerWeapon = 6; // Each weapons good = 6 ammo
+      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
+      const aType = action.ammoType;
+      const currentAmmo = s.ammoStock[aType] || 0;
+      if (currentAmmo >= 99) return s;
+      const maxCanLoad = Math.floor((99 - currentAmmo) / ammoPerWeapon);
+      const actualQty = Math.min(qty, Math.max(1, maxCanLoad));
+      if (actualQty <= 0) return s;
+      s.inventory.weapons = weaponsOwned - actualQty;
+      s.ammoStock[aType] = Math.min(99, currentAmmo + (actualQty * ammoPerWeapon));
       s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
       return s;
     }
