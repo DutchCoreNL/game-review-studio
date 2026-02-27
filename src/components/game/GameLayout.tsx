@@ -80,6 +80,12 @@ const GearPanel = React.lazy(() => import('./trade/GearPanel').then(m => ({ defa
 // Lazy imperium sub-panels  
 const DistrictDefensePanel = React.lazy(() => import('./imperium/DistrictDefensePanel').then(m => ({ default: m.DistrictDefensePanel })));
 const DistrictLeaderboardPanel = React.lazy(() => import('./imperium/DistrictLeaderboardPanel').then(m => ({ default: m.DistrictLeaderboardPanel })));
+const BusinessPanel = React.lazy(() => import('./imperium/BusinessPanel').then(m => ({ default: m.BusinessPanel })));
+const FamiliesPanel = React.lazy(() => import('./imperium/FamiliesPanel').then(m => ({ default: m.FamiliesPanel })));
+
+// Lazy ops sub-panels
+const ContractsPanel = React.lazy(() => import('./ops/ContractsPanel').then(m => ({ default: m.ContractsPanel })));
+const CrewPanel = React.lazy(() => import('./ops/CrewPanel').then(m => ({ default: m.CrewPanel })));
 
 // Lazy profile sub-panels
 const SkillTreePanel = React.lazy(() => import('./profile/SkillTreePanel').then(m => ({ default: m.SkillTreePanel })));
@@ -88,6 +94,8 @@ const StoryArcsPanel = React.lazy(() => import('./profile/StoryArcsPanel').then(
 const ReputationLeaderboard = React.lazy(() => import('./profile/ReputationLeaderboard').then(m => ({ default: m.ReputationLeaderboard })));
 const DrugEmpireStatsPanel = React.lazy(() => import('./profile/DrugEmpireStatsPanel').then(m => ({ default: m.DrugEmpireStatsPanel })));
 const AudioSettingsPanel = React.lazy(() => import('./profile/AudioSettingsPanel').then(m => ({ default: m.AudioSettingsPanel })));
+const LoadoutPanel = React.lazy(() => import('./profile/LoadoutPanel').then(m => ({ default: m.LoadoutPanel })));
+const TrophiesPanel = React.lazy(() => import('./profile/TrophiesPanel').then(m => ({ default: m.TrophiesPanel })));
 
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
@@ -100,13 +108,14 @@ const views: Record<string, React.ComponentType> = {
   chopshop: ChopShopView,
   // Acties
   ops: OperationsView,
-  contracts: OperationsView, // opens with contracts sub-tab
+  contracts: ContractsPanel,
   heists: HeistView,
   bounties: BountyBoardPanel,
   pvp: PvPAttackView,
   challenges: DailyChallengesView,
   hits: HitsView,
   wanted: MostWantedView,
+  crew: CrewPanel,
   // Handel
   trade: TradeView,
   market: MarketPanel,
@@ -116,24 +125,23 @@ const views: Record<string, React.ComponentType> = {
   launder: LaunderingPanel,
   gear: GearPanel,
   // Crew & Oorlog
-  crew: OperationsView, // crew sub-tab in ops
-  families: ImperiumView,
+  families: FamiliesPanel,
   gang: GangView,
   war: DistrictDefensePanel,
   corruption: CorruptionView,
   // Imperium
   empire: ImperiumView,
-  business: ImperiumView,
+  business: BusinessPanel,
   garage: GarageView,
   districts: DistrictLeaderboardPanel,
   // Profiel
   profile: ProfileView,
   skills: SkillTreePanel,
-  loadout: ProfileView,
+  loadout: LoadoutPanel,
   contacts: NpcRelationsPanel,
   reputation: ReputationLeaderboard,
   arcs: StoryArcsPanel,
-  trophies: ProfileView,
+  trophies: TrophiesPanel,
   leaderboard: LeaderboardView,
   messages: MessagesView,
   'imperium-stats': DrugEmpireStatsPanel,
