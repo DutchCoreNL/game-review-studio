@@ -243,17 +243,34 @@ export function SkillTreePanel() {
           </div>
         )}
         
-        {PRESTIGE_CONFIG.rewards.map(r => (
-          <div key={r.level} className={`flex items-center gap-2 text-[0.5rem] py-0.5 ${prestige >= r.level ? '' : 'opacity-40'}`}>
-            <span className="font-bold">{r.reward}</span>
-            <span className="text-muted-foreground flex-1">{r.desc}</span>
-            {prestige >= r.level && <span className="text-emerald">✓</span>}
-          </div>
-        ))}
+        <div className="space-y-1.5">
+          {PRESTIGE_CONFIG.rewards.map(r => {
+            const unlocked = prestige >= r.level;
+            return (
+              <div key={r.level} className={`flex items-start gap-2 text-[0.5rem] py-1 px-1.5 rounded ${
+                unlocked ? 'bg-game-purple/10 border border-game-purple/20' : 'opacity-40'
+              }`}>
+                <span className="text-sm flex-shrink-0">{r.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-bold ${unlocked ? 'text-game-purple' : ''}`}>{r.label}</span>
+                    {unlocked && <span className="text-emerald text-[0.4rem]">✓</span>}
+                  </div>
+                  <p className="text-[0.4rem] text-muted-foreground">{r.desc}</p>
+                  <div className="flex gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[0.4rem] px-1 py-0.5 rounded bg-gold/10 text-gold font-semibold">€{r.cash_bonus.toLocaleString()}</span>
+                    <span className="text-[0.4rem] px-1 py-0.5 rounded bg-ice/10 text-ice font-semibold">{r.sp_carry} SP</span>
+                    <span className="text-[0.4rem] px-1 py-0.5 rounded bg-emerald/10 text-emerald font-semibold">+{r.level * 5}% XP</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {state.player.level >= PRESTIGE_CONFIG.requiredLevel && prestige < PRESTIGE_CONFIG.maxPrestige && (
           <GameButton variant="purple" size="sm" className="w-full mt-3" onClick={handlePrestige}>
-            PRESTIGE → Level {prestige + 1}
+            PRESTIGE → {PRESTIGE_CONFIG.rewards[prestige]?.label || `Level ${prestige + 1}`}
           </GameButton>
         )}
         {state.player.level < PRESTIGE_CONFIG.requiredLevel && (

@@ -2817,27 +2817,84 @@ async function handleGetSkills(supabase: any, userId: string): Promise<ActionRes
 
 // ========== PRESTIGE ==========
 
+const PRESTIGE_PERKS: Record<number, { label: string; stat_bonus?: Record<string, number>; max_hp_bonus?: number; max_energy_bonus?: number; cash_bonus?: number; sp_carry?: number }> = {
+  1: { label: "Prestige I — Gouden Badge", cash_bonus: 25000, sp_carry: 2 },
+  2: { label: "Prestige II — Elite Contracts", stat_bonus: { muscle: 2 }, max_hp_bonus: 10, cash_bonus: 50000, sp_carry: 3 },
+  3: { label: "Prestige III — Prestige Gear", stat_bonus: { brains: 2 }, max_energy_bonus: 10, cash_bonus: 75000, sp_carry: 4 },
+  4: { label: "Prestige IV — Veteraan", stat_bonus: { charm: 2 }, max_hp_bonus: 15, cash_bonus: 100000, sp_carry: 5 },
+  5: { label: "Prestige V — Prestige Villa", stat_bonus: { muscle: 2, brains: 2 }, max_energy_bonus: 15, cash_bonus: 150000, sp_carry: 6 },
+  6: { label: "Prestige VI — Onderwerelds Icoon", stat_bonus: { muscle: 3, charm: 2 }, max_hp_bonus: 20, cash_bonus: 200000, sp_carry: 7 },
+  7: { label: "Prestige VII — Schaduwkoning", stat_bonus: { brains: 3, charm: 3 }, max_energy_bonus: 20, cash_bonus: 250000, sp_carry: 8 },
+  8: { label: "Prestige VIII — Onsterfelijk", stat_bonus: { muscle: 3, brains: 3, charm: 3 }, max_hp_bonus: 25, cash_bonus: 350000, sp_carry: 9 },
+  9: { label: "Prestige IX — Godfather", stat_bonus: { muscle: 5, brains: 5, charm: 5 }, max_hp_bonus: 30, max_energy_bonus: 25, cash_bonus: 500000, sp_carry: 10 },
+  10: { label: "Prestige X — Legende", stat_bonus: { muscle: 8, brains: 8, charm: 8 }, max_hp_bonus: 50, max_energy_bonus: 50, cash_bonus: 1000000, sp_carry: 15 },
+};
+
+function calculatePrestigeTotalBonuses(prestigeLevel: number) {
+  let totalStats: Record<string, number> = {};
+  let totalMaxHp = 0, totalMaxEnergy = 0;
+  for (let i = 1; i <= prestigeLevel; i++) {
+    const p = PRESTIGE_PERKS[i];
+    if (!p) continue;
+    if (p.stat_bonus) for (const [k, v] of Object.entries(p.stat_bonus)) totalStats[k] = (totalStats[k] || 0) + v;
+    totalMaxHp += p.max_hp_bonus || 0;
+    totalMaxEnergy += p.max_energy_bonus || 0;
+  }
+  return { totalStats, totalMaxHp, totalMaxEnergy };
+}
+
 async function handlePrestige(supabase: any, userId: string, ps: any): Promise<ActionResult> {
   if (ps.level < PRESTIGE_REQ_LEVEL) return { success: false, message: `Level ${PRESTIGE_REQ_LEVEL} vereist (heb: ${ps.level}).` };
   const currentPrestige = ps.prestige_level || 0;
   if (currentPrestige >= PRESTIGE_MAX) return { success: false, message: "Maximum prestige bereikt." };
 
   const newPrestige = currentPrestige + 1;
+  const perk = PRESTIGE_PERKS[newPrestige];
+  const { totalStats, totalMaxHp, totalMaxEnergy } = calculatePrestigeTotalBonuses(newPrestige);
 
-  // Reset level, XP, skill points but keep prestige bonuses
+  const baseStats = { muscle: 1 + (totalStats.muscle || 0), brains: 1 + (totalStats.brains || 0), charm: 1 + (totalStats.charm || 0) };
+  const newMaxHp = 100 + totalMaxHp;
+  const newMaxEnergy = 100 + totalMaxEnergy;
+  const carryOverSP = perk?.sp_carry || 2;
+  const cashBonus = perk?.cash_bonus || 0;
+
   await supabase.from("player_state").update({
-    level: 1, xp: 0, next_xp: 100, skill_points: 2,
+    level: 1, xp: 0, next_xp: 100,
+    skill_points: carryOverSP,
     prestige_level: newPrestige,
     xp_streak: 0,
+    stats: baseStats,
+    max_hp: newMaxHp, hp: newMaxHp,
+    max_energy: newMaxEnergy, energy: newMaxEnergy,
+    money: (ps.money || 0) + cashBonus,
   }).eq("user_id", userId);
 
-  // Clear all skills (fresh start)
   await supabase.from("player_skills").delete().eq("user_id", userId);
+
+  await supabase.from("game_action_log").insert({
+    user_id: userId,
+    action_type: "prestige",
+    action_data: { fromLevel: ps.level, fromPrestige: currentPrestige },
+    result_data: { newPrestige, perkLabel: perk?.label, cashBonus, carryOverSP, baseStats, maxHp: newMaxHp, maxEnergy: newMaxEnergy },
+  });
+
+  const perksText = [
+    cashBonus > 0 ? `€${cashBonus.toLocaleString()} startbonus` : null,
+    carryOverSP > 2 ? `${carryOverSP} SP behouden` : null,
+    totalMaxHp > 0 ? `+${totalMaxHp} Max HP` : null,
+    totalMaxEnergy > 0 ? `+${totalMaxEnergy} Max Energy` : null,
+    `+${newPrestige * 5}% XP permanent`,
+  ].filter(Boolean).join(", ");
 
   return {
     success: true,
-    message: `Prestige ${newPrestige}! Level gereset met +${newPrestige * 5}% permanente XP bonus.`,
-    data: { prestigeLevel: newPrestige },
+    message: `${perk?.label || `Prestige ${newPrestige}`}! ${perksText}`,
+    data: {
+      prestigeLevel: newPrestige,
+      perk,
+      totalBonuses: { stats: totalStats, maxHp: totalMaxHp, maxEnergy: totalMaxEnergy },
+      cashBonus, carryOverSP,
+    },
   };
 }
 
