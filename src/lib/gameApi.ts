@@ -17,7 +17,8 @@ export type GameAction =
   | "contribute_influence" | "get_district_info"
   | "get_market_prices"
   | "place_bounty" | "get_most_wanted"
-  | "district_leaderboard";
+  | "district_leaderboard"
+  | "pvp_combat_start" | "pvp_combat_action";
 
 interface GameActionResult {
   success: boolean;
@@ -96,6 +97,11 @@ export const gameApi = {
     invokeGameAction("place_bounty", { targetUserId, amount }),
   getMostWanted: () => invokeGameAction("get_most_wanted"),
   getDistrictLeaderboard: () => invokeGameAction("district_leaderboard"),
+
+  // PvP Combat (turn-based)
+  pvpCombatStart: (targetUserId: string) => invokeGameAction("pvp_combat_start", { targetUserId }),
+  pvpCombatAction: (sessionId: string, action: string, skillId?: string) =>
+    invokeGameAction("pvp_combat_action", { sessionId, action, skillId }),
 
   // Cloud saves
   saveState: (saveData: any, day: number) => invokeGameAction("save_state", { saveData, day }),
