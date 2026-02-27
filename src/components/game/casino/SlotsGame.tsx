@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
-import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
+import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 import { playSlotSpin, playSlotReelStop, playSlotWin, playSlotJackpot, playLoss } from '@/game/sounds/casinoSounds';
+import { gameApi } from '@/lib/gameApi';
+
 interface SlotsGameProps {
   dispatch: (action: any) => void;
   showToast: (msg: string, isError?: boolean) => void;
@@ -13,7 +15,6 @@ interface SlotsGameProps {
   onResult: (won: boolean | null, amount: number) => void;
 }
 
-// Rebalanced: 12 symbols, fewer duplicates → lower pair/triple rates
 const BASE_SYMBOLS = ['🍒', '🍒', '🍋', '🍋', '🍇', '🍊', '🔔', '⭐', '🍀', '🎲', '💎', '7️⃣'];
 
 export function SlotsGame({ dispatch, showToast, money, state, onResult }: SlotsGameProps) {
@@ -24,57 +25,25 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
   const [resultColor, setResultColor] = useState('');
   const [nearMiss, setNearMiss] = useState(false);
 
-  // Refs to avoid stale closure in animation interval
   const spinningRef = useRef([false, false, false]);
   const reelsRef = useRef(['🍒', '🍒', '🍒']);
 
-  const vipBonus = getTotalVipBonus(state);
-  const hasNeon = state.ownedDistricts.includes('neon');
-  // Neon bonus: add one extra 7 and diamond (slightly better odds)
-  const symbols = hasNeon ? [...BASE_SYMBOLS, '7️⃣', '💎'] : BASE_SYMBOLS;
-
-  // Use persistent jackpot from state
   const jackpot = state.casinoJackpot || 10000;
 
-  const spin = () => {
+  const spin = async () => {
     if (bet > money || bet < 10) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
     setResult(''); setNearMiss(false);
     const newSpinning = [true, true, true];
     setSpinning(newSpinning);
     spinningRef.current = newSpinning;
     playSlotSpin();
 
-    // Add to jackpot (persistent via state)
-    dispatch({ type: 'JACKPOT_ADD', amount: Math.floor(bet * 0.05) });
-
-    const currentBet = bet;
-    const finalReels: string[] = [];
-
-    // Sequential reel stops
-    const stopReel = (index: number) => {
-      const sym = symbols[Math.floor(Math.random() * symbols.length)];
-      finalReels[index] = sym;
-      reelsRef.current[index] = sym;
-      setReels(prev => {
-        const next = [...prev];
-        next[index] = sym;
-        return next;
-      });
-      spinningRef.current[index] = false;
-      setSpinning(prev => {
-        const next = [...prev];
-        next[index] = false;
-        return next;
-      });
-    };
-
-    // Reel animation intervals — use refs to avoid stale closures
+    // Visual animation
     const animInterval = setInterval(() => {
       const animReels: string[] = [];
       for (let i = 0; i < 3; i++) {
         if (spinningRef.current[i]) {
-          animReels[i] = symbols[Math.floor(Math.random() * symbols.length)];
+          animReels[i] = BASE_SYMBOLS[Math.floor(Math.random() * BASE_SYMBOLS.length)];
         } else {
           animReels[i] = reelsRef.current[i];
         }
@@ -83,63 +52,73 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
       setReels(animReels);
     }, 80);
 
-    // Stop reels sequentially
-    setTimeout(() => { stopReel(0); playSlotReelStop(); }, 800);
-    setTimeout(() => { stopReel(1); playSlotReelStop(); }, 1400);
-    setTimeout(() => {
-      stopReel(2); playSlotReelStop();
+    // Server call
+    try {
+      const res = await gameApi.casinoPlay('slots', bet);
+
+      clearInterval(animInterval);
+
+      if (!res.success) {
+        setSpinning([false, false, false]);
+        spinningRef.current = [false, false, false];
+        showToast(res.message, true);
+        return;
+      }
+
+      const data = res.data!;
+      const serverReels = data.reels || ['🍒', '🍒', '🍒'];
+
+      // Sequential reel stop animation
+      const stopReel = (index: number) => {
+        reelsRef.current[index] = serverReels[index];
+        spinningRef.current[index] = false;
+        setReels(prev => { const next = [...prev]; next[index] = serverReels[index]; return next; });
+        setSpinning(prev => { const next = [...prev]; next[index] = false; return next; });
+        playSlotReelStop();
+      };
+
+      setTimeout(() => stopReel(0), 300);
+      setTimeout(() => stopReel(1), 800);
+      setTimeout(() => {
+        stopReel(2);
+
+        if (data.isJackpot) {
+          setResult(`🎰 JACKPOT! +€${data.jackpotAmount?.toLocaleString()}`);
+          setResultColor('text-emerald');
+          onResult(true, data.netResult);
+          playSlotJackpot();
+          dispatch({ type: 'JACKPOT_RESET' });
+        } else if (data.netResult > 0) {
+          setResult(`WINNAAR! +€${data.netResult.toLocaleString()}`);
+          setResultColor('text-emerald');
+          onResult(true, data.netResult);
+          playSlotWin();
+        } else if (data.netResult === 0) {
+          // Pair - small win but net 0 due to rounding
+          setResult('Klein!');
+          setResultColor('text-muted-foreground');
+          onResult(null, 0);
+        } else {
+          setResult('Helaas...');
+          setResultColor('text-muted-foreground');
+          onResult(false, data.netResult);
+          playLoss();
+        }
+
+        // Check near miss
+        const [a, b, c] = serverReels;
+        if ((a === b || b === c || a === c) && 
+            ['7️⃣', '💎'].some(s => serverReels.filter(r => r === s).length === 2)) {
+          setNearMiss(true);
+        }
+
+        if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+      }, 1300);
+    } catch {
       clearInterval(animInterval);
       setSpinning([false, false, false]);
       spinningRef.current = [false, false, false];
-      setTimeout(() => resolve(finalReels, currentBet), 100);
-    }, 2000);
-  };
-
-  const resolve = (res: string[], activeBet: number) => {
-    const [a, b, c] = res;
-    setReels(res);
-    let win = 0;
-
-    if (a === b && b === c) {
-      if (a === '7️⃣') {
-        // JACKPOT!
-        win = jackpot;
-        dispatch({ type: 'JACKPOT_RESET' });
-        setResult(`🎰 JACKPOT! +€${win.toLocaleString()}`);
-        playSlotJackpot();
-      } else if (a === '💎') {
-        win = activeBet * 25;
-        setResult(`💎 DIAMANT! +€${win.toLocaleString()}`);
-        playSlotWin();
-      } else {
-        win = activeBet * 8;
-        setResult(`WINNAAR! +€${win.toLocaleString()}`);
-        playSlotWin();
-      }
-    } else if (a === b || b === c || a === c) {
-      // Pair payout reduced from 1.5x to 1.2x
-      win = Math.floor(activeBet * 1.2);
-      setResult(`Klein! +€${win}`);
-
-      // Near miss: 2 of 3 are high value
-      if ((a === '7️⃣' && b === '7️⃣') || (b === '7️⃣' && c === '7️⃣') || (a === '7️⃣' && c === '7️⃣') ||
-          (a === '💎' && b === '💎') || (b === '💎' && c === '💎') || (a === '💎' && c === '💎')) {
-        setNearMiss(true);
-      }
-    } else {
-      setResult('Helaas...');
-      playLoss();
-    }
-
-    if (win > 0) {
-      // Apply VIP bonus to net profit only
-      const bonusWin = applyVipToWinnings(win, activeBet, vipBonus);
-      dispatch({ type: 'CASINO_WIN', amount: bonusWin });
-      setResultColor('text-emerald');
-      onResult(true, bonusWin - activeBet);
-    } else {
-      setResultColor('text-muted-foreground');
-      onResult(false, -activeBet);
+      showToast('Server fout.', true);
     }
   };
 
@@ -180,7 +159,6 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
         ))}
       </div>
 
-      {/* Near miss */}
       {nearMiss && (
         <motion.p
           initial={{ opacity: 0, scale: 1.5 }}

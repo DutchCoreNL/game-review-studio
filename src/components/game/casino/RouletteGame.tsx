@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
-import { getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
+import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 import { playRouletteSpin, playRouletteBallDrop, playRouletteWin, playLoss } from '@/game/sounds/casinoSounds';
+import { gameApi } from '@/lib/gameApi';
 
 type RouletteBet = 'red' | 'black' | 'green' | 'even' | 'odd' | 'low' | 'high';
 
@@ -27,55 +28,55 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
   const [wheelColor, setWheelColor] = useState('');
   const [history, setHistory] = useState<{ num: number; color: string }[]>([]);
 
-  const vipBonus = getTotalVipBonus(state);
-
   const getNumColor = (num: number) => num === 0 ? 'green' : RED_NUMS.includes(num) ? 'red' : 'black';
 
-  const spin = (choice: RouletteBet) => {
+  const spin = async (choice: RouletteBet) => {
     if (bet > money || bet < 10) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
     setSpinning(true); setResult('');
     playRouletteSpin();
-    const currentBet = bet;
+
+    // Visual spin animation
     let counter = 0;
     const interval = setInterval(() => {
       const num = Math.floor(Math.random() * 37);
-      const color = getNumColor(num);
-      setWheelNum(num); setWheelColor(color); counter++;
-      if (counter > 20) {
-        clearInterval(interval);
-        setSpinning(false);
-        playRouletteBallDrop();
-        resolve(num, color, choice, currentBet);
-      }
+      setWheelNum(num); setWheelColor(getNumColor(num)); counter++;
+      if (counter > 20) clearInterval(interval);
     }, 80);
-  };
 
-  const resolve = (num: number, color: string, choice: RouletteBet, activeBet: number) => {
-    setHistory(prev => [{ num, color }, ...prev].slice(0, 5));
+    // Server call
+    try {
+      const res = await gameApi.casinoPlay('roulette', bet, { betType: choice });
+      clearInterval(interval);
 
-    let won = false, mult = 0;
-    if (choice === 'red' && color === 'red') { won = true; mult = 2; }
-    else if (choice === 'black' && color === 'black') { won = true; mult = 2; }
-    else if (choice === 'green' && num === 0) { won = true; mult = 14; }
-    else if (choice === 'even' && num > 0 && num % 2 === 0) { won = true; mult = 2; }
-    else if (choice === 'odd' && num % 2 === 1) { won = true; mult = 2; }
-    else if (choice === 'low' && num >= 1 && num <= 18) { won = true; mult = 2; }
-    else if (choice === 'high' && num >= 19 && num <= 36) { won = true; mult = 2; }
+      if (!res.success) {
+        setSpinning(false);
+        showToast(res.message, true);
+        return;
+      }
 
-    if (won) {
-      const basePayout = Math.floor(activeBet * mult);
-      const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
-      dispatch({ type: 'CASINO_WIN', amount: winAmount });
-      setResult(`GEWONNEN! +€${winAmount}`);
-      setResultColor('text-emerald');
-      onResult(true, winAmount - activeBet);
-      playRouletteWin();
-    } else {
-      setResult('VERLOREN');
-      setResultColor('text-blood');
-      onResult(false, -activeBet);
-      playLoss();
+      const data = res.data!;
+      setWheelNum(data.num);
+      setWheelColor(data.color);
+      playRouletteBallDrop();
+      setHistory(prev => [{ num: data.num, color: data.color }, ...prev].slice(0, 5));
+
+      if (data.won) {
+        setResult(`GEWONNEN! +€${data.netResult.toLocaleString()}`);
+        setResultColor('text-emerald');
+        onResult(true, data.netResult);
+        playRouletteWin();
+      } else {
+        setResult('VERLOREN');
+        setResultColor('text-blood');
+        onResult(false, data.netResult);
+        playLoss();
+      }
+
+      if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+    } catch {
+      showToast('Server fout.', true);
+    } finally {
+      setSpinning(false);
     }
   };
 

@@ -3,13 +3,13 @@ import { PlayingCard } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
 import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
-import { createDeck, getCardRankValue, getTotalVipBonus, applyVipToWinnings, CasinoSessionStats } from './casinoUtils';
+import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 import { playCardFlip, playStreakUp, playCashOut, playLoss } from '@/game/sounds/casinoSounds';
+import { gameApi } from '@/lib/gameApi';
 
-// Rebalanced multiplier ladder (lowered from 1.5/2/3/5/10/20)
 const MULTIPLIER_LADDER = [
   { round: 1, mult: 1.3 },
   { round: 2, mult: 1.8 },
@@ -31,93 +31,92 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
   const [bet, setBet] = useState(100);
   const [playing, setPlaying] = useState(false);
   const [currentCard, setCurrentCard] = useState<PlayingCard | null>(null);
-  const [nextCard, setNextCard] = useState<PlayingCard | null>(null);
-  const [deck, setDeck] = useState<PlayingCard[]>([]);
   const [round, setRound] = useState(0);
   const [currentBet, setCurrentBet] = useState(0);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
-  const [showNext, setShowNext] = useState(false);
+  const [guesses, setGuesses] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const vipBonus = getTotalVipBonus(state);
+  const createLocalDeck = (): PlayingCard => {
+    const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    const SUITS: ('spade'|'heart'|'diamond'|'club')[] = ['spade', 'heart', 'diamond', 'club'];
+    return { rank: RANKS[Math.floor(Math.random() * RANKS.length)], suit: SUITS[Math.floor(Math.random() * 4)] };
+  };
 
   const getCurrentMultiplier = () => {
     if (round <= 0) return 1;
-    const entry = MULTIPLIER_LADDER[Math.min(round - 1, MULTIPLIER_LADDER.length - 1)];
-    return entry.mult;
+    return MULTIPLIER_LADDER[Math.min(round - 1, MULTIPLIER_LADDER.length - 1)].mult;
   };
 
   const startGame = () => {
     if (bet > money || bet < 10) return showToast('Ongeldige inzet', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
     setCurrentBet(bet);
-    const d = createDeck();
-    const card = d.pop()!;
-    setDeck(d);
-    setCurrentCard(card);
-    setNextCard(null);
+    setCurrentCard(createLocalDeck());
     setRound(0);
     setPlaying(true);
     setResult('');
-    setShowNext(false);
+    setGuesses([]);
   };
 
   const guess = (higher: boolean) => {
-    const d = [...deck];
-    const next = d.pop()!;
-    setDeck(d);
-    setNextCard(next);
-    setShowNext(true);
+    const newGuesses = [...guesses, higher ? 'higher' : 'lower'];
+    setGuesses(newGuesses);
     playCardFlip();
 
-    const currentVal = getCardRankValue(currentCard!.rank);
-    const nextVal = getCardRankValue(next.rank);
+    // Optimistic: show next round visually
+    setRound(prev => prev + 1);
+    setCurrentCard(createLocalDeck());
+    playStreakUp();
 
-    // Ties now count as a LOSS (push) to prevent exploitation
-    const correct = higher
-      ? nextVal > currentVal
-      : nextVal < currentVal;
+    dispatch({ type: 'TRACK_HIGHLOW_ROUND', round: newGuesses.length });
 
-    setTimeout(() => {
-      if (correct) {
-        const newRound = round + 1;
-        setRound(newRound);
-        playStreakUp();
-        setCurrentCard(next);
-        setNextCard(null);
-        setShowNext(false);
-
-        // Track max round for achievement
-        dispatch({ type: 'TRACK_HIGHLOW_ROUND', round: newRound });
-
-        if (newRound >= 6) {
-          // Max reached, auto cash out
-          cashOut(newRound);
-        }
-      } else {
-        // Lost!
-        setPlaying(false);
-        const isTie = nextVal === currentVal;
-        setResult(isTie ? 'GELIJK! Verloren.' : 'FOUT! Alles verloren.');
-        setResultColor('text-blood');
-        onResult(false, -currentBet);
-        playLoss();
-      }
-    }, 800);
+    if (newGuesses.length >= 6) {
+      // Max rounds - auto submit
+      submitToServer(newGuesses);
+    }
   };
 
-  const cashOut = (useRound?: number) => {
-    const r = useRound || round;
-    if (r <= 0) return;
-    const mult = MULTIPLIER_LADDER[Math.min(r - 1, MULTIPLIER_LADDER.length - 1)].mult;
-    const basePayout = Math.floor(currentBet * mult);
-    const winAmount = applyVipToWinnings(basePayout, currentBet, vipBonus);
-    dispatch({ type: 'CASINO_WIN', amount: winAmount });
+  const cashOut = () => {
+    if (guesses.length <= 0) return;
+    submitToServer(guesses);
+  };
+
+  const submitToServer = async (finalGuesses: string[]) => {
     setPlaying(false);
-    setResult(`GECASHED! +€${winAmount.toLocaleString()} (${mult}x)`);
-    setResultColor('text-emerald');
-    onResult(true, winAmount - currentBet);
-    playCashOut();
+    setLoading(true);
+
+    try {
+      const res = await gameApi.casinoPlay('highlow', currentBet, { guesses: finalGuesses });
+      if (!res.success) {
+        showToast(res.message, true);
+        setLoading(false);
+        return;
+      }
+
+      const data = res.data!;
+      if (data.lost) {
+        setResult(`FOUT! Verloren na ronde ${data.round}.`);
+        setResultColor('text-blood');
+        onResult(false, data.netResult);
+        playLoss();
+      } else if (data.netResult > 0) {
+        setResult(`GECASHED! +€${data.netResult.toLocaleString()} (${data.mult}x)`);
+        setResultColor('text-emerald');
+        onResult(true, data.netResult);
+        playCashOut();
+      } else {
+        setResult('Geen winst.');
+        setResultColor('text-foreground');
+        onResult(null, 0);
+      }
+
+      if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+    } catch {
+      showToast('Server fout.', true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -149,45 +148,32 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
         </div>
       )}
 
-      {/* Cards */}
+      {/* Card */}
       {playing && currentCard && (
         <div className="flex justify-center items-center gap-4 mb-4">
           <div className="text-center">
             <p className="text-[0.5rem] text-muted-foreground mb-1">HUIDIGE</p>
             <CardDisplay card={currentCard} large />
           </div>
-          {showNext && nextCard && (
-            <motion.div
-              initial={{ rotateY: 180, opacity: 0 }}
-              animate={{ rotateY: 0, opacity: 1 }}
-              className="text-center"
-            >
-              <p className="text-[0.5rem] text-muted-foreground mb-1">VOLGENDE</p>
-              <CardDisplay card={nextCard} large />
-            </motion.div>
-          )}
-          {!showNext && (
-            <div className="text-center">
-              <p className="text-[0.5rem] text-muted-foreground mb-1">VOLGENDE</p>
-              <CardDisplay card={null} hidden large />
-            </div>
-          )}
+          <div className="text-center">
+            <p className="text-[0.5rem] text-muted-foreground mb-1">VOLGENDE</p>
+            <CardDisplay card={null} hidden large />
+          </div>
         </div>
       )}
 
-      {/* Tie warning */}
-      {playing && !showNext && (
+      {playing && (
         <p className="text-center text-[0.45rem] text-muted-foreground mb-2 italic">
           Gelijke waarde = verlies
         </p>
       )}
 
-      {!playing ? (
+      {!playing && !loading ? (
         <div className="space-y-3">
           <BetControls bet={bet} setBet={setBet} money={money} />
           <GameButton variant="blood" fullWidth onClick={startGame}>START (€{bet})</GameButton>
         </div>
-      ) : !showNext ? (
+      ) : playing ? (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <GameButton variant="blood" onClick={() => guess(true)} icon={<ArrowUp size={14} />}>
@@ -198,12 +184,14 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
             </GameButton>
           </div>
           {round > 0 && (
-            <GameButton variant="gold" fullWidth glow onClick={() => cashOut()} icon={<Banknote size={14} />}>
+            <GameButton variant="gold" fullWidth glow onClick={cashOut} icon={<Banknote size={14} />}>
               CASH OUT ({getCurrentMultiplier()}x = €{Math.floor(currentBet * getCurrentMultiplier()).toLocaleString()})
             </GameButton>
           )}
         </div>
-      ) : null}
+      ) : (
+        <p className="text-center text-xs text-muted-foreground animate-pulse">Server verifieert...</p>
+      )}
 
       {result && (
         <motion.p

@@ -3,10 +3,11 @@ import { PlayingCard } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
 import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
-import { createDeck, getBlackjackScore, CasinoSessionStats, getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
+import { CasinoSessionStats, getTotalVipBonus } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
 import { playCardDeal, playBlackjackWin, playBlackjackBust, playBlackjackNatural } from '@/game/sounds/casinoSounds';
+import { gameApi } from '@/lib/gameApi';
 
 interface BlackjackGameProps {
   dispatch: (action: any) => void;
@@ -15,98 +16,147 @@ interface BlackjackGameProps {
   state: { ownedDistricts: string[]; districtRep: Record<string, number> };
   sessionStats: CasinoSessionStats;
   onResult: (won: boolean | null, amount: number) => void;
+  onMoneyUpdate?: (newMoney: number) => void;
 }
 
-export function BlackjackGame({ dispatch, showToast, money, state, sessionStats, onResult }: BlackjackGameProps) {
+export function BlackjackGame({ dispatch, showToast, money, state, sessionStats, onResult, onMoneyUpdate }: BlackjackGameProps) {
   const [bet, setBet] = useState(100);
   const [playerHand, setPlayerHand] = useState<PlayingCard[]>([]);
   const [dealerHand, setDealerHand] = useState<PlayingCard[]>([]);
-  const [deck, setDeck] = useState<PlayingCard[]>([]);
   const [playing, setPlaying] = useState(false);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
   const [currentBet, setCurrentBet] = useState(0);
   const [canDoubleDown, setCanDoubleDown] = useState(false);
   const [resultShake, setResultShake] = useState(false);
+  const [actions, setActions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  // Local deck for visual display only
+  const [localDeck, setLocalDeck] = useState<PlayingCard[]>([]);
 
   const vipBonus = getTotalVipBonus(state);
 
+  // Create a local deck for visual card display during play
+  const createLocalDeck = (): PlayingCard[] => {
+    const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    const SUITS: ('spade'|'heart'|'diamond'|'club')[] = ['spade', 'heart', 'diamond', 'club'];
+    const deck: PlayingCard[] = [];
+    for (const suit of SUITS) for (const rank of RANKS) deck.push({ rank, suit });
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  };
+
+  const getBlackjackScore = (hand: PlayingCard[]): number => {
+    let score = 0, aces = 0;
+    for (const card of hand) {
+      if (card.rank === 'A') { aces++; score += 11; }
+      else if (['K','Q','J'].includes(card.rank)) score += 10;
+      else score += parseInt(card.rank);
+    }
+    while (score > 21 && aces > 0) { score -= 10; aces--; }
+    return score;
+  };
+
   const deal = () => {
     if (bet > money || bet < 10) return showToast('Ongeldige inzet', true);
-    dispatch({ type: 'CASINO_BET', amount: bet });
-    setCurrentBet(bet);
-    const d = createDeck();
+    const d = createLocalDeck();
     const ph = [d.pop()!, d.pop()!];
     const dh = [d.pop()!, d.pop()!];
-    setDeck(d); setPlayerHand(ph); setDealerHand(dh);
-    setPlaying(true); setResult(''); setCanDoubleDown(true);
+    setLocalDeck(d);
+    setPlayerHand(ph);
+    setDealerHand(dh);
+    setCurrentBet(bet);
+    setPlaying(true);
+    setResult('');
+    setCanDoubleDown(true);
+    setActions([]);
     playCardDeal();
-    if (getBlackjackScore(ph) === 21) stand(ph, dh, d, bet);
+
+    if (getBlackjackScore(ph) === 21) {
+      // Natural blackjack - send stand immediately
+      submitToServer(['stand'], bet);
+    }
   };
 
   const hit = () => {
     setCanDoubleDown(false);
-    const newDeck = [...deck];
+    const newDeck = [...localDeck];
     const newHand = [...playerHand, newDeck.pop()!];
-    setDeck(newDeck); setPlayerHand(newHand);
+    setLocalDeck(newDeck);
+    setPlayerHand(newHand);
     playCardDeal();
-    if (getBlackjackScore(newHand) > 21) endGame(false, 'BUST! Meer dan 21.', newHand);
+    const newActions = [...actions, 'hit'];
+    setActions(newActions);
+
+    if (getBlackjackScore(newHand) > 21) {
+      submitToServer(newActions, currentBet);
+    }
   };
 
   const doubleDown = () => {
     if (currentBet > money) return showToast('Niet genoeg geld!', true);
-    dispatch({ type: 'CASINO_BET', amount: currentBet });
     const newBet = currentBet * 2;
     setCurrentBet(newBet);
     setCanDoubleDown(false);
-    const newDeck = [...deck];
+    const newDeck = [...localDeck];
     const newHand = [...playerHand, newDeck.pop()!];
-    setDeck(newDeck); setPlayerHand(newHand);
-    if (getBlackjackScore(newHand) > 21) {
-      endGame(false, 'BUST! Meer dan 21.', newHand, newBet);
-    } else {
-      stand(newHand, dealerHand, newDeck, newBet);
-    }
+    setLocalDeck(newDeck);
+    setPlayerHand(newHand);
+    submitToServer([...actions, 'double'], bet);
   };
 
-  const stand = (ph?: PlayingCard[], dh?: PlayingCard[], d?: PlayingCard[], activeBet?: number) => {
-    const pHand = ph || playerHand;
-    let dHand = [...(dh || dealerHand)];
-    const dk = [...(d || deck)];
-    const theBet = activeBet || currentBet;
-    while (getBlackjackScore(dHand) < 17) dHand.push(dk.pop()!);
-    setDealerHand(dHand); setDeck(dk);
-
-    const ps = getBlackjackScore(pHand), ds = getBlackjackScore(dHand);
-    if (ds > 21) endGame(true, 'Dealer Busted!', pHand, theBet);
-    else if (ps > ds) endGame(true, 'Jij wint!', pHand, theBet);
-    else if (ps === ds) { dispatch({ type: 'CASINO_WIN', amount: theBet }); endGame(null, 'Gelijkspel.', pHand, theBet); }
-    else endGame(false, 'Dealer wint.', pHand, theBet);
+  const stand = () => {
+    submitToServer([...actions, 'stand'], currentBet);
   };
 
-  const endGame = (win: boolean | null, msg: string, hand: PlayingCard[], theBet?: number) => {
-    const activeBet = theBet || currentBet;
-    setPlaying(false); setResult(msg); setCanDoubleDown(false);
-    if (win === true) {
-      const isBj = getBlackjackScore(hand) === 21 && hand.length === 2;
-      const baseMult = isBj ? 2.5 : 2;
-      const basePayout = Math.floor(activeBet * baseMult);
-      const winAmount = applyVipToWinnings(basePayout, activeBet, vipBonus);
-      dispatch({ type: 'CASINO_WIN', amount: winAmount });
-      dispatch({ type: 'TRACK_BLACKJACK_WIN' });
-      setResultColor('text-emerald');
-      onResult(true, winAmount - activeBet);
-      if (isBj) playBlackjackNatural(); else playBlackjackWin();
-    } else if (win === false) {
-      setResultColor('text-blood');
-      setResultShake(true);
-      setTimeout(() => setResultShake(false), 500);
-      dispatch({ type: 'RESET_BLACKJACK_STREAK' });
-      onResult(false, -activeBet);
-      playBlackjackBust();
-    } else {
-      setResultColor('text-foreground');
-      onResult(null, 0);
+  const submitToServer = async (finalActions: string[], originalBet: number) => {
+    setPlaying(false);
+    setLoading(true);
+
+    try {
+      const res = await gameApi.casinoPlay('blackjack', originalBet, { actions: finalActions });
+      if (!res.success) {
+        showToast(res.message, true);
+        setLoading(false);
+        return;
+      }
+
+      const data = res.data!;
+      // Show server-authoritative hands
+      setPlayerHand(data.playerHand || playerHand);
+      setDealerHand(data.dealerHand || dealerHand);
+
+      if (data.won === true) {
+        setResult(data.isBj ? '♠ BLACKJACK!' : 'Jij wint!');
+        setResultColor('text-emerald');
+        onResult(true, data.netResult);
+        dispatch({ type: 'TRACK_BLACKJACK_WIN' });
+        if (data.isBj) playBlackjackNatural(); else playBlackjackWin();
+      } else if (data.won === false) {
+        setResult(data.playerScore > 21 ? 'BUST! Meer dan 21.' : 'Dealer wint.');
+        setResultColor('text-blood');
+        setResultShake(true);
+        setTimeout(() => setResultShake(false), 500);
+        dispatch({ type: 'RESET_BLACKJACK_STREAK' });
+        onResult(false, data.netResult);
+        playBlackjackBust();
+      } else {
+        setResult('Gelijkspel.');
+        setResultColor('text-foreground');
+        onResult(null, 0);
+      }
+
+      // Sync money from server
+      if (data.newMoney !== undefined) {
+        dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+      }
+    } catch (err) {
+      showToast('Server fout bij casino.', true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,15 +199,15 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
         </div>
       </motion.div>
 
-      {!playing ? (
+      {!playing && !loading ? (
         <div className="space-y-3">
           <BetControls bet={bet} setBet={setBet} money={money} />
           <GameButton variant="blood" fullWidth onClick={deal}>DEAL (€{bet})</GameButton>
         </div>
-      ) : (
+      ) : playing ? (
         <div className="grid grid-cols-3 gap-2">
           <GameButton variant="blood" onClick={hit}>HIT</GameButton>
-          <GameButton variant="muted" onClick={() => stand()}>STAND</GameButton>
+          <GameButton variant="muted" onClick={stand}>STAND</GameButton>
           <GameButton
             variant="gold"
             onClick={doubleDown}
@@ -166,6 +216,8 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
             DOUBLE
           </GameButton>
         </div>
+      ) : (
+        <p className="text-center text-xs text-muted-foreground animate-pulse">Server verifieert...</p>
       )}
 
       {result && (
