@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
 import { WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
 import { WeatherType } from '@/game/types';
+import { ActiveWeekEvent } from '@/game/weekEvents';
 import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
@@ -15,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { EnergyNerveBar } from './header/EnergyNerveBar';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords, Clock } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
 import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
@@ -78,8 +79,33 @@ export function GameHeader() {
   const xpPct = state.player.nextXp > 0 ? (state.player.xp / state.player.nextXp) * 100 : 0;
   const isGoldenHour = !!state.goldenHour;
 
+  // Week event with XP bonus detection
+  const weekEvent = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  const hasXpBonus = useMemo(() => {
+    if (!weekEvent || weekEvent.daysLeft <= 0) return false;
+    return weekEvent.effects.some(e => e.type === 'xp_bonus' || e.type === 'combat_bonus');
+  }, [weekEvent]);
+
   return (
     <header className={`flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-3 pt-2 pb-2 ${isGoldenHour ? 'ring-1 ring-gold/40 shadow-[0_0_15px_hsl(var(--gold)/0.15)]' : ''}`}>
+      {/* Week Event XP Banner */}
+      {hasXpBonus && weekEvent && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between -mx-3 -mt-2 mb-2 px-3 py-1.5 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/20 border-b border-gold/30"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm">{weekEvent.icon}</span>
+            <span className="text-[0.55rem] font-bold text-gold uppercase tracking-wider truncate">{weekEvent.name}</span>
+            <Sparkles size={10} className="text-gold flex-shrink-0" />
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Clock size={9} className="text-gold/70" />
+            <span className="text-[0.5rem] font-bold text-gold tabular-nums">{weekEvent.daysLeft}d over</span>
+          </div>
+        </motion.div>
+      )}
       {/* Row 1: Title + Money */}
       <div className="flex justify-between items-start mb-2">
         <div className="min-w-0">
