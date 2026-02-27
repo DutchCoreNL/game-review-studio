@@ -20,10 +20,12 @@ import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
 import { useAuth } from '@/hooks/useAuth';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
+import { useMuteStatus } from '@/hooks/useMuteStatus';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
   const { user } = useAuth();
+  const { isMuted } = useMuteStatus();
   const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
@@ -58,7 +60,7 @@ export function MapView() {
   const confirmEnd = () => {
     setConfirmEndTurn(false);
     dispatch({ type: 'END_TURN' });
-    if (user) {
+    if (user && !isMuted) {
       syncLeaderboard({
         rep: state.rep,
         cash: state.money,

@@ -6,11 +6,13 @@ import { useGame } from '@/contexts/GameContext';
 import { supabase } from '@/integrations/supabase/client';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { toast } from '@/hooks/use-toast';
+import { useMuteStatus } from '@/hooks/useMuteStatus';
 
 export function WifiPopup() {
   const { user } = useAuth();
   const { state } = useGame();
   const [open, setOpen] = useState(false);
+  const { isMuted } = useMuteStatus();
   const [username, setUsername] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -32,6 +34,11 @@ export function WifiPopup() {
 
   const handleSync = async () => {
     setSyncing(true);
+    if (isMuted) {
+      toast({ title: '🔇 Gemute', description: 'Leaderboard sync is geblokkeerd zolang je gemute bent.', variant: 'destructive' });
+      setSyncing(false);
+      return;
+    }
     try {
       await syncLeaderboard({
         rep: state.rep,
