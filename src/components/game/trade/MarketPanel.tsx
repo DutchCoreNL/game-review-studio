@@ -1,8 +1,8 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE } from '@/game/constants';
+import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE, AMMO_TYPE_LABELS } from '@/game/constants';
 import { playCoinSound, playPurchaseSound, playNegativeSound } from '@/game/sounds';
-import { GoodId, TradeMode } from '@/game/types';
-import { getPlayerStat, getBestTradeRoute } from '@/game/engine';
+import { GoodId, TradeMode, AmmoType } from '@/game/types';
+import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -11,7 +11,7 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
@@ -371,6 +371,62 @@ export function MarketPanel() {
           <span className="text-[0.5rem] opacity-70 font-normal">(~€{estimateSellAllGains().toLocaleString()})</span>
         </motion.button>
       )}
+
+      {/* Load Ammo from Inventory */}
+      {(state.inventory.weapons || 0) > 0 && (() => {
+        const weaponsOwned = state.inventory.weapons || 0;
+        const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+        const activeAmmoType = getActiveAmmoType(state);
+        const currentAmmo = ammoStock[activeAmmoType] || 0;
+        const canLoad = currentAmmo < 99;
+        const ammoPerWeapon = 6;
+        const maxLoadable = Math.min(weaponsOwned, Math.max(1, Math.floor((99 - currentAmmo) / ammoPerWeapon)));
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="game-card p-3 mb-4 border-l-[3px] border-l-ice"
+          >
+            <div className="flex items-center gap-1.5 mb-2">
+              <Crosshair size={12} className="text-ice" />
+              <span className="text-[0.6rem] font-bold text-ice uppercase tracking-wider">Laad Munitie</span>
+              <GameBadge variant="ice" size="xs">{weaponsOwned}× wapens</GameBadge>
+            </div>
+            <p className="text-[0.45rem] text-muted-foreground mb-2">
+              Converteer Zware Wapens uit je inventaris naar {AMMO_TYPE_LABELS[activeAmmoType].label} munitie ({ammoPerWeapon} kogels/stuk)
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 text-[0.5rem] text-muted-foreground">
+                {AMMO_TYPE_LABELS[activeAmmoType].icon} {AMMO_TYPE_LABELS[activeAmmoType].label}: {currentAmmo}/99
+              </div>
+              <GameButton
+                variant="gold"
+                size="sm"
+                disabled={!canLoad || maxLoadable <= 0}
+                onClick={() => {
+                  dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: activeAmmoType, quantity: 1 });
+                  showToast(`+${ammoPerWeapon} ${AMMO_TYPE_LABELS[activeAmmoType].label} geladen!`);
+                }}
+              >
+                LAAD 1×
+              </GameButton>
+              {maxLoadable > 1 && (
+                <GameButton
+                  variant="gold"
+                  size="sm"
+                  disabled={!canLoad}
+                  onClick={() => {
+                    dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: activeAmmoType, quantity: maxLoadable });
+                    showToast(`+${maxLoadable * ammoPerWeapon} ${AMMO_TYPE_LABELS[activeAmmoType].label} geladen!`);
+                  }}
+                >
+                  ALLES ({maxLoadable}×)
+                </GameButton>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Goods List */}
       <div className="space-y-2.5">
