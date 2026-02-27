@@ -1030,6 +1030,9 @@ export interface GameState {
   // ========== VILLA STATE ==========
   villa: VillaState | null;
 
+  // ========== PROPERTY / VASTGOED STATE ==========
+  propertyId: string; // kraakpand | appartement | penthouse | villa
+
   // ========== DRUG EMPIRE STATE ==========
   drugEmpire: import('./drugEmpire').DrugEmpireState | null;
 

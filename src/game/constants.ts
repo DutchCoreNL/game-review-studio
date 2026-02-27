@@ -1760,6 +1760,8 @@ export function createInitialState(): import('./types').GameState {
     dailyNews: [],
     // Villa state
     villa: null,
+    // Property state
+    propertyId: 'kraakpand',
     // Drug Empire state
     drugEmpire: null,
     // Achievement popup state

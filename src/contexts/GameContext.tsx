@@ -235,6 +235,8 @@ type GameAction =
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
   | { type: 'PVP_COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'skill' | 'combo_finisher'; skillId?: string }
   | { type: 'END_PVP_COMBAT' }
+  // Property actions
+  | { type: 'BUY_PROPERTY'; propertyId: string }
   // Skill Tree actions
   | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number };
 
@@ -2122,6 +2124,34 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== VILLA ACTIONS ==========
 
+    case 'BUY_PROPERTY': {
+      const { PROPERTIES, canAffordProperty, getCurrentProperty } = require('@/game/properties');
+      const prop = PROPERTIES.find((p: any) => p.id === action.propertyId);
+      if (!prop) return s;
+      const current = getCurrentProperty(s.propertyId);
+      if (prop.tier <= current.tier) return s; // can't downgrade
+      if (prop.tier !== current.tier + 1) return s; // must be next tier
+      if (!canAffordProperty(prop, s.money, s.player.level, s.rep)) return s;
+      s.money -= prop.cost;
+      s.stats.totalSpent += prop.cost;
+      s.propertyId = prop.id;
+      // Apply property bonuses
+      if (prop.bonuses.maxEnergy) s.maxEnergy += prop.bonuses.maxEnergy;
+      if (prop.bonuses.maxHp) { s.playerMaxHP += prop.bonuses.maxHp; s.playerHP = Math.min(s.playerHP, s.playerMaxHP); }
+      if (prop.bonuses.storageSlots) s.maxInv = Engine.recalcMaxInv(s);
+      addPhoneMessage(s, 'Makelaar', `🏠 Je bent verhuisd naar ${prop.name}! ${prop.description}`, 'info');
+      Engine.checkAchievements(s);
+      // If buying villa tier, also create villa state
+      if (prop.id === 'villa' && !s.villa) {
+        s.villa = {
+          level: 1, modules: [], prestigeModules: [], vaultMoney: 0,
+          storedGoods: {}, storedAmmo: 0, helipadUsedToday: false,
+          purchaseDay: s.day, lastPartyDay: 0,
+        };
+      }
+      return s;
+    }
+
     case 'BUY_VILLA': {
       if (s.villa) return s;
       if (s.money < VILLA_COST) return s;
@@ -2139,6 +2169,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         purchaseDay: s.day,
         lastPartyDay: 0,
       };
+      s.propertyId = 'villa';
       addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
       Engine.checkAchievements(s);
       return s;
