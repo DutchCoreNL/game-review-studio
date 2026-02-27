@@ -5,7 +5,14 @@ export type CrewRole = 'Chauffeur' | 'Enforcer' | 'Hacker' | 'Smokkelaar';
 export type StatId = 'muscle' | 'brains' | 'charm';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
-export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile' | 'admin';
+export type GameView = 
+  | 'city' | 'casino' | 'hospital' | 'safehouse' | 'villa' | 'chopshop'
+  | 'ops' | 'contracts' | 'heists' | 'bounties' | 'pvp' | 'challenges' | 'hits' | 'wanted'
+  | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'
+  | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
+  | 'garage' | 'business' | 'districts'
+  | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
+  | 'empire' | 'admin';
 
 // ========== VILLA TYPES ==========
 

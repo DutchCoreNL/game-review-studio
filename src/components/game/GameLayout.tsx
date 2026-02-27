@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWorldState } from '@/hooks/useWorldState';
 import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { useAdmin } from '@/hooks/useAdmin';
@@ -9,6 +9,7 @@ import { startAmbiance, stopAmbiance, setAmbianceVolume, setWeather } from '@/ga
 import { playPopupOpen } from '@/game/sounds/uiSounds';
 import { GameHeader } from './GameHeader';
 import { GameNav } from './GameNav';
+import { GameSidebar } from './GameSidebar';
 import { MapView } from './MapView';
 import { TradeView } from './TradeView';
 import { ProfileView } from './ProfileView';
@@ -48,22 +49,112 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { MaintenanceOverlay } from './MaintenanceOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Lazy-loaded standalone views
 const AdminPanelView = React.lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
+const CasinoView = React.lazy(() => import('./CasinoView').then(m => ({ default: m.CasinoView })));
+const SafehouseView = React.lazy(() => import('./SafehouseView').then(m => ({ default: m.SafehouseView })));
+const VillaView = React.lazy(() => import('./villa/VillaView').then(m => ({ default: m.VillaView })));
+const HospitalView = React.lazy(() => import('./HospitalView').then(m => ({ default: m.HospitalView })));
+const ChopShopView = React.lazy(() => import('./ChopShopView').then(m => ({ default: m.ChopShopView })));
+const GarageView = React.lazy(() => import('./garage/GarageView').then(m => ({ default: m.GarageView })));
+const GangView = React.lazy(() => import('./GangView').then(m => ({ default: m.GangView })));
+const HeistView = React.lazy(() => import('./heist/HeistView').then(m => ({ default: m.HeistView })));
+const BountyBoardPanel = React.lazy(() => import('./bounty/BountyBoardPanel').then(m => ({ default: m.BountyBoardPanel })));
+const DailyChallengesView = React.lazy(() => import('./DailyChallengesView').then(m => ({ default: m.DailyChallengesView })));
+const HitsView = React.lazy(() => import('./HitsView').then(m => ({ default: m.HitsView })));
+const MostWantedView = React.lazy(() => import('./MostWantedView').then(m => ({ default: m.MostWantedView })));
+const PvPAttackView = React.lazy(() => import('./PvPAttackView').then(m => ({ default: m.PvPAttackView })));
+const CorruptionView = React.lazy(() => import('./CorruptionView').then(m => ({ default: m.CorruptionView })));
+const MessagesView = React.lazy(() => import('./MessagesView').then(m => ({ default: m.MessagesView })));
+const LeaderboardView = React.lazy(() => import('./LeaderboardView').then(m => ({ default: m.LeaderboardView })));
 
+// Lazy trade sub-panels
+const MarketPanel = React.lazy(() => import('./trade/MarketPanel').then(m => ({ default: m.MarketPanel })));
+const MarketAnalysisPanel = React.lazy(() => import('./trade/MarketAnalysisPanel').then(m => ({ default: m.MarketAnalysisPanel })));
+const AuctionPanel = React.lazy(() => import('./trade/AuctionPanel').then(m => ({ default: m.AuctionPanel })));
+const StockMarketPanel = React.lazy(() => import('./trade/StockMarketPanel').then(m => ({ default: m.StockMarketPanel })));
+const LaunderingPanel = React.lazy(() => import('./trade/LaunderingPanel').then(m => ({ default: m.LaunderingPanel })));
+const GearPanel = React.lazy(() => import('./trade/GearPanel').then(m => ({ default: m.GearPanel })));
+
+// Lazy imperium sub-panels  
+const DistrictDefensePanel = React.lazy(() => import('./imperium/DistrictDefensePanel').then(m => ({ default: m.DistrictDefensePanel })));
+const DistrictLeaderboardPanel = React.lazy(() => import('./imperium/DistrictLeaderboardPanel').then(m => ({ default: m.DistrictLeaderboardPanel })));
+
+// Lazy profile sub-panels
+const SkillTreePanel = React.lazy(() => import('./profile/SkillTreePanel').then(m => ({ default: m.SkillTreePanel })));
+const NpcRelationsPanel = React.lazy(() => import('./profile/NpcRelationsPanel').then(m => ({ default: m.NpcRelationsPanel })));
+const StoryArcsPanel = React.lazy(() => import('./profile/StoryArcsPanel').then(m => ({ default: m.StoryArcsPanel })));
+const ReputationLeaderboard = React.lazy(() => import('./profile/ReputationLeaderboard').then(m => ({ default: m.ReputationLeaderboard })));
+const DrugEmpireStatsPanel = React.lazy(() => import('./profile/DrugEmpireStatsPanel').then(m => ({ default: m.DrugEmpireStatsPanel })));
+const AudioSettingsPanel = React.lazy(() => import('./profile/AudioSettingsPanel').then(m => ({ default: m.AudioSettingsPanel })));
+
+// View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
+  // Stad
   city: MapView,
-  trade: TradeView,
+  casino: CasinoView,
+  hospital: HospitalView,
+  safehouse: SafehouseView,
+  villa: VillaView,
+  chopshop: ChopShopView,
+  // Acties
   ops: OperationsView,
+  contracts: OperationsView, // opens with contracts sub-tab
+  heists: HeistView,
+  bounties: BountyBoardPanel,
+  pvp: PvPAttackView,
+  challenges: DailyChallengesView,
+  hits: HitsView,
+  wanted: MostWantedView,
+  // Handel
+  trade: TradeView,
+  market: MarketPanel,
+  analysis: MarketAnalysisPanel,
+  auction: AuctionPanel,
+  stocks: StockMarketPanel,
+  launder: LaunderingPanel,
+  gear: GearPanel,
+  // Crew & Oorlog
+  crew: OperationsView, // crew sub-tab in ops
+  families: ImperiumView,
+  gang: GangView,
+  war: DistrictDefensePanel,
+  corruption: CorruptionView,
+  // Imperium
   empire: ImperiumView,
+  business: ImperiumView,
+  garage: GarageView,
+  districts: DistrictLeaderboardPanel,
+  // Profiel
   profile: ProfileView,
+  skills: SkillTreePanel,
+  loadout: ProfileView,
+  contacts: NpcRelationsPanel,
+  reputation: ReputationLeaderboard,
+  arcs: StoryArcsPanel,
+  trophies: ProfileView,
+  leaderboard: LeaderboardView,
+  messages: MessagesView,
+  'imperium-stats': DrugEmpireStatsPanel,
+  settings: AudioSettingsPanel,
+  // Admin
   admin: AdminPanelView,
 };
 
+// Map view to music scene
+function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
+  if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop'].includes(v)) return 'city';
+  if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(v)) return 'ops';
+  if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
+  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts'].includes(v)) return 'empire';
+  return 'profile';
+}
+
 export function GameLayout() {
   const { view, state, dispatch, xpBreakdown, clearXpBreakdown } = useGame();
-
   const { isAdmin } = useAdmin();
   const worldState = useWorldState();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
@@ -72,8 +163,7 @@ export function GameLayout() {
     if (state.activeCombat) {
       setMusicScene('combat');
     } else {
-      const scene = view === 'admin' ? 'profile' : view;
-      setMusicScene(scene as 'city' | 'trade' | 'ops' | 'empire' | 'profile');
+      setMusicScene(getMusicScene(view));
     }
   }, [view, state.activeCombat]);
 
@@ -81,6 +171,7 @@ export function GameLayout() {
   useEffect(() => {
     setWeather(state.weather);
   }, [state.weather]);
+
   // Load saved audio prefs & start ambiance on mount
   useEffect(() => {
     try {
@@ -123,12 +214,15 @@ export function GameLayout() {
   return (
     <ScreenEffects effect={state.screenEffect} onDone={clearEffect}>
       <div className="noise-overlay vignette flex h-[100dvh] w-full bg-background relative overflow-hidden">
-        {/* Desktop sidebar - hidden on mobile */}
+        {/* Desktop sidebar */}
         <DesktopSidebar />
+
+        {/* Mobile sidebar popup */}
+        <GameSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
 
         {/* Main game column */}
         <div className="flex flex-col flex-1 max-w-[600px] lg:max-w-none mx-auto bg-card border-x border-border relative overflow-hidden shadow-2xl">
-          <GameHeader />
+          <GameHeader onMenuOpen={() => setSidebarOpen(true)} />
 
           <main className="flex-1 overflow-y-auto pb-2 px-4 lg:px-6 pt-2 game-scroll">
             <SanctionBanner />
@@ -151,7 +245,7 @@ export function GameLayout() {
 
           {/* Bottom nav - mobile only */}
           <div className="lg:hidden">
-            <GameNav />
+            <GameNav onMenuOpen={() => setSidebarOpen(true)} />
           </div>
           <GameToast />
           {xpBreakdown && (
