@@ -31,6 +31,7 @@ import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import { MissionBriefing } from './MissionBriefing';
 import { BountyBoardPanel } from './bounty/BountyBoardPanel';
+import { MostWantedView } from './MostWantedView';
 import { PvPAttackView } from './PvPAttackView';
 import operationsBg from '@/assets/operations-bg.jpg';
 import { SOLO_OP_IMAGES, CONTRACT_TYPE_IMAGES } from '@/assets/items';
@@ -40,7 +41,7 @@ const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat:
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'bounties' | 'challenges' | 'pvp';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'bounties' | 'wanted' | 'challenges' | 'pvp';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -86,6 +87,7 @@ export function OperationsView() {
     { id: 'heists', label: 'HEIST', icon: <Target size={12} /> },
     { id: 'hits', label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
     { id: 'bounties', label: 'PREMIES', icon: <ShieldAlert size={12} />, badge: (state.activeBounties || []).length + (state.placedBounties || []).length },
+    { id: 'wanted', label: 'WANTED', icon: <Target size={12} /> },
     { id: 'crew', label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
     { id: 'challenges', label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
     { id: 'pvp', label: 'PVP', icon: <Swords size={12} /> },
@@ -318,6 +320,8 @@ export function OperationsView() {
       {subTab === 'heists' && <HeistView />}
 
       {subTab === 'bounties' && <BountyBoardPanel />}
+
+      {subTab === 'wanted' && <MostWantedView />}
 
       {subTab === 'challenges' && <DailyChallengesView />}
 

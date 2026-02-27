@@ -15,7 +15,8 @@ export type GameAction =
   | "gang_claim_territory" | "gang_donate" | "gang_declare_war"
   | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs"
   | "contribute_influence" | "get_district_info"
-  | "get_market_prices";
+  | "get_market_prices"
+  | "place_bounty" | "get_most_wanted";
 
 interface GameActionResult {
   success: boolean;
@@ -88,4 +89,9 @@ export const gameApi = {
 
   // Market
   getMarketPrices: () => invokeGameAction("get_market_prices"),
+
+  // Most Wanted / Bounties
+  placeBounty: (targetUserId: string, amount: number) =>
+    invokeGameAction("place_bounty", { targetUserId, amount }),
+  getMostWanted: () => invokeGameAction("get_most_wanted"),
 };
