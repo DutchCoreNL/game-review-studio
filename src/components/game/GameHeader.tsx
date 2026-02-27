@@ -41,27 +41,25 @@ export function GameHeader() {
   const { state, dispatch } = useGame();
   const worldState = useWorldState();
   const [popup, setPopup] = useState<PopupType>(null);
-  const [nextTickCountdown, setNextTickCountdown] = useState<string>('');
+  const [nextPhaseCountdown, setNextPhaseCountdown] = useState<string>('');
   
-  // Countdown to next auto-tick
+  // Countdown to next world phase (from world_state.next_cycle_at)
   useEffect(() => {
     const update = () => {
-      const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
-      const interval = (state.tickIntervalMinutes || 30) * 60 * 1000;
-      const nextTick = lastTick + interval;
-      const diff = nextTick - Date.now();
+      if (!worldState.nextCycleAt) { setNextPhaseCountdown('--:--'); return; }
+      const diff = new Date(worldState.nextCycleAt).getTime() - Date.now();
       if (diff <= 0) {
-        setNextTickCountdown('nu');
+        setNextPhaseCountdown('nu');
       } else {
         const mins = Math.floor(diff / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
-        setNextTickCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+        setNextPhaseCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
       }
     };
     update();
     const iv = setInterval(update, 1000);
     return () => clearInterval(iv);
-  }, [state.lastTickAt, state.tickIntervalMinutes]);
+  }, [worldState.nextCycleAt]);
 
   const rank = getRankTitle(state.rep);
   const activeWeather = worldState.loading ? state.weather : worldState.weather;
@@ -96,7 +94,7 @@ export function GameHeader() {
               {TIME_OF_DAY_ICONS[worldState.timeOfDay]}
             </span>
             <span>Dag {worldState.loading ? state.day : worldState.worldDay}</span>
-            <span className="text-muted-foreground/60 tabular-nums" title="Volgende dag in...">⏱{nextTickCountdown}</span>
+            <span className="text-muted-foreground/60 tabular-nums" title={`Volgende fase: ${TIME_OF_DAY_LABELS[worldState.timeOfDay]}`}>⏱{nextPhaseCountdown}</span>
             <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[activeWeather]}`} title={weatherDef?.desc}>
               {WEATHER_ICONS[activeWeather]}
             </span>
