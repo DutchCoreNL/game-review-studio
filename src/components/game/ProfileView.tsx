@@ -13,7 +13,7 @@ import { AnimatedXPBar } from './animations/RewardPopup';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home, Settings } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home, Settings, Mail } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
@@ -29,6 +29,7 @@ import profileBg from '@/assets/profile-bg.jpg';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { LinkAccountPanel } from './profile/LinkAccountPanel';
 import { AdminPanel } from './AdminPanel';
+import { MessagesView } from './MessagesView';
 import { useAdmin } from '@/hooks/useAdmin';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
@@ -43,7 +44,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'imperium' | 'settings' | 'admin';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -91,6 +92,7 @@ export function ProfileView() {
           { id: 'arcs', label: 'BOGEN', icon: <Target size={11} /> },
           { id: 'trophies', label: 'TROFEEËN', icon: <Trophy size={11} /> },
           { id: 'leaderboard', label: 'ONLINE', icon: <Crown size={11} /> },
+          { id: 'messages', label: 'MAIL', icon: <Mail size={11} /> },
           { id: 'imperium', label: 'IMPERIUM', icon: <Skull size={11} /> },
           { id: 'settings', label: '⚙️', icon: <Settings size={11} /> },
           ...(isAdmin ? [{ id: 'admin', label: 'ADMIN', icon: <Shield size={11} />, badge: true }] : []),
@@ -229,6 +231,8 @@ export function ProfileView() {
       {profileTab === 'arcs' && <StoryArcsPanel />}
 
       {profileTab === 'leaderboard' && <LeaderboardView />}
+
+      {profileTab === 'messages' && <MessagesView />}
 
       {profileTab === 'imperium' && (
         <>
@@ -411,4 +415,3 @@ export function ProfileView() {
     </ViewWrapper>
   );
 }
-
