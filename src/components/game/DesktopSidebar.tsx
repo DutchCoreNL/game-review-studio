@@ -1,9 +1,10 @@
 import { useGame } from '@/contexts/GameContext';
 import { GameView } from '@/game/types';
-import { Map, Package, Crosshair, Crown, User, LucideIcon, Phone } from 'lucide-react';
+import { Map, Package, Crosshair, Crown, User, LucideIcon, Phone, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
+import { useAdmin } from '@/hooks/useAdmin';
 
 const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
   { id: 'city', label: 'KAART', icon: Map },
@@ -15,6 +16,13 @@ const NAV_ITEMS: { id: GameView; label: string; icon: LucideIcon }[] = [
 
 export function DesktopSidebar() {
   const { view, setView, state, dispatch } = useGame();
+  const { isAdmin } = useAdmin();
+
+  const navItems = useMemo(() => {
+    const items = [...NAV_ITEMS];
+    if (isAdmin) items.push({ id: 'admin', label: 'ADMIN', icon: Shield });
+    return items;
+  }, [isAdmin]);
 
   const badges = useMemo(() => {
     const b: Partial<Record<GameView, number>> = {};
@@ -43,7 +51,7 @@ export function DesktopSidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 py-3 px-2 space-y-1">
-        {NAV_ITEMS.map(item => {
+        {navItems.map(item => {
           const isActive = view === item.id;
           const Icon = item.icon;
           const badge = badges[item.id];

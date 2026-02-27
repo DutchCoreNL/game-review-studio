@@ -8,6 +8,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
 import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock } from 'lucide-react';
+import { ViewWrapper } from './ui/ViewWrapper';
 
 // ====== TYPES ======
 
@@ -223,7 +224,7 @@ export function AdminPanel() {
 
   // ====== RENDER ======
   return (
-    <div>
+    <ViewWrapper>
       <SectionHeader title="Admin Paneel" icon={<Shield size={12} />} badge="ADMIN" badgeColor="blood" />
 
       <SubTabBar
@@ -941,6 +942,6 @@ export function AdminPanel() {
           </div>
         </div>
       )}
-    </div>
+    </ViewWrapper>
   );
 }

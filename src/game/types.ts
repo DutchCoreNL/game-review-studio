@@ -5,7 +5,7 @@ export type CrewRole = 'Chauffeur' | 'Enforcer' | 'Hacker' | 'Smokkelaar';
 export type StatId = 'muscle' | 'brains' | 'charm';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
-export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile';
+export type GameView = 'city' | 'trade' | 'ops' | 'empire' | 'profile' | 'admin';
 
 // ========== VILLA TYPES ==========
 
