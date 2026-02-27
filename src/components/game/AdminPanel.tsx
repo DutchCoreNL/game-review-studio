@@ -7,7 +7,7 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock } from 'lucide-react';
 
 // ====== TYPES ======
 
@@ -57,6 +57,14 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; variant: 'blo
   randomize_bot_locations: { label: 'Bots verplaatst', icon: '🔀', variant: 'purple' },
   send_message: { label: 'Bericht gestuurd', icon: '💬', variant: 'muted' },
   send_broadcast: { label: 'Broadcast', icon: '📢', variant: 'gold' },
+  global_reset: { label: 'Globale Reset', icon: '💀', variant: 'blood' },
+  force_world_tick: { label: 'World Tick', icon: '⚡', variant: 'purple' },
+  clear_news: { label: 'Nieuws gewist', icon: '📰', variant: 'muted' },
+  grant_cash: { label: 'Cash gegeven', icon: '💰', variant: 'emerald' },
+  grant_xp: { label: 'XP gegeven', icon: '⭐', variant: 'emerald' },
+  heal_all_players: { label: 'Alle geheald', icon: '💚', variant: 'emerald' },
+  set_weather: { label: 'Weer gewijzigd', icon: '🌦️', variant: 'purple' },
+  trigger_event: { label: 'Event getriggerd', icon: '📢', variant: 'gold' },
 };
 
 // ====== HELPER: admin API call ======
@@ -106,6 +114,11 @@ export function AdminPanel() {
   // -- World tab state --
   const [worldStats, setWorldStats] = useState<WorldStats | null>(null);
   const [worldLoading, setWorldLoading] = useState(false);
+  const [confirmGlobalReset, setConfirmGlobalReset] = useState(false);
+  const [eventForm, setEventForm] = useState({ title: '', description: '', district_id: 'low', duration: 60 });
+  const [grantTarget, setGrantTarget] = useState('');
+  const [grantAmount, setGrantAmount] = useState(10000);
+  const [grantType, setGrantType] = useState<'cash' | 'xp'>('cash');
 
   // -- Messages tab state --
   const [msgMode, setMsgMode] = useState<'single' | 'broadcast'>('broadcast');
@@ -413,9 +426,103 @@ export function AdminPanel() {
       {/* ======== WERELD TAB ======== */}
       {tab === 'world' && (
         <div className="mt-2 space-y-3">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-1.5">
             <GameButton variant="muted" size="sm" icon={<RefreshCw size={10} />} onClick={fetchWorldStats}>REFRESH</GameButton>
           </div>
+
+          {/* ====== ADMIN ACTIES ====== */}
+          <div className="game-card border-blood/30">
+            <p className="text-[0.5rem] font-bold text-blood mb-2">⚡ ADMIN ACTIES</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <GameButton variant="purple" size="sm" icon={<Zap size={10} />} onClick={async () => {
+                setActionLoading('world_tick');
+                try { const r = await adminCall('force_world_tick'); showToast(`✅ ${r.message}`); fetchWorldStats(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                setActionLoading(null);
+              }} disabled={actionLoading === 'world_tick'}>
+                FORCE TICK
+              </GameButton>
+              <GameButton variant="emerald" size="sm" icon={<Heart size={10} />} onClick={async () => {
+                setActionLoading('heal_all');
+                try { const r = await adminCall('heal_all_players'); showToast(`✅ ${r.message}`); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                setActionLoading(null);
+              }} disabled={actionLoading === 'heal_all'}>
+                HEAL IEDEREEN
+              </GameButton>
+              <GameButton variant="muted" size="sm" icon={<Newspaper size={10} />} onClick={async () => {
+                setActionLoading('clear_news');
+                try { const r = await adminCall('clear_news'); showToast(`✅ ${r.message}`); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                setActionLoading(null);
+              }} disabled={actionLoading === 'clear_news'}>
+                WIS NIEUWS
+              </GameButton>
+              <GameButton variant="blood" size="sm" icon={<Bomb size={10} />} onClick={() => setConfirmGlobalReset(true)}>
+                GLOBAL RESET
+              </GameButton>
+            </div>
+          </div>
+
+          {/* Weather control */}
+          <div className="game-card">
+            <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">🌦️ WEER INSTELLEN</p>
+            <div className="flex gap-1 flex-wrap">
+              {['clear', 'rain', 'fog', 'heatwave', 'storm'].map(w => (
+                <GameButton key={w} variant="muted" size="sm" onClick={async () => {
+                  try { const r = await adminCall('set_weather', { weather: w }); showToast(`✅ ${r.message}`); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                }}>
+                  {w === 'clear' ? '☀️' : w === 'rain' ? '🌧️' : w === 'fog' ? '🌫️' : w === 'heatwave' ? '🌡️' : '⛈️'} {w}
+                </GameButton>
+              ))}
+            </div>
+          </div>
+
+          {/* Grant to player */}
+          <div className="game-card">
+            <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">🎁 GEEF AAN SPELER</p>
+            <div className="space-y-1.5">
+              <input value={grantTarget} onChange={e => setGrantTarget(e.target.value)} placeholder="User ID..." className="w-full bg-background border border-border rounded px-2 py-1 text-xs" />
+              <div className="flex gap-1.5">
+                <select value={grantType} onChange={e => setGrantType(e.target.value as 'cash' | 'xp')} className="bg-background border border-border rounded px-2 py-1 text-xs">
+                  <option value="cash">💰 Cash</option>
+                  <option value="xp">⭐ XP</option>
+                </select>
+                <input type="number" value={grantAmount} onChange={e => setGrantAmount(Number(e.target.value))} className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs" />
+                <GameButton variant="emerald" size="sm" onClick={async () => {
+                  if (!grantTarget.trim()) { showToast('❌ Vul user ID in', true); return; }
+                  try { const r = await adminCall(grantType === 'cash' ? 'grant_cash' : 'grant_xp', { userId: grantTarget.trim(), targetUsername: 'admin-grant', amount: grantAmount }); showToast(`✅ ${r.message}`); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                }}>GEEF</GameButton>
+              </div>
+            </div>
+          </div>
+
+          {/* Trigger custom event */}
+          <div className="game-card">
+            <p className="text-[0.5rem] font-bold text-muted-foreground mb-2">📢 TRIGGER EVENT</p>
+            <div className="space-y-1.5">
+              <input value={eventForm.title} onChange={e => setEventForm(p => ({ ...p, title: e.target.value }))} placeholder="Event titel..." className="w-full bg-background border border-border rounded px-2 py-1 text-xs" />
+              <textarea value={eventForm.description} onChange={e => setEventForm(p => ({ ...p, description: e.target.value }))} placeholder="Beschrijving..." className="w-full bg-background border border-border rounded p-2 text-xs h-12 resize-none" />
+              <div className="flex gap-1.5">
+                <select value={eventForm.district_id} onChange={e => setEventForm(p => ({ ...p, district_id: e.target.value }))} className="bg-background border border-border rounded px-2 py-1 text-xs">
+                  {DISTRICTS.map(d => <option key={d} value={d}>{DISTRICT_LABELS[d]}</option>)}
+                  <option value="all">Alle districten</option>
+                </select>
+                <select value={eventForm.duration} onChange={e => setEventForm(p => ({ ...p, duration: Number(e.target.value) }))} className="bg-background border border-border rounded px-2 py-1 text-xs">
+                  <option value={30}>30 min</option>
+                  <option value={60}>1 uur</option>
+                  <option value={180}>3 uur</option>
+                  <option value={720}>12 uur</option>
+                  <option value={1440}>24 uur</option>
+                </select>
+                <GameButton variant="gold" size="sm" icon={<Zap size={10} />} disabled={!eventForm.title.trim()} onClick={async () => {
+                  try {
+                    const r = await adminCall('trigger_event', { title: eventForm.title, description: eventForm.description, district_id: eventForm.district_id, duration_minutes: eventForm.duration });
+                    showToast(`✅ ${r.message}`);
+                    setEventForm({ title: '', description: '', district_id: 'low', duration: 60 });
+                  } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+                }}>TRIGGER</GameButton>
+              </div>
+            </div>
+          </div>
+
           {worldLoading || !worldStats ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
             <>
               {/* Server stats */}
@@ -486,6 +593,22 @@ export function AdminPanel() {
               </div>
             </>
           )}
+
+          {/* Global Reset Confirm */}
+          <ConfirmDialog
+            open={confirmGlobalReset}
+            title="⚠️ GLOBALE RESET"
+            message="Dit wist ALLE spelerdata, gangs, inventaris, skills, voertuigen, villa's en berichten voor IEDEREEN. Het spel begint helemaal opnieuw. Dit kan NIET ongedaan worden!"
+            confirmText="JA, RESET ALLES"
+            variant="danger"
+            onConfirm={async () => {
+              setConfirmGlobalReset(false);
+              setActionLoading('global_reset');
+              try { const r = await adminCall('global_reset'); showToast(`✅ ${r.message}`); fetchWorldStats(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              setActionLoading(null);
+            }}
+            onCancel={() => setConfirmGlobalReset(false)}
+          />
         </div>
       )}
 
