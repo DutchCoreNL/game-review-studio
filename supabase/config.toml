@@ -2,3 +2,6 @@ project_id = "mwshudivoqwjdiidhalm"
 
 [functions.sync-leaderboard]
 verify_jwt = false
+
+[functions.admin-actions]
+verify_jwt = false
