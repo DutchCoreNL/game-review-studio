@@ -1,106 +1,57 @@
 
 
-## Plan: Popup Sidebar Navigation
+## Plan: Fix Sidebar Navigation View Mapping
 
-### Probleem nu
-De 5 hoofd-tabs bevatten elk te veel sub-tabs:
-- **MISSIES**: 9 sub-tabs (Solo, Contracts, Crew, Hits, Heists, Bounties, Wanted, Challenges, PvP)
-- **HANDEL**: 8 sub-tabs (Markt, Analyse, Globaal, Veiling, Beurs, Witwas, Gear, Log)
-- **IMPERIUM**: 7 sub-tabs (Garage, Business, Facties, Gang, Oorlog, Wijken, Corruptie)
-- **PROFIEL**: 12 sub-tabs (Stats, Skills, Loadout, NPCs, Reputatie, Bogen, Trofeeën, Online, Mail, Imperium, Settings, Admin)
+### Problemen gevonden
 
-### Nieuwe indeling — Sidebar met categorieën
+De sidebar definieert ~35 navigatie-items, maar veel view-mappings in `GameLayout.tsx` wijzen naar container-views (`OperationsView`, `ImperiumView`, `ProfileView`) die hun eigen sub-tab state hebben. Hierdoor opent bijv. "Contracten" altijd de OperationsView op de 'solo' tab in plaats van 'contracts'.
 
-```text
-┌──────────────────────────┐
-│  NOXHAVEN     Dag 42  ✕  │
-│──────────────────────────│
-│  🗺  STAD                │
-│     Kaart                │
-│     Casino               │
-│     Ziekenhuis           │
-│     Safehouse            │
-│     Villa                │
-│──────────────────────────│
-│  ⚔  ACTIES               │
-│     Operaties            │
-│     Contracten           │
-│     Heists               │
-│     Bounties             │
-│     PvP                  │
-│     Dagelijks            │
-│──────────────────────────│
-│  💰 HANDEL               │
-│     Markt                │
-│     Analyse              │
-│     Veiling              │
-│     Beurs                │
-│     Witwassen            │
-│     Gear                 │
-│──────────────────────────│
-│  👥 CREW & OORLOG        │
-│     Crew                 │
-│     Facties              │
-│     Gang                 │
-│     Oorlog               │
-│     Corruptie            │
-│──────────────────────────│
-│  🏛  IMPERIUM             │
-│     Business             │
-│     Garage               │
-│     Wijken               │
-│──────────────────────────│
-│  👤 PROFIEL              │
-│     Stats & Skills       │
-│     Loadout              │
-│     NPC Relaties         │
-│     Reputatie            │
-│     Story Arcs           │
-│     Trofeeën            │
-│     Leaderboard          │
-│     Berichten            │
-│     Instellingen         │
-│──────────────────────────│
-│  🛡  ADMIN (als admin)    │
-└──────────────────────────┘
-```
+Specifieke issues:
+- `contracts` → `OperationsView` (opent altijd op 'solo')
+- `crew` → `OperationsView` (opent altijd op 'solo')  
+- `families` → `ImperiumView` (opent altijd op 'garage')
+- `business` → `ImperiumView` (opent altijd op 'garage')
+- `loadout` → `ProfileView` (opent altijd op 'stats')
+- `trophies` → `ProfileView` (opent altijd op 'stats')
+- `BusinessPanel` en `FamiliesPanel` zijn private functies in `ImperiumView.tsx` en niet importeerbaar
+- ProfileView toont nog steeds alle sub-tabs als duplicaat van de sidebar
 
-### Technische aanpak
+### Implementatiestappen
 
-1. **Nieuw `GameView` type uitbreiden** — `src/game/types.ts`  
-   Voeg alle directe views toe als eigen `GameView` waarden (bijv. `'casino'`, `'safehouse'`, `'villa'`, `'heists'`, `'bounties'`, `'pvp'`, `'crew'`, `'garage'`, `'business'`, etc.) zodat elke sidebar-entry direct een view opent zonder sub-tab logica.
+1. **Exporteer `BusinessPanel` en `FamiliesPanel` uit `ImperiumView.tsx`**
+   - Maak ze `export function` i.p.v. private functions
+   - Of verplaats ze naar eigen bestanden
 
-2. **Nieuw component: `GameSidebar.tsx`**  
-   - Gebruikt de bestaande `Sheet` component (slide-in van links)
-   - Gegroepeerde menu-items met iconen en categorie-headers
-   - Badge counts per item (bestaande logica hergebruiken)
-   - Sluit automatisch bij selectie
-   - Geopend via een hamburger-knop in de `GameHeader`
+2. **Extraheer `StatsPanel`, `LoadoutPanel`, `TrophiesPanel` uit `ProfileView.tsx`**
+   - De inline code voor `stats`, `loadout` en `trophies` tabs moet als aparte exporteerbare componenten bestaan
+   - ProfileView kan dan een wrapper blijven die de juiste sub-component rendert op basis van de huidige `view`
 
-3. **`GameHeader.tsx` aanpassen**  
-   - Hamburger menu-knop toevoegen (linksboven)
-   - Sidebar open/close state beheren
+3. **Extraheer `CrewPanel` en `ContractsPanel` uit `OperationsView.tsx`**  
+   - De inline code voor `crew` en `contracts` sub-tabs wordt aparte componenten
 
-4. **`GameNav.tsx` vervangen**  
-   - De bottom nav bar wordt vervangen door een minimale bar met max 4-5 snelkoppelingen (Kaart, Acties, Handel, Imperium, Menu) OF wordt volledig verwijderd ten gunste van alleen de sidebar
+4. **Update `GameLayout.tsx` view mapping**
+   - Elke sidebar-entry wijst naar het correcte standalone component:
+     - `contracts` → `ContractsPanel`
+     - `crew` → `CrewPanel`  
+     - `families` → `FamiliesPanel`
+     - `business` → `BusinessPanel`
+     - `loadout` → `LoadoutPanel`
+     - `trophies` → `TrophiesPanel`
+     - `profile` → `StatsPanel` (of een vereenvoudigde ProfileView zonder sub-tabs)
 
-5. **`DesktopSidebar.tsx` aanpassen**  
-   - Desktop sidebar krijgt dezelfde gecategoriseerde structuur
-   - Altijd zichtbaar op desktop, collapsible naar iconen
+5. **Verwijder SubTabBar uit OperationsView, ImperiumView, ProfileView**
+   - Deze container-views worden niet meer direct gebruikt
+   - Of: vereenvoudig ze tot alleen hun "hoofd" content (solo ops, stats overview)
+   - De sub-tab navigatie is nu volledig vervangen door de sidebar
 
-6. **View routing in `GameLayout.tsx` aanpassen**  
-   - De `views` record uitbreiden met alle nieuwe directe views
-   - Sub-views als Casino, Villa, Safehouse uit MapView halen naar eigen top-level views
-   - Bestaande sub-tab componenten hergebruiken als standalone views
+6. **`ops` view vereenvoudigen**
+   - `OperationsView` wordt de "Solo Operaties" view zonder sub-tabs
+   - Alle andere sub-tabs zijn nu standalone views via de sidebar
 
-7. **Bestaande sub-tab views vereenvoudigen**  
-   - `OperationsView`, `TradeView`, `ImperiumView`, `ProfileView` worden ofwel gesplitst in aparte views, ofwel behouden als container maar met minder sub-tabs doordat items nu direct bereikbaar zijn via de sidebar
+### Technische details
 
-### Aanpak voor bottom nav (mobiel)
-
-De bottom nav blijft bestaan maar wordt vereenvoudigd tot 4 items + menu-knop:
-```text
-[ 🗺 Kaart | ⚔ Acties | 💰 Handel | 🏛 Imperium | ☰ Menu ]
-```
-De "Menu" knop opent de volledige sidebar sheet. Profiel en andere secties zijn dan via het menu bereikbaar.
+- Circa 6 nieuwe component-bestanden of exports
+- `GameLayout.tsx` views record wordt bijgewerkt met correcte imports
+- Geen database- of type-wijzigingen nodig — `GameView` type is al compleet
+- De `DesktopSidebar` en `GameSidebar` hoeven niet aangepast te worden
 
