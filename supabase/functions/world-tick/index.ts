@@ -640,6 +640,7 @@ async function resetConqueredFactions(supabase: any) {
         vassal_owner_id: null,
         reset_at: null,
         total_damage_dealt: {},
+        gang_damage: {},
         conquest_reward_claimed: [],
         last_attack_by: null,
         last_attack_at: null,

@@ -217,6 +217,7 @@ export type Database = {
           conquest_progress: number
           conquest_reward_claimed: Json
           faction_id: string
+          gang_damage: Json
           global_relation: number
           id: string
           last_attack_at: string | null
@@ -236,6 +237,7 @@ export type Database = {
           conquest_progress?: number
           conquest_reward_claimed?: Json
           faction_id: string
+          gang_damage?: Json
           global_relation?: number
           id?: string
           last_attack_at?: string | null
@@ -255,6 +257,7 @@ export type Database = {
           conquest_progress?: number
           conquest_reward_claimed?: Json
           faction_id?: string
+          gang_damage?: Json
           global_relation?: number
           id?: string
           last_attack_at?: string | null

@@ -33,6 +33,57 @@ interface FactionCardProps {
   familyId: FamilyId;
 }
 
+function GangDamageLeaderboard({ gangDamage, totalDamage }: { gangDamage: Record<string, Record<string, number>>; totalDamage: number }) {
+  const [gangNames, setGangNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const ids = Object.keys(gangDamage);
+    if (ids.length === 0) return;
+    supabase.from('gangs').select('id, name, tag').in('id', ids).then(({ data }) => {
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(g => { map[g.id] = `[${g.tag}] ${g.name}`; });
+        setGangNames(map);
+      }
+    });
+  }, [gangDamage]);
+
+  const sorted = Object.entries(gangDamage)
+    .map(([gid, members]) => ({
+      gid,
+      total: Object.values(members).reduce((a, b) => a + b, 0),
+      memberCount: Object.keys(members).length,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  if (sorted.length === 0) return null;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/50">
+      <div className="flex items-center gap-1 mb-1.5">
+        <Users size={10} className="text-ice" />
+        <span className="text-[0.45rem] font-bold uppercase tracking-wider text-ice">Gang Allianties</span>
+      </div>
+      <div className="space-y-1">
+        {sorted.slice(0, 5).map((g, i) => {
+          const pct = totalDamage > 0 ? Math.round((g.total / totalDamage) * 100) : 0;
+          return (
+            <div key={g.gid} className="flex items-center gap-2 text-[0.5rem]">
+              <span className={`w-4 text-center font-bold ${i === 0 ? 'text-ice' : 'text-muted-foreground/60'}`}>
+                {i === 0 ? '⚔️' : `#${i + 1}`}
+              </span>
+              <span className="flex-1 truncate font-semibold">{gangNames[g.gid] || g.gid.slice(0, 8)}</span>
+              <span className="text-muted-foreground">{g.memberCount}👤</span>
+              <span className="font-bold">{g.total} dmg</span>
+              <span className="text-ice text-[0.4rem]">({pct}%)</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function FactionCard({ familyId }: FactionCardProps) {
   const { state, dispatch, showToast, setView } = useGame();
   const { factions, usernameMap, attackFaction } = useFactionState();
@@ -263,7 +314,7 @@ export function FactionCard({ familyId }: FactionCardProps) {
             <div className="flex items-center gap-1 mt-1">
               <Users size={8} className="text-muted-foreground" />
               <span className="text-[0.4rem] text-muted-foreground">
-                {Object.keys(mmoFaction.total_damage_dealt).length} spelers hebben aangevallen
+                {Object.keys(mmoFaction.total_damage_dealt).length} spelers · {Object.keys(mmoFaction.gang_damage || {}).length} gangs
               </span>
             </div>
           )}
@@ -351,6 +402,11 @@ export function FactionCard({ familyId }: FactionCardProps) {
                           ))}
                       </div>
                     </div>
+                  )}
+
+                  {/* Gang Alliance Leaderboard */}
+                  {mmoFaction?.gang_damage && Object.keys(mmoFaction.gang_damage).length > 0 && (
+                    <GangDamageLeaderboard gangDamage={mmoFaction.gang_damage} totalDamage={Object.values(mmoFaction.total_damage_dealt || {}).reduce((a, b) => a + (b as number), 0)} />
                   )}
                 </div>
               )}
@@ -478,6 +534,11 @@ export function FactionCard({ familyId }: FactionCardProps) {
                           : `AANVAL STARTEN (⚡15 💀10)`}
                       </motion.button>
                     </div>
+                  )}
+
+                  {/* Gang Alliance during active combat */}
+                  {mmoFaction?.gang_damage && Object.keys(mmoFaction.gang_damage).length > 0 && serverPhase !== 'none' && (
+                    <GangDamageLeaderboard gangDamage={mmoFaction.gang_damage} totalDamage={Object.values(mmoFaction.total_damage_dealt || {}).reduce((a, b) => a + (b as number), 0)} />
                   )}
                 </div>
               )}
