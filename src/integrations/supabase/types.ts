@@ -44,6 +44,60 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_players: {
+        Row: {
+          backstory: string | null
+          cash: number
+          created_at: string
+          crew_size: number
+          day: number
+          districts_owned: number
+          hp: number
+          id: string
+          is_active: boolean
+          karma: number
+          level: number
+          loc: string
+          max_hp: number
+          rep: number
+          username: string
+        }
+        Insert: {
+          backstory?: string | null
+          cash?: number
+          created_at?: string
+          crew_size?: number
+          day?: number
+          districts_owned?: number
+          hp?: number
+          id?: string
+          is_active?: boolean
+          karma?: number
+          level?: number
+          loc?: string
+          max_hp?: number
+          rep?: number
+          username: string
+        }
+        Update: {
+          backstory?: string | null
+          cash?: number
+          created_at?: string
+          crew_size?: number
+          day?: number
+          districts_owned?: number
+          hp?: number
+          id?: string
+          is_active?: boolean
+          karma?: number
+          level?: number
+          loc?: string
+          max_hp?: number
+          rep?: number
+          username?: string
+        }
+        Relationships: []
+      }
       district_influence: {
         Row: {
           district_id: string
