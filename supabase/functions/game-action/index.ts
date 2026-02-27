@@ -3925,12 +3925,22 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
 
   if (success) {
     const damage = 15 + Math.floor(Math.random() * 20) + Math.floor(muscle * 1.5);
-    const newHp = Math.max(0, faction.boss_hp - damage);
-    const phaseComplete = newHp <= 0;
 
     // Track per-user damage in total_damage_dealt jsonb
     const damageMap = faction.total_damage_dealt || {};
     damageMap[userId] = (damageMap[userId] || 0) + damage;
+
+    // === BOSS HP SCALING: scale max HP based on unique attackers ===
+    const uniqueAttackers = Object.keys(damageMap).length;
+    const scaledMaxHp = Math.min(500, faction.boss_max_hp + (uniqueAttackers > 1 ? (uniqueAttackers - 1) * 20 : 0));
+    // Only increase, never decrease mid-fight
+    const newMaxHp = Math.max(faction.boss_max_hp, scaledMaxHp);
+    // If max HP increased, add the difference to current HP too
+    const hpBoost = newMaxHp - faction.boss_max_hp;
+    const adjustedCurrentHp = faction.boss_hp + hpBoost;
+
+    const newHp = Math.max(0, adjustedCurrentHp - damage);
+    const phaseComplete = newHp <= 0;
 
     // Fetch attacker username for news
     const { data: attackerProfile } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
@@ -3938,6 +3948,7 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
 
     const updateData: any = {
       boss_hp: phaseComplete ? (phase === "leader" ? 0 : 100) : newHp,
+      boss_max_hp: phaseComplete ? (phase === "leader" ? newMaxHp : 100) : newMaxHp,
       last_attack_by: userId,
       last_attack_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -3982,6 +3993,36 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
           }).eq("user_id", dealerId);
         }
 
+        // === GANG CONQUEST BONUS: if conqueror is in a gang, reward all gang members ===
+        const { data: conquerorMembership } = await supabase.from("gang_members")
+          .select("gang_id").eq("user_id", userId).maybeSingle();
+        if (conquerorMembership?.gang_id) {
+          const { data: gangMembers } = await supabase.from("gang_members")
+            .select("user_id").eq("gang_id", conquerorMembership.gang_id);
+          if (gangMembers && gangMembers.length > 0) {
+            const gangReward = 5000; // Each gang member gets €5k
+            const gangRep = 10;
+            for (const member of gangMembers) {
+              if (member.user_id === userId) continue; // conqueror already rewarded
+              const { data: memberState } = await supabase.from("player_state")
+                .select("money, rep").eq("user_id", member.user_id).single();
+              if (memberState) {
+                await supabase.from("player_state").update({
+                  money: memberState.money + gangReward,
+                  rep: memberState.rep + gangRep,
+                }).eq("user_id", member.user_id);
+                // Send in-game message
+                await supabase.from("player_messages").insert({
+                  sender_id: userId,
+                  receiver_id: member.user_id,
+                  subject: `🏴 Gang Conquest: ${factionId}`,
+                  body: `Je gang heeft de ${factionId} veroverd! Je ontvangt €${gangReward.toLocaleString()} en ${gangRep} rep als gang-bonus.`,
+                });
+              }
+            }
+          }
+        }
+
         // Conquest news event (high urgency)
         await insertPlayerNews(supabase, {
           text: `👑 ${attackerName} heeft de ${factionId} veroverd!`,
@@ -3994,8 +4035,10 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         // Phase complete, advance
         const nextPhase = validPhases[phaseIdx + 1] || "leader";
         updateData.conquest_phase = nextPhase;
+        // Reset HP for next phase (base values, will scale with attackers)
         updateData.boss_hp = phase === "defense" ? 100 : 150;
         updateData.boss_max_hp = phase === "defense" ? 100 : 150;
+        // Keep damage map for cumulative tracking across phases
 
         const phaseNames = { defense: "Verdediging", subboss: "Sub-boss", leader: "Leider" };
         const phaseName = phaseNames[phase as keyof typeof phaseNames];
