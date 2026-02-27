@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { EnergyNerveBar } from './header/EnergyNerveBar';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords, Clock } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords, Clock, Menu } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
 import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
@@ -38,7 +38,11 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
   storm: 'text-game-purple',
 };
 
-export function GameHeader() {
+interface GameHeaderProps {
+  onMenuOpen?: () => void;
+}
+
+export function GameHeader({ onMenuOpen }: GameHeaderProps) {
   const { state, dispatch } = useGame();
   const worldState = useWorldState();
   const [popup, setPopup] = useState<PopupType>(null);
@@ -117,7 +121,13 @@ export function GameHeader() {
       )}
       {/* Row 1: Title + Money */}
       <div className="flex justify-between items-start mb-2">
-        <div className="min-w-0">
+        <div className="flex items-start gap-2 min-w-0">
+          {onMenuOpen && (
+            <button onClick={onMenuOpen} className="mt-0.5 text-muted-foreground hover:text-gold transition-colors lg:hidden flex-shrink-0">
+              <Menu size={18} />
+            </button>
+          )}
+          <div className="min-w-0">
           <h1 className="font-display text-base text-blood uppercase tracking-[3px] font-bold blood-text-glow leading-none">
             Noxhaven
           </h1>
@@ -136,7 +146,7 @@ export function GameHeader() {
             {state.newGamePlusLevel > 0 && (
               <span className="text-game-purple text-[0.45rem] font-bold">NG+{state.newGamePlusLevel}</span>
             )}
-            <WifiPopup />
+          </div>
           </div>
         </div>
 
