@@ -4,6 +4,7 @@ import { Map, Crosshair, ShoppingBag, Building2, Menu, LucideIcon } from 'lucide
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
+import { useDailyDigest } from '@/hooks/useDailyDigest';
 
 const NAV_ITEMS: { id: GameView | 'menu'; label: string; icon: LucideIcon }[] = [
   { id: 'city', label: 'KAART', icon: Map },
@@ -19,6 +20,7 @@ interface GameNavProps {
 
 export function GameNav({ onMenuOpen }: GameNavProps) {
   const { view, setView, state } = useGame();
+  const { digest } = useDailyDigest();
 
   const badges = useMemo(() => {
     const b: Partial<Record<string, number>> = {};
@@ -28,8 +30,9 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
     if (demandCount > 0) b.market = demandCount;
     const cityCount = (state.pendingStreetEvent ? 1 : 0) + (state.nightReport ? 1 : 0);
     if (cityCount > 0) b.city = cityCount;
+    if (digest) b.menu = 1;
     return b;
-  }, [state.activeContracts, state.hitContracts, state.districtDemands, state.pendingStreetEvent, state.nightReport]);
+  }, [state.activeContracts, state.hitContracts, state.districtDemands, state.pendingStreetEvent, state.nightReport, digest]);
 
   // Check if current view belongs to a nav group
   const isInGroup = (navId: string): boolean => {
@@ -46,7 +49,7 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
         const isMenu = item.id === 'menu';
         const isActive = !isMenu && isInGroup(item.id);
         const Icon = item.icon;
-        const badge = !isMenu ? badges[item.id] : undefined;
+        const badge = badges[item.id];
         return (
           <button
             key={item.id}
