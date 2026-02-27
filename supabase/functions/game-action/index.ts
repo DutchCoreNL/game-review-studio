@@ -65,6 +65,37 @@ const NERVE_COSTS: Record<string, number> = {
 const ATTACK_COOLDOWN_SECONDS = 300; // 5 minutes
 const HOSPITAL_SECONDS = 600; // 10 minutes base
 
+// ========== TIME-OF-DAY MODIFIERS ==========
+
+interface TimeModifiers {
+  crimeSuccessBonus: number;   // added to success chance (e.g. +10)
+  tradeIncomeMultiplier: number; // multiplier on sell revenue (e.g. 1.15)
+  heatMultiplier: number;      // multiplier on heat gain (e.g. 0.7 = less heat)
+  raidChanceMultiplier: number; // multiplier on arrest/raid chance (e.g. 0.6)
+  phase: string;
+}
+
+async function getTimeModifiers(supabase: any): Promise<TimeModifiers> {
+  try {
+    const { data: ws } = await supabase.from('world_state').select('time_of_day').eq('id', 1).single();
+    const phase = ws?.time_of_day || 'day';
+
+    switch (phase) {
+      case 'night':
+        return { crimeSuccessBonus: 10, tradeIncomeMultiplier: 1.15, heatMultiplier: 0.7, raidChanceMultiplier: 0.5, phase };
+      case 'dusk':
+        return { crimeSuccessBonus: 5, tradeIncomeMultiplier: 1.05, heatMultiplier: 0.85, raidChanceMultiplier: 0.75, phase };
+      case 'dawn':
+        return { crimeSuccessBonus: -5, tradeIncomeMultiplier: 0.95, heatMultiplier: 1.1, raidChanceMultiplier: 1.1, phase };
+      case 'day':
+      default:
+        return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, phase };
+    }
+  } catch {
+    return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, phase: 'day' };
+  }
+}
+
 // ========== HELPERS ==========
 
 function getPlayerStat(stats: Record<string, number>, loadout: Record<string, string | null>, statId: string): number {
@@ -140,6 +171,9 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
   const energyCost = ENERGY_COSTS.trade || 2;
   const livePrice = marketRow.current_price;
 
+  // Time-of-day trade modifiers
+  const timeMods = await getTimeModifiers(supabase);
+
   if (mode === "buy") {
     const spaceLeft = maxInv - totalInv;
     const maxBuy = Math.min(quantity, spaceLeft);
@@ -187,11 +221,12 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
   } else {
     if (currentQty <= 0) return { success: false, message: "Niet op voorraad." };
     const actualQty = Math.min(quantity, currentQty);
-    const sellPrice = Math.floor(livePrice * 0.85 * (1 + charmBonus));
+    const sellPrice = Math.floor(livePrice * 0.85 * (1 + charmBonus) * timeMods.tradeIncomeMultiplier);
     const totalRevenue = sellPrice * actualQty;
     const remainingQty = currentQty - actualQty;
     const repGain = Math.floor(2 * actualQty);
     const profitPerUnit = sellPrice - currentAvgCost;
+    const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
 
     await supabase.from("player_state").update({
       money: ps.money + totalRevenue, rep: (ps.rep || 0) + repGain,
@@ -222,7 +257,7 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
       good_id: goodId, district_id: ps.loc, price: sellPrice, volume: actualQty, trade_type: "sell",
     });
 
-    return { success: true, message: `${actualQty}x ${good.name} verkocht voor €${totalRevenue} (${profitPerUnit >= 0 ? '+' : ''}€${profitPerUnit}/stuk)`, data: { quantity: actualQty, totalRevenue, newMoney: ps.money + totalRevenue, profitPerUnit, marketPrice: newPrice } };
+    return { success: true, message: `${actualQty}x ${good.name} verkocht voor €${totalRevenue}${nightLabel} (${profitPerUnit >= 0 ? '+' : ''}€${profitPerUnit}/stuk)`, data: { quantity: actualQty, totalRevenue, newMoney: ps.money + totalRevenue, profitPerUnit, marketPrice: newPrice, timeBonus: timeMods.phase } };
   }
 }
 
@@ -304,13 +339,17 @@ async function handleSoloOp(supabase: any, userId: string, ps: any, payload: { o
 
   const statVal = getPlayerStat(ps.stats || {}, ps.loadout || {}, op.stat);
 
+  // Time-of-day modifiers
+  const timeMods = await getTimeModifiers(supabase);
+
   // Check if player owns Lowrise for risk reduction
   const { data: ownedDistricts } = await supabase.from("player_districts").select("district_id").eq("user_id", userId);
   const ownsLowrise = (ownedDistricts || []).some((d: any) => d.district_id === "low");
   const effectiveRisk = ownsLowrise ? Math.floor(op.risk * 0.7) : op.risk;
 
-  const chance = Math.min(95, 100 - effectiveRisk + statVal * 5);
-  const scaledReward = Math.floor(op.reward * Math.min(3, 1 + ps.level * 0.1));
+  const chance = Math.min(95, 100 - effectiveRisk + statVal * 5 + timeMods.crimeSuccessBonus);
+  const rewardMultiplier = timeMods.phase === 'night' ? 1.2 : timeMods.phase === 'dusk' ? 1.1 : 1.0;
+  const scaledReward = Math.floor(op.reward * Math.min(3, 1 + ps.level * 0.1) * rewardMultiplier);
   const roll = Math.random() * 100;
   const success = roll < chance;
 
@@ -318,14 +357,17 @@ async function handleSoloOp(supabase: any, userId: string, ps: any, payload: { o
   const nerveCost = NERVE_COSTS.solo_op || 5;
   const crimeCooldown = new Date(Date.now() + 60 * 1000).toISOString(); // 60s cooldown
 
+  const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
+
   if (success) {
-    const heatGain = Math.min(100, (ps.heat || 0) + op.heat) - (ps.heat || 0);
+    const adjustedHeat = Math.floor(op.heat * timeMods.heatMultiplier);
+    const heatGain = Math.min(100, (ps.heat || 0) + adjustedHeat) - (ps.heat || 0);
     const repGain = 10;
 
     await supabase.from("player_state").update({
       dirty_money: (ps.dirty_money || 0) + scaledReward,
-      heat: Math.min(100, (ps.heat || 0) + op.heat),
-      personal_heat: Math.min(100, (ps.personal_heat || 0) + Math.floor(op.heat * 0.4)),
+      heat: Math.min(100, (ps.heat || 0) + adjustedHeat),
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + Math.floor(adjustedHeat * 0.4)),
       rep: (ps.rep || 0) + repGain,
       energy: ps.energy - energyCost,
       nerve: ps.nerve - nerveCost,
@@ -338,11 +380,11 @@ async function handleSoloOp(supabase: any, userId: string, ps: any, payload: { o
 
     return {
       success: true,
-      message: `${op.name} geslaagd! +€${scaledReward.toLocaleString()} zwart geld.`,
-      data: { reward: scaledReward, heatGain, repGain, chance: Math.round(chance), crimeCooldown },
+      message: `${op.name} geslaagd!${nightLabel} +€${scaledReward.toLocaleString()} zwart geld.`,
+      data: { reward: scaledReward, heatGain, repGain, chance: Math.round(chance), crimeCooldown, timeBonus: timeMods.phase },
     };
   } else {
-    const failHeat = Math.floor(op.heat * 1.5);
+    const failHeat = Math.floor(op.heat * 1.5 * timeMods.heatMultiplier);
     const nearMissDiff = Math.round(chance);
     const statLabel = op.stat === "muscle" ? "Kracht" : op.stat === "brains" ? "Vernuft" : "Charisma";
     let nearMiss = `Slagingskans was ${nearMissDiff}%.`;
@@ -350,8 +392,9 @@ async function handleSoloOp(supabase: any, userId: string, ps: any, payload: { o
     else if (nearMissDiff >= 40) nearMiss += ` Verbeter je ${statLabel}.`;
     else nearMiss += ` Meer training nodig.`;
 
-    // Chance of arrest on failure
-    const arrestChance = op.risk > 70 ? 0.3 : 0.15;
+    // Chance of arrest on failure — reduced at night
+    const baseArrestChance = op.risk > 70 ? 0.3 : 0.15;
+    const arrestChance = baseArrestChance * timeMods.raidChanceMultiplier;
     let imprisoned = false;
     let prisonDays = 0;
 
