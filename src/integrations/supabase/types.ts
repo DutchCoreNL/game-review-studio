@@ -101,6 +101,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_digests: {
+        Row: {
+          created_at: string
+          digest_data: Json
+          id: string
+          seen: boolean
+          user_id: string
+          world_day: number
+        }
+        Insert: {
+          created_at?: string
+          digest_data?: Json
+          id?: string
+          seen?: boolean
+          user_id: string
+          world_day: number
+        }
+        Update: {
+          created_at?: string
+          digest_data?: Json
+          id?: string
+          seen?: boolean
+          user_id?: string
+          world_day?: number
+        }
+        Relationships: []
+      }
       district_events: {
         Row: {
           created_at: string

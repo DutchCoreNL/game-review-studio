@@ -256,6 +256,98 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
   }
 }
 
+// ========== DAILY DIGEST GENERATION ==========
+const CLIFFHANGER_TEMPLATES = [
+  { text: 'Er gaan geruchten over een grote drugszending in de haven...', icon: '📦' },
+  { text: 'Een onbekende koper wil een fortuin betalen voor zeldzame goederen...', icon: '💎' },
+  { text: 'De politie plant een grote razzia in een onbekende wijk...', icon: '🚔' },
+  { text: 'Een rivaliserende gang breidt zijn territorium uit naar jouw wijken...', icon: '⚔️' },
+  { text: 'Er wordt gefluisterd over een geheime deal op de zwarte markt...', icon: '🤫' },
+  { text: 'Een NPC contactpersoon heeft dringend nieuws voor je...', icon: '📱' },
+  { text: 'De beurs reageert nerveus op geruchten over een overname...', icon: '📉' },
+  { text: 'Een mysterieuze figuur biedt een lucratief contract aan...', icon: '🕵️' },
+];
+
+async function generateDailyDigests(supabase: any, completedDay: number, newWeather: string) {
+  try {
+    const { data: players } = await supabase
+      .from('player_state')
+      .select('user_id, money, dirty_money, rep, level, heat, personal_heat, loc, day, debt, backstory')
+      .eq('game_over', false);
+
+    if (!players || players.length === 0) return;
+
+    const { data: recentNews } = await supabase
+      .from('news_events')
+      .select('text, category, urgency')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const { data: activeWars } = await supabase
+      .from('gang_wars')
+      .select('attacker_gang_id, defender_gang_id, status, district_id')
+      .eq('status', 'active')
+      .limit(5);
+
+    const { data: activeBounties } = await supabase
+      .from('player_bounties')
+      .select('target_id, amount, reason')
+      .eq('status', 'active')
+      .limit(10);
+
+    const bountyMap = new Map<string, { amount: number; reason: string }[]>();
+    (activeBounties || []).forEach((b: any) => {
+      if (!bountyMap.has(b.target_id)) bountyMap.set(b.target_id, []);
+      bountyMap.get(b.target_id)!.push({ amount: b.amount, reason: b.reason });
+    });
+
+    const digests: any[] = [];
+
+    for (const player of players) {
+      const digest: Record<string, any> = {
+        world_day: completedDay,
+        weather: newWeather,
+        sections: {},
+      };
+
+      digest.sections.income = {
+        available: true,
+        debt: player.debt || 0,
+        debtInterest: player.debt > 0 ? Math.floor(player.debt * 0.05) : 0,
+      };
+
+      const playerBounties = bountyMap.get(player.user_id) || [];
+      digest.sections.pvp = {
+        activeBountiesOnYou: playerBounties.length,
+        totalBountyAmount: playerBounties.reduce((s: number, b: any) => s + b.amount, 0),
+        activeGangWars: (activeWars || []).length,
+      };
+
+      const marketHighlights = (recentNews || [])
+        .filter((n: any) => n.category === 'market')
+        .slice(0, 3)
+        .map((n: any) => n.text);
+      digest.sections.market = { highlights: marketHighlights };
+
+      const cliffhanger = CLIFFHANGER_TEMPLATES[Math.floor(Math.random() * CLIFFHANGER_TEMPLATES.length)];
+      digest.sections.cliffhanger = cliffhanger;
+
+      digests.push({
+        user_id: player.user_id,
+        world_day: completedDay,
+        digest_data: digest,
+        seen: false,
+      });
+    }
+
+    if (digests.length > 0) {
+      await supabase.from('daily_digests').upsert(digests, { onConflict: 'user_id,world_day' });
+    }
+  } catch (e) {
+    console.error('Digest generation error:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -318,6 +410,9 @@ Deno.serve(async (req) => {
       update.world_day = ws.world_day + 1;
       update.current_weather = weightedRandomWeather();
       update.weather_changed_at = new Date().toISOString();
+
+      // ========== GENERATE DAILY DIGESTS ==========
+      await generateDailyDigests(supabase, ws.world_day, update.current_weather);
     }
 
     const { error: updateErr } = await supabase
@@ -359,11 +454,11 @@ Deno.serve(async (req) => {
 
     // Generate realtime news for this phase
     const currentWeather = update.current_weather || ws.current_weather;
-    const currentDay = update.world_day || ws.world_day;
-    await generateAndInsertNews(supabase, nextPhase, currentWeather, currentDay);
+    const resolvedDay = update.world_day || ws.world_day;
+    await generateAndInsertNews(supabase, nextPhase, currentWeather, resolvedDay);
 
     // ========== SIMULATE BOT ACTIVITY ==========
-    await simulateBots(supabase, nextPhase, currentDay);
+    await simulateBots(supabase, nextPhase, resolvedDay);
 
     return new Response(JSON.stringify({
       success: true,
