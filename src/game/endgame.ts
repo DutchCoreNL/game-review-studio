@@ -99,6 +99,10 @@ export function createBossPhase(state: GameState, phase: number): CombatState {
       won: false,
       isNemesis: false,
       bossPhase: 1,
+      activeBuffs: [],
+      skillCooldowns: {},
+      comboCounter: 0,
+      lastAction: null,
     };
   }
 
@@ -128,6 +132,10 @@ export function createBossPhase(state: GameState, phase: number): CombatState {
     won: false,
     isNemesis: false,
     bossPhase: 2,
+    activeBuffs: [],
+    skillCooldowns: {},
+    comboCounter: 0,
+    lastAction: null,
   };
 }
 
