@@ -214,6 +214,7 @@ type GameAction =
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
+  | { type: 'AUTO_TICK' }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -611,6 +612,147 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         backstory: s.backstory || null,
       });
 
+      return s;
+    }
+
+    case 'AUTO_TICK': {
+      // Automatic day progression — replaces manual END_TURN
+      if (s.debt > 250000) return s;
+      if (s.gameOver || s.victoryData) return s;
+      
+      Engine.endTurn(s);
+      Engine.checkAchievements(s);
+      const oldPhaseAT = s.endgamePhase;
+      s.endgamePhase = calculateEndgamePhase(s);
+
+      if (oldPhaseAT !== s.endgamePhase) {
+        const msg = getPhaseUpMessage(oldPhaseAT, s.endgamePhase);
+        if (msg) addPhoneMessage(s, 'system', msg, 'info');
+        if (s.endgamePhase === 'onderwerelds_koning') {
+          addPhoneMessage(s, 'Commissaris Decker', 'Ik weet wie je bent. Ik weet wat je hebt gedaan. Geniet van je laatste dagen van vrijheid.', 'threat');
+          addPhoneMessage(s, 'anonymous', '⚠️ Operatie Gerechtigheid is geactiveerd. De NHPD mobiliseert al haar middelen.', 'warning');
+        }
+      }
+
+      // Roll for street event
+      const autoTickEvent = rollStreetEvent(s, 'end_turn');
+      if (autoTickEvent) { s.pendingStreetEvent = autoTickEvent; s.streetEventResult = null; }
+
+      // Endgame events
+      if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
+        if (!s.seenEndgameEvents) s.seenEndgameEvents = [];
+        const egEvent = getEndgameEvent(s);
+        if (egEvent) {
+          s.seenEndgameEvents.push(egEvent.id);
+          if (egEvent.reward.money) {
+            if (egEvent.reward.money > 0) { s.money += egEvent.reward.money; s.stats.totalEarned += egEvent.reward.money; }
+            else { const cost = Math.abs(egEvent.reward.money); if (s.money >= cost) { s.money -= cost; s.stats.totalSpent += cost; } }
+          }
+          if (egEvent.reward.rep) s.rep += egEvent.reward.rep;
+          if (egEvent.reward.xp) Engine.gainXp(s, egEvent.reward.xp);
+          if (egEvent.reward.heat) Engine.splitHeat(s, egEvent.reward.heat, 0.5);
+          addPhoneMessage(s, 'NHPD', `${egEvent.icon} ${egEvent.title}: ${egEvent.desc}`, egEvent.reward.heat ? 'threat' : 'opportunity');
+        }
+      }
+
+      // Story arcs
+      if (!s.prison) { checkArcTriggers(s); if (!s.pendingStreetEvent) checkArcProgression(s); }
+      
+      // Car orders
+      if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {
+        s.carOrders = s.carOrders.filter(o => o.deadline >= s.day);
+        const randomCar = STEALABLE_CARS[Math.floor(Math.random() * STEALABLE_CARS.length)];
+        const client = CAR_ORDER_CLIENTS[Math.floor(Math.random() * CAR_ORDER_CLIENTS.length)];
+        const bonusPercent = 20 + Math.floor(Math.random() * 60);
+        const newOrderClient = `${client.emoji} ${client.name}`;
+        s.carOrders.push({ id: `order_${s.day}_${Math.floor(Math.random() * 1000)}`, carTypeId: randomCar.id, clientName: newOrderClient, bonusPercent, deadline: s.day + 5 + Math.floor(Math.random() * 5), desc: `Zoekt een ${randomCar.name}. Betaalt ${bonusPercent}% extra.` });
+        addPhoneMessage(s, newOrderClient, `Ik zoek een ${randomCar.name}. Ik betaal ${bonusPercent}% extra boven marktwaarde.`, 'opportunity');
+      }
+      s.stolenCars.forEach(car => { if (!car.omgekat) car.condition = Math.max(20, car.condition - 1); });
+      
+      // Daily challenges
+      if (s.challengeDay !== s.day) {
+        s.dailyChallenges = generateDailyChallenges(s);
+        s.challengeDay = s.day;
+        s.dailyProgress = { trades: 0, earned: 0, washed: 0, solo_ops: 0, contracts: 0, travels: 0, bribes: 0, faction_actions: 0, recruits: 0, cars_stolen: 0, casino_won: 0, hits_completed: 0 };
+      }
+      syncChallenges(s);
+      
+      // NPC
+      if (!s.pendingStreetEvent && !s.pendingArcEvent) {
+        const npcEnc = rollNpcEncounter(s);
+        if (npcEnc) addPhoneMessage(s, npcEnc.npcId, npcEnc.message, 'info');
+        if (!(s as any).pendingNpcEvent) {
+          const npcEvt = rollNpcEvent(s);
+          if (npcEvt) (s as any).pendingNpcEvent = npcEvt;
+        }
+      }
+      const npcBonuses = applyNpcBonuses(s);
+      if (npcBonuses.extraHeatDecay > 0) { Engine.addPersonalHeat(s, -npcBonuses.extraHeatDecay); Engine.recomputeHeat(s); }
+      if (npcBonuses.crewHealBonus > 0) s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
+      applyMissingNpcBonuses(s);
+      
+      // Week events, hits, news
+      const weekEvt = checkWeekEvent(s);
+      if (weekEvt) (s as any).activeWeekEvent = weekEvt;
+      processWeekEvent(s);
+      s.hitContracts = generateHitContracts(s);
+      s.dailyNews = generateDailyNews(s);
+      if (Math.random() < 0.2) s.ammo = Math.min(99, (s.ammo || 0) + 2 + Math.floor(Math.random() * 4));
+      
+      // Racing & dealer
+      s.raceUsedToday = false;
+      if (!s.vehiclePriceModifiers) s.vehiclePriceModifiers = {};
+      for (const v of VEHICLES) {
+        const current = s.vehiclePriceModifiers[v.id] ?? 1;
+        const change = -0.10 + Math.random() * 0.25;
+        s.vehiclePriceModifiers[v.id] = Math.max(0.7, Math.min(1.3, current + change * 0.3));
+      }
+      if (s.day % 5 === 0) {
+        const ownedIds = s.ownedVehicles.map(v => v.id);
+        const candidates = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
+        if (candidates.length > 0) {
+          const pick = candidates[Math.floor(Math.random() * candidates.length)];
+          s.dealerDeal = { vehicleId: pick.id, discount: 0.2 + Math.random() * 0.1, expiresDay: s.day + 1 };
+        }
+      }
+      // Unique vehicles
+      const checkUniqueUnlockAT = (checkId: string): boolean => {
+        switch (checkId) {
+          case 'final_boss': return s.finalBossDefeated;
+          case 'all_factions': return (s.conqueredFactions?.length || 0) >= 3;
+          case 'nemesis_gen3': return (s.nemesis?.generation || 1) > 3;
+          case 'all_vehicles': return VEHICLES.every(v => s.ownedVehicles.some(ov => ov.id === v.id));
+          default: return false;
+        }
+      };
+      for (const uv of UNIQUE_VEHICLES) {
+        if (!s.ownedVehicles.some(ov => ov.id === uv.id) && checkUniqueUnlockAT(uv.unlockCheck)) {
+          s.ownedVehicles.push({ id: uv.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+          addPhoneMessage(s, '🏆 UNIEK', `Je hebt ${uv.name} ontgrendeld! ${uv.desc}`, 'opportunity');
+        }
+      }
+      // Cinematics
+      if (!s.pendingCinematic) {
+        if (s.prison) { const c = checkCinematicTrigger(s, 'arrested'); if (c) s.pendingCinematic = c; }
+        if (!s.pendingCinematic && s.nightReport?.crewDefections && s.nightReport.crewDefections.length > 0) {
+          const c = checkCinematicTrigger(s, 'crew_defected'); if (c) s.pendingCinematic = c;
+        }
+        if (!s.pendingCinematic) { const c = checkCinematicTrigger(s); if (c) s.pendingCinematic = c; }
+      }
+      
+      // Update lastTickAt timestamp
+      s.lastTickAt = new Date().toISOString();
+      
+      // Auto-dismiss night report after setting it (make it non-blocking)
+      // The night report will auto-dismiss in 8 seconds via the NightReport component
+      
+      // Sync leaderboard
+      syncLeaderboard({
+        rep: s.rep, cash: s.money, day: s.day, level: s.player.level,
+        districts_owned: s.ownedDistricts.length, crew_size: s.crew.length,
+        karma: s.karma || 0, backstory: s.backstory || null,
+      });
       return s;
     }
 
@@ -2809,6 +2951,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.crimeCooldownUntil === undefined) saved.crimeCooldownUntil = null;
       if (saved.attackCooldownUntil === undefined) saved.attackCooldownUntil = null;
       if (saved.heistCooldownUntil === undefined) saved.heistCooldownUntil = null;
+      if (saved.lastTickAt === undefined) saved.lastTickAt = new Date().toISOString();
+      if (saved.tickIntervalMinutes === undefined) saved.tickIntervalMinutes = 30;
       if (saved.serverSynced === undefined) saved.serverSynced = false;
       return saved;
     }
@@ -2868,6 +3012,32 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state, showToast]);
+
+  // ========== AUTO-TICK SYSTEM (replaces manual END_TURN) ==========
+  // Every tickIntervalMinutes (default 30 min) of real time = 1 game day
+  const autoTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    const checkTick = () => {
+      const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
+      const interval = (state.tickIntervalMinutes || 30) * 60 * 1000;
+      const now = Date.now();
+      const ticksPassed = Math.floor((now - lastTick) / interval);
+      
+      if (ticksPassed > 0 && !state.gameOver && !state.victoryData) {
+        // Process up to 5 ticks at once (to catch up after being away, but not too many)
+        const ticksToProcess = Math.min(ticksPassed, 5);
+        for (let i = 0; i < ticksToProcess; i++) {
+          dispatch({ type: 'AUTO_TICK' });
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkTick();
+    // Then check every 60 seconds
+    autoTickRef.current = setInterval(checkTick, 60000);
+    return () => { if (autoTickRef.current) clearInterval(autoTickRef.current); };
+  }, [state.lastTickAt, state.tickIntervalMinutes, state.gameOver, state.victoryData, dispatch]);
 
   // Generate prices if empty
   useEffect(() => {

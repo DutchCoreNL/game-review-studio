@@ -3,7 +3,6 @@ import { GameButton } from './ui/GameButton';
 import { BackButton } from './ui/BackButton';
 import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
-import { ConfirmDialog } from './ConfirmDialog';
 import { CasinoView } from './CasinoView';
 import { ChopShopView } from './ChopShopView';
 import { SafehouseView } from './SafehouseView';
@@ -12,21 +11,15 @@ import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { NewsTicker } from './map/NewsTicker';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Dices, Wrench, Home, Building2, Swords, Heart } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Dices, Wrench, Home, Building2, Swords, Heart } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
-import { useAuth } from '@/hooks/useAuth';
-import { syncLeaderboard } from '@/lib/syncLeaderboard';
-import { useMuteStatus } from '@/hooks/useMuteStatus';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
-  const { user } = useAuth();
-  const { isMuted } = useMuteStatus();
-  const [confirmEndTurn, setConfirmEndTurn] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
   const [showSafehouse, setShowSafehouse] = useState(false);
@@ -49,30 +42,7 @@ export function MapView() {
 
   const newsItems = state.dailyNews;
 
-  const handleEndTurn = () => {
-    if (state.debt > 250000) {
-      showToast('Schuld te hoog! (>€250k) Los eerst af.', true);
-      return;
-    }
-    setConfirmEndTurn(true);
-  };
-
-  const confirmEnd = () => {
-    setConfirmEndTurn(false);
-    dispatch({ type: 'END_TURN' });
-    if (user && !isMuted) {
-      syncLeaderboard({
-        rep: state.rep,
-        cash: state.money,
-        day: state.day + 1,
-        level: state.player.level,
-        districts_owned: state.ownedDistricts.length,
-        crew_size: state.crew.length,
-        karma: state.karma || 0,
-        backstory: state.backstory || null,
-      }).catch(() => {});
-    }
-  };
+  // Auto-tick is now handled by GameContext — no manual end-turn needed
 
   // Sub-location views
   const subViews: { show: boolean; component: React.ReactNode; onClose: () => void }[] = [
@@ -173,22 +143,6 @@ export function MapView() {
           ))}
         </div>
       )}
-
-      {/* Fixed end-turn button */}
-      <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
-        DAG AFSLUITEN
-      </GameButton>
-
-      <ConfirmDialog
-        open={confirmEndTurn}
-        title="Dag Afsluiten"
-        message={`Wil je dag ${state.day} afsluiten? Inkomen, rente (€${Math.floor(state.debt * 0.03).toLocaleString()}) en willekeurige events.`}
-        confirmText="SLUIT AF"
-        cancelText="ANNULEER"
-        variant="warning"
-        onConfirm={confirmEnd}
-        onCancel={() => setConfirmEndTurn(false)}
-      />
     </div>
   );
 }

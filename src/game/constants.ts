@@ -1796,6 +1796,8 @@ export function createInitialState(): import('./types').GameState {
     attackCooldownUntil: null,
     heistCooldownUntil: null,
     serverSynced: false,
+    lastTickAt: new Date().toISOString(),
+    tickIntervalMinutes: 30,
   };
 }
 
