@@ -15,7 +15,8 @@ import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useRef, useEffect } from 'react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
 import { DailyDigestPopup } from './DailyDigestPopup';
-import { Dices, Wrench, Home, Building2, Swords, Heart, Moon } from 'lucide-react';
+import { Dices, Wrench, Home, Building2, Swords, Heart, Moon, FileText } from 'lucide-react';
+import { NightReport } from './NightReport';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
@@ -36,6 +37,7 @@ export function MapView() {
   const prevLoc = useRef(state.loc);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [showDigest, setShowDigest] = useState(false);
+  const [showNightReport, setShowNightReport] = useState(false);
   const { digest, refetchLast } = useDailyDigest();
   const districtData = useDistrictData(true);
   const worldState = useWorldState();
@@ -111,18 +113,35 @@ export function MapView() {
     <div className="relative">
       <HidingOverlay />
 
-      {/* Digest quick-open button */}
-      <button
-        onClick={handleOpenDigest}
-        className="absolute top-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors backdrop-blur-sm"
-        title="Dagelijks Digest openen"
-      >
-        <Moon size={12} />
-        <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
-        {digest && !digest.seen && (
-          <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+      {/* Quick-open buttons */}
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
+        {state.nightReport && (
+          <button
+            onClick={() => setShowNightReport(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-blood/30 text-blood hover:bg-blood/10 transition-colors backdrop-blur-sm"
+            title="Nacht Rapport openen"
+          >
+            <FileText size={12} />
+            <span className="text-[0.5rem] font-bold uppercase tracking-wider">Rapport</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+          </button>
         )}
-      </button>
+        <button
+          onClick={handleOpenDigest}
+          className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors backdrop-blur-sm"
+          title="Dagelijks Digest openen"
+        >
+          <Moon size={12} />
+          <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
+          {digest && !digest.seen && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+          )}
+        </button>
+      </div>
+
+      {showNightReport && state.nightReport && (
+        <NightReport onClose={() => setShowNightReport(false)} />
+      )}
 
       {showDigest && (
         <DailyDigestPopup forceOpen onClose={() => setShowDigest(false)} />

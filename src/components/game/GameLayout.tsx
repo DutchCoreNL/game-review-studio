@@ -20,7 +20,7 @@ import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
 import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
-import { NightReport } from './NightReport';
+
 
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
@@ -281,8 +281,8 @@ export function GameLayout() {
           )}
 
           {!state.tutorialDone && <TutorialOverlay />}
-          {state.nightReport && <NightReport />}
           
+
           {state.activeMission && <MissionEncounterView />}
           {state.showPhone && <PhoneOverlay />}
           {state.pendingSpecChoice && <CrewSpecPopup />}

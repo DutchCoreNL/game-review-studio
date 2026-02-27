@@ -14,7 +14,7 @@ import { DRUG_EMPIRE_IMAGES, MARKET_EVENT_IMAGES } from '@/assets/items/index';
 import overlayPrison from '@/assets/items/overlay-prison.jpg';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
 
-export function NightReport() {
+export function NightReport({ onClose }: { onClose?: () => void }) {
   const { state, dispatch } = useGame();
   const report = state.nightReport;
   const [muted, setMuted] = useState(isMuted());
@@ -23,7 +23,7 @@ export function NightReport() {
   const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { digest, markSeen } = useDailyDigest();
 
-  // Auto-dismiss after 12 seconds (MMO realtime — no blocking)
+  // Auto-dismiss after 12 seconds
   useEffect(() => {
     if (report) {
       autoDismissRef.current = setTimeout(() => {
@@ -31,11 +31,12 @@ export function NightReport() {
       }, 12000);
     }
     return () => { if (autoDismissRef.current) clearTimeout(autoDismissRef.current); };
-  }, [report, dispatch]);
+  }, [report]);
 
   const handleDismiss = () => {
     if (digest) markSeen();
     dispatch({ type: 'DISMISS_NIGHT_REPORT' });
+    onClose?.();
   };
 
   // Cleanup sound timers on unmount
