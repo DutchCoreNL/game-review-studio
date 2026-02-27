@@ -5,7 +5,8 @@ import { GameButton } from '../ui/GameButton';
 import { VEHICLE_IMAGES } from '@/assets/items';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { Store, TrendingUp, TrendingDown, Tag, Car, ArrowRightLeft } from 'lucide-react';
+import { Store, TrendingUp, TrendingDown, Tag, Car, ArrowRightLeft, Lock, Crown } from 'lucide-react';
+import { GameBadge } from '../ui/GameBadge';
 import { useState } from 'react';
 import { ConfirmDialog } from '../ConfirmDialog';
 
@@ -52,6 +53,8 @@ export function DealerPanel() {
 
   const ownedIds = state.ownedVehicles.map(v => v.id);
   const notOwned = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
+  const regularVehicles = notOwned.filter(v => !v.reqPrestige);
+  const prestigeVehicles = notOwned.filter(v => v.reqPrestige);
 
   return (
     <div>
@@ -151,11 +154,11 @@ export function DealerPanel() {
       </div>
 
       {/* Buy with dynamic prices */}
-      {notOwned.length > 0 && (
+      {regularVehicles.length > 0 && (
         <>
           <SectionHeader title="Te Koop (Marktprijzen)" icon={<TrendingUp size={12} />} />
           <div className="space-y-2 mb-4">
-            {notOwned.map(v => {
+            {regularVehicles.map(v => {
               const marketPrice = getMarketPrice(v.id);
               const mod = state.vehiclePriceModifiers?.[v.id] ?? 1;
               const trend = mod > 1.02 ? 'up' : mod < 0.98 ? 'down' : 'flat';
@@ -183,7 +186,6 @@ export function DealerPanel() {
                     <p className="text-[0.4rem] text-muted-foreground">
                       S:{v.storage} · Spd:{v.speed} · Arm:{v.armor} · Ch:{v.charm}
                     </p>
-                    {/* Progress bar: money saved vs. vehicle cost */}
                     {state.money < marketPrice && (
                       <div className="mt-1">
                         <Progress value={Math.min(100, (state.money / marketPrice) * 100)} className="h-[3px] bg-muted/30" />
@@ -215,6 +217,62 @@ export function DealerPanel() {
                       </GameButton>
                     )}
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Prestige vehicles */}
+      {prestigeVehicles.length > 0 && (
+        <>
+          <SectionHeader title="Prestige Collectie" icon={<Crown size={12} />} />
+          <div className="space-y-2 mb-4">
+            {prestigeVehicles.map(v => {
+              const marketPrice = getMarketPrice(v.id);
+              const locked = (state.prestigeLevel || 0) < (v.reqPrestige || 0);
+              return (
+                <div key={v.id} className={`game-card flex items-center gap-2 ${locked ? 'opacity-60' : 'border-gold/30'}`}>
+                  <div className="w-12 h-8 rounded bg-muted overflow-hidden flex-shrink-0 relative">
+                    {VEHICLE_IMAGES[v.id] ? (
+                      <img src={VEHICLE_IMAGES[v.id]} alt={v.name} className={`w-full h-full object-cover ${locked ? 'grayscale blur-[1px]' : ''}`} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Car size={12} className="text-muted-foreground" /></div>
+                    )}
+                    {locked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <Lock size={10} className="text-gold" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-bold text-[0.6rem] truncate">{v.name}</h4>
+                      <GameBadge variant="gold" size="xs"><Crown size={7} /> P{v.reqPrestige}+</GameBadge>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[0.45rem]">
+                      <span className="font-bold text-gold">€{marketPrice.toLocaleString()}</span>
+                    </div>
+                    <p className="text-[0.4rem] text-muted-foreground">
+                      S:{v.storage} · Spd:{v.speed} · Arm:{v.armor} · Ch:{v.charm}
+                    </p>
+                    <p className="text-[0.35rem] text-muted-foreground italic mt-0.5">{v.desc}</p>
+                    {locked && (
+                      <p className="text-[0.4rem] text-gold font-bold mt-1">🔒 Prestige {v.reqPrestige} vereist (huidig: {state.prestigeLevel || 0})</p>
+                    )}
+                  </div>
+                  <GameButton
+                    variant="gold"
+                    size="sm"
+                    disabled={locked || state.money < marketPrice}
+                    onClick={() => {
+                      dispatch({ type: 'BUY_VEHICLE', id: v.id });
+                      showToast(`${v.name} gekocht! 🏆`);
+                    }}
+                  >
+                    {locked ? <Lock size={10} /> : 'KOOP'}
+                  </GameButton>
                 </div>
               );
             })}

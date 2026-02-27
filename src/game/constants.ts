@@ -47,7 +47,12 @@ export const VEHICLES: Vehicle[] = [
   { id: 'bavamotor', name: 'Bava-Motor Shadow', cost: 24000, storage: 12, speed: 4, armor: 1, charm: 3, desc: 'Duitse precisie. Snel genoeg voor alles.' },
   { id: 'meridiolux', name: 'Meridio-Lux Baron', cost: 48000, storage: 15, speed: 2, armor: 2, charm: 8, desc: 'Status op wielen. Enorme charm-bonus.' },
   { id: 'lupoghini', name: 'Lupo-Ghini Strike', cost: 135000, storage: 8, speed: 7, armor: 1, charm: 12, desc: 'Pure arrogantie. Koning van de strip.' },
-  { id: 'royaleryce', name: 'Royale-Ryce Eternal', cost: 350000, storage: 20, speed: 3, armor: 5, charm: 20, desc: 'Het ultieme symbool van macht.' }
+  { id: 'royaleryce', name: 'Royale-Ryce Eternal', cost: 350000, storage: 20, speed: 3, armor: 5, charm: 20, desc: 'Het ultieme symbool van macht.' },
+  // Prestige 2+ vehicles
+  { id: 'noxreaper', name: 'Nox Reaper V12', cost: 500000, storage: 10, speed: 9, armor: 3, charm: 25, desc: 'Gebouwd in de schaduwen van Noxhaven. Ongeëvenaard op snelheid.', reqPrestige: 2 },
+  { id: 'obsidiancruiser', name: 'Obsidian Cruiser', cost: 750000, storage: 35, speed: 4, armor: 8, charm: 18, desc: 'Gepantserde luxe. Een rijdende kluis voor de echte kingpin.', reqPrestige: 2 },
+  // Prestige 3+ vehicles
+  { id: 'phantomgt', name: 'Phantom GT Spectre', cost: 1200000, storage: 15, speed: 10, armor: 6, charm: 35, desc: 'Spookachtig snel, onzichtbaar voor radar. Legendarisch.', reqPrestige: 3 },
 ];
 
 export const GOODS: Good[] = [
