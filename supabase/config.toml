@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.admin-actions]
 verify_jwt = false
+
+[functions.game-action]
+verify_jwt = false
