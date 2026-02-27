@@ -488,6 +488,16 @@ serve(async (req) => {
       return ok({ maintenance_mode: data?.maintenance_mode ?? false, maintenance_message: data?.maintenance_message ?? null });
     }
 
+    if (action === 'teleport_player') {
+      const { userId, targetUsername: tpUser, district } = body;
+      if (!userId || !district) return bad('userId and district required');
+      const validDistricts = ['low', 'neon', 'iron', 'port', 'crown'];
+      if (!validDistricts.includes(district)) return bad('Invalid district');
+      await adminClient.from('player_state').update({ loc: district }).eq('user_id', userId);
+      await logAction('teleport_player', { userId, username: tpUser, district }, tpUser);
+      return ok({ ok: true, message: `${tpUser || userId} geteleporteerd naar ${district}` });
+    }
+
     return bad('Unknown action');
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

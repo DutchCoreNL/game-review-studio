@@ -118,6 +118,8 @@ export function AdminPanel() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState('');
   const [eventForm, setEventForm] = useState({ title: '', description: '', district_id: 'low', duration: 60 });
+  const [teleportPopup, setTeleportPopup] = useState<LeaderboardEntry | null>(null);
+  const [teleportDistrict, setTeleportDistrict] = useState('low');
   const [grantTarget, setGrantTarget] = useState('');
   const [grantAmount, setGrantAmount] = useState(10000);
   const [grantType, setGrantType] = useState<'cash' | 'xp'>('cash');
@@ -279,6 +281,7 @@ export function AdminPanel() {
                         <button onClick={() => setConfirmAction({ type: 'reset', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Reset"><RotateCcw size={10} /></button>
                         <button onClick={() => setConfirmAction({ type: 'delete', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Verwijder"><Trash2 size={10} /></button>
                         <button onClick={() => setConfirmAction({ type: 'ban', entry })} disabled={!!actionLoading} className="p-1.5 rounded bg-blood/10 border border-blood/30 text-blood hover:bg-blood/20 transition-colors disabled:opacity-50" title="Ban"><Ban size={10} /></button>
+                        <button onClick={() => { setTeleportPopup(entry); setTeleportDistrict('low'); }} disabled={!!actionLoading} className="p-1.5 rounded bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50" title="Teleporteer"><MapPin size={10} /></button>
                       </div>
                     </div>
                   </div>
@@ -916,6 +919,28 @@ export function AdminPanel() {
         onConfirm={() => confirmAction && executeAction(confirmAction.type, confirmAction.entry)}
         onCancel={() => setConfirmAction(null)}
       />
+
+      {/* Teleport popup */}
+      {teleportPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="game-card w-full max-w-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold">📍 Teleporteer {teleportPopup.username}</p>
+              <button onClick={() => setTeleportPopup(null)}><X size={14} /></button>
+            </div>
+            <select value={teleportDistrict} onChange={e => setTeleportDistrict(e.target.value)} className="w-full bg-background border border-border rounded px-2 py-1.5 text-xs">
+              {[['low','Lowtown'],['neon','Neon District'],['iron','Iron Quarter'],['port','Port Haven'],['crown','Crown Heights']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <GameButton variant="emerald" size="sm" className="w-full" onClick={async () => {
+              try {
+                await adminCall('teleport_player', { userId: teleportPopup.user_id, targetUsername: teleportPopup.username, district: teleportDistrict });
+                showToast(`📍 ${teleportPopup.username} → ${teleportDistrict}`);
+                setTeleportPopup(null);
+              } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+            }}>TELEPORTEER</GameButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
