@@ -21,7 +21,8 @@ export type GameAction =
   | "pvp_combat_start" | "pvp_combat_action"
   | "casino_play"
   | "unlock_skill" | "get_skills" | "prestige" | "gain_xp"
-  | "get_district_data";
+  | "get_district_data"
+  | "process_turn";
 
 interface GameActionResult {
   success: boolean;
@@ -122,4 +123,9 @@ export const gameApi = {
 
   // District MMO data
   getDistrictData: () => invokeGameAction("get_district_data"),
+
+  // Server-side turn processing (MMO)
+  processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
+    .then(res => res.data ? { success: res.data.success, message: res.data.message, data: res.data.data } : { success: false, message: 'Server error' })
+    .catch(err => ({ success: false, message: err.message })),
 };
