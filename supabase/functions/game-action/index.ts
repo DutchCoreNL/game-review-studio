@@ -68,31 +68,36 @@ const HOSPITAL_SECONDS = 600; // 10 minutes base
 // ========== TIME-OF-DAY MODIFIERS ==========
 
 interface TimeModifiers {
-  crimeSuccessBonus: number;   // added to success chance (e.g. +10)
-  tradeIncomeMultiplier: number; // multiplier on sell revenue (e.g. 1.15)
-  heatMultiplier: number;      // multiplier on heat gain (e.g. 0.7 = less heat)
-  raidChanceMultiplier: number; // multiplier on arrest/raid chance (e.g. 0.6)
+  crimeSuccessBonus: number;
+  tradeIncomeMultiplier: number;
+  heatMultiplier: number;
+  raidChanceMultiplier: number;
+  xpMultiplier: number;
   phase: string;
+  activeEventName: string | null;
 }
 
 async function getTimeModifiers(supabase: any): Promise<TimeModifiers> {
   try {
-    const { data: ws } = await supabase.from('world_state').select('time_of_day').eq('id', 1).single();
+    const { data: ws } = await supabase.from('world_state').select('time_of_day, active_event').eq('id', 1).single();
     const phase = ws?.time_of_day || 'day';
+    const activeEvent = ws?.active_event;
+    const xpMult = activeEvent?.xp_multiplier || 1;
+    const eventName = activeEvent?.name || null;
 
     switch (phase) {
       case 'night':
-        return { crimeSuccessBonus: 10, tradeIncomeMultiplier: 1.15, heatMultiplier: 0.7, raidChanceMultiplier: 0.5, phase };
+        return { crimeSuccessBonus: 10, tradeIncomeMultiplier: 1.15, heatMultiplier: 0.7, raidChanceMultiplier: 0.5, xpMultiplier: xpMult, phase, activeEventName: eventName };
       case 'dusk':
-        return { crimeSuccessBonus: 5, tradeIncomeMultiplier: 1.05, heatMultiplier: 0.85, raidChanceMultiplier: 0.75, phase };
+        return { crimeSuccessBonus: 5, tradeIncomeMultiplier: 1.05, heatMultiplier: 0.85, raidChanceMultiplier: 0.75, xpMultiplier: xpMult, phase, activeEventName: eventName };
       case 'dawn':
-        return { crimeSuccessBonus: -5, tradeIncomeMultiplier: 0.95, heatMultiplier: 1.1, raidChanceMultiplier: 1.1, phase };
+        return { crimeSuccessBonus: -5, tradeIncomeMultiplier: 0.95, heatMultiplier: 1.1, raidChanceMultiplier: 1.1, xpMultiplier: xpMult, phase, activeEventName: eventName };
       case 'day':
       default:
-        return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, phase };
+        return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, xpMultiplier: xpMult, phase, activeEventName: eventName };
     }
   } catch {
-    return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, phase: 'day' };
+    return { crimeSuccessBonus: 0, tradeIncomeMultiplier: 1.0, heatMultiplier: 1.0, raidChanceMultiplier: 1.0, xpMultiplier: 1, phase: 'day', activeEventName: null };
   }
 }
 
@@ -374,7 +379,7 @@ async function handleSoloOp(supabase: any, userId: string, ps: any, payload: { o
       crime_cooldown_until: crimeCooldown,
       stats_total_earned: (ps.stats_total_earned || 0) + scaledReward,
       stats_missions_completed: (ps.stats_missions_completed || 0) + 1,
-      xp: ps.xp + 15,
+      xp: ps.xp + Math.floor(15 * timeMods.xpMultiplier),
       last_action_at: new Date().toISOString(),
     }).eq("user_id", userId);
 
@@ -3008,11 +3013,18 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
   }
 
   // 7. Night bonus (+10% during night phase from world_state)
+  // 8. World event bonus (e.g. 2x XP Weekend)
   const { data: worldState } = await supabase
-    .from("world_state").select("time_of_day").eq("id", 1).maybeSingle();
+    .from("world_state").select("time_of_day, active_event").eq("id", 1).maybeSingle();
   if (worldState?.time_of_day === "night") {
     multiplier += 0.10;
     bonuses.push({ key: "night", label: "Nachtbonus", value: 0.10 });
+  }
+  const activeEvent = worldState?.active_event;
+  if (activeEvent?.xp_multiplier && activeEvent.xp_multiplier > 1) {
+    const eventBonus = activeEvent.xp_multiplier - 1; // e.g. 2x = +1.0
+    multiplier += eventBonus;
+    bonuses.push({ key: "world_event", label: activeEvent.name || "World Event", value: eventBonus });
   }
 
   const totalXp = Math.floor(amount * multiplier);
@@ -3359,9 +3371,9 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
   let reward = contract.reward || Math.floor(
     (typeDef.baseReward[0] + Math.random() * (typeDef.baseReward[1] - typeDef.baseReward[0])) * (1 + dayScaling) * levelBonus
   );
-  let xpGain = contract.xp || Math.floor(
+  let xpGain = Math.floor((contract.xp || Math.floor(
     typeDef.baseXp[0] + Math.random() * (typeDef.baseXp[1] - typeDef.baseXp[0])
-  );
+  )) * timeMods.xpMultiplier);
   let heatGain = contract.heat || Math.floor(
     typeDef.baseHeat[0] + Math.random() * (typeDef.baseHeat[1] - typeDef.baseHeat[0])
   );

@@ -4,11 +4,21 @@ import type { WeatherType } from '@/game/types';
 
 export type TimeOfDay = 'dawn' | 'day' | 'dusk' | 'night';
 
+export interface WorldEvent {
+  id: string;
+  name: string;
+  desc: string;
+  xp_multiplier: number;
+  started_day: number;
+  ends_day: number;
+}
+
 export interface WorldState {
   worldDay: number;
   timeOfDay: TimeOfDay;
   weather: WeatherType;
   nextCycleAt: string;
+  activeEvent: WorldEvent | null;
 }
 
 const DEFAULT_STATE: WorldState = {
@@ -16,6 +26,7 @@ const DEFAULT_STATE: WorldState = {
   timeOfDay: 'day',
   weather: 'clear',
   nextCycleAt: new Date().toISOString(),
+  activeEvent: null,
 };
 
 export function useWorldState() {
@@ -36,6 +47,7 @@ export function useWorldState() {
           timeOfDay: data.time_of_day as TimeOfDay,
           weather: data.current_weather as WeatherType,
           nextCycleAt: data.next_cycle_at,
+          activeEvent: (data as any).active_event ?? null,
         });
       }
       setLoading(false);
@@ -56,6 +68,7 @@ export function useWorldState() {
           timeOfDay: d.time_of_day as TimeOfDay,
           weather: d.current_weather as WeatherType,
           nextCycleAt: d.next_cycle_at,
+          activeEvent: d.active_event ?? null,
         });
       })
       .subscribe();

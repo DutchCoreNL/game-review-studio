@@ -282,11 +282,35 @@ Deno.serve(async (req) => {
     const nextPhase = TIME_PHASES[nextPhaseIdx];
     const isDawn = nextPhase === 'dawn';
 
+    // ========== WEEKLY EVENT: 2x XP Weekend ==========
+    // Every 7 world days (days 6-7 of each week cycle), activate 2x XP
+    const currentDay = isDawn ? ws.world_day + 1 : ws.world_day;
+    const dayInWeek = ((currentDay - 1) % 7) + 1; // 1-7 cycle
+    let activeEvent = ws.active_event;
+
+    if (isDawn) {
+      if (dayInWeek === 6) {
+        // Start 2x XP Weekend on day 6
+        activeEvent = {
+          id: '2x_xp_weekend',
+          name: '⚡ 2x XP Weekend',
+          desc: 'Alle XP-verdiensten zijn verdubbeld dit weekend!',
+          xp_multiplier: 2,
+          started_day: currentDay,
+          ends_day: currentDay + 2,
+        };
+      } else if (dayInWeek === 1 && activeEvent?.id === '2x_xp_weekend') {
+        // End the event on the new week
+        activeEvent = null;
+      }
+    }
+
     // Build update
     const update: Record<string, any> = {
       time_of_day: nextPhase,
       next_cycle_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       updated_at: new Date().toISOString(),
+      active_event: activeEvent,
     };
 
     if (isDawn) {
@@ -321,6 +345,17 @@ Deno.serve(async (req) => {
       data: { time_of_day: nextPhase, weather: update.current_weather || ws.current_weather, world_day: update.world_day || ws.world_day },
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
+    // Insert 2x XP Weekend news if event just started
+    if (activeEvent?.id === '2x_xp_weekend' && (!ws.active_event || ws.active_event?.id !== '2x_xp_weekend')) {
+      await supabase.from('news_events').insert({
+        text: '⚡ 2x XP WEEKEND geactiveerd! Alle XP-verdiensten zijn verdubbeld tot het einde van het weekend!',
+        icon: '⚡',
+        urgency: 'high',
+        category: 'world',
+        detail: 'Verdien dubbele XP op alle acties: operaties, contracten, handel en meer. Maak er gebruik van!',
+        expires_at: new Date(Date.now() + 4 * 30 * 60 * 1000).toISOString(), // lasts 4 phases (~2 game days)
+      });
+    }
 
     // Generate realtime news for this phase
     const currentWeather = update.current_weather || ws.current_weather;
