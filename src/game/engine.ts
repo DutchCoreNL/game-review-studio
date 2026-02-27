@@ -1444,14 +1444,18 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
   }
 }
 
-export function gainXp(state: GameState, amount: number): boolean {
+export function gainXp(state: GameState, amount: number, source: string = 'action'): boolean {
+  // Queue XP for server-side processing (server applies multipliers, level-ups, SP)
+  if (!state._pendingXpGains) state._pendingXpGains = [];
+  state._pendingXpGains.push({ amount, source });
+  
+  // Optimistic local preview (no multipliers — server is authoritative)
   state.player.xp += amount;
   if (state.player.xp >= state.player.nextXp) {
     state.player.xp -= state.player.nextXp;
     state.player.level++;
     state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
     state.player.skillPoints += 2;
-    // Sync max HP on level up and heal the bonus
     const oldMax = state.playerMaxHP;
     syncPlayerMaxHP(state);
     const hpGain = state.playerMaxHP - oldMax;

@@ -2980,6 +2980,50 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     return () => { if (autoTickRef.current) clearInterval(autoTickRef.current); };
   }, [state.lastTickAt, state.tickIntervalMinutes, state.gameOver, state.victoryData, dispatch]);
 
+  // ========== SERVER-SIDE XP FLUSH ==========
+  // Flush pending XP gains to server for authoritative calculation
+  const xpFlushRef = useRef(false);
+  useEffect(() => {
+    const pending = state._pendingXpGains;
+    if (!pending || pending.length === 0 || xpFlushRef.current) return;
+
+    xpFlushRef.current = true;
+    // Batch all pending gains into one server call (sum amounts)
+    const totalAmount = pending.reduce((sum, g) => sum + g.amount, 0);
+    const sources = [...new Set(pending.map(g => g.source))].join(',');
+
+    // Clear pending immediately to prevent re-firing
+    rawDispatch({ type: 'SET_STATE', state: { ...state, _pendingXpGains: [] } });
+
+    (async () => {
+      try {
+        const { gameApi } = await import('@/lib/gameApi');
+        const res = await gameApi.gainXp(totalAmount, sources);
+        if (res.success && res.data) {
+          // Sync authoritative server values back
+          rawDispatch({ type: 'SET_STATE', state: {
+            ...state,
+            _pendingXpGains: [],
+            player: {
+              ...state.player,
+              xp: res.data.newXp,
+              level: res.data.newLevel,
+              nextXp: res.data.newNextXp,
+              skillPoints: res.data.newSP,
+            },
+            xpStreak: res.data.streak,
+          }});
+          if (res.data.levelUps > 0) {
+            showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP`);
+          }
+        }
+      } catch {
+        // Silent fail — optimistic local values remain
+      }
+      xpFlushRef.current = false;
+    })();
+  }, [state._pendingXpGains?.length]);
+
   // Generate prices from server if empty (fallback to client-side)
   useEffect(() => {
     if (!state.prices || Object.keys(state.prices).length === 0) {
