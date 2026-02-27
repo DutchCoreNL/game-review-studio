@@ -17,6 +17,7 @@ export interface FactionState {
   last_attack_at: string | null;
   reset_at: string | null;
   total_damage_dealt: Record<string, number>;
+  gang_damage: Record<string, Record<string, number>>;
   conquest_reward_claimed: string[];
 }
 

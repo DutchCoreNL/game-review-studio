@@ -3930,12 +3930,20 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
     const damageMap = faction.total_damage_dealt || {};
     damageMap[userId] = (damageMap[userId] || 0) + damage;
 
+    // Track per-gang damage
+    const gangDamageMap: Record<string, Record<string, number>> = faction.gang_damage || {};
+    const { data: attackerMembership } = await supabase.from("gang_members")
+      .select("gang_id").eq("user_id", userId).maybeSingle();
+    const attackerGangId = attackerMembership?.gang_id || null;
+    if (attackerGangId) {
+      if (!gangDamageMap[attackerGangId]) gangDamageMap[attackerGangId] = {};
+      gangDamageMap[attackerGangId][userId] = (gangDamageMap[attackerGangId][userId] || 0) + damage;
+    }
+
     // === BOSS HP SCALING: scale max HP based on unique attackers ===
     const uniqueAttackers = Object.keys(damageMap).length;
     const scaledMaxHp = Math.min(500, faction.boss_max_hp + (uniqueAttackers > 1 ? (uniqueAttackers - 1) * 20 : 0));
-    // Only increase, never decrease mid-fight
     const newMaxHp = Math.max(faction.boss_max_hp, scaledMaxHp);
-    // If max HP increased, add the difference to current HP too
     const hpBoost = newMaxHp - faction.boss_max_hp;
     const adjustedCurrentHp = faction.boss_hp + hpBoost;
 
@@ -3953,9 +3961,10 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
       last_attack_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       total_damage_dealt: damageMap,
+      gang_damage: gangDamageMap,
     };
 
-    // News event for every successful hit (low urgency)
+    // News event for every successful hit
     if (!phaseComplete) {
       const hpPct = Math.round((newHp / faction.boss_max_hp) * 100);
       await insertPlayerNews(supabase, {
@@ -3969,7 +3978,7 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
 
     if (phaseComplete) {
       if (phase === "leader") {
-        // Faction conquered! Set 48h reset timer
+        // Faction conquered!
         updateData.status = "vassal";
         updateData.conquest_phase = "conquered";
         updateData.conquered_by = userId;
@@ -3978,58 +3987,104 @@ async function handleAttackFaction(supabase: any, userId: string, ps: any, paylo
         updateData.boss_hp = 0;
         updateData.reset_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-        // Reward top-3 damage dealers
+        // === GANG ALLIANCE REWARD DISTRIBUTION ===
+        // Rewards are distributed proportionally based on damage contribution
+        const totalDamage = Object.values(damageMap as Record<string, number>).reduce((a, b) => a + b, 0);
+        const baseRewardPool = 100000; // Total reward pool
+        const baseRepPool = 100;
+
+        // Distribute to all contributors proportionally
         const sorted = Object.entries(damageMap as Record<string, number>)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, 3);
-        const rewards = [50000, 25000, 10000];
-        for (let i = 0; i < sorted.length; i++) {
-          const [dealerId] = sorted[i];
-          const reward = rewards[i] || 5000;
-          const repBonus = [50, 25, 10][i] || 5;
-          await supabase.from("player_state").update({
-            money: (await supabase.from("player_state").select("money").eq("user_id", dealerId).single()).data?.money + reward,
-            rep: (await supabase.from("player_state").select("rep").eq("user_id", dealerId).single()).data?.rep + repBonus,
-          }).eq("user_id", dealerId);
+          .sort(([, a], [, b]) => b - a);
+        
+        for (const [dealerId, dealerDmg] of sorted) {
+          const proportion = (dealerDmg as number) / totalDamage;
+          const reward = Math.max(1000, Math.floor(baseRewardPool * proportion));
+          const repBonus = Math.max(5, Math.floor(baseRepPool * proportion));
+          
+          const { data: dealerState } = await supabase.from("player_state")
+            .select("money, rep").eq("user_id", dealerId).single();
+          if (dealerState) {
+            await supabase.from("player_state").update({
+              money: dealerState.money + reward,
+              rep: dealerState.rep + repBonus,
+            }).eq("user_id", dealerId);
+          }
+
+          // Rank badge for top 3
+          const rank = sorted.findIndex(([id]) => id === dealerId);
+          const rankEmoji = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `#${rank + 1}`;
+          
+          await supabase.from("player_messages").insert({
+            sender_id: userId,
+            receiver_id: dealerId,
+            subject: `🏴 Factie ${factionId} Veroverd!`,
+            body: `${rankEmoji} Je hebt ${dealerDmg} schade bijgedragen (${Math.round(proportion * 100)}%) en ontvangt €${reward.toLocaleString()} + ${repBonus} rep.`,
+          });
         }
 
-        // === GANG CONQUEST BONUS: if conqueror is in a gang, reward all gang members ===
-        const { data: conquerorMembership } = await supabase.from("gang_members")
-          .select("gang_id").eq("user_id", userId).maybeSingle();
-        if (conquerorMembership?.gang_id) {
-          const { data: gangMembers } = await supabase.from("gang_members")
-            .select("user_id").eq("gang_id", conquerorMembership.gang_id);
-          if (gangMembers && gangMembers.length > 0) {
-            const gangReward = 5000; // Each gang member gets €5k
-            const gangRep = 10;
-            for (const member of gangMembers) {
-              if (member.user_id === userId) continue; // conqueror already rewarded
+        // Gang bonus: extra rewards for gang members who participated
+        const gangNames: Record<string, string> = {};
+        for (const [gangId, members] of Object.entries(gangDamageMap)) {
+          const gangTotalDmg = Object.values(members).reduce((a, b) => a + b, 0);
+          const gangProportion = gangTotalDmg / totalDamage;
+          const gangBonus = Math.floor(20000 * gangProportion); // Gang treasury bonus
+          
+          // Fetch gang name
+          const { data: gangData } = await supabase.from("gangs")
+            .select("name, treasury").eq("id", gangId).single();
+          if (gangData) {
+            gangNames[gangId] = gangData.name;
+            await supabase.from("gangs").update({
+              treasury: gangData.treasury + gangBonus,
+              xp: gangBonus, // Use as increment placeholder
+            }).eq("id", gangId);
+          }
+
+          // Notify non-contributing gang members (passive gang bonus)
+          const { data: allGangMembers } = await supabase.from("gang_members")
+            .select("user_id").eq("gang_id", gangId);
+          if (allGangMembers) {
+            const contributorIds = new Set(Object.keys(members));
+            for (const member of allGangMembers) {
+              if (contributorIds.has(member.user_id)) continue; // already rewarded above
+              const passiveReward = Math.floor(2000 * gangProportion);
               const { data: memberState } = await supabase.from("player_state")
                 .select("money, rep").eq("user_id", member.user_id).single();
-              if (memberState) {
+              if (memberState && passiveReward > 0) {
                 await supabase.from("player_state").update({
-                  money: memberState.money + gangReward,
-                  rep: memberState.rep + gangRep,
+                  money: memberState.money + passiveReward,
+                  rep: memberState.rep + 5,
                 }).eq("user_id", member.user_id);
-                // Send in-game message
                 await supabase.from("player_messages").insert({
                   sender_id: userId,
                   receiver_id: member.user_id,
                   subject: `🏴 Gang Conquest: ${factionId}`,
-                  body: `Je gang heeft de ${factionId} veroverd! Je ontvangt €${gangReward.toLocaleString()} en ${gangRep} rep als gang-bonus.`,
+                  body: `Je gang ${gangData?.name || ''} heeft ${Math.round(gangProportion * 100)}% bijgedragen aan de verovering! Passieve bonus: €${passiveReward.toLocaleString()} + 5 rep.`,
                 });
               }
             }
           }
         }
 
-        // Conquest news event (high urgency)
+        // Build gang summary for news
+        const gangSummary = Object.entries(gangDamageMap)
+          .map(([gid, members]) => {
+            const total = Object.values(members).reduce((a, b) => a + b, 0);
+            return { name: gangNames[gid] || gid.slice(0, 8), total, members: Object.keys(members).length };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const gangNewsDetail = gangSummary.length > 0
+          ? ` Gangs: ${gangSummary.map(g => `${g.name} (${g.members} leden, ${g.total} dmg)`).join(', ')}.`
+          : '';
+
         await insertPlayerNews(supabase, {
           text: `👑 ${attackerName} heeft de ${factionId} veroverd!`,
           icon: '👑',
           urgency: 'high',
           category: 'faction',
-          detail: `De ${factionId} is verslagen en 48 uur lang onderworpen door ${attackerName}. ${Object.keys(damageMap).length} spelers vochten mee. Top aanvallers ontvangen extra beloningen.`,
+          detail: `De ${factionId} is verslagen en 48 uur lang onderworpen. ${Object.keys(damageMap).length} spelers vochten mee. Rewards verdeeld op basis van bijdrage.${gangNewsDetail}`,
         });
       } else {
         // Phase complete, advance
