@@ -809,51 +809,63 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
     return { success: false, message: `Aanval op cooldown (${secs}s).` };
   }
 
-  // Get target player state
-  const { data: target } = await supabase.from("player_state").select("*").eq("user_id", targetUserId).maybeSingle();
-  if (!target) return { success: false, message: "Doelwit niet gevonden." };
+  const isBot = targetUserId.startsWith("bot_");
+  const now = new Date();
+  const cooldownUntil = new Date(now.getTime() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+  const energyCost = ENERGY_COSTS.attack || 15;
+  const nerveCost = NERVE_COSTS.attack || 10;
 
-  // Target must not be in hospital/prison/hiding
-  if (target.hospital_until && new Date(target.hospital_until) > new Date()) {
-    return { success: false, message: "Doelwit ligt in het ziekenhuis." };
-  }
-  if (target.prison_until && new Date(target.prison_until) > new Date()) {
-    return { success: false, message: "Doelwit zit in de gevangenis." };
-  }
+  let target: any;
+  let targetName: string;
 
-  // Get gear for both players
-  const [attackerGear, defenderGear] = await Promise.all([
-    supabase.from("player_gear").select("gear_id").eq("user_id", userId),
-    supabase.from("player_gear").select("gear_id").eq("user_id", targetUserId),
-  ]);
+  if (isBot) {
+    // Fetch bot from bot_players table
+    const botId = targetUserId.replace("bot_", "");
+    const { data: bot } = await supabase.from("bot_players").select("*").eq("id", botId).maybeSingle();
+    if (!bot) return { success: false, message: "Bot-speler niet gevonden." };
+    target = {
+      user_id: targetUserId,
+      hp: bot.hp,
+      max_hp: bot.max_hp,
+      level: bot.level,
+      money: bot.cash,
+      stats: { muscle: Math.floor(bot.level * 1.5) + 3, brains: Math.floor(bot.level * 0.8), charm: Math.floor(bot.level * 0.5) },
+      loadout: { weapon: null, armor: null, gadget: null },
+      hospitalizations: 0,
+      personal_heat: 0,
+    };
+    targetName = bot.username;
+  } else {
+    // Get real target player state
+    const { data: realTarget } = await supabase.from("player_state").select("*").eq("user_id", targetUserId).maybeSingle();
+    if (!realTarget) return { success: false, message: "Doelwit niet gevonden." };
+
+    if (realTarget.hospital_until && new Date(realTarget.hospital_until) > now) {
+      return { success: false, message: "Doelwit ligt in het ziekenhuis." };
+    }
+    if (realTarget.prison_until && new Date(realTarget.prison_until) > now) {
+      return { success: false, message: "Doelwit zit in de gevangenis." };
+    }
+
+    target = realTarget;
+    const { data: targetProfile } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+    targetName = targetProfile?.username || "Onbekend";
+  }
 
   // Calculate combat power
   const attackerMuscle = getPlayerStat(ps.stats || {}, ps.loadout || {}, "muscle");
   const defenderMuscle = getPlayerStat(target.stats || {}, target.loadout || {}, "muscle");
 
-  // Combat formula: power = muscle * level_factor + random
   const attackerPower = attackerMuscle * (1 + ps.level * 0.1) + Math.random() * 20;
   const defenderPower = defenderMuscle * (1 + target.level * 0.1) + Math.random() * 20;
 
   const attackerWins = attackerPower > defenderPower;
-  const now = new Date();
-  const cooldownUntil = new Date(now.getTime() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
-
-  // Get target profile for username
-  const { data: targetProfile } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
-  const targetName = targetProfile?.username || "Onbekend";
-
-  const energyCost = ENERGY_COSTS.attack || 15;
-  const nerveCost = NERVE_COSTS.attack || 10;
 
   if (attackerWins) {
-    // Steal money: 5-15% of target's cash
     const stealPct = 0.05 + Math.random() * 0.10;
     const stolen = Math.floor((target.money || 0) * stealPct);
-    const dmgToTarget = 20 + Math.floor(Math.random() * 30); // 20-50 damage
+    const dmgToTarget = 20 + Math.floor(Math.random() * 30);
     const targetNewHp = Math.max(0, (target.hp || 100) - dmgToTarget);
-
-    // Hospitalize target if HP <= 0
     const hospitalUntil = targetNewHp <= 0
       ? new Date(now.getTime() + HOSPITAL_SECONDS * 1000).toISOString()
       : null;
@@ -869,68 +881,53 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
       last_action_at: now.toISOString(),
     }).eq("user_id", userId);
 
-    // Update target
-    const targetUpdate: any = {
-      money: Math.max(0, (target.money || 0) - stolen),
-      hp: targetNewHp,
-      updated_at: now.toISOString(),
-    };
-    if (hospitalUntil) {
-      targetUpdate.hospital_until = hospitalUntil;
-      targetUpdate.hospitalizations = (target.hospitalizations || 0) + 1;
-      targetUpdate.hp = target.max_hp || 100;
-    }
-    await supabase.from("player_state").update(targetUpdate).eq("user_id", targetUserId);
-
-    // === RIVALRY: create/update rivalry on PvP ===
-    await upsertRivalry(supabase, userId, targetUserId, 10, "pvp");
-
-    // === BOUNTY: check if target has active bounty, claim it ===
-    const { data: bounties } = await supabase.from("player_bounties")
-      .select("*").eq("target_id", targetUserId).eq("status", "active");
-    let bountyBonus = 0;
-    for (const b of (bounties || [])) {
-      if (b.placer_id !== userId) { // Can't claim own bounty
-        bountyBonus += b.amount;
-        await supabase.from("player_bounties").update({
-          status: "claimed", claimed_by: userId, claimed_at: now.toISOString(),
-        }).eq("id", b.id);
+    // Update real target (skip for bots)
+    if (!isBot) {
+      const targetUpdate: any = {
+        money: Math.max(0, (target.money || 0) - stolen),
+        hp: targetNewHp,
+        updated_at: now.toISOString(),
+      };
+      if (hospitalUntil) {
+        targetUpdate.hospital_until = hospitalUntil;
+        targetUpdate.hospitalizations = (target.hospitalizations || 0) + 1;
+        targetUpdate.hp = target.max_hp || 100;
       }
-    }
-    if (bountyBonus > 0) {
-      await supabase.from("player_state").update({
-        money: (ps.money || 0) + stolen + bountyBonus,
-      }).eq("user_id", userId);
-    }
+      await supabase.from("player_state").update(targetUpdate).eq("user_id", targetUserId);
 
-    // === REVENGE BONUS: check if target attacked us recently ===
-    const { data: recentRivalry } = await supabase.from("player_rivalries")
-      .select("rivalry_score").eq("player_id", targetUserId).eq("rival_id", userId).maybeSingle();
-    const revengeBonus = (recentRivalry && recentRivalry.rivalry_score >= 10) ? Math.floor(stolen * 0.5) : 0;
-    if (revengeBonus > 0) {
-      await supabase.from("player_state").update({
-        money: (ps.money || 0) + stolen + bountyBonus + revengeBonus,
-        rep: (ps.rep || 0) + 25,
-      }).eq("user_id", userId);
+      // Rivalry & bounty logic only for real players
+      await upsertRivalry(supabase, userId, targetUserId, 10, "pvp");
+
+      const { data: bounties } = await supabase.from("player_bounties")
+        .select("*").eq("target_id", targetUserId).eq("status", "active");
+      let bountyBonus = 0;
+      for (const b of (bounties || [])) {
+        if (b.placer_id !== userId) {
+          bountyBonus += b.amount;
+          await supabase.from("player_bounties").update({
+            status: "claimed", claimed_by: userId, claimed_at: now.toISOString(),
+          }).eq("id", b.id);
+        }
+      }
+      if (bountyBonus > 0) {
+        await supabase.from("player_state").update({
+          money: (ps.money || 0) + stolen + bountyBonus,
+        }).eq("user_id", userId);
+      }
     }
 
     const hospitalMsg = hospitalUntil ? ` ${targetName} is gehospitaliseerd!` : "";
-    const bountyMsg = bountyBonus > 0 ? ` 🎯 Premie geclaimed: €${bountyBonus.toLocaleString()}!` : "";
-    const revengeMsg = revengeBonus > 0 ? ` ⚔️ Wraakbonus: +€${revengeBonus.toLocaleString()}!` : "";
     return {
       success: true,
-      message: `Je hebt ${targetName} verslagen! €${stolen.toLocaleString()} gestolen.${hospitalMsg}${bountyMsg}${revengeMsg}`,
+      message: `Je hebt ${targetName} verslagen! €${stolen.toLocaleString()} gestolen.${hospitalMsg}`,
       data: {
         won: true, stolen, damage: dmgToTarget, targetHospitalized: !!hospitalUntil,
         targetName, attackerPower: Math.round(attackerPower), defenderPower: Math.round(defenderPower),
-        bountyBonus, revengeBonus,
       },
     };
   } else {
-    // Attacker loses
-    const dmgToAttacker = 15 + Math.floor(Math.random() * 25); // 15-40 damage
+    const dmgToAttacker = 15 + Math.floor(Math.random() * 25);
     const attackerNewHp = Math.max(0, (ps.hp || 100) - dmgToAttacker);
-
     const hospitalUntil = attackerNewHp <= 0
       ? new Date(now.getTime() + HOSPITAL_SECONDS * 1000).toISOString()
       : null;
@@ -965,7 +962,9 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
 // ========== LIST PLAYERS (for PvP targeting) ==========
 
 async function handleListPlayers(supabase: any, userId: string, ps: any): Promise<ActionResult> {
-  // Get players in the same district, excluding self, hospital, prison
+  const TARGET_PLAYER_COUNT = 10; // target per district for PvP list
+
+  // Get real players in the same district, excluding self, hospital, prison
   const { data: players } = await supabase
     .from("player_state")
     .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until")
@@ -974,18 +973,17 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
     .eq("game_over", false)
     .limit(20);
 
-  if (!players || players.length === 0) {
-    return { success: true, message: "Geen spelers in dit district.", data: { players: [] } };
-  }
-
   // Get profiles for usernames
-  const userIds = players.map((p: any) => p.user_id);
-  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", userIds);
+  const realPlayers = players || [];
+  const userIds = realPlayers.map((p: any) => p.user_id);
+  const { data: profiles } = userIds.length > 0
+    ? await supabase.from("profiles").select("id, username").in("id", userIds)
+    : { data: [] };
   const profileMap: Record<string, string> = {};
   (profiles || []).forEach((p: any) => { profileMap[p.id] = p.username; });
 
   const now = new Date();
-  const result = players
+  const result = realPlayers
     .filter((p: any) => {
       if (p.hospital_until && new Date(p.hospital_until) > now) return false;
       if (p.prison_until && new Date(p.prison_until) > now) return false;
@@ -997,7 +995,32 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
       level: p.level,
       hp: p.hp,
       maxHp: p.max_hp,
+      isBot: false,
     }));
+
+  // Fill up with bots if needed
+  const botsNeeded = Math.max(0, TARGET_PLAYER_COUNT - result.length);
+  if (botsNeeded > 0) {
+    const { data: bots } = await supabase
+      .from("bot_players")
+      .select("id, username, level, hp, max_hp, loc")
+      .eq("loc", ps.loc)
+      .eq("is_active", true)
+      .limit(botsNeeded);
+
+    if (bots && bots.length > 0) {
+      for (const bot of bots) {
+        result.push({
+          userId: `bot_${bot.id}`,
+          username: bot.username,
+          level: bot.level,
+          hp: bot.hp,
+          maxHp: bot.max_hp,
+          isBot: true,
+        });
+      }
+    }
+  }
 
   return { success: true, message: `${result.length} spelers gevonden.`, data: { players: result } };
 }
@@ -1006,6 +1029,31 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
 
 async function handleGetPublicProfile(supabase: any, targetUserId: string): Promise<ActionResult> {
   if (!targetUserId) return { success: false, message: "Geen speler opgegeven." };
+
+  // Handle bot profiles
+  if (targetUserId.startsWith("bot_")) {
+    const botId = targetUserId.replace("bot_", "");
+    const { data: bot } = await supabase.from("bot_players").select("*").eq("id", botId).maybeSingle();
+    if (!bot) return { success: false, message: "Speler niet gevonden." };
+    const districtNames: Record<string, string> = {
+      low: "Lowrise", port: "Port Nero", iron: "Iron Borough", neon: "Neon Strip", crown: "Crown Heights"
+    };
+    return {
+      success: true, message: "Profiel opgehaald.",
+      data: {
+        username: bot.username, memberSince: bot.created_at, level: bot.level, xp: 0,
+        rep: bot.rep, karma: bot.karma, hp: bot.hp, maxHp: bot.max_hp, loc: bot.loc,
+        locName: districtNames[bot.loc] || bot.loc, backstory: bot.backstory,
+        endgamePhase: bot.level >= 15 ? "onderwereld_koning" : bot.level >= 8 ? "drugsbaas" : "straatdealer",
+        day: bot.day, wealth: bot.cash,
+        stats: { muscle: Math.floor(bot.level * 1.5) + 3, brains: Math.floor(bot.level * 0.8), charm: Math.floor(bot.level * 0.5) },
+        hospitalizations: 0, totalEarned: bot.cash * 3, tradesCompleted: bot.day * 2,
+        missionsCompleted: Math.floor(bot.day * 0.8), casinoWon: Math.floor(bot.cash * 0.2),
+        casinoLost: Math.floor(bot.cash * 0.15),
+        gear: [], vehicles: [], districts: [], businesses: [], crew: [], isBot: true,
+      },
+    };
+  }
 
   const [profileRes, stateRes, gearRes, vehicleRes, districtRes, bizRes, crewRes] = await Promise.all([
     supabase.from("profiles").select("username, created_at").eq("id", targetUserId).maybeSingle(),
