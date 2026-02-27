@@ -14,8 +14,8 @@ export function DailyDigestPopup({ forceOpen, onClose }: DailyDigestPopupProps =
   const { digest, markSeen } = useDailyDigest();
   const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-show only works for unseen digests (not force-opened)
-  const isVisible = forceOpen || !!digest;
+  // Only show when explicitly force-opened (clicked from sidebar/map button)
+  const isVisible = forceOpen;
 
   useEffect(() => {
     if (digest && !forceOpen) {
