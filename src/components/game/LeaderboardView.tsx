@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, ChevronUp, ChevronDown, Skull } from 'lucide-react';
+import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, Skull, Shield, Flame } from 'lucide-react';
 import { PrestigeBadge } from './ui/PrestigeBadge';
+import { GameBadge } from './ui/GameBadge';
 import { motion } from 'framer-motion';
 import { SectionHeader } from './ui/SectionHeader';
+import { SubTabBar } from './ui/SubTabBar';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
 
 type SortField = 'rep' | 'cash' | 'day' | 'districts_owned';
+type LeaderboardTab = 'global' | 'hardcore' | 'legends';
 
 interface LeaderboardEntry {
   id: string;
@@ -29,7 +32,7 @@ export function LeaderboardView() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortField>('rep');
-  const [hardcoreFilter, setHardcoreFilter] = useState<'all' | 'hardcore'>('all');
+  const [tab, setTab] = useState<LeaderboardTab>('global');
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardEntry | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -37,58 +40,63 @@ export function LeaderboardView() {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
     });
+  }, []);
+
+  useEffect(() => {
     fetchLeaderboard();
-  }, [sortBy, hardcoreFilter]);
+  }, [sortBy, tab]);
 
   const fetchLeaderboard = async () => {
     setLoading(true);
     const TARGET_COUNT = 50;
 
-    // Fetch real players
     let query = supabase
       .from('leaderboard_entries')
       .select('*')
       .order(sortBy, { ascending: false })
       .limit(TARGET_COUNT);
 
-    if (hardcoreFilter === 'hardcore') {
+    if (tab === 'hardcore') {
       query = query.eq('is_hardcore', true);
+    } else if (tab === 'legends') {
+      // Hall of Legends: hardcore players who reached endgame (level >= 15 and high rep)
+      query = query.eq('is_hardcore', true).gte('level', 15).order('rep', { ascending: false });
     }
 
     const { data: realData } = await query;
-
     const realEntries = (realData as LeaderboardEntry[]) || [];
 
-    // Fill with bots if needed
-    const botsNeeded = Math.max(0, TARGET_COUNT - realEntries.length);
-    if (botsNeeded > 0) {
-      const { data: bots } = await supabase
-        .from('bot_players')
-        .select('*')
-        .eq('is_active', true)
-        .limit(botsNeeded);
+    // Fill with bots only for global tab
+    if (tab === 'global') {
+      const botsNeeded = Math.max(0, TARGET_COUNT - realEntries.length);
+      if (botsNeeded > 0) {
+        const { data: bots } = await supabase
+          .from('bot_players')
+          .select('*')
+          .eq('is_active', true)
+          .limit(botsNeeded);
 
-      if (bots && bots.length > 0) {
-        const botEntries: LeaderboardEntry[] = bots.map((b: any) => ({
-          id: b.id,
-          user_id: `bot_${b.id}`,
-          username: b.username,
-          rep: b.rep,
-          cash: b.cash,
-          day: b.day,
-          level: b.level,
-          districts_owned: b.districts_owned,
-          crew_size: b.crew_size,
-          karma: b.karma,
-          backstory: b.backstory,
-          updated_at: b.created_at,
-          prestige_level: b.prestige_level || 0,
-        }));
-        realEntries.push(...botEntries);
+        if (bots && bots.length > 0) {
+          const botEntries: LeaderboardEntry[] = bots.map((b: any) => ({
+            id: b.id,
+            user_id: `bot_${b.id}`,
+            username: b.username,
+            rep: b.rep,
+            cash: b.cash,
+            day: b.day,
+            level: b.level,
+            districts_owned: b.districts_owned,
+            crew_size: b.crew_size,
+            karma: b.karma,
+            backstory: b.backstory,
+            updated_at: b.created_at,
+            prestige_level: b.prestige_level || 0,
+          }));
+          realEntries.push(...botEntries);
+        }
       }
     }
 
-    // Re-sort combined list
     realEntries.sort((a, b) => {
       const valA = sortBy === 'cash' ? Number(a[sortBy]) : a[sortBy];
       const valB = sortBy === 'cash' ? Number(b[sortBy]) : b[sortBy];
@@ -111,25 +119,38 @@ export function LeaderboardView() {
 
   return (
     <div>
-      <SectionHeader title="Online Ranking" icon={<Trophy size={12} />} />
+      {/* Tab bar */}
+      <SubTabBar
+        tabs={[
+          { id: 'global', label: 'Globaal', icon: <Trophy size={10} /> },
+          { id: 'hardcore', label: 'Hardcore', icon: <Skull size={10} /> },
+          { id: 'legends', label: 'Hall of Legends', icon: <Flame size={10} /> },
+        ]}
+        active={tab}
+        onChange={(t) => setTab(t as LeaderboardTab)}
+      />
 
-      {/* Hardcore filter tabs */}
-      <div className="flex gap-1.5 mb-2">
-        {(['all', 'hardcore'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setHardcoreFilter(tab)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all ${
-              hardcoreFilter === tab
-                ? tab === 'hardcore' ? 'bg-blood/15 border border-blood text-blood' : 'bg-gold/15 border border-gold text-gold'
-                : 'bg-muted border border-border text-muted-foreground'
-            }`}
-          >
-            {tab === 'hardcore' && <Skull size={10} />}
-            {tab === 'all' ? 'ALLE' : 'HARDCORE'}
-          </button>
-        ))}
-      </div>
+      {/* Tab header */}
+      {tab === 'legends' ? (
+        <div className="game-card border-2 border-blood bg-blood/5 mb-3 text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Flame size={14} className="text-blood" />
+            <h3 className="font-display text-sm font-black text-blood uppercase tracking-widest">Hall of Legends</h3>
+            <Flame size={14} className="text-blood" />
+          </div>
+          <p className="text-[0.5rem] text-muted-foreground">Spelers die het eindspel bereikten in Hardcore mode — één leven, geen tweede kans.</p>
+        </div>
+      ) : tab === 'hardcore' ? (
+        <div className="game-card border border-blood/30 mb-3">
+          <div className="flex items-center gap-2 text-xs">
+            <Skull size={12} className="text-blood" />
+            <span className="font-bold text-blood">Hardcore Ranking</span>
+            <span className="text-[0.45rem] text-muted-foreground ml-auto">+50% beloningen · 1 leven</span>
+          </div>
+        </div>
+      ) : (
+        <SectionHeader title="Online Ranking" icon={<Trophy size={12} />} />
+      )}
 
       {/* Sort pills */}
       <div className="flex gap-1.5 mb-3">
@@ -138,7 +159,11 @@ export function LeaderboardView() {
             key={opt.id}
             onClick={() => setSortBy(opt.id)}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all ${
-              sortBy === opt.id ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted border border-border text-muted-foreground'
+              sortBy === opt.id
+                ? tab === 'hardcore' || tab === 'legends'
+                  ? 'bg-blood/15 border border-blood text-blood'
+                  : 'bg-gold/15 border border-gold text-gold'
+                : 'bg-muted border border-border text-muted-foreground'
             }`}
           >
             {opt.icon} {opt.label}
@@ -148,28 +173,42 @@ export function LeaderboardView() {
 
       {/* My position */}
       {myEntry && myRank && (
-        <div className="game-card border-l-[3px] border-l-gold mb-3">
+        <div className={`game-card border-l-[3px] mb-3 ${tab === 'hardcore' || tab === 'legends' ? 'border-l-blood' : 'border-l-gold'}`}>
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-gold font-bold">#{myRank}</span>
-            <Crown size={12} className="text-gold" />
+            <span className={`font-bold ${tab === 'hardcore' || tab === 'legends' ? 'text-blood' : 'text-gold'}`}>#{myRank}</span>
+            <Crown size={12} className={tab === 'hardcore' || tab === 'legends' ? 'text-blood' : 'text-gold'} />
             <span className="font-bold">{myEntry.username}</span>
             <span className="text-muted-foreground ml-auto">REP {myEntry.rep}</span>
           </div>
         </div>
       )}
 
-      {/* Leaderboard table */}
+      {/* Leaderboard list */}
       {loading ? (
         <div className="text-center py-8 text-muted-foreground text-xs font-ui">Laden...</div>
       ) : entries.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-xs font-ui">
-          Nog geen spelers op het leaderboard. Wees de eerste!
+        <div className="text-center py-8">
+          {tab === 'legends' ? (
+            <>
+              <Flame size={24} className="mx-auto text-blood/40 mb-2" />
+              <p className="text-xs text-muted-foreground">Nog geen legendes. Wees de eerste die het eindspel haalt in Hardcore.</p>
+            </>
+          ) : tab === 'hardcore' ? (
+            <>
+              <Skull size={24} className="mx-auto text-blood/40 mb-2" />
+              <p className="text-xs text-muted-foreground">Nog geen hardcore spelers. Durf jij het aan?</p>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">Nog geen spelers op het leaderboard. Wees de eerste!</p>
+          )}
         </div>
       ) : (
         <div className="space-y-1.5">
           {entries.map((entry, i) => {
             const rank = i + 1;
             const isMe = entry.user_id === currentUserId;
+            const isLegend = tab === 'legends';
+
             return (
               <motion.button
                 key={entry.id}
@@ -179,19 +218,24 @@ export function LeaderboardView() {
                 onClick={() => setSelectedPlayer(entry)}
                 className={`w-full game-card flex items-center gap-2 text-left transition-all hover:border-gold/40 ${
                   isMe ? 'border-gold/50 bg-gold/5' : ''
-                }`}
+                } ${isLegend && rank <= 3 ? 'border-blood/40 bg-blood/5' : ''}`}
               >
                 {/* Rank */}
                 <span className={`w-7 text-center font-bold text-xs ${
-                  rank === 1 ? 'text-gold' : rank === 2 ? 'text-foreground' : rank === 3 ? 'text-amber-600' : 'text-muted-foreground'
+                  isLegend
+                    ? rank === 1 ? 'text-blood' : rank <= 3 ? 'text-blood/70' : 'text-muted-foreground'
+                    : rank === 1 ? 'text-gold' : rank === 2 ? 'text-foreground' : rank === 3 ? 'text-amber-600' : 'text-muted-foreground'
                 }`}>
-                  {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
+                  {isLegend
+                    ? rank <= 3 ? ['💀', '⚔️', '🔥'][rank - 1] : `#${rank}`
+                    : rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`
+                  }
                 </span>
 
                 {/* Name + level */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
-                    <span className={`text-xs font-bold truncate ${isMe ? 'text-gold' : ''}`}>{entry.username}</span>
+                    <span className={`text-xs font-bold truncate ${isMe ? 'text-gold' : isLegend ? 'text-blood' : ''}`}>{entry.username}</span>
                     {entry.is_hardcore && <Skull size={10} className="text-blood" />}
                     {(entry.prestige_level || 0) > 0 && <PrestigeBadge level={entry.prestige_level!} />}
                     <span className="text-[0.5rem] text-muted-foreground">Lv.{entry.level}</span>
@@ -200,12 +244,13 @@ export function LeaderboardView() {
                     <span>Dag {entry.day}</span>
                     {entry.districts_owned > 0 && <span>🏠{entry.districts_owned}</span>}
                     {entry.crew_size > 0 && <span>👥{entry.crew_size}</span>}
+                    {isLegend && <GameBadge variant="blood" size="xs">LEGENDE</GameBadge>}
                   </div>
                 </div>
 
                 {/* Sort value */}
                 <div className="text-right">
-                  <span className="text-xs font-bold text-gold">
+                  <span className={`text-xs font-bold ${isLegend ? 'text-blood' : 'text-gold'}`}>
                     {sortBy === 'cash' ? `€${entry.cash.toLocaleString()}` : entry[sortBy]}
                   </span>
                   <p className="text-[0.45rem] text-muted-foreground uppercase">{sortBy}</p>
