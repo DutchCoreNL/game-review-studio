@@ -6,9 +6,10 @@ import { playAlertTrigger } from '@/game/sounds/uiSounds';
 interface BreakingNewsFlashProps {
   item: NewsItem | null;
   onDone: () => void;
+  onRead?: (item: NewsItem) => void;
 }
 
-export function BreakingNewsFlash({ item, onDone }: BreakingNewsFlashProps) {
+export function BreakingNewsFlash({ item, onDone, onRead }: BreakingNewsFlashProps) {
   useEffect(() => {
     if (item) {
       playAlertTrigger();
@@ -43,8 +44,8 @@ export function BreakingNewsFlash({ item, onDone }: BreakingNewsFlashProps) {
             className="fixed top-16 left-1/2 -translate-x-1/2 z-[9985] w-[90%] max-w-[500px]"
           >
             <div
-              className="relative overflow-hidden rounded-lg border-2 border-blood bg-background/95 backdrop-blur-sm shadow-2xl"
-              onClick={onDone}
+              className="relative overflow-hidden rounded-lg border-2 border-blood bg-background/95 backdrop-blur-sm shadow-2xl cursor-pointer"
+              onClick={() => { onRead?.(item); onDone(); }}
             >
               {/* Animated red scan line */}
               <motion.div
@@ -72,6 +73,7 @@ export function BreakingNewsFlash({ item, onDone }: BreakingNewsFlashProps) {
                   <span className="text-sm flex-shrink-0">{item.icon}</span>
                   <span className="text-xs font-bold text-blood truncate">{item.text}</span>
                 </div>
+                <span className="text-[0.4rem] text-muted-foreground ml-auto flex-shrink-0">TAP OM TE LEZEN</span>
               </div>
             </div>
           </motion.div>

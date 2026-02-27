@@ -102,7 +102,7 @@ export function MapView() {
     <div className="relative">
       <HidingOverlay />
       <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
-      <BreakingNewsFlash item={breakingItem} onDone={clearBreaking} />
+      <BreakingNewsFlash item={breakingItem} onDone={clearBreaking} onRead={setSelectedNews} />
       <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
 
       <div className="mb-3">
