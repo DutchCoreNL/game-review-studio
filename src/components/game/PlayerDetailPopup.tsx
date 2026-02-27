@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, Coins, Calendar, MapPin, Users, Brain, Shield, Car, Building2, Swords, Heart, TrendingUp, Trophy, Skull, Loader2 } from 'lucide-react';
+import { X, Star, Coins, Calendar, MapPin, Users, Brain, Shield, Car, Building2, Swords, Heart, TrendingUp, Trophy, Skull, Loader2, ArrowRightLeft } from 'lucide-react';
 import { InfoRow } from './ui/InfoRow';
 import { SectionHeader } from './ui/SectionHeader';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
+import { GameButton } from './ui/GameButton';
 import { gameApi } from '@/lib/gameApi';
+import { useGame } from '@/contexts/GameContext';
+import { GOODS } from '@/game/constants';
+import { GoodId } from '@/game/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PlayerDetailProps {
   /** Either pass full player data (leaderboard) or just userId to fetch */
@@ -68,9 +73,17 @@ interface PublicProfile {
 }
 
 export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps) {
+  const { state, showToast } = useGame();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTradeForm, setShowTradeForm] = useState(false);
+  const [tradeOfferCash, setTradeOfferCash] = useState(0);
+  const [tradeRequestCash, setTradeRequestCash] = useState(0);
+  const [tradeOfferGoods, setTradeOfferGoods] = useState<Record<string, number>>({});
+  const [tradeRequestGoods, setTradeRequestGoods] = useState<Record<string, number>>({});
+  const [tradeMessage, setTradeMessage] = useState('');
+  const [tradeSending, setTradeSending] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -236,6 +249,115 @@ export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps
               <InfoRow icon={<Trophy size={10} />} label="Casino W/L" value={`€${profile.casinoWon.toLocaleString()} / €${profile.casinoLost.toLocaleString()}`} valueClass="text-gold" />
               <InfoRow icon={<Heart size={10} />} label="Hospitalisaties" value={`${profile.hospitalizations}`} valueClass="text-blood" />
             </div>
+
+            {/* Direct Trade Button */}
+            {userId && (
+              <div className="mt-3 pt-3 border-t border-border/50">
+                {!showTradeForm ? (
+                  <GameButton variant="gold" size="sm" icon={<ArrowRightLeft size={12} />} className="w-full"
+                    onClick={() => setShowTradeForm(true)}>
+                    Direct Handelen
+                  </GameButton>
+                ) : (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                    <SectionHeader title="Handelsbod" icon={<ArrowRightLeft size={10} />} />
+                    
+                    {/* Offer section */}
+                    <p className="text-[0.5rem] text-gold font-bold uppercase mb-1">Jij biedt:</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[0.45rem] text-muted-foreground w-12">Cash:</span>
+                      <input type="number" min={0} max={state.money} value={tradeOfferCash}
+                        onChange={e => setTradeOfferCash(Math.min(Number(state.money), Math.max(0, +e.target.value)))}
+                        className="flex-1 bg-muted/30 border border-border rounded px-2 py-1 text-[0.55rem] text-foreground" />
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {GOODS.filter(g => (state.inventory[g.id as GoodId] || 0) > 0).map(g => {
+                        const owned = state.inventory[g.id as GoodId] || 0;
+                        const offered = tradeOfferGoods[g.id] || 0;
+                        return (
+                          <button key={g.id} onClick={() => {
+                            setTradeOfferGoods(prev => ({
+                              ...prev,
+                              [g.id]: offered >= owned ? 0 : offered + 1
+                            }));
+                          }}
+                            className={`text-[0.45rem] px-1.5 py-0.5 rounded border transition-all ${
+                              offered > 0 ? 'bg-gold/20 border-gold text-gold' : 'bg-muted/30 border-border text-muted-foreground'
+                            }`}>
+                            {g.name} {offered > 0 && `×${offered}`} <span className="opacity-50">({owned})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Request section */}
+                    <p className="text-[0.5rem] text-ice font-bold uppercase mb-1">Jij vraagt:</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[0.45rem] text-muted-foreground w-12">Cash:</span>
+                      <input type="number" min={0} value={tradeRequestCash}
+                        onChange={e => setTradeRequestCash(Math.max(0, +e.target.value))}
+                        className="flex-1 bg-muted/30 border border-border rounded px-2 py-1 text-[0.55rem] text-foreground" />
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {GOODS.map(g => {
+                        const requested = tradeRequestGoods[g.id] || 0;
+                        return (
+                          <button key={g.id} onClick={() => {
+                            setTradeRequestGoods(prev => ({
+                              ...prev,
+                              [g.id]: requested >= 10 ? 0 : requested + 1
+                            }));
+                          }}
+                            className={`text-[0.45rem] px-1.5 py-0.5 rounded border transition-all ${
+                              requested > 0 ? 'bg-ice/20 border-ice text-ice' : 'bg-muted/30 border-border text-muted-foreground'
+                            }`}>
+                            {g.name} {requested > 0 && `×${requested}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Message */}
+                    <input type="text" placeholder="Bericht (optioneel)" maxLength={100} value={tradeMessage}
+                      onChange={e => setTradeMessage(e.target.value)}
+                      className="w-full bg-muted/30 border border-border rounded px-2 py-1 text-[0.5rem] text-foreground mb-2" />
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <GameButton variant="muted" size="sm" className="flex-1" onClick={() => setShowTradeForm(false)}>Annuleer</GameButton>
+                      <GameButton variant="gold" size="sm" className="flex-1" disabled={tradeSending ||
+                        (tradeOfferCash === 0 && Object.values(tradeOfferGoods).every(v => !v) && tradeRequestCash === 0 && Object.values(tradeRequestGoods).every(v => !v))}
+                        onClick={async () => {
+                          setTradeSending(true);
+                          const offerG = Object.fromEntries(Object.entries(tradeOfferGoods).filter(([, v]) => v > 0));
+                          const reqG = Object.fromEntries(Object.entries(tradeRequestGoods).filter(([, v]) => v > 0));
+                          const res = await supabase.functions.invoke('marketplace', {
+                            body: {
+                              action: 'send_trade_offer',
+                              receiverId: userId,
+                              receiverName: profile?.username || 'Speler',
+                              offerGoods: offerG,
+                              offerCash: tradeOfferCash,
+                              requestGoods: reqG,
+                              requestCash: tradeRequestCash,
+                              message: tradeMessage || null,
+                            },
+                          });
+                          setTradeSending(false);
+                          if (res.data?.success) {
+                            showToast(`Handelsbod verzonden naar ${profile?.username}!`);
+                            setShowTradeForm(false);
+                          } else {
+                            showToast(res.data?.error || 'Kon bod niet versturen', true);
+                          }
+                        }}>
+                        {tradeSending ? '...' : 'Verstuur Bod'}
+                      </GameButton>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
 
             {profile.memberSince && (
               <p className="text-[0.4rem] text-muted-foreground text-right mt-2">
