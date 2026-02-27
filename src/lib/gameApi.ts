@@ -6,7 +6,8 @@ export type GameAction =
   | "solo_op"
   | "buy_gear" | "equip_gear" | "unequip_gear"
   | "buy_vehicle" | "switch_vehicle"
-  | "wash_money" | "bribe_police" | "buy_business";
+  | "wash_money" | "bribe_police" | "buy_business"
+  | "attack" | "list_players";
 
 interface GameActionResult {
   success: boolean;
@@ -45,4 +46,6 @@ export const gameApi = {
   washMoney: (amount: number) => invokeGameAction("wash_money", { amount }),
   bribePolice: () => invokeGameAction("bribe_police"),
   buyBusiness: (businessId: string) => invokeGameAction("buy_business", { businessId }),
+  attack: (targetUserId: string) => invokeGameAction("attack", { targetUserId }),
+  listPlayers: () => invokeGameAction("list_players"),
 };

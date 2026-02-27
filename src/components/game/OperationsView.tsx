@@ -31,6 +31,7 @@ import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import { MissionBriefing } from './MissionBriefing';
 import { BountyBoardPanel } from './bounty/BountyBoardPanel';
+import { PvPAttackView } from './PvPAttackView';
 import operationsBg from '@/assets/operations-bg.jpg';
 import { SOLO_OP_IMAGES, CONTRACT_TYPE_IMAGES } from '@/assets/items';
 
@@ -39,7 +40,7 @@ const CONTRACT_COLORS: Record<string, string> = { delivery: 'text-gold', combat:
 const CONTRACT_BORDER: Record<string, string> = { delivery: 'border-l-gold', combat: 'border-l-blood', stealth: 'border-l-game-purple', tech: 'border-l-ice' };
 const BEST_ROLE: Record<string, string> = { delivery: 'Chauffeur', combat: 'Enforcer', stealth: 'Smokkelaar', tech: 'Hacker' };
 
-type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'bounties' | 'challenges';
+type OpsSubTab = 'solo' | 'contracts' | 'crew' | 'hits' | 'heists' | 'bounties' | 'challenges' | 'pvp';
 
 export function OperationsView() {
   const { state, dispatch, showToast } = useGame();
@@ -87,6 +88,7 @@ export function OperationsView() {
     { id: 'bounties', label: 'PREMIES', icon: <ShieldAlert size={12} />, badge: (state.activeBounties || []).length + (state.placedBounties || []).length },
     { id: 'crew', label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
     { id: 'challenges', label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
+    { id: 'pvp', label: 'PVP', icon: <Swords size={12} /> },
   ];
 
   return (
@@ -318,6 +320,8 @@ export function OperationsView() {
       {subTab === 'bounties' && <BountyBoardPanel />}
 
       {subTab === 'challenges' && <DailyChallengesView />}
+
+      {subTab === 'pvp' && <PvPAttackView />}
 
       <ConfirmDialog
         open={fireConfirm !== null}
