@@ -2,14 +2,14 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { PvPCombatState, CombatBuff } from '@/game/types';
 import { COMBAT_SKILLS, COMBO_THRESHOLD, getAvailableSkills, isSkillOnCooldown, BUFF_DEFS } from '@/game/combatSkills';
-import { GEAR } from '@/game/constants';
+import { GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Zap, Heart, Skull, Trophy, Flame, Star } from 'lucide-react';
+import { Swords, Shield, Zap, Heart, Skull, Trophy, Flame, Star, Crosshair } from 'lucide-react';
 import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound } from '@/game/sounds';
 
 // ========== Animated HP Bar ==========
@@ -237,6 +237,34 @@ export function PvPCombatView() {
             <span>✨ {combat.defenderStats.charm}</span>
           </div>
         </div>
+
+        {/* Ammo indicator */}
+        {(() => {
+          const equippedWeaponId = state.player.loadout.weapon;
+          const equippedWeapon = equippedWeaponId ? (GEAR.find(g => g.id === equippedWeaponId) ?? null) : null;
+          const isMelee = equippedWeapon?.ammoType === null;
+          if (isMelee) {
+            return (
+              <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
+                ⚔️ {equippedWeapon?.name || 'Melee'} — Geen munitie nodig
+              </div>
+            );
+          }
+          const ammoType = equippedWeapon?.ammoType || '9mm';
+          const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+          const typeAmmo = ammoStock[ammoType] || 0;
+          const typeLabel = AMMO_TYPE_LABELS[ammoType]?.label || ammoType;
+          return (
+            <div className={`flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded ${typeAmmo <= 3 ? 'bg-blood/10 border border-blood/20' : 'bg-muted/50 border border-border'}`}>
+              <Crosshair size={10} className={typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'} />
+              <span className={`text-[0.55rem] font-bold ${typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
+                {typeLabel}: {typeAmmo}
+                {equippedWeapon?.clipSize ? ` | Clip: ${equippedWeapon.clipSize}` : ''}
+                {typeAmmo === 0 && <span className="text-blood animate-pulse ml-1">— MELEE MODUS (50%)</span>}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Combat Log */}
         <div className="game-card mb-3 max-h-28 overflow-y-auto game-scroll p-2">
