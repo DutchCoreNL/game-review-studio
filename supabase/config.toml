@@ -1,1 +1,4 @@
 project_id = "mwshudivoqwjdiidhalm"
+
+[functions.sync-leaderboard]
+verify_jwt = false

@@ -12,26 +12,17 @@ interface SyncData {
 }
 
 export async function syncLeaderboard(data: SyncData) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
 
-  // Get username from profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('id', user.id)
-    .single();
+  const { data: result, error } = await supabase.functions.invoke('sync-leaderboard', {
+    body: data,
+  });
 
-  if (!profile) return;
+  if (error) {
+    console.error('Leaderboard sync failed:', error);
+    throw error;
+  }
 
-  await supabase
-    .from('leaderboard_entries')
-    .upsert(
-      {
-        user_id: user.id,
-        username: profile.username,
-        ...data,
-      },
-      { onConflict: 'user_id' }
-    );
+  return result;
 }
