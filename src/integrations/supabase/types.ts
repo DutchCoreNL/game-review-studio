@@ -790,6 +790,53 @@ export type Database = {
         }
         Relationships: []
       }
+      organized_crimes: {
+        Row: {
+          completes_at: string | null
+          created_at: string
+          crime_id: string
+          gang_id: string
+          id: string
+          initiated_at: string | null
+          initiated_by: string
+          result: Json | null
+          signups: Json
+          status: string
+        }
+        Insert: {
+          completes_at?: string | null
+          created_at?: string
+          crime_id: string
+          gang_id: string
+          id?: string
+          initiated_at?: string | null
+          initiated_by: string
+          result?: Json | null
+          signups?: Json
+          status?: string
+        }
+        Update: {
+          completes_at?: string | null
+          created_at?: string
+          crime_id?: string
+          gang_id?: string
+          id?: string
+          initiated_at?: string | null
+          initiated_by?: string
+          result?: Json | null
+          signups?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organized_crimes_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_bounties: {
         Row: {
           amount: number

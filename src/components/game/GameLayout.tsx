@@ -100,6 +100,7 @@ const EducationView = React.lazy(() => import('./EducationView').then(m => ({ de
 const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ default: m.PropertiesView })));
 const TravelViewLazy = React.lazy(() => import('./TravelView').then(m => ({ default: m.TravelView })));
 const ChatViewLazy = React.lazy(() => import('./ChatView').then(m => ({ default: m.ChatView })));
+const OCViewLazy = React.lazy(() => import('./OrganizedCrimesView').then(m => ({ default: m.OrganizedCrimesView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -153,6 +154,7 @@ const views: Record<string, React.ComponentType> = {
   properties: PropertiesView,
   travel: TravelViewLazy,
   chat: ChatViewLazy,
+  'organized-crimes': OCViewLazy,
   // Admin
   admin: AdminPanelView,
 };
