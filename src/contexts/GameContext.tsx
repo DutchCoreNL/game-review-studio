@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { useServerSync } from '@/hooks/useServerSync';
 import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
@@ -212,6 +213,7 @@ type GameAction =
   | { type: 'RECALL_DEALER'; district: DistrictId }
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
+  | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
   | { type: 'RESET' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -2480,6 +2482,46 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'MERGE_SERVER_STATE': {
+      const ss = (action as any).serverState;
+      if (ss.money !== undefined) s.money = ss.money;
+      if (ss.dirtyMoney !== undefined) s.dirtyMoney = ss.dirtyMoney;
+      if (ss.debt !== undefined) s.debt = ss.debt;
+      if (ss.rep !== undefined) s.rep = ss.rep;
+      if (ss.heat !== undefined) s.heat = ss.heat;
+      if (ss.personalHeat !== undefined) s.personalHeat = ss.personalHeat;
+      if (ss.playerHP !== undefined) s.playerHP = ss.playerHP;
+      if (ss.playerMaxHP !== undefined) s.playerMaxHP = ss.playerMaxHP;
+      if (ss.karma !== undefined) s.karma = ss.karma;
+      if (ss.loc !== undefined) s.loc = ss.loc;
+      if (ss.policeRel !== undefined) s.policeRel = ss.policeRel;
+      if (ss.day !== undefined) s.day = ss.day;
+      if (ss.washUsedToday !== undefined) s.washUsedToday = ss.washUsedToday;
+      if (ss.endgamePhase !== undefined) s.endgamePhase = ss.endgamePhase;
+      // Energy/nerve/cooldowns
+      if (ss.energy !== undefined) s.energy = ss.energy;
+      if (ss.maxEnergy !== undefined) s.maxEnergy = ss.maxEnergy;
+      if (ss.nerve !== undefined) s.nerve = ss.nerve;
+      if (ss.maxNerve !== undefined) s.maxNerve = ss.maxNerve;
+      s.energyRegenAt = ss.energyRegenAt ?? s.energyRegenAt;
+      s.nerveRegenAt = ss.nerveRegenAt ?? s.nerveRegenAt;
+      s.travelCooldownUntil = ss.travelCooldownUntil ?? s.travelCooldownUntil;
+      s.crimeCooldownUntil = ss.crimeCooldownUntil ?? s.crimeCooldownUntil;
+      s.attackCooldownUntil = ss.attackCooldownUntil ?? s.attackCooldownUntil;
+      s.heistCooldownUntil = ss.heistCooldownUntil ?? s.heistCooldownUntil;
+      // Player sub-object
+      if (ss.player) {
+        if (ss.player.level !== undefined) s.player.level = ss.player.level;
+        if (ss.player.xp !== undefined) s.player.xp = ss.player.xp;
+        if (ss.player.nextXp !== undefined) s.player.nextXp = ss.player.nextXp;
+        if (ss.player.skillPoints !== undefined) s.player.skillPoints = ss.player.skillPoints;
+        if (ss.player.stats) s.player.stats = ss.player.stats;
+        if (ss.player.loadout) s.player.loadout = ss.player.loadout;
+      }
+      s.serverSynced = true;
+      return s;
+    }
+
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
@@ -2756,6 +2798,18 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         saved.dailyRewardClaimed = false;
       }
       if (saved.dailyRewardClaimed === undefined) saved.dailyRewardClaimed = false;
+      // MMO state migration
+      if (saved.energy === undefined) saved.energy = 100;
+      if (saved.maxEnergy === undefined) saved.maxEnergy = 100;
+      if (saved.nerve === undefined) saved.nerve = 50;
+      if (saved.maxNerve === undefined) saved.maxNerve = 50;
+      if (saved.energyRegenAt === undefined) saved.energyRegenAt = null;
+      if (saved.nerveRegenAt === undefined) saved.nerveRegenAt = null;
+      if (saved.travelCooldownUntil === undefined) saved.travelCooldownUntil = null;
+      if (saved.crimeCooldownUntil === undefined) saved.crimeCooldownUntil = null;
+      if (saved.attackCooldownUntil === undefined) saved.attackCooldownUntil = null;
+      if (saved.heistCooldownUntil === undefined) saved.heistCooldownUntil = null;
+      if (saved.serverSynced === undefined) saved.serverSynced = false;
       return saved;
     }
     const fresh = createInitialState();
@@ -2781,9 +2835,12 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     toastTimeout.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
+  // Server sync — intercepts server-side actions when logged in
+  const { serverDispatch, syncState } = useServerSync(rawDispatch, showToast);
+
   const dispatch = useCallback((action: GameAction) => {
-    rawDispatch(action);
-  }, []);
+    serverDispatch(action);
+  }, [serverDispatch]);
 
   // Auto-save on state change (debounced) + check for new achievements + phase-up
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

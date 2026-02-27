@@ -12,8 +12,10 @@ import { HeatTile } from './header/HeatTile';
 import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
 import { Progress } from '@/components/ui/progress';
+import { EnergyNerveBar } from './header/EnergyNerveBar';
+import { CooldownTimer } from './header/CooldownTimer';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
@@ -176,6 +178,16 @@ export function GameHeader() {
             <span className="text-[0.45rem] font-bold">{state.goldenHour!.turnsLeft}</span>
           </motion.div>
         )}
+      </div>
+
+      {/* Row 3: Energy & Nerve bars */}
+      <EnergyNerveBar />
+
+      {/* Row 4: Active cooldowns */}
+      <div className="flex items-center gap-1 mt-1 overflow-x-auto no-scrollbar">
+        <CooldownTimer label="Reis" until={state.travelCooldownUntil} icon={<MapPin size={7} />} />
+        <CooldownTimer label="Crime" until={state.crimeCooldownUntil} icon={<Crosshair size={7} />} />
+        <CooldownTimer label="Aanval" until={state.attackCooldownUntil} icon={<Swords size={7} />} />
       </div>
 
       {/* Resource detail popup */}

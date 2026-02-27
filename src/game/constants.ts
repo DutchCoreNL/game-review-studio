@@ -1784,6 +1784,18 @@ export function createInitialState(): import('./types').GameState {
     // Trade log state
     tradeLog: [],
     craftLog: [],
+    // MMO server state
+    energy: 100,
+    maxEnergy: 100,
+    nerve: 50,
+    maxNerve: 50,
+    energyRegenAt: null,
+    nerveRegenAt: null,
+    travelCooldownUntil: null,
+    crimeCooldownUntil: null,
+    attackCooldownUntil: null,
+    heistCooldownUntil: null,
+    serverSynced: false,
   };
 }
 
