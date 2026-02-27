@@ -4,6 +4,7 @@ import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/consta
 import { ACHIEVEMENT_IMAGES } from '@/assets/items';
 import { ENDGAME_PHASES, getPhaseIndex } from '@/game/endgame';
 import { StatId, DistrictId } from '@/game/types';
+import { BACKSTORIES } from '@/game/backstory';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -83,6 +84,31 @@ export function ProfileView() {
           </div>
         </div>
       </div>
+
+      {/* MMO Perk Badge */}
+      {state.backstory && (() => {
+        const bs = BACKSTORIES.find(b => b.id === state.backstory);
+        if (!bs?.mmoPerk) return null;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="game-card border-l-[3px] border-l-purple-500 mb-4 flex items-center gap-3"
+          >
+            <div className="w-9 h-9 rounded-full bg-purple-500/15 border border-purple-500/40 flex items-center justify-center text-lg flex-shrink-0">
+              {bs.mmoPerk.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[0.55rem] font-bold uppercase tracking-wider text-purple-400">MMO Perk</span>
+                <span className="text-[0.5rem] text-muted-foreground">— {bs.name}</span>
+              </div>
+              <h4 className="font-bold text-xs">{bs.mmoPerk.label}</h4>
+              <p className="text-[0.5rem] text-muted-foreground">{bs.mmoPerk.desc}</p>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Sub-tabs — consolidated 12→9 */}
       <SubTabBar
