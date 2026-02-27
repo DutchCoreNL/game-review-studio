@@ -98,6 +98,39 @@ export type Database = {
         }
         Relationships: []
       }
+      district_events: {
+        Row: {
+          created_at: string
+          data: Json | null
+          description: string | null
+          district_id: string
+          event_type: string
+          expires_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          district_id: string
+          event_type: string
+          expires_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          district_id?: string
+          event_type?: string
+          expires_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       district_influence: {
         Row: {
           district_id: string

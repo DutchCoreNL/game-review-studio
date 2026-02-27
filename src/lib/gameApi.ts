@@ -20,7 +20,8 @@ export type GameAction =
   | "district_leaderboard"
   | "pvp_combat_start" | "pvp_combat_action"
   | "casino_play"
-  | "unlock_skill" | "get_skills" | "prestige" | "gain_xp";
+  | "unlock_skill" | "get_skills" | "prestige" | "gain_xp"
+  | "get_district_data";
 
 interface GameActionResult {
   success: boolean;
@@ -118,4 +119,7 @@ export const gameApi = {
   getSkills: () => invokeGameAction("get_skills"),
   prestige: () => invokeGameAction("prestige"),
   gainXp: (amount: number, source: string) => invokeGameAction("gain_xp", { amount, source }),
+
+  // District MMO data
+  getDistrictData: () => invokeGameAction("get_district_data"),
 };

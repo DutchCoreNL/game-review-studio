@@ -6,6 +6,7 @@ import { NemesisMarker } from './map/NemesisMarker';
 import { CityAmbience } from './map/CityAmbience';
 import { SkylineEffect, MapOverlayUI } from './map/SkylineEffect';
 import cityMapBg from '@/assets/city-map-bg.png';
+import type { DistrictData, DistrictEvent, GangTerritoryInfo } from '@/hooks/useDistrictData';
 
 interface CityMapProps {
   playerLocation: DistrictId;
@@ -27,6 +28,7 @@ interface CityMapProps {
   onSafehouseClick?: () => void;
   villa?: VillaState | null;
   onVillaClick?: () => void;
+  districtData?: DistrictData;
 }
 
 // Road paths — precisely traced on the isometric background image
@@ -333,7 +335,7 @@ function TravelAnimation({ from, to, districtMeta }: {
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick, districtData }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -521,6 +523,99 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
                 </motion.g>
               )}
             </g>
+          );
+        })}
+
+        {/* === MMO: DANGER LEVEL OVERLAY === */}
+        {districtData && (Object.keys(DISTRICT_ZONES) as DistrictId[]).map(id => {
+          const danger = districtData.dangerLevels[id] || 0;
+          if (danger < 10) return null;
+          const zone = DISTRICT_ZONES[id];
+          const intensity = Math.min(1, danger / 100);
+          const hue = 120 - intensity * 120; // green(120) → red(0)
+          return (
+            <rect key={`danger-${id}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h}
+              fill={`hsla(${hue}, 70%, 40%, ${0.03 + intensity * 0.08})`}
+              rx="4" pointerEvents="none" />
+          );
+        })}
+
+        {/* === MMO: GANG TERRITORY BORDERS === */}
+        {districtData?.territories.map(t => {
+          const zone = DISTRICT_ZONES[t.district_id as DistrictId];
+          if (!zone) return null;
+          // Generate a deterministic hue from gang_tag
+          const tagHash = t.gang_tag.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+          const gangHue = tagHash % 360;
+          return (
+            <g key={`gang-${t.district_id}`} pointerEvents="none">
+              <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h}
+                fill="none" stroke={`hsla(${gangHue}, 70%, 50%, 0.4)`}
+                strokeWidth="1.5" strokeDasharray="4 2" rx="4" />
+            </g>
+          );
+        })}
+
+        {/* === MMO: PLAYER COUNT BADGES === */}
+        {districtData && (Object.keys(DISTRICT_META) as DistrictId[]).map(id => {
+          const count = districtData.playerCounts[id] || 0;
+          if (count <= 0) return null;
+          const meta = DISTRICT_META[id];
+          const bx = meta.cx + meta.labelW / 2 + 6;
+          const by = meta.cy - 2;
+          return (
+            <g key={`pcount-${id}`} pointerEvents="none">
+              <rect x={bx - 8} y={by - 5} width="16" height="10" rx="3"
+                fill="hsla(0, 0%, 5%, 0.85)" stroke="hsla(200, 60%, 50%, 0.4)" strokeWidth="0.5" />
+              <text x={bx} y={by + 2.5} textAnchor="middle"
+                fill="hsla(200, 60%, 65%, 0.9)" fontSize="4.5" fontWeight="bold"
+                fontFamily="Inter, system-ui, sans-serif">
+                👥{count}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* === MMO: GANG TAG ON DISTRICTS === */}
+        {districtData?.territories.map(t => {
+          const meta = DISTRICT_META[t.district_id as DistrictId];
+          if (!meta) return null;
+          const tagHash = t.gang_tag.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+          const gangHue = tagHash % 360;
+          return (
+            <g key={`gtag-${t.district_id}`} pointerEvents="none">
+              <rect x={meta.cx - meta.labelW / 2} y={meta.cy + 9} width={meta.labelW} height="8" rx="2"
+                fill="hsla(0, 0%, 5%, 0.85)" stroke={`hsla(${gangHue}, 60%, 45%, 0.4)`} strokeWidth="0.5" />
+              <text x={meta.cx} y={meta.cy + 15} textAnchor="middle"
+                fill={`hsla(${gangHue}, 60%, 60%, 0.9)`} fontSize="4" fontWeight="bold"
+                fontFamily="Inter, system-ui, sans-serif">
+                [{t.gang_tag}]
+              </text>
+            </g>
+          );
+        })}
+
+        {/* === MMO: DISTRICT EVENT MARKERS === */}
+        {districtData?.events.map((ev, idx) => {
+          const meta = DISTRICT_META[ev.district_id as DistrictId];
+          if (!meta) return null;
+          // Offset markers slightly so they don't overlap
+          const angle = (idx * 72) * Math.PI / 180;
+          const ex = meta.cx + Math.cos(angle) * 16;
+          const ey = meta.cy + Math.sin(angle) * 12;
+          const eventIcons: Record<string, string> = {
+            gang_war: '⚔️', police_raid: '🚨', market_crash: '📉',
+            bounty_hunt: '🎯', territory_captured: '🏴', drug_bust: '💊',
+          };
+          const icon = eventIcons[ev.event_type] || '❗';
+          return (
+            <motion.g key={`ev-${ev.id}`}
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
+              <circle cx={ex} cy={ey} r="5" fill="hsla(0, 0%, 5%, 0.8)"
+                stroke="hsla(0, 70%, 50%, 0.5)" strokeWidth="0.5" />
+              <text x={ex} y={ey + 2.5} textAnchor="middle" fontSize="5">{icon}</text>
+            </motion.g>
           );
         })}
 

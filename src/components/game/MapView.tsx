@@ -17,6 +17,7 @@ import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
+import { useDistrictData } from '@/hooks/useDistrictData';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -29,6 +30,7 @@ export function MapView() {
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const districtData = useDistrictData(true);
 
   // Detect location changes and trigger travel animation
   useEffect(() => {
@@ -118,12 +120,13 @@ export function MapView() {
           safehouses={state.safehouses}
           onSafehouseClick={!isHiding ? () => setShowSafehouse(true) : undefined}
           villa={state.villa}
-          onVillaClick={!isHiding ? () => setShowVilla(true) : undefined}
-        />
+           onVillaClick={!isHiding ? () => setShowVilla(true) : undefined}
+           districtData={districtData}
+         />
       </div>
 
       {state.nemesis && <NemesisInfo />}
-      {selectedDistrict && !isHiding && <DistrictPopup />}
+      {selectedDistrict && !isHiding && <DistrictPopup districtData={districtData} />}
 
       {/* Contextual action bar */}
       {contextActions.length > 0 && (
