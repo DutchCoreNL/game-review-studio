@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap } from 'lucide-react';
+import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap, Eye, DoorOpen } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
 import { useAuth } from '@/hooks/useAuth';
 import { GameButton } from './ui/GameButton';
@@ -41,6 +41,7 @@ export function GangView() {
   const [loading, setLoading] = useState(true);
   const [invites, setInvites] = useState<any[]>([]);
   const [gangsList, setGangsList] = useState<any[]>([]);
+  const [selectedGang, setSelectedGang] = useState<any>(null);
   const [toast, setToast] = useState('');
 
   // Create gang state
@@ -167,6 +168,12 @@ export function GangView() {
     if (res.success) fetchGang();
   };
 
+  const handleJoinGang = async (gangId: string) => {
+    const res = await gameApi.joinGang(gangId);
+    showMsg(res.message);
+    if (res.success) { fetchGang(); }
+  };
+
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
     await gameApi.gangChat(chatInput);
@@ -253,22 +260,126 @@ export function GangView() {
               <p className="text-xs text-muted-foreground text-center py-4">Geen gangs gevonden.</p>
             ) : (
               <div className="space-y-2">
-                {gangsList.map(g => (
-                  <div key={g.id} className="game-card flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-gold">[{g.tag}] {g.name}</span>
-                      <div className="flex gap-2 text-[0.45rem] text-muted-foreground">
-                        <span>Lv.{g.level}</span>
-                        <span>{g.memberCount}/20 leden</span>
-                        <span>{g.territoryCount} gebieden</span>
+                {gangsList.map(g => {
+                  const isFull = g.memberCount >= (g.max_members || 20);
+                  return (
+                    <motion.div key={g.id}
+                      initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                      className="game-card cursor-pointer hover:border-gold/40 transition-colors"
+                      onClick={() => setSelectedGang(g)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gold truncate">[{g.tag}] {g.name}</span>
+                            <GameBadge variant="gold" size="xs">Lv.{g.level}</GameBadge>
+                          </div>
+                          <div className="flex gap-2 text-[0.45rem] text-muted-foreground mt-0.5">
+                            <span className="flex items-center gap-0.5"><Users size={8} /> {g.memberCount}/{g.max_members || 20}</span>
+                            <span className="flex items-center gap-0.5"><MapPin size={8} /> {g.territoryCount} gebieden</span>
+                            {g.activeWars > 0 && <span className="flex items-center gap-0.5 text-blood"><Swords size={8} /> {g.activeWars} oorlog</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {isFull ? (
+                            <span className="text-[0.45rem] text-muted-foreground font-bold uppercase">Vol</span>
+                          ) : (
+                            <GameButton size="sm" variant="gold" onClick={() => { handleJoinGang(g.id); }}>
+                              <DoorOpen size={10} /> Join
+                            </GameButton>
+                          )}
+                          <Eye size={14} className="text-muted-foreground" />
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </div>
         )}
+
+        {/* Gang Detail Popup */}
+        <AnimatePresence>
+          {selectedGang && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              onClick={() => setSelectedGang(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="bg-card border border-border rounded-xl p-4 max-w-sm w-full max-h-[80vh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h2 className="font-display text-lg font-bold text-gold">[{selectedGang.tag}] {selectedGang.name}</h2>
+                    <p className="text-[0.5rem] text-muted-foreground flex items-center gap-1">
+                      <Crown size={9} className="text-gold" /> Leider: <span className="text-foreground font-medium">{selectedGang.leaderName}</span>
+                    </p>
+                  </div>
+                  <GameBadge variant="gold" size="xs">Lv.{selectedGang.level}</GameBadge>
+                </div>
+
+                {/* Description */}
+                <div className="game-card mb-3">
+                  <p className="text-[0.55rem] text-muted-foreground">
+                    {selectedGang.description || 'Geen beschrijving.'}
+                  </p>
+                </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <InfoRow icon={<Users size={10} />} label="Leden" value={`${selectedGang.memberCount}/${selectedGang.max_members || 20}`} />
+                  <InfoRow icon={<MapPin size={10} />} label="Gebieden" value={`${selectedGang.territoryCount}`} valueClass="text-blood" />
+                  <InfoRow icon={<Coins size={10} />} label="Treasury" value={`€${(selectedGang.treasury || 0).toLocaleString()}`} valueClass="text-emerald" />
+                  <InfoRow icon={<Swords size={10} />} label="Oorlogen" value={`${selectedGang.activeWars || 0}`} />
+                  <InfoRow icon={<TrendingUp size={10} />} label="Gang XP" value={`${selectedGang.xp || 0}`} valueClass="text-gold" />
+                  <InfoRow icon={<Star size={10} />} label="Opgericht" value={new Date(selectedGang.created_at).toLocaleDateString('nl-NL')} />
+                </div>
+
+                {/* Territory districts */}
+                {selectedGang.territoryDistricts && selectedGang.territoryDistricts.length > 0 && (
+                  <div className="mb-3">
+                    <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider font-bold">Gecontroleerde Districten</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedGang.territoryDistricts.map((d: string) => (
+                        <span key={d} className="text-[0.45rem] px-1.5 py-0.5 rounded bg-blood/20 text-blood font-bold border border-blood/30">
+                          {DISTRICT_NAMES[d] || d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* XP bar */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[0.5rem] text-muted-foreground">XP naar Lv.{(selectedGang.level || 1) + 1}</span>
+                    <span className="text-[0.5rem] font-bold text-gold">{selectedGang.xp || 0} / {(selectedGang.level || 1) * 500}</span>
+                  </div>
+                  <Progress value={((selectedGang.xp || 0) / ((selectedGang.level || 1) * 500)) * 100} className="h-1.5 bg-muted/30" />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {selectedGang.memberCount < (selectedGang.max_members || 20) ? (
+                    <GameButton variant="gold" size="sm" fullWidth onClick={() => { handleJoinGang(selectedGang.id); setSelectedGang(null); }}>
+                      <DoorOpen size={12} /> Gang Joinen
+                    </GameButton>
+                  ) : (
+                    <div className="flex-1 text-center text-[0.5rem] text-muted-foreground py-2 bg-muted/20 rounded border border-border">
+                      Gang is vol ({selectedGang.memberCount}/{selectedGang.max_members || 20})
+                    </div>
+                  )}
+                  <GameButton variant="muted" size="sm" onClick={() => setSelectedGang(null)}>Sluiten</GameButton>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }

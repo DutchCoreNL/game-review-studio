@@ -2064,27 +2064,76 @@ async function handleGetGangInvites(supabase: any, userId: string): Promise<Acti
 }
 
 async function handleListGangs(supabase: any): Promise<ActionResult> {
-  const { data: gangs } = await supabase.from("gangs").select("id, name, tag, level, leader_id, created_at")
+  const { data: gangs } = await supabase.from("gangs").select("id, name, tag, level, leader_id, created_at, description, treasury, xp, max_members")
     .order("level", { ascending: false }).limit(50);
 
   if (!gangs || gangs.length === 0) return { success: true, message: "Geen gangs.", data: { gangs: [] } };
 
-  // Get member counts
+  // Get member counts + leader usernames
   const gangIds = gangs.map((g: any) => g.id);
+  const leaderIds = gangs.map((g: any) => g.leader_id);
   const { data: members } = await supabase.from("gang_members").select("gang_id").in("gang_id", gangIds);
   const countMap: Record<string, number> = {};
   (members || []).forEach((m: any) => { countMap[m.gang_id] = (countMap[m.gang_id] || 0) + 1; });
 
-  // Get territory counts
-  const { data: territories } = await supabase.from("gang_territories").select("gang_id").in("gang_id", gangIds);
+  // Get territory counts + district ids
+  const { data: territories } = await supabase.from("gang_territories").select("gang_id, district_id").in("gang_id", gangIds);
   const terrMap: Record<string, number> = {};
-  (territories || []).forEach((t: any) => { terrMap[t.gang_id] = (terrMap[t.gang_id] || 0) + 1; });
+  const terrDistricts: Record<string, string[]> = {};
+  (territories || []).forEach((t: any) => {
+    terrMap[t.gang_id] = (terrMap[t.gang_id] || 0) + 1;
+    if (!terrDistricts[t.gang_id]) terrDistricts[t.gang_id] = [];
+    terrDistricts[t.gang_id].push(t.district_id);
+  });
+
+  // Get leader usernames
+  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", leaderIds);
+  const leaderMap: Record<string, string> = {};
+  (profiles || []).forEach((p: any) => { leaderMap[p.id] = p.username; });
+
+  // Get active wars count
+  const { data: wars } = await supabase.from("gang_wars").select("attacker_gang_id, defender_gang_id").eq("status", "active");
+  const warMap: Record<string, number> = {};
+  (wars || []).forEach((w: any) => {
+    warMap[w.attacker_gang_id] = (warMap[w.attacker_gang_id] || 0) + 1;
+    warMap[w.defender_gang_id] = (warMap[w.defender_gang_id] || 0) + 1;
+  });
 
   const enriched = gangs.map((g: any) => ({
-    ...g, memberCount: countMap[g.id] || 0, territoryCount: terrMap[g.id] || 0,
+    ...g,
+    memberCount: countMap[g.id] || 0,
+    territoryCount: terrMap[g.id] || 0,
+    territoryDistricts: terrDistricts[g.id] || [],
+    leaderName: leaderMap[g.leader_id] || 'Onbekend',
+    activeWars: warMap[g.id] || 0,
   }));
 
   return { success: true, message: "Gangs opgehaald.", data: { gangs: enriched } };
+}
+
+async function handleJoinGang(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { gangId } = payload || {};
+  if (!gangId) return { success: false, message: "Geen gang opgegeven." };
+
+  // Check not already in a gang
+  const { data: existing } = await supabase.from("gang_members").select("id").eq("user_id", userId).maybeSingle();
+  if (existing) return { success: false, message: "Je zit al in een gang. Verlaat eerst je huidige gang." };
+
+  // Check gang exists and has space
+  const { data: gang } = await supabase.from("gangs").select("id, max_members, name, tag").eq("id", gangId).maybeSingle();
+  if (!gang) return { success: false, message: "Gang niet gevonden." };
+
+  const { count } = await supabase.from("gang_members").select("id", { count: "exact", head: true }).eq("gang_id", gangId);
+  if ((count || 0) >= gang.max_members) return { success: false, message: "Deze gang zit vol." };
+
+  // Check player level >= 3
+  const { data: ps } = await supabase.from("player_state").select("level").eq("user_id", userId).maybeSingle();
+  if (!ps || ps.level < 3) return { success: false, message: "Je hebt minimaal level 3 nodig om een gang te joinen." };
+
+  // Join as member
+  await supabase.from("gang_members").insert({ gang_id: gangId, user_id: userId, role: "member" });
+
+  return { success: true, message: `Je bent lid geworden van [${gang.tag}] ${gang.name}!` };
 }
 
 // ========== GANG XP / LEVELING ==========
@@ -4331,6 +4380,9 @@ Deno.serve(async (req) => {
         break;
       case "list_gangs":
         result = await handleListGangs(supabase);
+        break;
+      case "join_gang":
+        result = await handleJoinGang(supabase, user.id, payload);
         break;
       case "contribute_influence":
         result = await handleContributeInfluence(supabase, user.id, playerState, payload);
