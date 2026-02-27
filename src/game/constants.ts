@@ -34,11 +34,11 @@ export const AMMO_TYPE_LABELS: Record<import('./types').AmmoType, { label: strin
 };
 
 export const DISTRICTS: Record<string, District> = {
-  port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 0.7, weapons: 0.6, tech: 1.3, luxury: 1.4, meds: 0.8, ammo_9mm: 1.0, ammo_762: 0.7, ammo_shells: 1.2 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
-  crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.6, weapons: 1.4, tech: 0.6, luxury: 1.8, meds: 1.3, ammo_9mm: 1.3, ammo_762: 1.4, ammo_shells: 1.5 }, perk: "-20% Heat Daily & Hacker Efficiency" },
-  iron: { name: 'Iron Borough', cost: 25000, income: 900, cx: 215, cy: 200, mods: { drugs: 1.2, weapons: 0.5, tech: 0.8, luxury: 1.1, meds: 1.0, ammo_9mm: 0.8, ammo_762: 0.6, ammo_shells: 0.5 }, perk: "-20% Crew Healing Cost" },
-  low: { name: 'Lowrise', cost: 8000, income: 250, cx: 100, cy: 205, mods: { drugs: 0.5, weapons: 1.5, tech: 1.0, luxury: 0.7, meds: 1.4, ammo_9mm: 0.6, ammo_762: 1.1, ammo_shells: 0.9 }, perk: "Goedkopere Solo Ops" },
-  neon: { name: 'Neon Strip', cost: 45000, income: 1600, cx: 315, cy: 200, mods: { drugs: 1.4, weapons: 1.2, tech: 1.6, luxury: 0.9, meds: 0.6, ammo_9mm: 1.1, ammo_762: 1.2, ammo_shells: 1.3 }, perk: "+10% Casino Winst & Witwas Bonus" }
+  port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 0.7, weapons: 0.6, tech: 1.3, luxury: 1.4, meds: 0.8 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
+  crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.6, weapons: 1.4, tech: 0.6, luxury: 1.8, meds: 1.3 }, perk: "-20% Heat Daily & Hacker Efficiency" },
+  iron: { name: 'Iron Borough', cost: 25000, income: 900, cx: 215, cy: 200, mods: { drugs: 1.2, weapons: 0.5, tech: 0.8, luxury: 1.1, meds: 1.0 }, perk: "-20% Crew Healing Cost" },
+  low: { name: 'Lowrise', cost: 8000, income: 250, cx: 100, cy: 205, mods: { drugs: 0.5, weapons: 1.5, tech: 1.0, luxury: 0.7, meds: 1.4 }, perk: "Goedkopere Solo Ops" },
+  neon: { name: 'Neon Strip', cost: 45000, income: 1600, cx: 315, cy: 200, mods: { drugs: 1.4, weapons: 1.2, tech: 1.6, luxury: 0.9, meds: 0.6 }, perk: "+10% Casino Winst & Witwas Bonus" }
 };
 
 export const VEHICLES: Vehicle[] = [
@@ -60,14 +60,11 @@ export const GOODS: Good[] = [
   { id: 'weapons', name: 'Zware Wapens', base: 1100, icon: 'Shield', faction: 'bikers' },
   { id: 'tech', name: 'Zwarte Data', base: 900, icon: 'Cpu', faction: 'syndicate' },
   { id: 'luxury', name: 'Geroofde Kunst', base: 2400, icon: 'Gem', faction: null },
-  { id: 'meds', name: 'Medische Voorraad', base: 600, icon: 'Pill', faction: null },
-  { id: 'ammo_9mm', name: '9mm Patronen', base: 80, icon: 'Crosshair', faction: 'syndicate' },
-  { id: 'ammo_762', name: '7.62mm Kogels', base: 150, icon: 'Crosshair', faction: 'cartel' },
-  { id: 'ammo_shells', name: 'Shotgun Shells', base: 120, icon: 'Crosshair', faction: 'bikers' },
+  { id: 'meds', name: 'Medische Voorraad', base: 600, icon: 'Pill', faction: null }
 ];
 
 // ========== MARKET EVENTS ==========
-export type MarketEventId = 'drug_bust' | 'arms_deal' | 'data_leak' | 'art_forgery' | 'med_shortage' | 'port_blockade' | 'tech_boom' | 'luxury_auction' | 'cartel_war' | 'police_sweep' | 'ammo_blockade' | 'ammo_smuggle';
+export type MarketEventId = 'drug_bust' | 'arms_deal' | 'data_leak' | 'art_forgery' | 'med_shortage' | 'port_blockade' | 'tech_boom' | 'luxury_auction' | 'cartel_war' | 'police_sweep';
 
 export interface MarketEvent {
   id: MarketEventId;
@@ -88,8 +85,6 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: 'luxury_auction', name: '👑 Geheime Veiling', desc: 'Rijke verzamelaars bieden mee — kunstprijzen stijgen!', effects: { luxury: 1.8 }, duration: 1 },
   { id: 'cartel_war', name: '⚔️ Karteloorlog', desc: 'Kartels bevechten elkaar — drugs & wapens volatiel.', effects: { drugs: 1.6, weapons: 1.8 }, duration: 2 },
   { id: 'police_sweep', name: '🚔 Grote Razzia', desc: 'Politie overal — alle zwarte markt prijzen dalen.', effects: { drugs: 0.6, weapons: 0.6, tech: 0.7, luxury: 0.6, meds: 0.8 }, duration: 1 },
-  { id: 'ammo_blockade', name: '🚫 Wapenblokkade', desc: 'Grenzen dicht — munitie is extreem schaars! Productie gehalveerd.', effects: { ammo_9mm: 2.5, ammo_762: 2.5, ammo_shells: 2.5 }, duration: 2 },
-  { id: 'ammo_smuggle', name: '📦 Wapensmokkel', desc: 'Smokkelroute geopend — munitie overspoelt de markt!', effects: { ammo_9mm: 0.4, ammo_762: 0.4, ammo_shells: 0.4 }, duration: 2 },
 ];
 
 // Spoilage rates per good (fraction lost per night, 0 = no spoilage)
@@ -99,9 +94,6 @@ export const GOOD_SPOILAGE: Record<GoodId, number> = {
   tech: 0,
   luxury: 0,
   meds: 0.05,    // 5% per night
-  ammo_9mm: 0,
-  ammo_762: 0,
-  ammo_shells: 0,
 };
 
 export const GOOD_CATEGORIES: Record<string, { color: string; bgColor: string; borderColor: string; label: string }> = {
@@ -110,9 +102,6 @@ export const GOOD_CATEGORIES: Record<string, { color: string; bgColor: string; b
   tech: { color: 'text-ice', bgColor: 'bg-ice/10', borderColor: 'border-l-ice', label: 'Tech' },
   luxury: { color: 'text-game-purple', bgColor: 'bg-game-purple/10', borderColor: 'border-l-game-purple', label: 'Luxe' },
   meds: { color: 'text-emerald', bgColor: 'bg-emerald/10', borderColor: 'border-l-emerald', label: 'Medisch' },
-  ammo_9mm: { color: 'text-orange-400', bgColor: 'bg-orange-400/10', borderColor: 'border-l-orange-400', label: 'Munitie' },
-  ammo_762: { color: 'text-orange-400', bgColor: 'bg-orange-400/10', borderColor: 'border-l-orange-400', label: 'Munitie' },
-  ammo_shells: { color: 'text-orange-400', bgColor: 'bg-orange-400/10', borderColor: 'border-l-orange-400', label: 'Munitie' },
 };
 
 export const FAMILIES: Record<string, Family> = {

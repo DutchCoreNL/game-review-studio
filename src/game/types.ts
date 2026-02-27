@@ -1,5 +1,5 @@
 export type DistrictId = 'port' | 'crown' | 'iron' | 'low' | 'neon';
-export type GoodId = 'drugs' | 'weapons' | 'tech' | 'luxury' | 'meds' | 'ammo_9mm' | 'ammo_762' | 'ammo_shells';
+export type GoodId = 'drugs' | 'weapons' | 'tech' | 'luxury' | 'meds';
 export type FamilyId = 'cartel' | 'syndicate' | 'bikers';
 export type CrewRole = 'Chauffeur' | 'Enforcer' | 'Hacker' | 'Smokkelaar';
 export type StatId = 'muscle' | 'brains' | 'charm';
