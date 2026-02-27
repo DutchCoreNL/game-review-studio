@@ -780,6 +780,7 @@ export type Database = {
           id: string
           karma: number
           last_action_at: string
+          last_save_at: string | null
           level: number
           loadout: Json
           loc: string
@@ -796,6 +797,8 @@ export type Database = {
           prison_reason: string | null
           prison_until: string | null
           rep: number
+          save_data: Json | null
+          save_version: number | null
           skill_points: number
           stats: Json
           stats_casino_lost: number
@@ -839,6 +842,7 @@ export type Database = {
           id?: string
           karma?: number
           last_action_at?: string
+          last_save_at?: string | null
           level?: number
           loadout?: Json
           loc?: string
@@ -855,6 +859,8 @@ export type Database = {
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
+          save_data?: Json | null
+          save_version?: number | null
           skill_points?: number
           stats?: Json
           stats_casino_lost?: number
@@ -898,6 +904,7 @@ export type Database = {
           id?: string
           karma?: number
           last_action_at?: string
+          last_save_at?: string | null
           level?: number
           loadout?: Json
           loc?: string
@@ -914,6 +921,8 @@ export type Database = {
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
+          save_data?: Json | null
+          save_version?: number | null
           skill_points?: number
           stats?: Json
           stats_casino_lost?: number

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type GameAction =
-  | "init_player" | "get_state"
+  | "init_player" | "get_state" | "save_state" | "load_state"
   | "trade" | "travel"
   | "solo_op"
   | "buy_gear" | "equip_gear" | "unequip_gear"
@@ -96,4 +96,8 @@ export const gameApi = {
     invokeGameAction("place_bounty", { targetUserId, amount }),
   getMostWanted: () => invokeGameAction("get_most_wanted"),
   getDistrictLeaderboard: () => invokeGameAction("district_leaderboard"),
+
+  // Cloud saves
+  saveState: (saveData: any, day: number) => invokeGameAction("save_state", { saveData, day }),
+  loadState: () => invokeGameAction("load_state"),
 };

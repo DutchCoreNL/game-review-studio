@@ -2991,7 +2991,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
   }, []);
 
   // Server sync — intercepts server-side actions when logged in
-  const { serverDispatch, syncState } = useServerSync(rawDispatch, showToast);
+  const { serverDispatch, syncState, saveToCloud, loadFromCloud, updateStateRef } = useServerSync(rawDispatch, showToast);
 
   const dispatch = useCallback((action: GameAction) => {
     serverDispatch(action);
@@ -3002,7 +3002,11 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
   useEffect(() => {
     // Debounced save — 2 seconds
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => Engine.saveGame(state), 2000);
+    saveTimerRef.current = setTimeout(() => {
+      Engine.saveGame(state);
+      localStorage.setItem('noxhaven_last_save_time', Date.now().toString());
+      updateStateRef(state); // Keep cloud save ref in sync
+    }, 2000);
 
     const prev = prevAchievementsRef.current;
     const newOnes = state.achievements.filter(a => !prev.includes(a));
