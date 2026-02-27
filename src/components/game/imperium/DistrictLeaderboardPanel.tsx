@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { gameApi } from '@/lib/gameApi';
+import { supabase } from '@/integrations/supabase/client';
 import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Shield, Users, ChevronDown, ChevronUp, Trophy, MapPin } from 'lucide-react';
+import { Crown, Shield, Users, ChevronDown, ChevronUp, Trophy, MapPin, Wifi } from 'lucide-react';
 import { StatBar } from '../ui/StatBar';
 
 interface GangRankEntry {
@@ -50,18 +51,60 @@ export function DistrictLeaderboardPanel() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showContributors, setShowContributors] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [flashDistrict, setFlashDistrict] = useState<string | null>(null);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const res = await gameApi.getDistrictLeaderboard();
-      if (res.success && res.data?.districts) {
-        setData(res.data.districts);
-      }
-      setLoading(false);
-    })();
+  const fetchData = useCallback(async () => {
+    const res = await gameApi.getDistrictLeaderboard();
+    if (res.success && res.data?.districts) {
+      setData(res.data.districts);
+    }
+    setLoading(false);
   }, []);
 
+  // Debounced refetch on realtime change
+  const debouncedFetch = useCallback((districtId?: string) => {
+    if (districtId) {
+      setFlashDistrict(districtId);
+      setTimeout(() => setFlashDistrict(null), 1500);
+    }
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    fetchTimeoutRef.current = setTimeout(() => fetchData(), 500);
+  }, [fetchData]);
+
+  // Initial fetch
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Realtime subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel('district-leaderboard-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'district_influence',
+      }, (payload) => {
+        const districtId = (payload.new as any)?.district_id || (payload.old as any)?.district_id;
+        debouncedFetch(districtId);
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'gang_territories',
+      }, (payload) => {
+        const districtId = (payload.new as any)?.district_id || (payload.old as any)?.district_id;
+        debouncedFetch(districtId);
+      })
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    };
+  }, [debouncedFetch]);
   if (loading) {
     return <div className="text-center text-muted-foreground text-xs py-8">Laden...</div>;
   }
@@ -79,23 +122,37 @@ export function DistrictLeaderboardPanel() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[0.5rem] text-muted-foreground mb-2">
-        Welke gangs domineren welke wijken? Toon invloed, verdediging en top contributors.
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[0.5rem] text-muted-foreground">
+          Welke gangs domineren welke wijken? Toon invloed, verdediging en top contributors.
+        </p>
+        {isLive && (
+          <span className="flex items-center gap-1 text-[0.45rem] text-emerald font-semibold flex-shrink-0">
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
+              <Wifi size={8} />
+            </motion.div>
+            LIVE
+          </span>
+        )}
+      </div>
 
       {data.map((district, i) => {
         const distDef = DISTRICTS[district.districtId];
         if (!distDef) return null;
         const isExpanded = expanded === district.districtId;
         const showingContribs = showContributors === district.districtId;
+        const isFlashing = flashDistrict === district.districtId;
 
         return (
           <motion.div
             key={district.districtId}
             initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{
+              opacity: 1, y: 0,
+              boxShadow: isFlashing ? '0 0 15px hsl(var(--gold) / 0.4)' : '0 0 0px transparent',
+            }}
             transition={{ delay: i * 0.05 }}
-            className="game-card"
+            className={`game-card transition-all ${isFlashing ? 'border-gold/50' : ''}`}
           >
             {/* District header */}
             <button
