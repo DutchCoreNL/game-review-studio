@@ -11,6 +11,8 @@ import { MarketAnalysisPanel } from './trade/MarketAnalysisPanel';
 import { AuctionPanel } from './trade/AuctionPanel';
 import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
+import { SubTabBar, SubTab } from './ui/SubTabBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import tradeBg from '@/assets/trade-bg.jpg';
 
 type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
@@ -35,38 +37,19 @@ export function TradeView() {
     });
   }, [state.prices, state.player, state.rep]);
 
+  const tabs: SubTab<TradeSubTab>[] = [
+    { id: 'market', label: 'MARKT', icon: <ShoppingBag size={11} /> },
+    { id: 'analysis', label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
+    { id: 'auction', label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
+    { id: 'stocks', label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
+    { id: 'launder', label: 'WITWAS', icon: <Droplets size={11} /> },
+    { id: 'gear', label: 'GEAR', icon: <ShieldCheck size={11} /> },
+    { id: 'log', label: 'LOG', icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) },
+  ];
+
   return (
-    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      <img src={tradeBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
-      <div className="relative z-10">
-      {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4 mt-1">
-        {([
-          { id: 'market' as TradeSubTab, label: 'MARKT', icon: <ShoppingBag size={11} />, badge: false },
-          { id: 'analysis' as TradeSubTab, label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
-          { id: 'auction' as TradeSubTab, label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) > 0 },
-          { id: 'stocks' as TradeSubTab, label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
-          { id: 'launder' as TradeSubTab, label: 'WITWAS', icon: <Droplets size={11} />, badge: false },
-          { id: 'gear' as TradeSubTab, label: 'GEAR', icon: <ShieldCheck size={11} />, badge: false },
-          { id: 'log' as TradeSubTab, label: 'LOG', icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) > 0 },
-        ]).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            className={`relative flex-1 py-2 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-              subTab === tab.id
-                ? 'bg-gold/15 border border-gold text-gold'
-                : 'bg-muted border border-border text-muted-foreground'
-            }`}
-          >
-            {tab.icon} {tab.label}
-            {tab.badge && subTab !== tab.id && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gold rounded-full animate-pulse" />
-            )}
-          </button>
-        ))}
-      </div>
+    <ViewWrapper bg={tradeBg}>
+      <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as TradeSubTab)} />
 
       {subTab === 'market' && <MarketPanel />}
       {subTab === 'analysis' && <MarketAnalysisPanel />}
@@ -75,7 +58,6 @@ export function TradeView() {
       {subTab === 'launder' && <LaunderingPanel />}
       {subTab === 'gear' && <GearPanel />}
       {subTab === 'log' && <TradeLogPanel />}
-      </div>
-    </div>
+    </ViewWrapper>
   );
 }

@@ -10,8 +10,10 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { AnimatedXPBar } from './animations/RewardPopup';
+import { SubTabBar, SubTab } from './ui/SubTabBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home } from 'lucide-react';
+import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home, Settings } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
@@ -24,7 +26,6 @@ import { LeaderboardView } from './LeaderboardView';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
-import { EncyclopediaView } from './EncyclopediaView';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { LinkAccountPanel } from './profile/LinkAccountPanel';
 
@@ -40,7 +41,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'villa' | 'audio' | 'charts' | 'leaderboard' | 'encyclopedia' | 'drugempire';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'imperium' | 'settings';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -51,10 +52,7 @@ export function ProfileView() {
   const stats = state.stats;
 
   return (
-    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      <img src={profileBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
-      <div className="relative z-10">
+    <ViewWrapper bg={profileBg}>
       {/* Boss Card */}
       <div className="game-card border-l-[3px] border-l-gold mb-4 mt-1">
         <div className="flex items-center gap-3">
@@ -80,29 +78,22 @@ export function ProfileView() {
         </div>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-        {([
-          { id: 'stats' as ProfileTab, label: 'STATS' },
-          { id: 'loadout' as ProfileTab, label: 'LOADOUT' },
-          { id: 'villa' as ProfileTab, label: 'VILLA' },
-          { id: 'contacts' as ProfileTab, label: 'NPC\'S' },
-          { id: 'districts' as ProfileTab, label: 'REPUTATIE' },
-          { id: 'arcs' as ProfileTab, label: 'BOGEN' },
-          { id: 'trophies' as ProfileTab, label: 'TROFEEËN' },
-          { id: 'charts' as ProfileTab, label: '📊 CHARTS' },
-          { id: 'leaderboard' as ProfileTab, label: '🌐 ONLINE' },
-          { id: 'audio' as ProfileTab, label: '🔊 AUDIO' },
-          
-          { id: 'encyclopedia' as ProfileTab, label: '📖 WIKI' },
-          { id: 'drugempire' as ProfileTab, label: '💀 IMPERIUM' },
-        ]).map(tab => (
-          <button key={tab.id} onClick={() => setProfileTab(tab.id)}
-            className={`shrink-0 px-3 py-2 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
-              profileTab === tab.id ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted border border-border text-muted-foreground'
-            }`}>{tab.label}</button>
-        ))}
-      </div>
+      {/* Sub-tabs — consolidated 12→9 */}
+      <SubTabBar
+        tabs={[
+          { id: 'stats', label: 'STATS', icon: <BarChart3 size={11} /> },
+          { id: 'loadout', label: 'LOADOUT', icon: <Shield size={11} /> },
+          { id: 'contacts', label: 'NPC\'S', icon: <Users size={11} /> },
+          { id: 'districts', label: 'REPUTATIE', icon: <MapPin size={11} /> },
+          { id: 'arcs', label: 'BOGEN', icon: <Target size={11} /> },
+          { id: 'trophies', label: 'TROFEEËN', icon: <Trophy size={11} /> },
+          { id: 'leaderboard', label: 'ONLINE', icon: <Crown size={11} /> },
+          { id: 'imperium', label: 'IMPERIUM', icon: <Skull size={11} /> },
+          { id: 'settings', label: '⚙️', icon: <Settings size={11} /> },
+        ] as SubTab<string>[]}
+        active={profileTab}
+        onChange={(id) => setProfileTab(id as ProfileTab)}
+      />
 
       {profileTab === 'stats' && (
         <>
@@ -179,6 +170,8 @@ export function ProfileView() {
               OPEN KAART
             </GameButton>
           </div>
+          {/* Charts inline */}
+          <StatisticsCharts />
         </>
       )}
 
@@ -227,23 +220,22 @@ export function ProfileView() {
         </>
       )}
 
-      {profileTab === 'villa' && <VillaSummaryPanel />}
-
       {profileTab === 'contacts' && <NpcRelationsPanel />}
 
       {profileTab === 'arcs' && <StoryArcsPanel />}
 
-      {profileTab === 'audio' && <AudioSettingsPanel />}
-
-      {profileTab === 'charts' && <StatisticsCharts />}
-
       {profileTab === 'leaderboard' && <LeaderboardView />}
 
+      {profileTab === 'imperium' && (
+        <>
+          <VillaSummaryPanel />
+          <div className="mt-4">
+            <DrugEmpireStatsPanel />
+          </div>
+        </>
+      )}
 
-
-      {profileTab === 'encyclopedia' && <EncyclopediaView />}
-
-      {profileTab === 'drugempire' && <DrugEmpireStatsPanel />}
+      {profileTab === 'settings' && <AudioSettingsPanel />}
 
       {profileTab === 'districts' && (
         <>
@@ -410,8 +402,7 @@ export function ProfileView() {
         onConfirm={() => { setConfirmReset(false); dispatch({ type: 'RESET' }); showToast('Spel gereset'); }}
         onCancel={() => setConfirmReset(false)}
       />
-      </div>
-    </div>
+    </ViewWrapper>
   );
 }
 

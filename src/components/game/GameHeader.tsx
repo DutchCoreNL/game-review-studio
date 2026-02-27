@@ -13,7 +13,7 @@ import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, EyeOff, Crosshair, Sparkles, Heart } from 'lucide-react';
+import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
@@ -107,11 +107,10 @@ export function GameHeader() {
         </div>
       </div>
 
-      {/* Row 2: Resource chips — labeled, compact tiles */}
-      <div className="flex items-stretch gap-1.5 overflow-x-auto no-scrollbar">
-        <ResourceTile
-          label="HP"
-          value={`${state.playerHP}/${state.playerMaxHP}`}
+      {/* Row 2: Resource chips — grouped with separator */}
+      <div className="flex items-stretch gap-1 overflow-x-auto no-scrollbar">
+        {/* Player stats group */}
+        <ResourceTile label="HP" value={`${state.playerHP}/${state.playerMaxHP}`}
           color={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : state.playerHP < state.playerMaxHP * 0.6 ? 'text-gold' : 'text-emerald'}
           icon={<Heart size={8} className={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : 'text-emerald'} />}
           pulse={state.playerHP < state.playerMaxHP * 0.3}
@@ -119,40 +118,32 @@ export function GameHeader() {
           onTap={() => setPopup('hp')}
         />
 
-        <ResourceTile
-          label="REP"
-          value={state.rep}
-          color="text-gold"
-          tooltip="Reputatie bepaalt je rang in de onderwereld."
-          onTap={() => setPopup('rep')}
-        />
-
         <div className="relative">
-          <ResourceTile
-            label="LVL"
-            value={state.player.level}
-            color="text-gold"
-            tooltip="Je level stijgt door XP te verdienen."
-            onTap={() => setPopup('level')}
-          />
-          {/* XP mini progress bar */}
+          <ResourceTile label="LVL" value={state.player.level} color="text-gold"
+            tooltip="Je level stijgt door XP te verdienen." onTap={() => setPopup('level')} />
           <div className="absolute -bottom-0.5 left-1 right-1">
             <Progress value={xpPct} className="h-[2px] bg-muted/30" />
           </div>
           {state.player.skillPoints > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gold text-secondary-foreground rounded-full text-[0.35rem] font-bold flex items-center justify-center z-10"
-            >
+            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gold text-secondary-foreground rounded-full text-[0.35rem] font-bold flex items-center justify-center z-10">
               +{state.player.skillPoints}
             </motion.span>
           )}
         </div>
 
-        <ResourceTile
-          label={ammoLabel}
-          value={ammo}
+        <ResourceTile label="REP" value={state.rep} color="text-gold"
+          tooltip="Reputatie bepaalt je rang in de onderwereld." onTap={() => setPopup('rep')} />
+
+        {/* Separator */}
+        <div className="w-px bg-border/50 my-1 flex-shrink-0" />
+
+        {/* Risk stats group */}
+        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
+
+        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} onTap={() => setPopup('karma')} />
+
+        <ResourceTile label={ammoLabel} value={ammo}
           color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
           icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
           pulse={ammo <= 3}
@@ -160,41 +151,28 @@ export function GameHeader() {
           onTap={() => setPopup('ammo')}
         />
 
-        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
-
-        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} onTap={() => setPopup('karma')} />
-
+        {/* Compact conditional tiles */}
         {state.debt > 0 && (
           <ResourceTile
-            label="SCHULD"
-            value={`€${(state.debt / 1000).toFixed(0)}k`}
+            label={state.debt > 100000 ? '💀' : '€'}
+            value={`${(state.debt / 1000).toFixed(0)}k`}
             color={state.debt > 100000 ? 'text-blood' : 'text-muted-foreground'}
-            icon={state.debt > 100000 ? <Skull size={8} className="text-blood" /> : undefined}
             tooltip="Je openstaande schuld."
             onTap={() => setPopup('debt')}
           />
         )}
 
         {isHiding && (
-          <ResourceTile
-            label="SCHUIL"
-            value={`${state.hidingDays}d`}
-            color="text-ice"
-            icon={<EyeOff size={8} className="text-ice" />}
-            tooltip="Je zit ondergedoken. Tijdens het schuilen daalt je heat, maar je kunt geen operaties uitvoeren."
-          />
+          <ResourceTile label="" value={`🫥${state.hidingDays}d`} color="text-ice"
+            tooltip="Je zit ondergedoken." />
         )}
 
         {isGoldenHour && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-gold/15 border border-gold/40 text-gold"
-          >
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+            className="flex items-center gap-0.5 px-1.5 py-1 rounded bg-gold/15 border border-gold/40 text-gold flex-shrink-0">
             <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>
               <Sparkles size={8} />
             </motion.div>
-            <span className="text-[0.45rem] font-bold uppercase tracking-wider">GOUD</span>
             <span className="text-[0.45rem] font-bold">{state.goldenHour!.turnsLeft}</span>
           </motion.div>
         )}

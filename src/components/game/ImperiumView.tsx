@@ -13,16 +13,18 @@ import { CorruptionView } from './CorruptionView';
 import { AlliancePactPanel } from './imperium/AlliancePactPanel';
 import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lucide-react';
 import { useState } from 'react';
+import { SubTabBar, SubTab } from './ui/SubTabBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 import { GarageView } from './garage/GarageView';
 
-type SubTab = 'garage' | 'business' | 'families' | 'war' | 'corruption';
+type ImperiumSubTab = 'garage' | 'business' | 'families' | 'war' | 'corruption';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
-  const [subTab, setSubTab] = useState<SubTab>('garage');
+  const [subTab, setSubTab] = useState<ImperiumSubTab>('garage');
 
-  const tabs: { id: SubTab; label: string; icon: React.ReactNode }[] = [
+  const tabs: SubTab<ImperiumSubTab>[] = [
     { id: 'garage', label: 'GARAGE', icon: <Car size={12} /> },
     { id: 'business', label: 'BUSINESS', icon: <Store size={12} /> },
     { id: 'families', label: 'FACTIES', icon: <Users size={12} /> },
@@ -31,34 +33,15 @@ export function ImperiumView() {
   ];
 
   return (
-    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      <img src={imperiumBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
-      <div className="relative z-10">
-        {/* Sub-tabs — horizontaal scrollbaar */}
-        <div className="flex gap-1.5 mb-4 mt-1 overflow-x-auto scrollbar-hide pb-1">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setSubTab(tab.id)}
-              className={`flex-shrink-0 py-2 px-4 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                subTab === tab.id
-                  ? 'bg-gold/15 border border-gold text-gold'
-                  : 'bg-muted border border-border text-muted-foreground'
-              }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
+    <ViewWrapper bg={imperiumBg}>
+      <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as ImperiumSubTab)} />
 
-        {subTab === 'garage' && <GarageView />}
-        {subTab === 'business' && <BusinessPanel />}
-        {subTab === 'war' && <DistrictDefensePanel />}
-        {subTab === 'families' && <FamiliesPanel />}
-        {subTab === 'corruption' && <CorruptionView />}
-      </div>
-    </div>
+      {subTab === 'garage' && <GarageView />}
+      {subTab === 'business' && <BusinessPanel />}
+      {subTab === 'war' && <DistrictDefensePanel />}
+      {subTab === 'families' && <FamiliesPanel />}
+      {subTab === 'corruption' && <CorruptionView />}
+    </ViewWrapper>
   );
 }
 
@@ -85,7 +68,6 @@ function BusinessPanel() {
     return true;
   };
 
-  // Sort: owned first, then unlocked, then locked
   const sorted = [...BUSINESSES].sort((a, b) => {
     const aOwned = state.ownedBusinesses.includes(a.id) ? 0 : 1;
     const bOwned = state.ownedBusinesses.includes(b.id) ? 0 : 1;
@@ -97,12 +79,10 @@ function BusinessPanel() {
 
   return (
     <div>
-      {/* Smuggle Routes (was in Assets tab) */}
       <div className="mb-4">
         <SmuggleRoutesPanel />
       </div>
 
-      {/* Legacy Lab */}
       {state.hqUpgrades.includes('lab') && !state.villa?.modules.includes('synthetica_lab') && (
         <>
           <SectionHeader title="Synthetica Lab (Legacy)" icon={<Factory size={12} />} />
@@ -143,7 +123,6 @@ function BusinessPanel() {
         })}
       </div>
 
-      {/* Witwassen */}
       {state.dirtyMoney > 0 && (
         <>
           <SectionHeader title="Witwassen" />
@@ -177,7 +156,6 @@ function FamiliesPanel() {
     <div>
       <SectionHeader title="Onderwereld" icon={<Skull size={12} />} />
 
-      {/* Conquest progress */}
       {conqueredCount > 0 && (
         <div className="game-card border-l-[3px] border-l-gold mb-3">
           <div className="flex justify-between items-center">
@@ -211,10 +189,8 @@ function FamiliesPanel() {
         ))}
       </div>
 
-      {/* Allianties (was separate PACTEN tab) */}
       <AlliancePactPanel />
 
-      {/* Corruptie */}
       <SectionHeader title="Corruptie" icon={<Shield size={12} />} />
       <div className="game-card border-l-[3px] border-l-police">
         <div className="flex justify-between items-center">
