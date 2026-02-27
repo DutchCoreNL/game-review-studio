@@ -1370,7 +1370,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'NEW_GAME_PLUS': {
       const ngPlus = createNewGamePlus(s);
       Engine.generatePrices(ngPlus);
-      Engine.generateContracts(ngPlus);
+      // Contracts generated server-side via gameApi.acceptContract()
       return ngPlus;
     }
 
@@ -2559,7 +2559,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'RESET': {
       const fresh = createInitialState();
       Engine.generatePrices(fresh);
-      Engine.generateContracts(fresh);
+      // Contracts generated server-side via gameApi.acceptContract()
       fresh.dailyNews = generateDailyNews(fresh);
       return fresh;
     }
@@ -2907,7 +2907,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     }
     const fresh = createInitialState();
     Engine.generatePrices(fresh);
-    Engine.generateContracts(fresh);
+    // Contracts generated server-side via gameApi.acceptContract()
     fresh.dailyNews = generateDailyNews(fresh);
     return fresh;
   });
@@ -3070,7 +3070,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
               });
             });
             const s = { ...state, prices, priceTrends: { ...state.priceTrends, ...trends } };
-            Engine.generateContracts(s);
+            // Contracts generated server-side via gameApi.acceptContract()
             rawDispatch({ type: 'SET_STATE', state: s });
             return;
           }
@@ -3078,7 +3078,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         // Fallback: generate locally
         const s = { ...state };
         Engine.generatePrices(s);
-        Engine.generateContracts(s);
+        // Contracts generated server-side via gameApi.acceptContract()
         rawDispatch({ type: 'SET_STATE', state: s });
       })();
     }

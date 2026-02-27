@@ -1185,7 +1185,8 @@ export function endTurn(state: GameState): NightReportData {
     }
   });
   if (priceChanges.length > 0) report.priceChanges = priceChanges;
-  generateContracts(state);
+  // Contracts now generated server-side via gameApi.acceptContract()
+  // Keep existing contracts, don't overwrite
   generateMapEvents(state);
 
   // === SMART ALARM: auto-generate alerts for routes with >€1000 profit ===

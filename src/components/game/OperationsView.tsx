@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { gameApi } from '@/lib/gameApi';
 import { SOLO_OPERATIONS, FAMILIES, SOLO_OP_DISTRICT_DESC } from '@/game/constants';
 import { GameState, ActiveContract, ActiveMission, SoloOperation } from '@/game/types';
 import { generateMissionEncounters } from '@/game/missions';
@@ -49,6 +50,30 @@ export function OperationsView() {
   const [selectedContract, setSelectedContract] = useState<number | null>(null);
   const [fireConfirm, setFireConfirm] = useState<number | null>(null);
   const [briefingOp, setBriefingOp] = useState<SoloOperation | null>(null);
+  const [acceptingContract, setAcceptingContract] = useState(false);
+
+  const handleAcceptContract = async () => {
+    if (acceptingContract) return;
+    setAcceptingContract(true);
+    try {
+      const res = await gameApi.acceptContract();
+      if (res.success && res.data?.contract) {
+        const newContracts = [...state.activeContracts, res.data.contract];
+        dispatch({ type: 'SET_STATE', state: { ...state, activeContracts: newContracts } } as any);
+        showToast(res.message);
+        // Sync energy from server
+        if (res.data.saveData) {
+          // saveData is already merged server-side
+        }
+      } else {
+        showToast(res.message, true);
+      }
+    } catch {
+      showToast('Verbindingsfout bij contract ophalen.', true);
+    } finally {
+      setAcceptingContract(false);
+    }
+  };
 
   const startContractMission = (contractId: number, crewIndex: number) => {
     const contract = state.activeContracts.find(c => c.id === contractId);
@@ -157,11 +182,26 @@ export function OperationsView() {
 
       {subTab === 'contracts' && (
         <>
-          <SectionHeader title="Dagelijkse Contracten" icon={<Swords size={12} />} badge="NIEUW" badgeColor="blood" />
-          <p className="text-[0.55rem] text-muted-foreground mb-3">Wijs een crewlid toe. Contracten veranderen elke nacht.</p>
+          <SectionHeader title="Contracten" icon={<Swords size={12} />} badge={`${state.activeContracts.length}/5`} badgeColor="blood" />
+          <p className="text-[0.55rem] text-muted-foreground mb-3">Zoek contracten via je netwerk. Max 5 actief. Kost 5 energy per zoekactie.</p>
+
+          {/* Accept new contract button */}
+          {state.activeContracts.length < 5 && (
+            <GameButton
+              variant="gold"
+              size="sm"
+              className="w-full mb-3"
+              disabled={acceptingContract}
+              onClick={handleAcceptContract}
+            >
+              <Sparkles size={12} className="mr-1" />
+              {acceptingContract ? 'Zoeken...' : 'Nieuw Contract Zoeken'}
+            </GameButton>
+          )}
+
           {state.activeContracts.length === 0 ? (
             <div className="game-card text-center py-6">
-              <p className="text-xs text-muted-foreground italic">Alle contracten voltooid vandaag.</p>
+              <p className="text-xs text-muted-foreground italic">Geen actieve contracten. Zoek een nieuw contract hierboven.</p>
             </div>
           ) : (
             <div className="space-y-2">
