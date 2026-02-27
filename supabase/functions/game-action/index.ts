@@ -3184,16 +3184,23 @@ async function handleGetDistrictData(supabase: any): Promise<ActionResult> {
 // ========== ACCEPT CONTRACT (server-side generation) ==========
 
 const CONTRACT_TEMPLATES_SERVER = [
-  { name: "Koeriersdienst", risk: 15, heat: 8, rewardBase: 1200, type: "delivery" },
-  { name: "Rivalen Intimideren", risk: 45, heat: 25, rewardBase: 3500, type: "combat" },
-  { name: "Inbraak", risk: 55, heat: 35, rewardBase: 5500, type: "stealth" },
-  { name: "Datadiefstal", risk: 40, heat: 12, rewardBase: 4000, type: "tech" },
-  { name: "Wapenlevering", risk: 35, heat: 20, rewardBase: 2800, type: "delivery" },
-  { name: "Bescherming Bieden", risk: 25, heat: 10, rewardBase: 2000, type: "combat" },
-  { name: "Surveillance Missie", risk: 30, heat: 8, rewardBase: 2500, type: "tech" },
-  { name: "Safe Kraken", risk: 65, heat: 40, rewardBase: 8000, type: "stealth" },
-  { name: "Smokkelroute Openen", risk: 50, heat: 30, rewardBase: 6000, type: "delivery" },
-  { name: "Server Hack", risk: 60, heat: 15, rewardBase: 7000, type: "tech" },
+  { name: "Koeriersdienst", risk: 15, heat: 8, rewardBase: 1200, type: "delivery", reqPrestige: 0 },
+  { name: "Rivalen Intimideren", risk: 45, heat: 25, rewardBase: 3500, type: "combat", reqPrestige: 0 },
+  { name: "Inbraak", risk: 55, heat: 35, rewardBase: 5500, type: "stealth", reqPrestige: 0 },
+  { name: "Datadiefstal", risk: 40, heat: 12, rewardBase: 4000, type: "tech", reqPrestige: 0 },
+  { name: "Wapenlevering", risk: 35, heat: 20, rewardBase: 2800, type: "delivery", reqPrestige: 0 },
+  { name: "Bescherming Bieden", risk: 25, heat: 10, rewardBase: 2000, type: "combat", reqPrestige: 0 },
+  { name: "Surveillance Missie", risk: 30, heat: 8, rewardBase: 2500, type: "tech", reqPrestige: 0 },
+  { name: "Safe Kraken", risk: 65, heat: 40, rewardBase: 8000, type: "stealth", reqPrestige: 0 },
+  { name: "Smokkelroute Openen", risk: 50, heat: 30, rewardBase: 6000, type: "delivery", reqPrestige: 0 },
+  { name: "Server Hack", risk: 60, heat: 15, rewardBase: 7000, type: "tech", reqPrestige: 0 },
+  // Elite contracts — Prestige 2+
+  { name: "Diplomatieke Liquidatie", risk: 80, heat: 50, rewardBase: 18000, type: "combat", reqPrestige: 2 },
+  { name: "Schaduw Protocol", risk: 75, heat: 20, rewardBase: 15000, type: "stealth", reqPrestige: 2 },
+  { name: "Quantum Dataroof", risk: 70, heat: 15, rewardBase: 14000, type: "tech", reqPrestige: 2 },
+  { name: "Intercontinentale Smokkel", risk: 65, heat: 35, rewardBase: 16000, type: "delivery", reqPrestige: 2 },
+  { name: "Overheids Sabotage", risk: 85, heat: 60, rewardBase: 22000, type: "tech", reqPrestige: 3 },
+  { name: "Kingpin Executie", risk: 90, heat: 70, rewardBase: 30000, type: "combat", reqPrestige: 3 },
 ];
 
 const FACTION_IDS = ["bikers", "cartel", "syndicate"];
@@ -3241,7 +3248,10 @@ async function handleAcceptContract(supabase: any, userId: string, ps: any, payl
   const timeMods = await getTimeModifiers(supabase);
 
   // Generate contract server-side
-  const template = CONTRACT_TEMPLATES_SERVER[Math.floor(Math.random() * CONTRACT_TEMPLATES_SERVER.length)];
+  // Filter templates by player prestige level
+  const playerPrestige = ps.prestige_level || 0;
+  const availableTemplates = CONTRACT_TEMPLATES_SERVER.filter(t => (t.reqPrestige || 0) <= playerPrestige);
+  const template = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
   const dayScaling = 1 + Math.min(ps.day * 0.05, 3.0);
   const levelBonus = 1 + ps.level * 0.05;
   const nightRewardMult = timeMods.phase === "night" ? 1.2 : timeMods.phase === "dusk" ? 1.1 : 1.0;
@@ -3258,7 +3268,8 @@ async function handleAcceptContract(supabase: any, userId: string, ps: any, payl
   const risk = Math.min(95, Math.floor(template.risk + ps.day / 2));
   const heat = Math.floor(template.heat * timeMods.heatMultiplier);
   const reward = Math.floor(template.rewardBase * dayScaling * levelBonus * nightRewardMult);
-  const xp = Math.floor(35 + ps.day * 2);
+  const xp = Math.floor(35 + ps.day * 2 + (template.reqPrestige >= 2 ? 50 : 0));
+  const isElite = (template.reqPrestige || 0) >= 2;
 
   const newContract = {
     id: contractId,
@@ -3270,6 +3281,7 @@ async function handleAcceptContract(supabase: any, userId: string, ps: any, payl
     heat,
     reward,
     xp,
+    elite: isElite,
   };
 
   activeContracts.push(newContract);

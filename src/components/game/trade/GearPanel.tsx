@@ -183,14 +183,15 @@ export function GearPanel() {
           const price = isDeal ? dailyDeal.discountedPrice : (state.heat > 50 ? Math.floor(item.cost * 1.2) : item.cost);
           const canBuy = !owned && state.money >= price;
           const reqMet = !item.reqRep || (state.familyRel[item.reqRep.f] || 0) >= item.reqRep.val;
+          const prestigeMet = !item.reqPrestige || (state.prestigeLevel || 0) >= item.reqPrestige;
           const isEquipped = Object.values(state.player.loadout).includes(item.id);
 
           return (
             <motion.div
               key={item.id}
-              className={`game-card p-3 ${owned ? 'border-l-[3px] border-l-emerald' : !reqMet ? 'opacity-60' : ''}`}
+              className={`game-card p-3 ${owned ? 'border-l-[3px] border-l-emerald' : (!reqMet || !prestigeMet) ? 'opacity-60' : ''}`}
               initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: !reqMet ? 0.6 : 1, y: 0 }}
+              animate={{ opacity: (!reqMet || !prestigeMet) ? 0.6 : 1, y: 0 }}
             >
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center flex-shrink-0 ${
@@ -255,13 +256,19 @@ export function GearPanel() {
                       <span>Vereist: {FAMILIES[item.reqRep.f]?.name} relatie {item.reqRep.val}+</span>
                     </div>
                   )}
+                  {item.reqPrestige && !prestigeMet && (
+                    <div className="flex items-center gap-1 mt-1.5 text-[0.45rem] text-game-purple">
+                      <Lock size={8} />
+                      <span>Vereist: Prestige {item.reqPrestige}+</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-end">
                   <GameButton
                     variant={owned ? 'muted' : 'gold'}
                     size="sm"
-                    disabled={owned || !canBuy || !reqMet}
+                    disabled={owned || !canBuy || !reqMet || !prestigeMet}
                     onClick={() => {
                       if (isDeal) {
                         dispatch({ type: 'BUY_GEAR_DEAL', id: item.id, price: dailyDeal!.discountedPrice });
