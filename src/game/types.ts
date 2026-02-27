@@ -1004,6 +1004,19 @@ export interface GameState {
     rewards: { money?: number; rep?: number; heat?: number };
   } | null;
 
+  // ========== MMO SERVER STATE ==========
+  energy: number;
+  maxEnergy: number;
+  nerve: number;
+  maxNerve: number;
+  energyRegenAt: string | null;
+  nerveRegenAt: string | null;
+  travelCooldownUntil: string | null;
+  crimeCooldownUntil: string | null;
+  attackCooldownUntil: string | null;
+  heistCooldownUntil: string | null;
+  serverSynced: boolean; // whether state is synced with server
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
