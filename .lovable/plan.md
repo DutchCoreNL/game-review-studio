@@ -1,63 +1,79 @@
 
 
-# Plan: Uitgebreid Admin Paneel
+# Plan: MMO Gevechtssysteem Upgrade
 
-Het huidige admin paneel heeft alleen **Spelers** (leaderboard entries) en **Logboek**. We voegen de volgende tabs/functies toe:
+## Overzicht
+Het huidige PvP-systeem is een 1-klik aanval via de server. We upgraden dit naar een volledig turn-based PvP gevecht met skills, combo's, gear-zichtbaarheid en geanimeerde combat logs — vergelijkbaar met het bestaande PvE boss-systeem.
 
----
+## 1. Combat Skills & Combo Systeem
 
-## Nieuwe Admin Tabs
+### Nieuwe types (`src/game/types.ts`)
+- `CombatSkill` interface: id, name, desc, icon, unlockLevel, cooldownTurns, energyCost, effect (damage/heal/stun/buff/debuff)
+- `CombatBuff` interface: id, name, duration, effect (damageBoost/defenseBoost/regen/bleed)
+- Uitbreiding `CombatState`: activeBuffs[], skillCooldowns{}, comboCounter, lastAction
 
-### 1. ECONOMIE tab
-- **Marktprijzen bekijken & aanpassen** — lees `market_prices` tabel, inline editing van `current_price` en `price_trend`
-- **Globale prijsmultiplicator** — alle prijzen tijdelijk verhogen/verlagen (event-achtig)
+### Skill definities (`src/game/combatSkills.ts` — nieuw bestand)
+- **Level 1-5**: Snelle Slag (bonus dmg), Schild Muur (50% defense 2 turns)
+- **Level 6-10**: Adrenaline Rush (heal + dmg boost), Vuistcombo (3-hit chain)
+- **Level 11-15**: Dodelijke Precisie (crit guaranteed), Intimidatie (charm-based stun)
+- **Level 16+**: Executie (bonus dmg op lage HP targets), Laatste Adem (auto-heal bij <20% HP)
+- **Combo systeem**: 3 opeenvolgende aanvallen → combo meter vult → combo finisher unlocked (extra schade + stun)
 
-### 2. BOTS tab
-- **Alle 50 bots bekijken** uit `bot_players`
-- **Bot stats inline aanpassen** (level, cash, rep, loc, actief/inactief toggle)
-- **Nieuwe bot toevoegen** of bestaande verwijderen
-- **Bulk-actie**: randomize alle bot locaties
+## 2. PvP Turn-Based Gevecht
 
-### 3. SPELER DETAILS tab (uitbreiding bestaand)
-- **Bekijk volledige `player_state`** van een speler (niet alleen leaderboard)
-- **Pas player_state velden aan**: money, hp, energy, nerve, heat, prison_until, hospital_until, loc, level, xp
-- **Teleporteer speler** naar ander district
-- **Geef/neem items**: cash, dirty_money, energy refill
-- **Forceer uit gevangenis/ziekenhuis**
+### Edge Function (`game-action/index.ts`)
+- Nieuwe action: `pvp_combat_start` — creëert een `pvp_combat_sessions` record met beide spelers' stats
+- Nieuwe action: `pvp_combat_action` — verwerkt een turn (attack/heavy/defend/skill), berekent schade, update session
+- Bot-tegenstanders worden lokaal gesimuleerd (AI kiest random acties met weging op basis van HP)
+- Real-player PvP: async turn-based — aanvaller vecht tegen een snapshot van de verdediger (geen wachttijd nodig)
 
-### 4. WERELD tab
-- **Server statistieken**: totaal actieve spelers, totaal cash in omloop, gemiddeld level
-- **District overzicht**: hoeveel spelers per district
-- **Ganglijst**: alle gangs met leden-count, treasury, level
-- **Actieve gang wars** bekijken
+### Database migratie
+- Nieuwe tabel `pvp_combat_sessions`: id, attacker_id, defender_id, attacker_state (jsonb), defender_state (jsonb), combat_log (jsonb[]), status, winner_id, created_at
+- RLS: spelers lezen eigen sessies
 
-### 5. BERICHTEN tab
-- **Systeem-broadcast sturen** naar alle spelers (via `player_messages` met sender_id = admin)
-- **Specifieke speler een bericht sturen**
+## 3. Gear & Stats Zichtbaarheid
 
----
+### Pre-combat scherm (`PvPCombatPreview` component)
+- Toon voor het gevecht begint: beide spelers naast elkaar
+- Per speler: username, level, HP bar, uitgeruste weapon/armor/gadget met iconen
+- Stats vergelijking: Muscle/Brains/Charm als bar-vergelijking
+- Combat power schatting met breakdown
+- "VECHT" knop om het gevecht te starten
+
+### Aanpassing `handleListPlayers`
+- Return extra velden: loadout gear IDs, stats object, backstory, rep — zodat het preview-scherm deze kan tonen
+
+## 4. Combat Log & Animaties
+
+### Nieuwe `PvPCombatView` component
+- Hergebruikt `AnimatedHPBar`, `TypewriterText`, `CombatAction` uit bestaande CombatView
+- **Skill buttons**: grid met 4 basis-acties + unlocked skills als extra rij
+- **Combo meter**: visuele balk die vult bij opeenvolgende aanvallen
+- **Buff/debuff indicators**: kleine iconen naast HP bars
+- **Schade popups**: floating damage numbers bij hits (motion.div met fade-up)
+- **Screen effects**: shake bij heavy hits, gold-flash bij crit, blood-flash bij grote schade
+- **Turn indicator**: "BEURT 3" banner met animatie
+- **Skill cooldown overlay**: grijze overlay + countdown op skills in cooldown
+
+### Gevechtsresultaat
+- Uitgebreide resultaat-popup: totale schade gegeven/ontvangen, skills gebruikt, combo's bereikt, XP/geld/rep winst
+- Near-miss feedback (bestaand patroon)
 
 ## Technische Aanpak
 
-### Edge Function (`admin-actions/index.ts`) — nieuwe actions:
-- `get_player_state` — volledige player_state ophalen voor userId
-- `edit_player_state` — specifieke velden van player_state aanpassen
-- `get_market_prices` — alle marktprijzen ophalen  
-- `edit_market_price` — prijs/trend van een specifiek goed aanpassen
-- `get_bots` — alle bot_players ophalen
-- `edit_bot` / `delete_bot` / `create_bot` — bot CRUD
-- `randomize_bot_locations` — alle bots verplaatsen naar willekeurige districten
-- `get_world_stats` — aggregated queries (totaal spelers, totaal cash, per district)
-- `get_gangs` — alle gangs met member count
-- `send_broadcast` — insert bericht naar alle actieve spelers
-- `send_message` — insert bericht naar specifieke speler
+### Bestanden wijzigen:
+1. `src/game/types.ts` — CombatSkill, CombatBuff types + CombatState uitbreiding
+2. `src/game/combatSkills.ts` — **nieuw** — skill definities + combo logica
+3. `src/game/engine.ts` — combatAction uitbreiden met skills, buffs, combo tracking
+4. `src/components/game/PvPAttackView.tsx` — pre-combat preview + redirect naar PvP combat
+5. `src/components/game/PvPCombatView.tsx` — **nieuw** — volledige turn-based PvP UI
+6. `src/components/game/CombatView.tsx` — skill buttons + combo meter toevoegen aan PvE
+7. `supabase/functions/game-action/index.ts` — pvp_combat_start/action handlers
+8. `src/game/reducers/combatHandlers.ts` — PvP combat dispatch handlers
+9. `src/contexts/GameContext.tsx` — nieuwe dispatch types voor PvP combat
+10. Database migratie voor `pvp_combat_sessions`
 
-### AdminPanel.tsx:
-- Voeg 5 tabs toe: SPELERS, ECONOMIE, BOTS, WERELD, BERICHTEN, LOGBOEK
-- Elk met eigen state, fetch-functies en inline editing UI
-- Hergebruik bestaande `game-card`, `GameButton`, `GameBadge`, `SubTabBar` componenten
-
-### Bestanden:
-- `supabase/functions/admin-actions/index.ts` — uitbreiden met ~10 nieuwe actions
-- `src/components/game/AdminPanel.tsx` — uitbreiden met nieuwe tabs en UI
+### Bestanden nieuw:
+- `src/game/combatSkills.ts`
+- `src/components/game/PvPCombatView.tsx`
 
