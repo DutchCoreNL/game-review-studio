@@ -3012,6 +3012,387 @@ async function handleGetDistrictData(supabase: any): Promise<ActionResult> {
   };
 }
 
+// ========== COMPLETE CONTRACT (server-validated) ==========
+
+const CONTRACT_TYPES: Record<string, { baseReward: [number, number]; baseXp: [number, number]; baseHeat: [number, number]; baseRep: [number, number] }> = {
+  delivery: { baseReward: [2000, 6000], baseXp: [20, 40], baseHeat: [5, 15], baseRep: [5, 15] },
+  combat: { baseReward: [4000, 10000], baseXp: [30, 60], baseHeat: [10, 25], baseRep: [10, 25] },
+  stealth: { baseReward: [3000, 8000], baseXp: [25, 50], baseHeat: [3, 10], baseRep: [8, 20] },
+  tech: { baseReward: [3500, 9000], baseXp: [25, 55], baseHeat: [5, 12], baseRep: [8, 18] },
+};
+
+async function handleCompleteContract(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { contractId, contractType, successRate, encounterCount } = payload || {};
+  if (contractId === undefined || !contractType || successRate === undefined || !encounterCount) {
+    return { success: false, message: "Ongeldige contractdata." };
+  }
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Validate contract type exists
+  const typeDef = CONTRACT_TYPES[contractType];
+  if (!typeDef) return { success: false, message: "Onbekend contracttype." };
+
+  // Load save_data to verify contract exists
+  const { data: stateRow } = await supabase.from("player_state")
+    .select("save_data").eq("user_id", userId).maybeSingle();
+  
+  if (!stateRow?.save_data) return { success: false, message: "Geen speeldata gevonden." };
+  
+  const saveData = typeof stateRow.save_data === "string" ? JSON.parse(stateRow.save_data) : { ...stateRow.save_data };
+  
+  // Verify the contract exists in activeContracts
+  const contractIdx = (saveData.activeContracts || []).findIndex((c: any) => c.id === contractId);
+  if (contractIdx === -1) return { success: false, message: "Contract niet gevonden in je actieve contracten." };
+  
+  const contract = saveData.activeContracts[contractIdx];
+
+  // Server-side reward calculation (prevents client tampering)
+  const dayScaling = Math.min(ps.day * 0.02, 2.0);
+  const levelBonus = 1 + ps.level * 0.05;
+  
+  // Clamp successRate to [0, 1]
+  const clampedRate = Math.max(0, Math.min(1, successRate));
+  const encountersClamped = Math.max(1, Math.min(5, encounterCount));
+  
+  // Calculate reward based on contract's stored values + success rate
+  let reward = contract.reward || Math.floor(
+    (typeDef.baseReward[0] + Math.random() * (typeDef.baseReward[1] - typeDef.baseReward[0])) * (1 + dayScaling) * levelBonus
+  );
+  let xpGain = contract.xp || Math.floor(
+    typeDef.baseXp[0] + Math.random() * (typeDef.baseXp[1] - typeDef.baseXp[0])
+  );
+  let heatGain = contract.heat || Math.floor(
+    typeDef.baseHeat[0] + Math.random() * (typeDef.baseHeat[1] - typeDef.baseHeat[0])
+  );
+  let repGain = Math.floor(
+    typeDef.baseRep[0] + Math.random() * (typeDef.baseRep[1] - typeDef.baseRep[0])
+  );
+  
+  const overallSuccess = clampedRate >= 0.5;
+  
+  if (clampedRate >= 0.8) {
+    reward = Math.floor(reward * 1.3);
+    repGain = Math.floor(repGain * 1.5);
+  } else if (clampedRate >= 0.5) {
+    reward = Math.floor(reward * 0.8);
+  } else {
+    reward = Math.floor(reward * 0.3);
+    heatGain = Math.floor(heatGain * 1.5);
+    repGain = Math.max(2, Math.floor(repGain * 0.3));
+  }
+
+  // Apply faction relation changes from contract
+  if (contract.employer && contract.target) {
+    saveData.familyRel = saveData.familyRel || {};
+    if (overallSuccess) {
+      saveData.familyRel[contract.employer] = Math.min(100, (saveData.familyRel[contract.employer] || 0) + 10);
+      saveData.familyRel[contract.target] = Math.max(-100, (saveData.familyRel[contract.target] || 0) - 8);
+    } else {
+      saveData.familyRel[contract.employer] = Math.max(-100, (saveData.familyRel[contract.employer] || 0) - 5);
+    }
+  }
+
+  // Remove contract from active list
+  saveData.activeContracts.splice(contractIdx, 1);
+  
+  // Update daily progress
+  if (saveData.dailyProgress) {
+    saveData.dailyProgress.contracts = (saveData.dailyProgress.contracts || 0) + 1;
+  }
+
+  // Update save_data
+  if (overallSuccess) {
+    saveData.dirtyMoney = (saveData.dirtyMoney || 0) + reward;
+    saveData.stats = saveData.stats || {};
+    saveData.stats.totalEarned = (saveData.stats.totalEarned || 0) + reward;
+    saveData.stats.missionsCompleted = (saveData.stats.missionsCompleted || 0) + 1;
+  } else {
+    saveData.stats = saveData.stats || {};
+    saveData.stats.missionsFailed = (saveData.stats.missionsFailed || 0) + 1;
+  }
+  saveData.rep = (saveData.rep || 0) + repGain;
+
+  // XP + level up
+  saveData.player = saveData.player || { xp: 0, nextXp: 100, level: 1, skillPoints: 0 };
+  saveData.player.xp = (saveData.player.xp || 0) + xpGain;
+  let leveledUp = false;
+  if (saveData.player.xp >= (saveData.player.nextXp || 100)) {
+    saveData.player.xp -= saveData.player.nextXp;
+    saveData.player.level = (saveData.player.level || 1) + 1;
+    saveData.player.nextXp = Math.floor((saveData.player.nextXp || 100) * 1.4);
+    saveData.player.skillPoints = (saveData.player.skillPoints || 0) + 2;
+    leveledUp = true;
+  }
+
+  // Heat (split between personal and vehicle)
+  const personalHeatGain = Math.floor(heatGain * 0.5);
+  saveData.personalHeat = Math.min(100, (saveData.personalHeat || 0) + personalHeatGain);
+  saveData.heat = Math.max(saveData.personalHeat || 0, 
+    (saveData.ownedVehicles || []).find((v: any) => v.id === saveData.activeVehicle)?.vehicleHeat || 0
+  );
+
+  // Write back
+  await supabase.from("player_state").update({
+    save_data: saveData,
+    dirty_money: (ps.dirty_money || 0) + (overallSuccess ? reward : 0),
+    rep: (ps.rep || 0) + repGain,
+    heat: saveData.heat || ps.heat,
+    personal_heat: saveData.personalHeat || ps.personal_heat,
+    xp: saveData.player.xp,
+    level: saveData.player.level,
+    stats_missions_completed: overallSuccess ? (ps.stats_missions_completed || 0) + 1 : ps.stats_missions_completed,
+    stats_missions_failed: !overallSuccess ? (ps.stats_missions_failed || 0) + 1 : ps.stats_missions_failed,
+    stats_total_earned: (ps.stats_total_earned || 0) + (overallSuccess ? reward : 0),
+    updated_at: new Date().toISOString(),
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Log
+  await supabase.from("game_action_log").insert({
+    user_id: userId, action_type: "complete_contract",
+    action_data: { contractId, contractType, successRate: clampedRate },
+    result_data: { success: overallSuccess, reward, xpGain, repGain, heatGain },
+  });
+
+  const msg = overallSuccess
+    ? `Contract voltooid! +€${reward.toLocaleString()} | +${xpGain} XP | +${repGain} REP${leveledUp ? " | LEVEL UP!" : ""}`
+    : `Contract mislukt. +${xpGain} XP | +${repGain} REP | Extra heat opgelopen.`;
+
+  return {
+    success: true,
+    message: msg,
+    data: {
+      overallSuccess,
+      reward: overallSuccess ? reward : 0,
+      xpGain,
+      repGain,
+      heatGain,
+      leveledUp,
+      newLevel: saveData.player.level,
+      saveData,
+    },
+  };
+}
+
+// ========== COMPLETE HIT (server-validated assassination) ==========
+
+const HIT_TYPE_CONFIG: Record<string, {
+  diffRange: [number, number]; rewardRange: [number, number]; repRange: [number, number];
+  heatRange: [number, number]; ammoRange: [number, number]; karmaRange: [number, number]; xpRange: [number, number];
+}> = {
+  luitenant: { diffRange: [20, 45], rewardRange: [3000, 8000], repRange: [15, 30], heatRange: [8, 15], ammoRange: [3, 4], karmaRange: [-5, -8], xpRange: [30, 50] },
+  ambtenaar: { diffRange: [35, 60], rewardRange: [6000, 15000], repRange: [10, 25], heatRange: [12, 25], ammoRange: [4, 5], karmaRange: [-8, -12], xpRange: [40, 70] },
+  zakenman: { diffRange: [45, 70], rewardRange: [10000, 25000], repRange: [5, 15], heatRange: [10, 20], ammoRange: [4, 6], karmaRange: [-7, -10], xpRange: [50, 80] },
+  verrader: { diffRange: [30, 55], rewardRange: [8000, 18000], repRange: [20, 40], heatRange: [5, 12], ammoRange: [3, 5], karmaRange: [-5, -8], xpRange: [35, 60] },
+  vip: { diffRange: [65, 90], rewardRange: [25000, 60000], repRange: [40, 80], heatRange: [20, 35], ammoRange: [6, 8], karmaRange: [-12, -15], xpRange: [80, 120] },
+};
+
+async function handleCompleteHit(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { hitId } = payload || {};
+  if (!hitId) return { success: false, message: "Geen hit ID opgegeven." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Load save_data
+  const { data: stateRow } = await supabase.from("player_state")
+    .select("save_data, ammo_stock").eq("user_id", userId).maybeSingle();
+  
+  if (!stateRow?.save_data) return { success: false, message: "Geen speeldata gevonden." };
+  
+  const saveData = typeof stateRow.save_data === "string" ? JSON.parse(stateRow.save_data) : { ...stateRow.save_data };
+  
+  // Find hit contract
+  const hitIdx = (saveData.hitContracts || []).findIndex((h: any) => h.id === hitId);
+  if (hitIdx === -1) return { success: false, message: "Hit contract niet gevonden." };
+  
+  const hit = saveData.hitContracts[hitIdx];
+  
+  // Validate target type
+  const typeConfig = HIT_TYPE_CONFIG[hit.targetType];
+  if (!typeConfig) return { success: false, message: "Ongeldig doelwit type." };
+
+  // Validate district
+  if (ps.loc !== hit.district) {
+    const districtNames: Record<string, string> = { port: "Port Nero", crown: "Crown Heights", iron: "Iron Borough", low: "Lowrise", neon: "Neon Strip" };
+    return { success: false, message: `Je moet in ${districtNames[hit.district] || hit.district} zijn.` };
+  }
+
+  // Validate deadline
+  if (saveData.day > hit.deadline) {
+    saveData.hitContracts.splice(hitIdx, 1);
+    await supabase.from("player_state").update({ save_data: saveData }).eq("user_id", userId);
+    return { success: false, message: "Contract is verlopen." };
+  }
+
+  // Validate ammo from save_data (server-side check)
+  const ammoStock = saveData.ammoStock || stateRow.ammo_stock || { "9mm": 0, "7.62mm": 0, shells: 0 };
+  // Determine active ammo type from loadout
+  const weaponId = saveData.loadout?.weapon;
+  let ammoType = "9mm";
+  if (weaponId === "shotgun") ammoType = "shells";
+  else if (weaponId === "ak47" || weaponId === "sniper") ammoType = "7.62mm";
+  
+  const currentAmmo = ammoStock[ammoType] || 0;
+  if (currentAmmo < hit.ammoCost) {
+    return { success: false, message: `Niet genoeg ${ammoType} munitie (${hit.ammoCost} nodig, ${currentAmmo} beschikbaar).` };
+  }
+
+  // Consume ammo
+  ammoStock[ammoType] = Math.max(0, currentAmmo - hit.ammoCost);
+  saveData.ammoStock = ammoStock;
+  const totalAmmo = (ammoStock["9mm"] || 0) + (ammoStock["7.62mm"] || 0) + (ammoStock.shells || 0);
+
+  // Server-side success chance calculation
+  const stats = ps.stats || {};
+  const loadout = ps.loadout || {};
+  const muscle = getPlayerStat(stats, loadout, "muscle");
+  const brains = getPlayerStat(stats, loadout, "brains");
+  
+  let chance = 50;
+  chance += (muscle + brains) * 2.5;
+  chance += ps.level * 2;
+  chance -= hit.difficulty;
+  
+  // Karma bonus
+  if ((ps.karma || 0) < -30) chance += 5;
+  
+  // District bonus
+  if (ps.loc === hit.district) chance += 10;
+  
+  // Crew enforcer bonus (check save_data crew)
+  const hasEnforcer = (saveData.crew || []).some((c: any) => c.role === "Enforcer" && c.hp > 0);
+  if (hasEnforcer) chance += 8;
+  
+  chance = Math.max(10, Math.min(95, Math.round(chance)));
+  
+  const roll = Math.random() * 100;
+  const success = roll < chance;
+
+  if (success) {
+    const isMeedogenloos = (ps.karma || 0) < -30;
+    const rewardMult = isMeedogenloos ? 1.15 : 1.0;
+    const reward = Math.floor(hit.reward * rewardMult);
+    const repGain = hit.repReward;
+    const xpGain = hit.xpReward;
+    const heatGain = hit.heatGain;
+    const karmaChange = hit.karmaEffect;
+
+    // Update save_data
+    saveData.dirtyMoney = (saveData.dirtyMoney || 0) + reward;
+    saveData.rep = (saveData.rep || 0) + repGain;
+    saveData.stats = saveData.stats || {};
+    saveData.stats.totalEarned = (saveData.stats.totalEarned || 0) + reward;
+    saveData.stats.missionsCompleted = (saveData.stats.missionsCompleted || 0) + 1;
+    saveData.karma = Math.max(-100, (saveData.karma || 0) + karmaChange);
+    
+    // Heat
+    const personalHeatGain = Math.floor(heatGain * 0.8);
+    saveData.personalHeat = Math.min(100, (saveData.personalHeat || 0) + personalHeatGain);
+    saveData.heat = Math.max(saveData.personalHeat || 0,
+      (saveData.ownedVehicles || []).find((v: any) => v.id === saveData.activeVehicle)?.vehicleHeat || 0
+    );
+
+    // XP + level
+    saveData.player = saveData.player || { xp: 0, nextXp: 100, level: 1, skillPoints: 0 };
+    saveData.player.xp = (saveData.player.xp || 0) + xpGain;
+    let leveledUp = false;
+    if (saveData.player.xp >= (saveData.player.nextXp || 100)) {
+      saveData.player.xp -= saveData.player.nextXp;
+      saveData.player.level = (saveData.player.level || 1) + 1;
+      saveData.player.nextXp = Math.floor((saveData.player.nextXp || 100) * 1.4);
+      saveData.player.skillPoints = (saveData.player.skillPoints || 0) + 2;
+      leveledUp = true;
+    }
+
+    // Faction effect
+    if (hit.factionEffect) {
+      saveData.familyRel = saveData.familyRel || {};
+      saveData.familyRel[hit.factionEffect.familyId] = Math.max(-100, Math.min(100,
+        (saveData.familyRel[hit.factionEffect.familyId] || 0) + hit.factionEffect.change
+      ));
+    }
+
+    // Daily progress
+    if (saveData.dailyProgress) {
+      saveData.dailyProgress.hits_completed = (saveData.dailyProgress.hits_completed || 0) + 1;
+    }
+
+    // Remove contract
+    saveData.hitContracts.splice(hitIdx, 1);
+
+    // Write back
+    await supabase.from("player_state").update({
+      save_data: saveData,
+      dirty_money: (ps.dirty_money || 0) + reward,
+      rep: (ps.rep || 0) + repGain,
+      heat: saveData.heat || ps.heat,
+      personal_heat: saveData.personalHeat || ps.personal_heat,
+      karma: saveData.karma,
+      xp: saveData.player.xp,
+      level: saveData.player.level,
+      ammo: totalAmmo,
+      ammo_stock: ammoStock,
+      stats_missions_completed: (ps.stats_missions_completed || 0) + 1,
+      stats_total_earned: (ps.stats_total_earned || 0) + reward,
+      updated_at: new Date().toISOString(),
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    return {
+      success: true,
+      message: `${hit.targetName} is uitgeschakeld! +€${reward.toLocaleString()} | +${repGain} REP | +${xpGain} XP${leveledUp ? " | LEVEL UP!" : ""}`,
+      data: { overallSuccess: true, reward, repGain, xpGain, heatGain, karmaChange, leveledUp, chance, saveData },
+    };
+  } else {
+    // Failed hit
+    const extraHeat = Math.floor(hit.heatGain * 1.5);
+    saveData.personalHeat = Math.min(100, (saveData.personalHeat || 0) + Math.floor(extraHeat * 0.7));
+    saveData.heat = Math.max(saveData.personalHeat || 0,
+      (saveData.ownedVehicles || []).find((v: any) => v.id === saveData.activeVehicle)?.vehicleHeat || 0
+    );
+    saveData.stats = saveData.stats || {};
+    saveData.stats.missionsFailed = (saveData.stats.missionsFailed || 0) + 1;
+
+    // Crew damage on failure
+    if ((saveData.crew || []).length > 0 && Math.random() < 0.4) {
+      const idx = Math.floor(Math.random() * saveData.crew.length);
+      const dmg = 10 + Math.floor(Math.random() * 16);
+      saveData.crew[idx].hp = Math.max(1, saveData.crew[idx].hp - dmg);
+    }
+
+    // Faction warned
+    if (hit.factionEffect) {
+      saveData.familyRel = saveData.familyRel || {};
+      saveData.familyRel[hit.factionEffect.familyId] = Math.max(-100,
+        (saveData.familyRel[hit.factionEffect.familyId] || 0) - 10
+      );
+    }
+
+    // Remove contract
+    saveData.hitContracts.splice(hitIdx, 1);
+
+    await supabase.from("player_state").update({
+      save_data: saveData,
+      heat: saveData.heat || ps.heat,
+      personal_heat: saveData.personalHeat || ps.personal_heat,
+      ammo: totalAmmo,
+      ammo_stock: ammoStock,
+      stats_missions_failed: (ps.stats_missions_failed || 0) + 1,
+      updated_at: new Date().toISOString(),
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    return {
+      success: true,
+      message: `De aanslag op ${hit.targetName} is mislukt! Extra heat opgelopen.`,
+      data: { overallSuccess: false, reward: 0, heatGain: extraHeat, chance, saveData },
+    };
+  }
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -3222,6 +3603,12 @@ Deno.serve(async (req) => {
         break;
       case "get_district_data":
         result = await handleGetDistrictData(supabase);
+        break;
+      case "complete_contract":
+        result = await handleCompleteContract(supabase, user.id, playerState, payload);
+        break;
+      case "complete_hit":
+        result = await handleCompleteHit(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
