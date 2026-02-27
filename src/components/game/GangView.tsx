@@ -318,9 +318,41 @@ export function GangView() {
               </div>
               <Progress value={((gang.xp || 0) / GANG_LEVEL_XP(gang.level || 1)) * 100} className="h-1.5 bg-muted/30" />
             </div>
-          </div>
+            </div>
 
-          {/* Level Benefits */}
+            {/* District Dominance Score */}
+            <div className="mt-3 pt-2 border-t border-border/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[0.55rem] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <MapPin size={9} /> District Dominantie
+                </span>
+                <span className="text-sm font-bold text-blood">
+                  {territories.length}<span className="text-muted-foreground font-normal text-[0.5rem]"> / 5</span>
+                </span>
+              </div>
+              <div className="flex gap-1.5 mb-1.5">
+                {Object.entries(DISTRICT_NAMES).map(([id, name]) => {
+                  const owned = territories.some((t: any) => t.district_id === id);
+                  return (
+                    <div key={id} className="flex-1 text-center">
+                      <div className={`h-2 rounded-full transition-all ${owned ? 'bg-blood glow-blood' : 'bg-muted/30'}`} />
+                      <span className={`text-[0.4rem] mt-0.5 block ${owned ? 'text-blood font-bold' : 'text-muted-foreground/50'}`}>
+                        {name.split(' ')[0]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {territories.length >= 5 && (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  className="text-center text-[0.5rem] text-gold font-bold uppercase tracking-widest gold-text-glow">
+                  ⚔ Totale Dominantie ⚔
+                </motion.div>
+              )}
+              {territories.length === 0 && (
+                <p className="text-[0.45rem] text-muted-foreground/60 text-center">Claim gebieden via het GEBIED-tabblad</p>
+              )}
+            </div>
           <div className="game-card">
             <SectionHeader title="Level Bonussen" icon={<Zap size={12} />} />
             <div className="space-y-1">
