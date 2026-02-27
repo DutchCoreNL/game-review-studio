@@ -558,6 +558,12 @@ export function rollStreetEvent(
   // Already have a pending event
   if (state.pendingStreetEvent) return null;
 
+  // Don't trigger street events in the first few days so the player can learn the basics
+  if (state.day < 3) return null;
+
+  // Don't trigger during prison, hospital or hiding
+  if (state.prison || state.hospital || state.hidingDays > 0) return null;
+
   const chance =
     trigger === 'travel' ? EVENT_CHANCE_ON_TRAVEL :
     trigger === 'end_turn' ? EVENT_CHANCE_ON_END_TURN :
