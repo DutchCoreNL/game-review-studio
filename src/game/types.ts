@@ -1016,6 +1016,8 @@ export interface GameState {
   attackCooldownUntil: string | null;
   heistCooldownUntil: string | null;
   serverSynced: boolean; // whether state is synced with server
+  lastTickAt: string | null; // ISO timestamp of last auto-tick (replaces turn-based day system)
+  tickIntervalMinutes: number; // how many real minutes = 1 game day (default 30)
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;

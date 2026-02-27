@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { getRankTitle, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
 import { WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
@@ -39,7 +39,28 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
 export function GameHeader() {
   const { state, dispatch } = useGame();
   const [popup, setPopup] = useState<PopupType>(null);
+  const [nextTickCountdown, setNextTickCountdown] = useState<string>('');
   
+  // Countdown to next auto-tick
+  useEffect(() => {
+    const update = () => {
+      const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
+      const interval = (state.tickIntervalMinutes || 30) * 60 * 1000;
+      const nextTick = lastTick + interval;
+      const diff = nextTick - Date.now();
+      if (diff <= 0) {
+        setNextTickCountdown('nu');
+      } else {
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        setNextTickCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+      }
+    };
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
+  }, [state.lastTickAt, state.tickIntervalMinutes]);
+
   const rank = getRankTitle(state.rep);
   const weatherDef = WEATHER_EFFECTS[state.weather];
   const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
@@ -69,6 +90,7 @@ export function GameHeader() {
             <span className="truncate">{phaseData?.label || rank}</span>
             <span className="text-muted-foreground/40">·</span>
             <span>Dag {state.day}</span>
+            <span className="text-muted-foreground/60 tabular-nums" title="Volgende dag in...">⏱{nextTickCountdown}</span>
             <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[state.weather]}`} title={weatherDef?.desc}>
               {WEATHER_ICONS[state.weather]}
             </span>

@@ -19,6 +19,17 @@ export function NightReport() {
   const [muted, setMuted] = useState(isMuted());
   const soundsScheduledFor = useRef<number | null>(null);
   const soundTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss after 10 seconds (MMO realtime — no blocking)
+  useEffect(() => {
+    if (report) {
+      autoDismissRef.current = setTimeout(() => {
+        dispatch({ type: 'DISMISS_NIGHT_REPORT' });
+      }, 10000);
+    }
+    return () => { if (autoDismissRef.current) clearTimeout(autoDismissRef.current); };
+  }, [report, dispatch]);
 
   // Cleanup sound timers on unmount
   useEffect(() => {
