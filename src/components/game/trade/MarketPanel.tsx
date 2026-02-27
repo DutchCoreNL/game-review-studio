@@ -57,6 +57,7 @@ export function MarketPanel() {
   const [serverPrices, setServerPrices] = useState<Record<string, Record<string, ServerMarketData>> | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceAlerts, setPriceAlerts] = useState<{ gid: string; name: string; pct: number; direction: 'up' | 'down' }[]>([]);
+  const [selectedAmmoType, setSelectedAmmoType] = useState<import('@/game/types').AmmoType | null>(null);
   const prevPricesRef = useRef<Record<string, Record<string, number>>>({});
 
   // Fetch server prices on mount and when district changes
@@ -376,11 +377,13 @@ export function MarketPanel() {
       {(state.inventory.weapons || 0) > 0 && (() => {
         const weaponsOwned = state.inventory.weapons || 0;
         const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
-        const activeAmmoType = getActiveAmmoType(state);
-        const currentAmmo = ammoStock[activeAmmoType] || 0;
+        const defaultAmmoType = getActiveAmmoType(state);
+        const chosenAmmoType = selectedAmmoType || defaultAmmoType;
+        const currentAmmo = ammoStock[chosenAmmoType] || 0;
         const canLoad = currentAmmo < 99;
         const ammoPerWeapon = 6;
         const maxLoadable = Math.min(weaponsOwned, Math.max(1, Math.floor((99 - currentAmmo) / ammoPerWeapon)));
+        const ammoTypes = (['9mm', '7.62mm', 'shells'] as const);
         return (
           <motion.div
             initial={{ opacity: 0, y: -5 }}
@@ -392,20 +395,34 @@ export function MarketPanel() {
               <span className="text-[0.6rem] font-bold text-ice uppercase tracking-wider">Laad Munitie</span>
               <GameBadge variant="ice" size="xs">{weaponsOwned}× wapens</GameBadge>
             </div>
-            <p className="text-[0.45rem] text-muted-foreground mb-2">
-              Converteer Zware Wapens uit je inventaris naar {AMMO_TYPE_LABELS[activeAmmoType].label} munitie ({ammoPerWeapon} kogels/stuk)
-            </p>
+            {/* Ammo type selector */}
+            <div className="flex gap-1 mb-2">
+              {ammoTypes.map(aType => (
+                <button
+                  key={aType}
+                  onClick={() => setSelectedAmmoType(aType)}
+                  className={`flex-1 py-1 rounded text-[0.5rem] font-bold uppercase transition-all border ${
+                    chosenAmmoType === aType
+                      ? 'bg-ice/20 border-ice text-ice'
+                      : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {AMMO_TYPE_LABELS[aType].icon} {AMMO_TYPE_LABELS[aType].label}
+                  <span className="block text-[0.4rem] opacity-70">{ammoStock[aType] || 0}/99</span>
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 text-[0.5rem] text-muted-foreground">
-                {AMMO_TYPE_LABELS[activeAmmoType].icon} {AMMO_TYPE_LABELS[activeAmmoType].label}: {currentAmmo}/99
+                {AMMO_TYPE_LABELS[chosenAmmoType].icon} {AMMO_TYPE_LABELS[chosenAmmoType].label}: {currentAmmo}/99
               </div>
               <GameButton
                 variant="gold"
                 size="sm"
                 disabled={!canLoad || maxLoadable <= 0}
                 onClick={() => {
-                  dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: activeAmmoType, quantity: 1 });
-                  showToast(`+${ammoPerWeapon} ${AMMO_TYPE_LABELS[activeAmmoType].label} geladen!`);
+                  dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: chosenAmmoType, quantity: 1 });
+                  showToast(`+${ammoPerWeapon} ${AMMO_TYPE_LABELS[chosenAmmoType].label} geladen!`);
                 }}
               >
                 LAAD 1×
@@ -416,8 +433,8 @@ export function MarketPanel() {
                   size="sm"
                   disabled={!canLoad}
                   onClick={() => {
-                    dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: activeAmmoType, quantity: maxLoadable });
-                    showToast(`+${maxLoadable * ammoPerWeapon} ${AMMO_TYPE_LABELS[activeAmmoType].label} geladen!`);
+                    dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: chosenAmmoType, quantity: maxLoadable });
+                    showToast(`+${maxLoadable * ammoPerWeapon} ${AMMO_TYPE_LABELS[chosenAmmoType].label} geladen!`);
                   }}
                 >
                   ALLES ({maxLoadable}×)
