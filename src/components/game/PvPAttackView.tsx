@@ -11,6 +11,8 @@ import { CooldownTimer } from './header/CooldownTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User } from 'lucide-react';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
+import { Mail } from 'lucide-react';
+import { MessagesComposePopup } from './MessagesComposePopup';
 
 interface PlayerTarget {
   userId: string;
@@ -40,6 +42,7 @@ export function PvPAttackView() {
   const [confirmTarget, setConfirmTarget] = useState<PlayerTarget | null>(null);
   const [lastResult, setLastResult] = useState<AttackResult | null>(null);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
+  const [messageTarget, setMessageTarget] = useState<{ userId: string; username: string } | null>(null);
 
   const fetchPlayers = useCallback(async () => {
     if (!user) return;
@@ -191,15 +194,24 @@ export function PvPAttackView() {
                   <span className="text-[0.45rem] text-muted-foreground tabular-nums">{p.hp}/{p.maxHp}</span>
                 </div>
               </div>
-              <GameButton
-                variant={canAttack ? 'blood' : 'muted'}
-                size="sm"
-                disabled={!canAttack}
-                glow={canAttack}
-                onClick={() => setConfirmTarget(p)}
-              >
-                <Swords size={10} />
-              </GameButton>
+              <div className="flex gap-1">
+                <GameButton
+                  variant="muted"
+                  size="sm"
+                  onClick={() => setMessageTarget({ userId: p.userId, username: p.username })}
+                >
+                  <Mail size={10} />
+                </GameButton>
+                <GameButton
+                  variant={canAttack ? 'blood' : 'muted'}
+                  size="sm"
+                  disabled={!canAttack}
+                  glow={canAttack}
+                  onClick={() => setConfirmTarget(p)}
+                >
+                  <Swords size={10} />
+                </GameButton>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -228,6 +240,15 @@ export function PvPAttackView() {
       {/* Public Profile Popup */}
       {viewProfileId && (
         <PlayerDetailPopup userId={viewProfileId} onClose={() => setViewProfileId(null)} />
+      )}
+
+      {/* Compose Message Popup */}
+      {messageTarget && (
+        <MessagesComposePopup
+          targetUserId={messageTarget.userId}
+          targetUsername={messageTarget.username}
+          onClose={() => setMessageTarget(null)}
+        />
       )}
     </div>
   );

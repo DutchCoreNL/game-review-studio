@@ -8,7 +8,8 @@ export type GameAction =
   | "buy_vehicle" | "switch_vehicle"
   | "wash_money" | "bribe_police" | "buy_business"
   | "attack" | "list_players"
-  | "get_public_profile";
+  | "get_public_profile"
+  | "send_message" | "get_messages" | "read_message" | "delete_message";
 
 interface GameActionResult {
   success: boolean;
@@ -50,4 +51,10 @@ export const gameApi = {
   attack: (targetUserId: string) => invokeGameAction("attack", { targetUserId }),
   listPlayers: () => invokeGameAction("list_players"),
   getPublicProfile: (targetUserId: string) => invokeGameAction("get_public_profile", { targetUserId }),
+  sendMessage: (targetUserId: string, subject: string, body: string) =>
+    invokeGameAction("send_message", { targetUserId, subject, body }),
+  getMessages: (folder: "inbox" | "sent" = "inbox", limit = 20) =>
+    invokeGameAction("get_messages", { folder, limit }),
+  readMessage: (messageId: string) => invokeGameAction("read_message", { messageId }),
+  deleteMessage: (messageId: string) => invokeGameAction("delete_message", { messageId }),
 };

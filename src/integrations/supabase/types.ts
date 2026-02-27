@@ -259,6 +259,36 @@ export type Database = {
         }
         Relationships: []
       }
+      player_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read: boolean
+          receiver_id: string
+          sender_id: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id: string
+          sender_id: string
+          subject?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id?: string
+          sender_id?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       player_safehouses: {
         Row: {
           acquired_at: string

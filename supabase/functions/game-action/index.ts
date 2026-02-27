@@ -916,6 +916,98 @@ async function handleGetPublicProfile(supabase: any, targetUserId: string): Prom
   };
 }
 
+// ========== MESSAGING ==========
+
+async function handleSendMessage(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { targetUserId, subject, body } = payload || {};
+  if (!targetUserId) return { success: false, message: "Geen ontvanger opgegeven." };
+  if (!body || body.trim().length === 0) return { success: false, message: "Bericht mag niet leeg zijn." };
+  if (body.length > 500) return { success: false, message: "Bericht mag max 500 tekens zijn." };
+  if (subject && subject.length > 100) return { success: false, message: "Onderwerp mag max 100 tekens zijn." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt jezelf geen bericht sturen." };
+
+  // Check target exists
+  const { data: target } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+  if (!target) return { success: false, message: "Speler niet gevonden." };
+
+  // Rate limit: max 10 messages per hour
+  const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+  const { count } = await supabase.from("player_messages").select("id", { count: "exact", head: true })
+    .eq("sender_id", userId).gte("created_at", oneHourAgo);
+  if ((count || 0) >= 10) return { success: false, message: "Je kunt max 10 berichten per uur sturen." };
+
+  const { error } = await supabase.from("player_messages").insert({
+    sender_id: userId,
+    receiver_id: targetUserId,
+    subject: (subject || "").trim().slice(0, 100),
+    body: body.trim().slice(0, 500),
+  });
+
+  if (error) return { success: false, message: "Kon bericht niet versturen." };
+  return { success: true, message: `Bericht verstuurd naar ${target.username}.` };
+}
+
+async function handleGetMessages(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const folder = payload?.folder || "inbox"; // inbox | sent
+  const limit = Math.min(payload?.limit || 20, 50);
+
+  let query;
+  if (folder === "sent") {
+    query = supabase.from("player_messages").select("id, receiver_id, subject, body, read, created_at")
+      .eq("sender_id", userId).order("created_at", { ascending: false }).limit(limit);
+  } else {
+    query = supabase.from("player_messages").select("id, sender_id, subject, body, read, created_at")
+      .eq("receiver_id", userId).order("created_at", { ascending: false }).limit(limit);
+  }
+
+  const { data: messages, error } = await query;
+  if (error) return { success: false, message: "Kon berichten niet ophalen." };
+
+  // Resolve usernames
+  const userIds = messages.map((m: any) => folder === "sent" ? m.receiver_id : m.sender_id);
+  const uniqueIds = [...new Set(userIds)];
+  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", uniqueIds);
+  const nameMap: Record<string, string> = {};
+  (profiles || []).forEach((p: any) => { nameMap[p.id] = p.username; });
+
+  const enriched = messages.map((m: any) => ({
+    id: m.id,
+    otherUserId: folder === "sent" ? m.receiver_id : m.sender_id,
+    otherUsername: nameMap[folder === "sent" ? m.receiver_id : m.sender_id] || "Onbekend",
+    subject: m.subject,
+    body: m.body,
+    read: m.read,
+    createdAt: m.created_at,
+  }));
+
+  // Unread count
+  const { count: unreadCount } = await supabase.from("player_messages").select("id", { count: "exact", head: true })
+    .eq("receiver_id", userId).eq("read", false);
+
+  return { success: true, message: "Berichten opgehaald.", data: { messages: enriched, unread: unreadCount || 0, folder } };
+}
+
+async function handleReadMessage(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { messageId } = payload || {};
+  if (!messageId) return { success: false, message: "Geen bericht-ID." };
+
+  await supabase.from("player_messages").update({ read: true })
+    .eq("id", messageId).eq("receiver_id", userId);
+
+  return { success: true, message: "Bericht gelezen." };
+}
+
+async function handleDeleteMessage(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { messageId } = payload || {};
+  if (!messageId) return { success: false, message: "Geen bericht-ID." };
+
+  const { error } = await supabase.from("player_messages").delete()
+    .eq("id", messageId).or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+
+  if (error) return { success: false, message: "Kon bericht niet verwijderen." };
+  return { success: true, message: "Bericht verwijderd." };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -1023,6 +1115,18 @@ Deno.serve(async (req) => {
         break;
       case "get_public_profile":
         result = await handleGetPublicProfile(supabase, payload?.targetUserId);
+        break;
+      case "send_message":
+        result = await handleSendMessage(supabase, user.id, payload);
+        break;
+      case "get_messages":
+        result = await handleGetMessages(supabase, user.id, payload);
+        break;
+      case "read_message":
+        result = await handleReadMessage(supabase, user.id, payload);
+        break;
+      case "delete_message":
+        result = await handleDeleteMessage(supabase, user.id, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
