@@ -125,6 +125,7 @@ type GameAction =
   | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'fail' }
   | { type: 'DISMISS_STREET_EVENT' }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
+  | { type: 'SET_WEEK_EVENT'; event: any }
   | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
   | { type: 'DISMISS_ARC_EVENT' }
   // Heat 2.0 actions
@@ -1466,6 +1467,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_SCREEN_EFFECT': {
       s.screenEffect = action.effect;
+      return s;
+    }
+
+    case 'SET_WEEK_EVENT': {
+      (s as any).activeWeekEvent = action.event;
       return s;
     }
 
