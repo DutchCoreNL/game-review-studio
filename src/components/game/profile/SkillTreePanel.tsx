@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { SKILL_NODES, BRANCH_INFO, canUnlockSkill, getSkillLevel, PRESTIGE_CONFIG, LEVEL_GATES, XP_MULTIPLIERS, type SkillBranch } from '@/game/skillTree';
+import { SKILL_NODES, BRANCH_INFO, canUnlockSkill, getSkillLevel, PRESTIGE_CONFIG, LEVEL_GATES, type SkillBranch } from '@/game/skillTree';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
@@ -74,10 +74,11 @@ export function SkillTreePanel() {
 
   const branchNodes = SKILL_NODES.filter(n => n.branch === activeBranch);
 
-  // Calculate XP multipliers for display
-  const districtBonus = XP_MULTIPLIERS.districtBonus[state.loc] || 0;
-  const streakBonus = Math.min(XP_MULTIPLIERS.streakMax, state.xpStreak || 0) * XP_MULTIPLIERS.streakPerAction;
-  const prestigeBonus = prestige * XP_MULTIPLIERS.prestigePerLevel;
+  // XP multiplier display (mirrors server logic)
+  const districtBonuses: Record<string, number> = { low: 0, port: 0.05, iron: 0.10, neon: 0.15, crown: 0.20 };
+  const districtBonus = districtBonuses[state.loc] || 0;
+  const streakBonus = Math.min(10, state.xpStreak || 0) * 0.02;
+  const prestigeBonus = prestige * 0.05;
   const totalMultiplier = 1 + districtBonus + streakBonus + prestigeBonus;
 
   return (
@@ -93,9 +94,10 @@ export function SkillTreePanel() {
           <div className="text-right">
             <span className="text-[0.55rem] text-emerald font-semibold">XP ×{totalMultiplier.toFixed(2)}</span>
             <div className="text-[0.4rem] text-muted-foreground space-x-2">
-              {districtBonus > 0 && <span>District +{(districtBonus * 100).toFixed(0)}%</span>}
+              {districtBonus > 0 && <span>{state.loc.toUpperCase()} +{(districtBonus * 100).toFixed(0)}%</span>}
               {streakBonus > 0 && <span>Streak +{(streakBonus * 100).toFixed(0)}%</span>}
               {prestigeBonus > 0 && <span>Prestige +{(prestigeBonus * 100).toFixed(0)}%</span>}
+              <span className="text-gold/60">+ gang/nacht/dag server-side</span>
             </div>
           </div>
         </div>

@@ -2848,27 +2848,72 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
   if (!amount || amount <= 0) return { success: false, message: "Ongeldige XP." };
   if (amount > 10000) amount = 10000; // anti-exploit cap
 
-  // Calculate multipliers
+  // Build multiplier breakdown
+  const bonuses: { key: string; label: string; value: number }[] = [];
   let multiplier = 1.0;
 
-  // District bonus
-  const districtBonuses: Record<string, number> = { port: 0.05, iron: 0.10, neon: 0.15, crown: 0.20 };
-  multiplier += districtBonuses[ps.loc] || 0;
+  // 1. District bonus
+  const districtBonuses: Record<string, number> = { low: 0, port: 0.05, iron: 0.10, neon: 0.15, crown: 0.20 };
+  const districtBonus = districtBonuses[ps.loc] || 0;
+  if (districtBonus > 0) {
+    multiplier += districtBonus;
+    bonuses.push({ key: "district", label: `${(ps.loc as string).toUpperCase()} district`, value: districtBonus });
+  }
 
-  // Streak bonus (+2% per streak, max 20%)
+  // 2. Streak bonus (+2% per action streak, max 20%)
   const streak = Math.min(10, ps.xp_streak || 0);
-  multiplier += streak * 0.02;
+  const streakBonus = streak * 0.02;
+  if (streakBonus > 0) {
+    multiplier += streakBonus;
+    bonuses.push({ key: "streak", label: `Streak ×${streak}`, value: streakBonus });
+  }
 
-  // Prestige bonus (+5% per prestige level)
-  multiplier += (ps.prestige_level || 0) * 0.05;
+  // 3. Prestige bonus (+5% per prestige level)
+  const prestigeBonus = (ps.prestige_level || 0) * 0.05;
+  if (prestigeBonus > 0) {
+    multiplier += prestigeBonus;
+    bonuses.push({ key: "prestige", label: `Prestige Lv${ps.prestige_level}`, value: prestigeBonus });
+  }
 
-  // Gang bonus (+10% if in gang)
-  const { data: gangMember } = await supabase.from("gang_members").select("id").eq("user_id", userId).limit(1);
-  if (gangMember && gangMember.length > 0) multiplier += 0.10;
+  // 4. Gang bonus (+10% if in gang, +15% if gang level >= 5)
+  const { data: gangMember } = await supabase
+    .from("gang_members").select("gang_id").eq("user_id", userId).limit(1);
+  let gangBonus = 0;
+  if (gangMember && gangMember.length > 0) {
+    gangBonus = 0.10;
+    // Check gang level for extra bonus
+    const { data: gang } = await supabase
+      .from("gangs").select("level").eq("id", gangMember[0].gang_id).maybeSingle();
+    if (gang && gang.level >= 5) gangBonus = 0.15;
+    multiplier += gangBonus;
+    bonuses.push({ key: "gang", label: `Gang${gang?.level >= 5 ? " Elite" : ""}`, value: gangBonus });
+  }
 
-  // Mastermind skill bonus
-  const { data: mastermindSkill } = await supabase.from("player_skills").select("level").eq("user_id", userId).eq("skill_id", "mastermind").maybeSingle();
-  if (mastermindSkill) multiplier += mastermindSkill.level * 0.10;
+  // 5. First-of-day bonus (+25% for first XP action of a new day)
+  const lastActionDate = ps.last_action_at ? new Date(ps.last_action_at).toDateString() : null;
+  const todayDate = new Date().toDateString();
+  const isFirstOfDay = lastActionDate !== todayDate;
+  if (isFirstOfDay) {
+    multiplier += 0.25;
+    bonuses.push({ key: "first_of_day", label: "Eerste actie bonus", value: 0.25 });
+  }
+
+  // 6. Mastermind skill bonus (+10% per level)
+  const { data: mastermindSkill } = await supabase
+    .from("player_skills").select("level").eq("user_id", userId).eq("skill_id", "mastermind").maybeSingle();
+  if (mastermindSkill) {
+    const skillBonus = mastermindSkill.level * 0.10;
+    multiplier += skillBonus;
+    bonuses.push({ key: "skill_mastermind", label: `Mastermind Lv${mastermindSkill.level}`, value: skillBonus });
+  }
+
+  // 7. Night bonus (+10% during night phase from world_state)
+  const { data: worldState } = await supabase
+    .from("world_state").select("time_of_day").eq("id", 1).maybeSingle();
+  if (worldState?.time_of_day === "night") {
+    multiplier += 0.10;
+    bonuses.push({ key: "night", label: "Nachtbonus", value: 0.10 });
+  }
 
   const totalXp = Math.floor(amount * multiplier);
   let newXp = ps.xp + totalXp;
@@ -2886,18 +2931,30 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
     newNextXp = Math.floor(newNextXp * XP_SCALE);
   }
 
-  // Increment streak
-  const newStreak = (ps.xp_streak || 0) + 1;
+  // Increment streak (reset if first-of-day)
+  const newStreak = isFirstOfDay ? 1 : (ps.xp_streak || 0) + 1;
 
   await supabase.from("player_state").update({
     xp: newXp, level: newLevel, next_xp: newNextXp,
     skill_points: newSP, xp_streak: newStreak,
+    last_action_at: new Date().toISOString(),
   }).eq("user_id", userId);
 
+  // Log XP gain for analytics
+  await supabase.from("game_action_log").insert({
+    user_id: userId,
+    action_type: "gain_xp",
+    action_data: { source, baseAmount: amount },
+    result_data: { totalXp, multiplier, bonuses, levelUps, newLevel },
+  });
+
+  const bonusSummary = bonuses.map(b => `${b.label} +${Math.round(b.value * 100)}%`).join(", ");
   return {
     success: true,
-    message: levelUps > 0 ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP` : `+${totalXp} XP (×${multiplier.toFixed(2)})`,
-    data: { xpGained: totalXp, multiplier, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak },
+    message: levelUps > 0
+      ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP`
+      : `+${totalXp} XP (×${multiplier.toFixed(2)})${bonusSummary ? ` [${bonusSummary}]` : ""}`,
+    data: { xpGained: totalXp, baseAmount: amount, multiplier, bonuses, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak, isFirstOfDay },
   };
 }
 
