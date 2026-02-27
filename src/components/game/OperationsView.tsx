@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Crosshair, Users, UserPlus, Lock, Truck, Swords, Eye, Cpu, ChevronDown, ChevronUp, Heart, Star, Trash2, Activity, Sparkles, TrendingUp, Target, Skull, ShieldAlert } from 'lucide-react';
 import { PersonalityTrait } from '@/game/types';
+import { SubTabBar, SubTab } from './ui/SubTabBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 
 const PERSONALITY_LABELS: Record<PersonalityTrait, string> = {
   loyaal: '🤝 Loyaal',
@@ -77,40 +79,19 @@ export function OperationsView() {
   const ironDiscount = state.ownedDistricts.includes('iron');
   const costPerHp = ironDiscount ? 40 : 50;
 
+  const tabs: SubTab<string>[] = [
+    { id: 'solo', label: 'SOLO', icon: <Crosshair size={12} /> },
+    { id: 'contracts', label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
+    { id: 'heists', label: 'HEIST', icon: <Target size={12} /> },
+    { id: 'hits', label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
+    { id: 'bounties', label: 'PREMIES', icon: <ShieldAlert size={12} />, badge: (state.activeBounties || []).length + (state.placedBounties || []).length },
+    { id: 'crew', label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
+    { id: 'challenges', label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
+  ];
+
   return (
-    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      <img src={operationsBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
-      <div className="relative z-10">
-      {/* Sub-tabs */}
-      <div className="flex gap-1.5 mb-4 mt-1">
-        {([
-          { id: 'solo' as OpsSubTab, label: 'SOLO', icon: <Crosshair size={12} /> },
-          { id: 'contracts' as OpsSubTab, label: 'CONTRACT', icon: <Swords size={12} />, badge: state.activeContracts.length },
-          { id: 'heists' as OpsSubTab, label: 'HEIST', icon: <Target size={12} /> },
-          { id: 'hits' as OpsSubTab, label: 'HITS', icon: <Skull size={12} />, badge: (state.hitContracts || []).filter(h => h.deadline >= state.day).length },
-          { id: 'bounties' as OpsSubTab, label: 'PREMIES', icon: <ShieldAlert size={12} />, badge: (state.activeBounties || []).length + (state.placedBounties || []).length },
-          { id: 'crew' as OpsSubTab, label: 'CREW', icon: <Users size={12} />, badge: state.crew.length },
-          { id: 'challenges' as OpsSubTab, label: 'DOEL', icon: <Target size={12} />, badge: state.dailyChallenges?.filter(c => c.completed && !c.claimed).length || 0 },
-        ]).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            className={`flex-1 py-2 rounded text-[0.5rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative ${
-              subTab === tab.id
-                ? 'bg-gold/15 border border-gold text-gold'
-                : 'bg-muted border border-border text-muted-foreground'
-            }`}
-          >
-            {tab.icon} {tab.label}
-            {tab.badge !== undefined && tab.badge > 0 && (
-              <span className="w-4 h-4 bg-blood text-primary-foreground rounded-full text-[0.45rem] font-bold flex items-center justify-center ml-0.5">
-                {tab.badge}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+    <ViewWrapper bg={operationsBg}>
+      <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as OpsSubTab)} />
 
       {subTab === 'solo' && (
         <>
@@ -354,7 +335,6 @@ export function OperationsView() {
         }}
         onCancel={() => setFireConfirm(null)}
       />
-      </div>
 
       {/* Mission Briefing overlay */}
       <AnimatePresence>
@@ -365,7 +345,7 @@ export function OperationsView() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </ViewWrapper>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { GameButton } from './ui/GameButton';
+import { BackButton } from './ui/BackButton';
 import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -71,84 +72,60 @@ export function MapView() {
     }
   };
 
-  if (showVilla) {
-    return (
-      <div>
-        <VillaView />
-        <button onClick={() => setShowVilla(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
-          ← TERUG NAAR KAART
-        </button>
-      </div>
-    );
-  }
+  // Sub-location views
+  const subViews: { show: boolean; component: React.ReactNode; onClose: () => void }[] = [
+    { show: showVilla, component: <VillaView />, onClose: () => setShowVilla(false) },
+    { show: showHospital, component: <HospitalView />, onClose: () => setShowHospital(false) },
+    { show: showChopShop, component: <ChopShopView />, onClose: () => setShowChopShop(false) },
+    { show: showSafehouse, component: <SafehouseView />, onClose: () => setShowSafehouse(false) },
+    { show: showCasino, component: <CasinoView />, onClose: () => setShowCasino(false) },
+  ];
 
-  if (showHospital) {
+  const activeSubView = subViews.find(sv => sv.show);
+  if (activeSubView) {
     return (
       <div>
-        <HospitalView />
-        <button onClick={() => setShowHospital(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
-          ← TERUG NAAR KAART
-        </button>
-      </div>
-    );
-  }
-
-  if (showChopShop) {
-    return (
-      <div>
-        <ChopShopView />
-        <button onClick={() => setShowChopShop(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
-          ← TERUG NAAR KAART
-        </button>
-      </div>
-    );
-  }
-
-  if (showSafehouse) {
-    return (
-      <div>
-        <SafehouseView />
-        <button
-          onClick={() => setShowSafehouse(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
-        >
-          ← TERUG NAAR KAART
-        </button>
-      </div>
-    );
-  }
-
-  if (showCasino) {
-    return (
-      <div>
-        <CasinoView />
-        <button
-          onClick={() => setShowCasino(false)}
-          className="w-full mt-3 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground"
-        >
-          ← TERUG NAAR KAART
-        </button>
+        {activeSubView.component}
+        <BackButton onClick={activeSubView.onClose} />
       </div>
     );
   }
 
   const isHiding = (state.hidingDays || 0) > 0;
 
+  // Build contextual action buttons
+  const contextActions: { id: string; icon: React.ReactNode; label: string; variant: string; onClick: () => void; className?: string }[] = [];
+
+  if (!isHiding) {
+    if (canTriggerFinalBoss(state) && !state.activeCombat) {
+      contextActions.push({ id: 'decker', icon: <Swords size={14} />, label: 'DECKER', variant: 'blood', onClick: () => dispatch({ type: 'START_FINAL_BOSS' }), className: 'glow-blood' });
+    }
+    if ((state.loc === 'neon' || (state.districtRep?.crown >= 50))) {
+      contextActions.push({ id: 'casino', icon: <Dices size={14} />, label: 'CASINO', variant: 'purple', onClick: () => {
+        if (state.weather === 'storm') { showToast('Casino gesloten wegens storm!', true); return; }
+        setShowCasino(true);
+      }, className: state.weather === 'storm' ? 'opacity-50' : '' });
+    }
+    if (state.loc === 'iron') {
+      contextActions.push({ id: 'chop', icon: <Wrench size={14} />, label: 'CHOP', variant: 'gold', onClick: () => setShowChopShop(true) });
+    }
+    if (state.loc === 'crown' && state.playerHP < state.playerMaxHP) {
+      contextActions.push({ id: 'hospital', icon: <Heart size={14} />, label: 'ZSHS', variant: 'emerald', onClick: () => setShowHospital(true) });
+    }
+    if (state.safehouses.some(sh => sh.district === state.loc)) {
+      contextActions.push({ id: 'safe', icon: <Home size={14} />, label: 'SAFE', variant: 'emerald', onClick: () => setShowSafehouse(true) });
+    }
+    if (state.villa || (state.player.level >= 8 && state.rep >= 300)) {
+      contextActions.push({ id: 'villa', icon: <Building2 size={14} />, label: 'VILLA', variant: 'gold', onClick: () => setShowVilla(true) });
+    }
+  }
+
   return (
     <div className="relative">
-      {/* Hiding overlay */}
       <HidingOverlay />
-
-      {/* News ticker */}
       <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
-
-      {/* News detail popup */}
       <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
 
-      {/* City Map */}
       <div className="mb-3">
         <CityMap
           playerLocation={state.loc}
@@ -173,91 +150,32 @@ export function MapView() {
         />
       </div>
 
-      {/* Nemesis Info */}
       {state.nemesis && <NemesisInfo />}
-
-      {/* District Popup */}
       {selectedDistrict && !isHiding && <DistrictPopup />}
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
-          DAG AFSLUITEN
-        </GameButton>
-        {!isHiding && (state.loc === 'neon' || (state.districtRep?.crown >= 50)) && (
-          <GameButton
-            variant="purple"
-            size="lg"
-            icon={<Dices size={14} />}
-            onClick={() => {
-              if (state.weather === 'storm') {
-                showToast('Casino gesloten wegens storm!', true);
-                return;
-              }
-              setShowCasino(true);
-            }}
-            className={`px-4 ${state.weather === 'storm' ? 'opacity-50' : ''}`}
-          >
-            CASINO
-          </GameButton>
-        )}
-        {!isHiding && state.loc === 'iron' && (
-          <GameButton
-            variant="gold"
-            size="lg"
-            icon={<Wrench size={14} />}
-            onClick={() => setShowChopShop(true)}
-            className="px-4"
-          >
-            CHOP
-          </GameButton>
-        )}
-        {!isHiding && state.loc === 'crown' && state.playerHP < state.playerMaxHP && (
-          <GameButton
-            variant="emerald"
-            size="lg"
-            icon={<Heart size={14} />}
-            onClick={() => setShowHospital(true)}
-            className="px-4"
-          >
-            ZSHS
-          </GameButton>
-        )}
-        {!isHiding && state.safehouses.some(sh => sh.district === state.loc) && (
-          <GameButton
-            variant="emerald"
-            size="lg"
-            icon={<Home size={14} />}
-            onClick={() => setShowSafehouse(true)}
-            className="px-4"
-          >
-            SAFE
-          </GameButton>
-        )}
-        {!isHiding && (state.villa || (state.player.level >= 8 && state.rep >= 300)) && (
-          <GameButton
-            variant="gold"
-            size="lg"
-            icon={<Building2 size={14} />}
-            onClick={() => setShowVilla(true)}
-            className="px-4"
-          >
-            VILLA
-          </GameButton>
-        )}
-        {!isHiding && canTriggerFinalBoss(state) && !state.activeCombat && (
-          <GameButton
-            variant="blood"
-            size="lg"
-            glow
-            icon={<Swords size={14} />}
-            onClick={() => dispatch({ type: 'START_FINAL_BOSS' })}
-            className="px-4"
-          >
-            DECKER
-          </GameButton>
-        )}
-      </div>
+      {/* Contextual action bar */}
+      {contextActions.length > 0 && (
+        <div className="flex gap-1.5 mb-2 overflow-x-auto scrollbar-hide pb-1">
+          {contextActions.map(action => (
+            <GameButton
+              key={action.id}
+              variant={action.variant as any}
+              size="sm"
+              icon={action.icon}
+              onClick={action.onClick}
+              className={`flex-shrink-0 px-3 ${action.className || ''}`}
+              glow={action.id === 'decker'}
+            >
+              {action.label}
+            </GameButton>
+          ))}
+        </div>
+      )}
+
+      {/* Fixed end-turn button */}
+      <GameButton variant="blood" size="lg" fullWidth glow icon={<Moon size={14} />} onClick={handleEndTurn}>
+        DAG AFSLUITEN
+      </GameButton>
 
       <ConfirmDialog
         open={confirmEndTurn}
