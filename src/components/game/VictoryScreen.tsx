@@ -4,8 +4,9 @@ import { ACHIEVEMENTS } from '@/game/constants';
 import { VictoryRank } from '@/game/types';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Trophy, Star, Swords, Calendar, Coins, Target, Dices, Users, MapPin, Skull, Medal, RotateCcw, Play } from 'lucide-react';
+import { Crown, Trophy, Star, Swords, Calendar, Coins, Target, Dices, Users, MapPin, Skull, Medal, RotateCcw, Play, Sparkles } from 'lucide-react';
 import victoryBg from '@/assets/items/victory-kingpin.jpg';
+import { PrestigeBadge } from './ui/PrestigeBadge';
 
 const RANK_CONFIG: Record<VictoryRank, { label: string; color: string; glow: string; desc: string }> = {
   S: { label: 'LEGENDE', color: 'text-gold', glow: 'glow-gold', desc: 'Perfect gespeeld. Noxhaven knielt.' },
@@ -146,6 +147,32 @@ export function VictoryScreen() {
           >
             NEW GAME+ (MOEILIJKER, BONUSSEN)
           </GameButton>
+
+          {/* Prestige Reset Button */}
+          {state.player.level >= 15 && !state.hardcoreMode && (
+            <div className="space-y-1">
+              <GameButton
+                variant="gold"
+                size="lg"
+                fullWidth
+                icon={<Sparkles size={14} />}
+                onClick={() => dispatch({ type: 'PRESTIGE_RESET' })}
+              >
+                PRESTIGE RESET (P{(state.prestigeLevel || 0) + 1})
+              </GameButton>
+              <div className="text-[0.45rem] text-muted-foreground text-center space-y-0.5">
+                <p>Reset naar level 1 met permanente bonussen:</p>
+                <p className="text-gold">+5% XP | +€{((state.prestigeLevel || 0) + 1) * 2000} startgeld | +{(state.prestigeLevel || 0) + 1} base stats</p>
+                {state.prestigeLevel > 0 && (
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Huidig:</span>
+                    <PrestigeBadge level={state.prestigeLevel} size="sm" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <GameButton
             variant="blood"
             size="lg"

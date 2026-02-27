@@ -1479,7 +1479,9 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
 export function gainXp(state: GameState, amount: number, source: string = 'action'): boolean {
   // Apply week event XP multiplier (e.g. 2x XP Weekend)
   const weekMultiplier = getWeekEventXpMultiplier(state);
-  const finalAmount = Math.floor(amount * weekMultiplier);
+  // Apply prestige XP bonus (+5% per prestige level)
+  const prestigeMultiplier = 1 + ((state.prestigeLevel || 0) * 0.05);
+  const finalAmount = Math.floor(amount * weekMultiplier * prestigeMultiplier);
 
   // Queue XP for server-side processing (server applies multipliers, level-ups, SP)
   if (!state._pendingXpGains) state._pendingXpGains = [];

@@ -1820,6 +1820,9 @@ export function createInitialState(): import('./types').GameState {
     prestigeLevel: 0,
     xpStreak: 0,
     _pendingXpGains: [],
+    // Prestige Reset & Hardcore Mode
+    hardcoreMode: false,
+    prestigeResetCount: 0,
   };
 }
 

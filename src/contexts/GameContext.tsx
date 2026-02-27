@@ -9,7 +9,7 @@ import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
-import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent } from '../game/endgame';
+import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent, createPrestigeReset } from '../game/endgame';
 import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
@@ -118,6 +118,8 @@ type GameAction =
   | { type: 'START_BOSS_PHASE_2' }
   | { type: 'RESOLVE_FINAL_BOSS' }
   | { type: 'NEW_GAME_PLUS' }
+  | { type: 'PRESTIGE_RESET' }
+  | { type: 'START_HARDCORE' }
   | { type: 'FREE_PLAY' }
   | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'fail' }
   | { type: 'DISMISS_STREET_EVENT' }
@@ -329,6 +331,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!loaded.tradeLog) loaded.tradeLog = [];
       // Migrate: craft log
       if (!loaded.craftLog) loaded.craftLog = [];
+      // Migrate: hardcore & prestige reset
+      if (loaded.hardcoreMode === undefined) loaded.hardcoreMode = false;
+      if (loaded.prestigeResetCount === undefined) loaded.prestigeResetCount = 0;
       return loaded;
     }
 
@@ -656,7 +661,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         rep: s.rep, cash: s.money, day: s.day, level: s.player.level,
         districts_owned: s.ownedDistricts.length, crew_size: s.crew.length,
         karma: s.karma || 0, backstory: s.backstory || null,
-        prestige_level: s.newGamePlusLevel || 0,
+        prestige_level: s.prestigeLevel || 0,
+        is_hardcore: s.hardcoreMode || false,
       });
       return s;
     }
@@ -1045,11 +1051,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           // Won: keep remaining HP (min 1)
           s.playerHP = Math.max(1, s.activeCombat.playerHP);
         } else {
-          // Last Stand: 15% chance to survive with 1 HP
+          // Last Stand: 15% chance to survive with 1 HP (disabled in hardcore mode)
           const lastStandRoll = Math.random();
-          if (lastStandRoll < 0.15) {
+          if (!s.hardcoreMode && lastStandRoll < 0.15) {
             s.playerHP = 1;
             addPhoneMessage(s, '⚡ Last Stand', 'Je weigerde te vallen. Met pure wilskracht overleef je het gevecht met 1 HP!', 'warning');
+          } else if (s.hardcoreMode) {
+            // Hardcore: instant game over on first hospitalization
+            s.hospitalizations = 1;
+            s.gameOver = true;
+            s.playerHP = 0;
           } else {
           // Lost: hospitalization system
           const maxHP = s.playerMaxHP;
@@ -1372,9 +1383,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'NEW_GAME_PLUS': {
       const ngPlus = createNewGamePlus(s);
+      // Carry over hardcore mode
+      if (s.hardcoreMode) ngPlus.hardcoreMode = true;
       Engine.generatePrices(ngPlus);
-      // Contracts generated server-side via gameApi.acceptContract()
       return ngPlus;
+    }
+
+    case 'PRESTIGE_RESET': {
+      if (s.player.level < 15) return s; // Require level 15+
+      const prestige = createPrestigeReset(s);
+      Engine.generatePrices(prestige);
+      prestige.dailyNews = generateDailyNews(prestige);
+      return prestige;
+    }
+
+    case 'START_HARDCORE': {
+      const fresh = createInitialState();
+      fresh.hardcoreMode = true;
+      Engine.generatePrices(fresh);
+      fresh.dailyNews = generateDailyNews(fresh);
+      return fresh;
     }
 
     case 'FREE_PLAY': {
@@ -2979,12 +3007,20 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       // Gang territory migration
       if (!saved.gangDistricts) saved.gangDistricts = [];
       if (saved.gangId === undefined) saved.gangId = null;
+      // Hardcore & prestige reset migration
+      if (saved.hardcoreMode === undefined) saved.hardcoreMode = false;
+      if (saved.prestigeResetCount === undefined) saved.prestigeResetCount = 0;
       return saved;
     }
     const fresh = createInitialState();
     Engine.generatePrices(fresh);
-    // Contracts generated server-side via gameApi.acceptContract()
     fresh.dailyNews = generateDailyNews(fresh);
+    // Check if hardcore mode was requested from main menu
+    const startHardcore = localStorage.getItem('noxhaven_start_hardcore');
+    if (startHardcore) {
+      fresh.hardcoreMode = true;
+      localStorage.removeItem('noxhaven_start_hardcore');
+    }
     return fresh;
   });
 

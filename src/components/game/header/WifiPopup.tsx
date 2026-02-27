@@ -54,7 +54,8 @@ export function WifiPopup() {
         crew_size: state.crew.length,
         karma: state.karma || 0,
         backstory: state.backstory || null,
-        prestige_level: state.newGamePlusLevel || 0,
+        prestige_level: state.prestigeLevel || 0,
+        is_hardcore: state.hardcoreMode || false,
       });
       const { data } = await supabase.from('leaderboard_entries').select('updated_at').eq('user_id', user!.id).maybeSingle();
       if (data) setLastSync(data.updated_at);

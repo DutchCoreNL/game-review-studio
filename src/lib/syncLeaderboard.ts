@@ -10,6 +10,7 @@ interface SyncData {
   karma: number;
   backstory: string | null;
   prestige_level: number;
+  is_hardcore: boolean;
 }
 
 export async function syncLeaderboard(data: SyncData) {
