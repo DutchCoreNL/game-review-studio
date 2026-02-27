@@ -1271,6 +1271,36 @@ export type Database = {
         }
         Relationships: []
       }
+      world_state: {
+        Row: {
+          current_weather: string
+          id: number
+          next_cycle_at: string
+          time_of_day: string
+          updated_at: string
+          weather_changed_at: string
+          world_day: number
+        }
+        Insert: {
+          current_weather?: string
+          id?: number
+          next_cycle_at?: string
+          time_of_day?: string
+          updated_at?: string
+          weather_changed_at?: string
+          world_day?: number
+        }
+        Update: {
+          current_weather?: string
+          id?: number
+          next_cycle_at?: string
+          time_of_day?: string
+          updated_at?: string
+          weather_changed_at?: string
+          world_day?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

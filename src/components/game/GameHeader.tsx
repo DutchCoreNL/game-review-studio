@@ -17,6 +17,7 @@ import { CooldownTimer } from './header/CooldownTimer';
 import { motion } from 'framer-motion';
 import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
+import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
@@ -38,6 +39,7 @@ const WEATHER_COLORS: Record<WeatherType, string> = {
 
 export function GameHeader() {
   const { state, dispatch } = useGame();
+  const worldState = useWorldState();
   const [popup, setPopup] = useState<PopupType>(null);
   const [nextTickCountdown, setNextTickCountdown] = useState<string>('');
   
@@ -62,7 +64,8 @@ export function GameHeader() {
   }, [state.lastTickAt, state.tickIntervalMinutes]);
 
   const rank = getRankTitle(state.rep);
-  const weatherDef = WEATHER_EFFECTS[state.weather];
+  const activeWeather = worldState.loading ? state.weather : worldState.weather;
+  const weatherDef = WEATHER_EFFECTS[activeWeather];
   const phaseData = ENDGAME_PHASES.find(p => p.id === state.endgamePhase);
   const vehicleHeat = getActiveVehicleHeat(state);
   const personalHeat = state.personalHeat || 0;
@@ -89,10 +92,13 @@ export function GameHeader() {
             <span>{phaseData?.icon || '🔫'}</span>
             <span className="truncate">{phaseData?.label || rank}</span>
             <span className="text-muted-foreground/40">·</span>
-            <span>Dag {state.day}</span>
+            <span title={TIME_OF_DAY_LABELS[worldState.timeOfDay]}>
+              {TIME_OF_DAY_ICONS[worldState.timeOfDay]}
+            </span>
+            <span>Dag {worldState.loading ? state.day : worldState.worldDay}</span>
             <span className="text-muted-foreground/60 tabular-nums" title="Volgende dag in...">⏱{nextTickCountdown}</span>
-            <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[state.weather]}`} title={weatherDef?.desc}>
-              {WEATHER_ICONS[state.weather]}
+            <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[activeWeather]}`} title={weatherDef?.desc}>
+              {WEATHER_ICONS[activeWeather]}
             </span>
             {state.newGamePlusLevel > 0 && (
               <span className="text-game-purple text-[0.45rem] font-bold">NG+{state.newGamePlusLevel}</span>

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.passive-income]
 verify_jwt = false
+
+[functions.world-tick]
+verify_jwt = false
