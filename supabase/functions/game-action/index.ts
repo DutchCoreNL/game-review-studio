@@ -3324,6 +3324,62 @@ async function handleAcceptContract(supabase: any, userId: string, ps: any, payl
   };
 }
 
+// ========== DROP CONTRACT (server-validated) ==========
+
+async function handleDropContract(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { contractId } = payload || {};
+  if (contractId === undefined) return { success: false, message: "Geen contract ID opgegeven." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Load save_data
+  const { data: stateRow } = await supabase.from("player_state")
+    .select("save_data").eq("user_id", userId).maybeSingle();
+  if (!stateRow?.save_data) return { success: false, message: "Geen speeldata gevonden." };
+
+  const saveData = typeof stateRow.save_data === "string" ? JSON.parse(stateRow.save_data) : { ...stateRow.save_data };
+  const contracts = saveData.activeContracts || [];
+  const idx = contracts.findIndex((c: any) => c.id === contractId);
+  if (idx === -1) return { success: false, message: "Contract niet gevonden." };
+
+  const contract = contracts[idx];
+
+  // Rep penalty: 10 base + 5% of contract reward value
+  const repPenalty = Math.min(50, 10 + Math.floor(contract.reward * 0.05));
+  const karmaPenalty = -3;
+
+  // Remove contract
+  contracts.splice(idx, 1);
+  saveData.activeContracts = contracts;
+
+  // Apply karma
+  saveData.karma = (saveData.karma || 0) + karmaPenalty;
+
+  const newRep = Math.max(0, (ps.rep || 0) - repPenalty);
+
+  await supabase.from("player_state").update({
+    save_data: saveData,
+    rep: newRep,
+    karma: saveData.karma,
+    updated_at: new Date().toISOString(),
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Log
+  await supabase.from("game_action_log").insert({
+    user_id: userId, action_type: "drop_contract",
+    action_data: { contractId, contractName: contract.name },
+    result_data: { repPenalty, karmaPenalty },
+  });
+
+  return {
+    success: true,
+    message: `Contract "${contract.name}" geannuleerd. -${repPenalty} REP | ${karmaPenalty} Karma`,
+    data: { repPenalty, karmaPenalty, saveData },
+  };
+}
+
 // ========== COMPLETE CONTRACT (server-validated) ==========
 
 const CONTRACT_TYPES: Record<string, { baseReward: [number, number]; baseXp: [number, number]; baseHeat: [number, number]; baseRep: [number, number] }> = {
@@ -4162,6 +4218,9 @@ Deno.serve(async (req) => {
         break;
       case "accept_contract":
         result = await handleAcceptContract(supabase, user.id, playerState, payload);
+        break;
+      case "drop_contract":
+        result = await handleDropContract(supabase, user.id, playerState, payload);
         break;
       case "complete_contract":
         result = await handleCompleteContract(supabase, user.id, playerState, payload);

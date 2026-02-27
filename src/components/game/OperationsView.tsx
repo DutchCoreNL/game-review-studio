@@ -75,6 +75,18 @@ export function OperationsView() {
     }
   };
 
+  const handleDropContract = async (contractId: number) => {
+    const res = await gameApi.dropContract(contractId);
+    if (res.success) {
+      const updated = state.activeContracts.filter(c => c.id !== contractId);
+      dispatch({ type: 'SET_STATE', state: { ...state, activeContracts: updated, rep: Math.max(0, state.rep - (res.data?.repPenalty || 0)) } } as any);
+      showToast(res.message);
+    } else {
+      showToast(res.message, true);
+    }
+  };
+
+
   const startContractMission = (contractId: number, crewIndex: number) => {
     const contract = state.activeContracts.find(c => c.id === contractId);
     const member = state.crew[crewIndex];
@@ -209,7 +221,8 @@ export function OperationsView() {
                 <ContractCard key={contract.id} contract={contract} crew={state.crew}
                   isExpanded={selectedContract === contract.id}
                   onToggle={() => setSelectedContract(selectedContract === contract.id ? null : contract.id)}
-                  onAssign={(crewIdx) => startContractMission(contract.id, crewIdx)} />
+                  onAssign={(crewIdx) => startContractMission(contract.id, crewIdx)}
+                  onDrop={() => handleDropContract(contract.id)} />
               ))}
             </div>
           )}
@@ -397,7 +410,7 @@ export function OperationsView() {
   );
 }
 
-function ContractCard({ contract, crew, isExpanded, onToggle, onAssign }: { contract: ActiveContract; crew: GameState['crew']; isExpanded: boolean; onToggle: () => void; onAssign: (crewIndex: number) => void }) {
+function ContractCard({ contract, crew, isExpanded, onToggle, onAssign, onDrop }: { contract: ActiveContract; crew: GameState['crew']; isExpanded: boolean; onToggle: () => void; onAssign: (crewIndex: number) => void; onDrop: () => void }) {
   const bestRole = BEST_ROLE[contract.type] || '';
   const icon = CONTRACT_ICONS[contract.type] || <Crosshair size={16} />;
   const color = CONTRACT_COLORS[contract.type] || 'text-foreground';
@@ -460,6 +473,9 @@ function ContractCard({ contract, crew, isExpanded, onToggle, onAssign }: { cont
                 })}
               </div>
             )}
+            <button onClick={onDrop} className="w-full mt-2 py-1.5 px-2 rounded text-[0.5rem] font-bold text-blood border border-blood/30 hover:bg-blood/10 transition-colors flex items-center justify-center gap-1">
+              <Trash2 size={10} /> ANNULEER CONTRACT (rep penalty)
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

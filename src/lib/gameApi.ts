@@ -23,27 +23,7 @@ export type GameAction =
   | "unlock_skill" | "get_skills" | "prestige" | "gain_xp"
   | "get_district_data"
   | "accept_contract"
-  | "complete_contract"
-  | "trade" | "travel"
-  | "solo_op"
-  | "buy_gear" | "equip_gear" | "unequip_gear"
-  | "buy_vehicle" | "switch_vehicle"
-  | "wash_money" | "bribe_police" | "buy_business"
-  | "attack" | "list_players"
-  | "get_public_profile"
-  | "send_message" | "get_messages" | "read_message" | "delete_message"
-  | "create_gang" | "get_gang" | "gang_invite" | "gang_accept_invite"
-  | "gang_leave" | "gang_kick" | "gang_promote"
-  | "gang_claim_territory" | "gang_donate" | "gang_declare_war"
-  | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs"
-  | "contribute_influence" | "get_district_info"
-  | "get_market_prices"
-  | "place_bounty" | "get_most_wanted"
-  | "district_leaderboard"
-  | "pvp_combat_start" | "pvp_combat_action"
-  | "casino_play"
-  | "unlock_skill" | "get_skills" | "prestige" | "gain_xp"
-  | "get_district_data"
+  | "drop_contract"
   | "complete_contract"
   | "complete_hit"
   | "get_faction_state"
@@ -152,6 +132,7 @@ export const gameApi = {
 
   // Server-validated contract acceptance
   acceptContract: () => invokeGameAction("accept_contract"),
+  dropContract: (contractId: number) => invokeGameAction("drop_contract", { contractId }),
 
   // Server-validated contract/hit completion
   completeContract: (contractId: number, contractType: string, successRate: number, encounterCount: number) =>
