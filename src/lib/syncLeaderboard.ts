@@ -9,6 +9,7 @@ interface SyncData {
   crew_size: number;
   karma: number;
   backstory: string | null;
+  prestige_level: number;
 }
 
 export async function syncLeaderboard(data: SyncData) {

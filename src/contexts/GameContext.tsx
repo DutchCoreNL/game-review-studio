@@ -653,6 +653,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         rep: s.rep, cash: s.money, day: s.day, level: s.player.level,
         districts_owned: s.ownedDistricts.length, crew_size: s.crew.length,
         karma: s.karma || 0, backstory: s.backstory || null,
+        prestige_level: s.newGamePlusLevel || 0,
       });
       return s;
     }

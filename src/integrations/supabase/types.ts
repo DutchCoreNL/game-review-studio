@@ -59,6 +59,7 @@ export type Database = {
           level: number
           loc: string
           max_hp: number
+          prestige_level: number
           rep: number
           username: string
         }
@@ -76,6 +77,7 @@ export type Database = {
           level?: number
           loc?: string
           max_hp?: number
+          prestige_level?: number
           rep?: number
           username: string
         }
@@ -93,6 +95,7 @@ export type Database = {
           level?: number
           loc?: string
           max_hp?: number
+          prestige_level?: number
           rep?: number
           username?: string
         }
@@ -490,6 +493,7 @@ export type Database = {
           id: string
           karma: number
           level: number
+          prestige_level: number
           rep: number
           updated_at: string
           user_id: string
@@ -504,6 +508,7 @@ export type Database = {
           id?: string
           karma?: number
           level?: number
+          prestige_level?: number
           rep?: number
           updated_at?: string
           user_id: string
@@ -518,6 +523,7 @@ export type Database = {
           id?: string
           karma?: number
           level?: number
+          prestige_level?: number
           rep?: number
           updated_at?: string
           user_id?: string

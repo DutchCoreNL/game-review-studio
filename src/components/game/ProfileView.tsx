@@ -14,6 +14,7 @@ import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
 import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home, Settings, Mail } from 'lucide-react';
+import { PrestigeBadge } from './ui/PrestigeBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
 import { KarmaPanel } from './profile/KarmaPanel';
@@ -65,12 +66,12 @@ export function ProfileView() {
             <Skull size={18} className="text-gold" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
+              {state.newGamePlusLevel > 0 && <PrestigeBadge level={state.newGamePlusLevel} size="md" />}
+            </div>
             <div className="flex items-center gap-1.5">
               <p className="text-[0.6rem] text-gold font-semibold">{rank} — Level {state.player.level}</p>
-              {state.newGamePlusLevel > 0 && (
-                <span className="text-[0.5rem] text-game-purple font-bold">NG+{state.newGamePlusLevel}</span>
-              )}
             </div>
             <div className="mt-1.5">
               <AnimatedXPBar xp={state.player.xp} nextXp={state.player.nextXp} level={state.player.level} />

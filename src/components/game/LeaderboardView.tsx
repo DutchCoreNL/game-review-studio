@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, ChevronUp, ChevronDown } from 'lucide-react';
+import { PrestigeBadge } from './ui/PrestigeBadge';
 import { motion } from 'framer-motion';
 import { SectionHeader } from './ui/SectionHeader';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
@@ -20,6 +21,7 @@ interface LeaderboardEntry {
   karma: number;
   backstory: string | null;
   updated_at: string;
+  prestige_level?: number;
 }
 
 export function LeaderboardView() {
@@ -72,6 +74,7 @@ export function LeaderboardView() {
           karma: b.karma,
           backstory: b.backstory,
           updated_at: b.created_at,
+          prestige_level: b.prestige_level || 0,
         }));
         realEntries.push(...botEntries);
       }
@@ -163,6 +166,7 @@ export function LeaderboardView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <span className={`text-xs font-bold truncate ${isMe ? 'text-gold' : ''}`}>{entry.username}</span>
+                    {(entry.prestige_level || 0) > 0 && <PrestigeBadge level={entry.prestige_level!} />}
                     <span className="text-[0.5rem] text-muted-foreground">Lv.{entry.level}</span>
                   </div>
                   <div className="flex items-center gap-2 text-[0.5rem] text-muted-foreground">
