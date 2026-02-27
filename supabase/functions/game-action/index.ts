@@ -136,6 +136,26 @@ function checkNerve(ps: any, action: string): string | null {
   return null;
 }
 
+// ========== PLAYER NEWS HELPER ==========
+
+const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
+
+async function insertPlayerNews(supabase: any, opts: { text: string; icon: string; detail?: string; urgency?: string; category?: string; districtId?: string }) {
+  try {
+    await supabase.from("news_events").insert({
+      text: opts.text,
+      icon: opts.icon,
+      category: opts.category || 'player',
+      urgency: opts.urgency || 'medium',
+      detail: opts.detail || null,
+      district_id: opts.districtId || null,
+      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2h expiry
+    });
+  } catch (e) {
+    console.error("Player news insert error (non-fatal):", e);
+  }
+}
+
 // ========== ACTION RESULT TYPE ==========
 
 interface ActionResult {
@@ -3925,6 +3945,11 @@ Deno.serve(async (req) => {
       playerState = ps;
     }
 
+    // Fetch username for player news
+    let playerUsername = "Onbekend";
+    const { data: pProfile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
+    if (pProfile) playerUsername = pProfile.username;
+
     let result: ActionResult;
 
     switch (action) {
@@ -4104,6 +4129,95 @@ Deno.serve(async (req) => {
         action_data: payload || {},
         result_data: { success: result.success, message: result.message },
       });
+    }
+
+    // === PLAYER NEWS: broadcast notable actions to all players ===
+    if (result.success && playerUsername !== "Onbekend") {
+      const loc = playerState?.loc || "low";
+      const distName = DISTRICT_NAMES[loc] || loc;
+      const newsTemplates: Record<string, () => { text: string; icon: string; detail?: string; urgency?: string; districtId?: string } | null> = {
+        solo_op: () => {
+          const opName = payload?.opId || "operatie";
+          const reward = result.data?.reward;
+          if (!reward) return null; // only on success
+          return {
+            text: `${playerUsername} voerde een succesvolle ${opName.replace(/_/g, ' ')} uit in ${distName}`,
+            icon: '💰', detail: `Een speler heeft €${reward.toLocaleString()} buitgemaakt in ${distName}. De politie onderzoekt de zaak.`,
+            districtId: loc,
+          };
+        },
+        trade: () => {
+          const good = GOODS.find(g => g.id === payload?.goodId);
+          const qty = result.data?.quantity;
+          const mode = payload?.mode;
+          if (!good || !qty || qty < 3) return null; // only newsworthy for 3+ units
+          return {
+            text: `Grote ${mode === 'sell' ? 'verkoop' : 'aankoop'} in ${distName}: ${qty}x ${good.name} door ${playerUsername}`,
+            icon: mode === 'sell' ? '📤' : '📥', detail: `De marktprijs van ${good.name} in ${distName} is beïnvloed door deze transactie.`,
+            urgency: qty >= 10 ? 'high' : 'medium', districtId: loc,
+          };
+        },
+        attack: () => {
+          const won = result.data?.won;
+          const targetName = result.data?.targetName;
+          if (!targetName) return null;
+          if (won) {
+            return {
+              text: `${playerUsername} heeft ${targetName} verslagen in ${distName}!`,
+              icon: '⚔️', detail: `Een gewelddadige confrontatie in ${distName}. ${result.data?.targetHospitalized ? `${targetName} is gehospitaliseerd.` : 'Het slachtoffer overleefde.'}`,
+              urgency: 'high', districtId: loc,
+            };
+          } else {
+            return {
+              text: `Mislukte aanval: ${playerUsername} werd verslagen door ${targetName}`,
+              icon: '🩸', detail: `${playerUsername} beet in het zand na een mislukte aanval in ${distName}.`,
+              urgency: 'medium', districtId: loc,
+            };
+          }
+        },
+        complete_contract: () => {
+          const ok = result.data?.overallSuccess;
+          const reward = result.data?.reward;
+          if (!ok || !reward) return null;
+          return {
+            text: `${playerUsername} voltooide een ${result.data?.elite ? 'elite ' : ''}contract voor €${reward.toLocaleString()}`,
+            icon: result.data?.elite ? '💎' : '📋', detail: `Een professioneel contract is succesvol afgerond in ${distName}. De opdrachtgever is tevreden.`,
+            urgency: result.data?.elite ? 'high' : 'medium', districtId: loc,
+          };
+        },
+        pvp_combat_start: () => {
+          return {
+            text: `PvP gevecht uitgebroken in ${distName}! ${playerUsername} daagt een rivaal uit`,
+            icon: '🥊', detail: `Een directe confrontatie is aan de gang. Wie loopt weg als winnaar?`,
+            urgency: 'high', districtId: loc,
+          };
+        },
+        casino_play: () => {
+          const won = (result.data?.winnings || 0);
+          if (won < 5000) return null; // only newsworthy for big wins
+          return {
+            text: `JACKPOT! ${playerUsername} won €${won.toLocaleString()} in het casino!`,
+            icon: '🎰', detail: `Een geluksvogel heeft groot gewonnen in het Noxhaven Casino.`,
+            urgency: 'high',
+          };
+        },
+        attack_faction: () => {
+          if (!result.data?.damage) return null;
+          return {
+            text: `${playerUsername} viel een factie-basis aan!`,
+            icon: '💥', detail: `Een brutale aanval op een factie-bolwerk schokt de onderwereld.`,
+            urgency: 'high',
+          };
+        },
+      };
+
+      const newsGen = newsTemplates[action];
+      if (newsGen) {
+        const news = newsGen();
+        if (news) {
+          insertPlayerNews(supabase, news); // fire-and-forget
+        }
+      }
     }
 
     return new Response(JSON.stringify(result), {
