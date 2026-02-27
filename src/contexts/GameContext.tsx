@@ -27,6 +27,15 @@ import { generateDailyNews } from '../game/newsGenerator';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
 
+interface XpBreakdownData {
+  baseAmount: number;
+  totalXp: number;
+  multiplier: number;
+  bonuses: { key: string; label: string; value: number }[];
+  levelUps: number;
+  newLevel: number;
+}
+
 interface GameContextType {
   state: GameState;
   view: GameView;
@@ -34,6 +43,8 @@ interface GameContextType {
   selectedDistrict: DistrictId | null;
   toast: string | null;
   toastError: boolean;
+  xpBreakdown: XpBreakdownData | null;
+  clearXpBreakdown: () => void;
   setView: (view: GameView) => void;
   setTradeMode: (mode: TradeMode) => void;
   selectDistrict: (id: DistrictId | null) => void;
@@ -2905,6 +2916,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
   const [selectedDistrict, setSelectedDistrict] = React.useState<DistrictId | null>(state.loc);
   const [toast, setToast] = React.useState<string | null>(null);
   const [toastError, setToastError] = React.useState(false);
+  const [xpBreakdown, setXpBreakdown] = React.useState<XpBreakdownData | null>(null);
+  const clearXpBreakdown = useCallback(() => setXpBreakdown(null), []);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevAchievementsRef = useRef<string[]>(state.achievements);
   const prevPhaseRef = useRef(state.endgamePhase);
@@ -3013,6 +3026,19 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
             },
             xpStreak: res.data.streak,
           }});
+          // Show XP breakdown popup with bonus details
+          if (res.data.totalXp > 0) {
+            setXpBreakdown({
+              baseAmount: res.data.baseAmount,
+              totalXp: res.data.xpGained ?? res.data.totalXp,
+              multiplier: res.data.multiplier,
+              bonuses: res.data.bonuses || [],
+              levelUps: res.data.levelUps,
+              newLevel: res.data.newLevel,
+            });
+            // Auto-dismiss after 4 seconds
+            setTimeout(() => setXpBreakdown(null), 4000);
+          }
           if (res.data.levelUps > 0) {
             showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP`);
           }
@@ -3065,6 +3091,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       selectedDistrict,
       toast,
       toastError,
+      xpBreakdown,
+      clearXpBreakdown,
       setView,
       setTradeMode,
       selectDistrict: setSelectedDistrict,

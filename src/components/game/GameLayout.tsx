@@ -14,6 +14,7 @@ import { OperationsView } from './OperationsView';
 import { CombatView } from './CombatView';
 import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
+import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
 import { NightReport } from './NightReport';
 import { PhoneOverlay } from './PhoneOverlay';
@@ -52,7 +53,7 @@ const views: Record<string, React.ComponentType> = {
 };
 
 export function GameLayout() {
-  const { view, state, dispatch } = useGame();
+  const { view, state, dispatch, xpBreakdown, clearXpBreakdown } = useGame();
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
 
@@ -127,6 +128,18 @@ export function GameLayout() {
             <GameNav />
           </div>
           <GameToast />
+          {xpBreakdown && (
+            <XpBreakdownPopup
+              show={!!xpBreakdown}
+              baseAmount={xpBreakdown.baseAmount}
+              totalXp={xpBreakdown.totalXp}
+              multiplier={xpBreakdown.multiplier}
+              bonuses={xpBreakdown.bonuses}
+              levelUps={xpBreakdown.levelUps}
+              newLevel={xpBreakdown.newLevel}
+              onClose={clearXpBreakdown}
+            />
+          )}
 
           {!state.tutorialDone && <TutorialOverlay />}
           {state.nightReport && <NightReport />}
