@@ -12,6 +12,7 @@ import { playCoinSound, playAlarmSound, playNegativeSound, playPositiveSound, is
 import nightReportBg from '@/assets/night-report-bg.jpg';
 import { DRUG_EMPIRE_IMAGES, MARKET_EVENT_IMAGES } from '@/assets/items/index';
 import overlayPrison from '@/assets/items/overlay-prison.jpg';
+import { useDailyDigest } from '@/hooks/useDailyDigest';
 
 export function NightReport() {
   const { state, dispatch } = useGame();
@@ -20,16 +21,22 @@ export function NightReport() {
   const soundsScheduledFor = useRef<number | null>(null);
   const soundTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { digest, markSeen } = useDailyDigest();
 
-  // Auto-dismiss after 10 seconds (MMO realtime — no blocking)
+  // Auto-dismiss after 12 seconds (MMO realtime — no blocking)
   useEffect(() => {
     if (report) {
       autoDismissRef.current = setTimeout(() => {
-        dispatch({ type: 'DISMISS_NIGHT_REPORT' });
-      }, 10000);
+        handleDismiss();
+      }, 12000);
     }
     return () => { if (autoDismissRef.current) clearTimeout(autoDismissRef.current); };
   }, [report, dispatch]);
+
+  const handleDismiss = () => {
+    if (digest) markSeen();
+    dispatch({ type: 'DISMISS_NIGHT_REPORT' });
+  };
 
   // Cleanup sound timers on unmount
   useEffect(() => {
@@ -878,7 +885,86 @@ export function NightReport() {
             <AnimatedReportRow icon={<Sparkles size={14} />} label="Gouden Uur Bonus" value={report.goldenHourBonus} prefix="€" positive color="text-gold" delay={d + 0.4} />
           )}
 
-          {/* Cliffhanger - "Morgen..." teaser */}
+          {/* ========== DIGEST SECTIONS (merged from DailyDigest) ========== */}
+          {digest && (() => {
+            const { sections } = digest.digest_data;
+            const digestDelay = d + 0.5;
+            return (
+              <>
+                {/* PvP & Territory from digest */}
+                {sections.pvp && (sections.pvp.activeBountiesOnYou > 0 || sections.pvp.activeGangWars > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: digestDelay }}
+                    className="border border-blood/30 rounded-lg p-3 bg-[hsl(var(--blood)/0.06)]"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Swords size={14} className="text-blood" />
+                      <span className="text-xs font-bold text-blood uppercase tracking-wider">PvP & Territory</span>
+                    </div>
+                    <div className="space-y-1 text-[0.6rem]">
+                      {sections.pvp.activeBountiesOnYou > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Target size={10} /> Bounties op jou</span>
+                          <span className="text-blood font-bold">{sections.pvp.activeBountiesOnYou}x (€{sections.pvp.totalBountyAmount.toLocaleString()})</span>
+                        </div>
+                      )}
+                      {sections.pvp.activeGangWars > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Shield size={10} /> Actieve gang wars</span>
+                          <span className="text-blood font-bold">{sections.pvp.activeGangWars}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Market & Economy from digest */}
+                {sections.market?.highlights && sections.market.highlights.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: digestDelay + 0.12 }}
+                    className="border border-gold/30 rounded-lg p-3 bg-[hsl(var(--gold)/0.06)]"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 size={14} className="text-gold" />
+                      <span className="text-xs font-bold text-gold uppercase tracking-wider">Markt & Economie</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {sections.market.highlights.map((h: string, i: number) => (
+                        <p key={i} className="text-[0.6rem] text-muted-foreground">📰 {h}</p>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Cliffhanger from digest */}
+                {sections.cliffhanger && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: digestDelay + 0.3, duration: 0.6 }}
+                    className="border rounded-lg p-3 bg-[hsl(var(--game-purple)/0.08)] border-game-purple/30"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-sm">{sections.cliffhanger.icon}</span>
+                      <span className="text-[0.6rem] font-bold text-game-purple uppercase tracking-widest">Morgen...</span>
+                      <motion.span
+                        className="text-game-purple/60 text-xs"
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >...</motion.span>
+                    </div>
+                    <p className="text-[0.55rem] text-muted-foreground italic leading-relaxed">{sections.cliffhanger.text}</p>
+                  </motion.div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* Local cliffhanger (from game state) */}
           {report.cliffhanger && (
             <motion.div
               initial={{ opacity: 0, y: 15 }}
@@ -904,7 +990,7 @@ export function NightReport() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: d + 1.0, duration: 0.3 }}
-            onClick={() => dispatch({ type: 'DISMISS_NIGHT_REPORT' })}
+            onClick={handleDismiss}
             className="w-full mt-5 py-3 rounded bg-gold text-secondary-foreground font-bold text-sm uppercase tracking-wider"
             whileTap={{ scale: 0.97 }}
           >
