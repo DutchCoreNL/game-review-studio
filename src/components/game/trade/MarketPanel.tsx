@@ -577,6 +577,22 @@ export function MarketPanel() {
                       €{totalCost.toLocaleString()}
                     </span>
                   )}
+                  {tradeMode === 'buy' && !disabled && (() => {
+                    const buyQty = Math.min(effectiveQty, Math.floor(state.money / displayPrice));
+                    if (buyQty <= 1) return null;
+                    const currentPressure = state.marketPressure?.[state.loc]?.[g.id] || 0;
+                    const newPressure = currentPressure + (buyQty * 0.08);
+                    const priceBefore = displayPrice;
+                    const priceAfter = Math.floor(basePrice * distMod * (1 + newPressure * 0.15) * (demand ? 1.6 : 1));
+                    const shift = priceAfter - priceBefore;
+                    if (shift <= 0) return null;
+                    const pct = Math.round((shift / priceBefore) * 100);
+                    return (
+                      <span className={`text-[0.4rem] flex items-center gap-0.5 ${pct >= 15 ? 'text-blood' : pct >= 5 ? 'text-gold' : 'text-muted-foreground'}`}>
+                        <TrendingUp size={7} /> +{pct}% impact
+                      </span>
+                    );
+                  })()}
                   <TradeRewardFloater
                     amount={lastTrade?.gid === g.id ? lastTrade.amount : 0}
                     show={lastTrade?.gid === g.id}
