@@ -144,11 +144,9 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
 
   // Decay info
   let vDecay = 8;
-  if (state.ownedDistricts.includes('crown')) vDecay += 2;
   if (state.hqUpgrades.includes('server')) vDecay += 3;
   let pDecay = 2;
   if (state.hqUpgrades.includes('safehouse')) pDecay = 4;
-  if (state.ownedDistricts.includes('crown')) pDecay += 1;
   if (state.hqUpgrades.includes('server')) pDecay += 3;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
 

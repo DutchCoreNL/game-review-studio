@@ -11,24 +11,27 @@ import { Shield, Swords, Eye, Bomb, Handshake } from 'lucide-react';
 export function DistrictDefensePanel() {
   const { state, dispatch, showToast } = useGame();
 
-  if (state.ownedDistricts.length === 0) {
+  // MMO: use all districts with defenses instead of ownedDistricts
+  const activeDistricts = (['port', 'crown', 'iron', 'low', 'neon'] as DistrictId[]).filter(d => state.districtDefenses[d]);
+  
+  if (activeDistricts.length === 0) {
     return (
       <div className="game-card text-center py-6">
         <Shield size={24} className="mx-auto text-muted-foreground mb-2" />
-        <p className="text-[0.6rem] text-muted-foreground">Koop eerst een district om verdedigingen te bouwen.</p>
+        <p className="text-[0.6rem] text-muted-foreground">Bouw verdedigingen via gang influence om je territoria te beschermen.</p>
       </div>
     );
   }
 
-  const hasCommand = state.ownedDistricts.some(d => hasCommandCenter(state, d));
-  const unownedDistricts = (['port', 'crown', 'iron', 'low', 'neon'] as DistrictId[]).filter(d => !state.ownedDistricts.includes(d));
+  const hasCommand = activeDistricts.some(d => hasCommandCenter(state, d));
+  const otherDistricts = (['port', 'crown', 'iron', 'low', 'neon'] as DistrictId[]).filter(d => !activeDistricts.includes(d));
 
   return (
     <div>
       {/* District Defenses */}
       <SectionHeader title="District HQ Verdediging" icon={<Shield size={12} />} />
       <div className="space-y-3 mb-4">
-        {state.ownedDistricts.map(distId => {
+        {activeDistricts.map(distId => {
           const def = state.districtDefenses[distId];
           if (!def) return null;
           const defLevel = getDistrictDefenseLevel(state, distId);
@@ -106,12 +109,12 @@ export function DistrictDefensePanel() {
       </div>
 
       {/* Spionage & Sabotage */}
-      {hasCommand && unownedDistricts.length > 0 && (
+      {hasCommand && otherDistricts.length > 0 && (
         <>
           <SectionHeader title="Spionage & Sabotage" icon={<Eye size={12} />} />
           <p className="text-[0.5rem] text-muted-foreground mb-2">Commandocentrum vereist. Verken vijandelijke districten.</p>
           <div className="space-y-2 mb-4">
-            {unownedDistricts.map(distId => {
+            {otherDistricts.map(distId => {
               const district = DISTRICTS[distId];
               const intel = state.spionageIntel?.find(i => i.district === distId);
               const sabotage = state.sabotageEffects?.find(e => e.district === distId);

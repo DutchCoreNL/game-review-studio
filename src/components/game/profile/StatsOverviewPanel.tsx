@@ -11,7 +11,7 @@ export function StatsOverviewPanel() {
   const { state } = useGame();
 
   // Income breakdown
-  const districtIncome = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
+  const districtIncome = 0; // MMO: district income removed
   const businessIncome = state.ownedBusinesses.reduce((s, bid) => {
     const biz = BUSINESSES.find(b => b.id === bid);
     return s + (biz?.income || 0);
@@ -25,12 +25,11 @@ export function StatsOverviewPanel() {
 
   // Heat decay calculation
   let vDecay = 8;
-  if (state.ownedDistricts.includes('crown')) vDecay += 2;
   if (state.villa?.modules.includes('server_room')) vDecay += 5;
 
   let pDecay = 2;
-  if (state.ownedDistricts.includes('crown')) pDecay += 1;
   if (state.villa?.modules.includes('server_room')) pDecay += 5;
+  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   pDecay += getKarmaHeatDecayBonus(state);
   if (state.safehouses) {
@@ -45,11 +44,7 @@ export function StatsOverviewPanel() {
 
   // Active bonuses
   const bonuses: { label: string; source: string }[] = [];
-  if (state.ownedDistricts.includes('port')) bonuses.push({ label: '+10% Opslag', source: 'Port Nero' });
-  if (state.ownedDistricts.includes('crown')) bonuses.push({ label: '-20% Heat Decay', source: 'Crown Heights' });
-  if (state.ownedDistricts.includes('iron')) bonuses.push({ label: '-20% Healing', source: 'Iron Borough' });
-  if (state.ownedDistricts.includes('low')) bonuses.push({ label: 'Goedkopere Ops', source: 'Lowrise' });
-  if (state.ownedDistricts.includes('neon')) bonuses.push({ label: '+10% Casino', source: 'Neon Strip' });
+  // District perks removed (MMO: gang influence only)
   if (state.villa?.modules.includes('server_room')) bonuses.push({ label: '+5 Heat Decay', source: 'Villa Server Room' });
   if (state.villa?.modules.includes('kluis')) bonuses.push({ label: 'Geld Beschermd', source: 'Villa Kluis' });
   if (state.crew.some(c => c.role === 'Hacker')) bonuses.push({ label: '+2 Heat Decay', source: 'Hacker Crew' });
