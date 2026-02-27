@@ -997,6 +997,11 @@ export interface GameState {
   npcRelations: Record<string, NpcRelation>;
   pendingFlashback: FlashbackData | null;
   keyDecisions: string[];
+  mmoPerkFlags?: {
+    pvpDamageBonus?: number;
+    tradeDiscount?: number;
+    heatReductionBonus?: number;
+  };
 
   // ========== HITMAN & AMMO STATE ==========
   ammo: number; // legacy — kept for backward compat, equals total of ammoStock

@@ -1740,6 +1740,7 @@ export function createInitialState(): import('./types').GameState {
     },
     pendingFlashback: null,
     keyDecisions: [],
+    mmoPerkFlags: {},
     // Hitman & Ammo state
     ammo: 12,
     ammoStock: { '9mm': 12, '7.62mm': 0, 'shells': 0 },

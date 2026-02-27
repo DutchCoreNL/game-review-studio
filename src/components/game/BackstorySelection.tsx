@@ -119,6 +119,13 @@ export function BackstorySelection({ onSelect }: BackstorySelectionProps) {
                         </div>
                         <p className="text-[0.55rem] text-muted-foreground italic mt-0.5">{bs.subtitle}</p>
                         <p className="text-[0.6rem] text-muted-foreground mt-1">{bs.desc}</p>
+                        <div className="mt-1.5 flex items-center gap-1.5 bg-primary/5 border border-primary/10 rounded px-2 py-1">
+                          <span className="text-sm">{bs.mmoPerk.icon}</span>
+                          <div>
+                            <span className="text-[0.5rem] font-bold text-primary uppercase tracking-wider">{bs.mmoPerk.label}</span>
+                            <p className="text-[0.45rem] text-muted-foreground">{bs.mmoPerk.desc}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -200,6 +207,15 @@ export function BackstorySelection({ onSelect }: BackstorySelectionProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* MMO Perk highlight */}
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2.5">
+                <span className="text-xl mt-0.5">{selected.mmoPerk.icon}</span>
+                <div>
+                  <span className="text-[0.6rem] font-bold text-primary uppercase tracking-wider">MMO Perk: {selected.mmoPerk.label}</span>
+                  <p className="text-[0.55rem] text-muted-foreground mt-0.5">{selected.mmoPerk.desc}</p>
+                </div>
               </div>
 
               <div className="flex gap-2">
