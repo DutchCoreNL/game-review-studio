@@ -11,10 +11,12 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
+import { gameApi } from '@/lib/gameApi';
+import { supabase } from '@/integrations/supabase/client';
 
 const QUANTITIES = [1, 5, 10, 0];
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
@@ -38,6 +40,13 @@ function getHeatSurcharge(state: { ownedVehicles: any[]; activeVehicle: string |
   return { vHeat, pHeat, avgHeat, surchargePercent, surchargeMultiplier };
 }
 
+interface ServerMarketData {
+  price: number;
+  trend: string;
+  buyVol: number;
+  sellVol: number;
+}
+
 export function MarketPanel() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
   const [quantity, setQuantity] = useState(1);
@@ -45,11 +54,71 @@ export function MarketPanel() {
   const [pendingTrade, setPendingTrade] = useState<{ gid: GoodId; qty: number; cost: number } | null>(null);
   const [expandedGood, setExpandedGood] = useState<string | null>(null);
   const [pendingSellAll, setPendingSellAll] = useState<{ totalGains: number } | null>(null);
+  const [serverPrices, setServerPrices] = useState<Record<string, Record<string, ServerMarketData>> | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  // Fetch server prices on mount and when district changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setPriceLoading(true);
+      const res = await gameApi.getMarketPrices();
+      if (!cancelled && res.success && res.data?.prices) {
+        setServerPrices(res.data.prices as any);
+      }
+      setPriceLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [state.loc]);
+
+  // Realtime price updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('market-prices-panel')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'market_prices',
+      }, (payload) => {
+        const row = payload.new as any;
+        setServerPrices(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev };
+          if (!updated[row.district_id]) updated[row.district_id] = {};
+          updated[row.district_id] = {
+            ...updated[row.district_id],
+            [row.good_id]: {
+              price: row.current_price,
+              trend: row.price_trend,
+              buyVol: row.buy_volume,
+              sellVol: row.sell_volume,
+            },
+          };
+          return updated;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
   const charmBonus = Math.floor(((totalCharm * 0.02) + (state.rep / 5000)) * 100);
-  const prices = state.prices[state.loc] || {};
+
+  // Use server prices if available, fallback to local
+  const serverDistPrices = serverPrices?.[state.loc] || {};
+  const getPrice = (gid: string): number => {
+    return serverDistPrices[gid]?.price || state.prices[state.loc]?.[gid] || 0;
+  };
+  const getTrend = (gid: string): string => {
+    return serverDistPrices[gid]?.trend || state.priceTrends[gid] || 'stable';
+  };
+  const getVolume = (gid: string): { buy: number; sell: number } | null => {
+    const sd = serverDistPrices[gid];
+    return sd ? { buy: sd.buyVol, sell: sd.sellVol } : null;
+  };
+  const isLive = !!serverPrices;
+
   const district = DISTRICTS[state.loc];
   const route = getBestTradeRoute(state);
   const heat = getHeatSurcharge(state);
@@ -68,7 +137,7 @@ export function MarketPanel() {
     showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
 
     // Calculate trade amount for floater
-    const basePrice = prices[gid] || 0;
+    const basePrice = getPrice(gid);
     const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
     const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
     const buyPrice = basePrice;
@@ -78,7 +147,7 @@ export function MarketPanel() {
 
     setLastTrade({ gid, amount: tradeAmount, mode: tradeMode });
     setTimeout(() => setLastTrade(null), 1200);
-  }, [state, tradeMode, dispatch, showToast, prices, totalCharm]);
+  }, [state, tradeMode, dispatch, showToast, serverDistPrices, totalCharm]);
 
   const handleTrade = useCallback((gid: GoodId) => {
     const owned = state.inventory[gid] || 0;
@@ -88,7 +157,7 @@ export function MarketPanel() {
 
     // Confirm large MAX trades (>€5000)
     if (quantity === 0 && actualQty > 1) {
-      const basePrice = prices[gid] || 0;
+      const basePrice = getPrice(gid);
       const estimatedCost = tradeMode === 'buy'
         ? basePrice * Math.min(actualQty, Math.floor(state.money / basePrice))
         : Math.floor(basePrice * 0.85) * Math.min(actualQty, owned);
@@ -100,7 +169,7 @@ export function MarketPanel() {
     }
 
     executeTrade(gid, actualQty);
-  }, [state, quantity, tradeMode, invCount, prices, executeTrade]);
+  }, [state, quantity, tradeMode, invCount, serverDistPrices, executeTrade]);
 
   const estimateSellAllGains = useCallback(() => {
     const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
@@ -108,13 +177,13 @@ export function MarketPanel() {
     GOODS.forEach(g => {
       const owned = state.inventory[g.id] || 0;
       if (owned > 0) {
-        const basePrice = prices[g.id] || 0;
+        const basePrice = getPrice(g.id);
         const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
         total += sellPrice * owned;
       }
     });
     return total;
-  }, [state, prices, totalCharm]);
+  }, [state, serverDistPrices, totalCharm]);
 
   const confirmSellAll = useCallback(() => {
     GOODS.forEach(g => {
@@ -130,7 +199,19 @@ export function MarketPanel() {
 
   return (
     <>
-      <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
+      <div className="flex items-center justify-between mb-1">
+        <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
+        <div className="flex items-center gap-1.5 mt-2">
+          {priceLoading ? (
+            <RefreshCw size={10} className="text-muted-foreground animate-spin" />
+          ) : isLive ? (
+            <Wifi size={10} className="text-emerald" />
+          ) : null}
+          <span className="text-[0.45rem] text-muted-foreground uppercase tracking-wider">
+            {isLive ? 'LIVE MARKT' : 'LOKAAL'}
+          </span>
+        </div>
+      </div>
 
       {/* Active market event banner */}
       {state.activeMarketEvent && (
@@ -208,8 +289,9 @@ export function MarketPanel() {
       <div className="space-y-2.5">
         {GOODS.map(g => {
           const cat = GOOD_CATEGORIES[g.id];
-          const basePrice = prices[g.id] || 0;
-          const trend = state.priceTrends[g.id] === 'up';
+          const basePrice = getPrice(g.id);
+          const trend = getTrend(g.id) === 'up';
+          const volume = getVolume(g.id);
           const demand = state.districtDemands[state.loc] === g.id;
           const owned = state.inventory[g.id] || 0;
           const distMod = district.mods[g.id as GoodId];
@@ -287,6 +369,15 @@ export function MarketPanel() {
                     </div>
                     {sparkData.length >= 2 && <PriceSparkline data={[...sparkData, basePrice]} />}
                   </div>
+
+                  {/* Volume indicator (server-side) */}
+                  {volume && (
+                    <div className="text-[0.45rem] text-muted-foreground/70 flex items-center gap-2">
+                      <span>📊 Volume: {volume.buy + volume.sell}</span>
+                      <span>B:{volume.buy}</span>
+                      <span>V:{volume.sell}</span>
+                    </div>
+                  )}
 
                   {/* District modifier + info toggle */}
                   <div className="flex items-center gap-2 mt-1">
