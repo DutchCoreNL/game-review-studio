@@ -1,74 +1,56 @@
 
 
-## Analyse: Huidig Level Systeem
+## Plan: Stadskaart verbeteren voor MMO
 
-Het huidige systeem is simpel:
-- **3 stats**: muscle, brains, charm (+1 per skill point)
-- **2 skill points per level up**
-- **XP scaling**: `nextXp * 1.4` per level (exponentieel)
-- **XP bronnen**: vast bedrag per actie (15 XP voor solo ops, 100 XP voor faction boss, etc.)
-- **Geen level cap, geen prestige, geen skill tree**
-- **Volledig client-side** - XP wordt lokaal berekend, manipuleerbaar
+De kaart is momenteel puur single-player — je ziet alleen je eigen positie. Voor een MMO moet de kaart een **levende, gedeelde wereld** tonen met andere spelers, gang-activiteit en realtime events.
 
-## Verbetervoorstellen voor MMO
+### Verbeteringen
 
-### 1. Server-side XP Validatie
-Alle XP-toekenning verplaatsen naar de edge function. Client kan geen XP meer zelf toevoegen.
+**1. Andere spelers op de kaart tonen**
+- Query `player_state` (kolom `loc`) via een nieuwe edge function action `get_district_players` die per district het aantal online spelers telt (actief in de laatste 15 min)
+- Toon per district een klein teller-badge met het aantal actieve spelers (bijv. "👥 12")
+- Optioneel: toon 3-5 bewegende speler-dots per district als visueel element
 
-### 2. Skill Tree systeem (vervangt platte stat upgrades)
-In plaats van simpel `muscle++`, een vertakkende skill tree per stat:
-- **Muscle branch**: Brawler → Tank → Berserker (passive bonussen zoals +crit, +armor, +lifesteal)
-- **Brains branch**: Hacker → Strategist → Mastermind (+hack success, +trade bonus, +heist intel)
-- **Charm branch**: Smooth Talker → Negotiator → Kingpin (+NPC relations, +recruit chance, +corruption discount)
+**2. Gang territorium-kleuren op de kaart**
+- Query `gang_territories` en toon de dominante gang per district met hun kleur/tag
+- Verander de district-label border-kleur naar de gang-kleur als een gang het controleert
+- Toon gang-tag naast de district-naam (bijv. "[SYN] Crown Heights")
 
-Elke node kost 1-3 SP en unlockt passieve bonussen of actieve abilities.
+**3. Realtime district-events**
+- Maak een `district_events` tabel (id, district_id, event_type, message, created_at, expires_at)
+- Events: gang wars, police raids, market crashes, bounty hunts
+- Toon als pulserende iconen op de kaart met tooltips
+- Vul vanuit de `passive-income` edge function of game-actions
 
-### 3. Prestige / New Game+ verbetering
-Bij max level (bijv. 50) kun je "prestige" doen:
-- Level reset naar 1, maar behoud permanente bonussen (+5% XP gain per prestige)
-- Unieke prestige badges en cosmetische rewards
-- Prestige-only content (speciale heists, wapens)
+**4. District "Danger Level" indicator**
+- Bereken per district: aantal recente PvP fights + politie heat + gang war status
+- Toon als kleur-gradient overlay op het district (groen→geel→rood)
+- Update elke 30 seconden via polling
 
-### 4. XP Multipliers systeem
-- **District bonus**: +10-20% XP in gevaarlijkere districten
-- **Streak bonus**: Opeenvolgende acties zonder hospitalisatie = +XP
-- **Gang bonus**: XP boost als je in een gang zit
-- **First-of-day bonus**: Eerste actie per dag geeft 2x XP
+**5. Mini-leaderboard per district**
+- Bij het klikken op een district, toon de top 5 spelers die daar actief zijn
+- Query `player_state` + `profiles` gefilterd op `loc = district_id`
 
-### 5. Level-gated MMO Content
-Duidelijke level tiers die nieuwe content unlocken:
-```text
-Lv 1-10:  Solo ops, basic trade
-Lv 10-20: Contracts, car theft, basic PvP
-Lv 20-30: Heists, factions, casino VIP
-Lv 30-40: Villa, drug empire, gang wars
-Lv 40-50: Endgame bosses, prestige unlock
-```
+**6. Live activity feed op de kaart**
+- Vervang de huidige statische `NewsTicker` met realtime events uit de database
+- Toon recente PvP kills, grote trades, gang conquests als scrollende ticker
 
-### 6. Leaderboard XP Racing
-Wekelijkse XP-leaderboards met rewards voor top 10 spelers.
+### Implementatiestappen
 
-## Implementatieplan
+1. **Database**: Maak `district_events` tabel + enable realtime op `gang_territories`
+2. **Edge function**: Nieuwe action `get_district_players` die speler-counts per district + recente events retourneert
+3. **CityMap component**: Voeg `PlayerCountBadge` per district toe — klein donker label met 👥 count
+4. **CityMap component**: Voeg `GangTerritoryOverlay` toe — gekleurde district borders op basis van gang_territories data
+5. **CityMap component**: Voeg `DistrictEventMarkers` toe — pulserende iconen voor actieve events
+6. **CityMap component**: Voeg `DangerLevelOverlay` toe — subtiele kleur-tint per district op basis van activiteit
+7. **DistrictPopup**: Voeg mini-leaderboard toe met top 5 actieve spelers in dat district
+8. **MapView**: Hook up polling (elke 30s) voor district data + realtime subscription voor gang territory changes
+9. **NewsTicker**: Vervang client-side nieuws met server-side realtime events
 
-### Stap 1: Server-side XP validatie
-- Nieuwe `gain_xp` handler in edge function die level-up logica server-side afhandelt
-- Alle bestaande `gainXp()` calls in client omzetten naar server-responses
-- `player_state` tabel wordt single source of truth voor level/xp/skillpoints
+### Technische details
 
-### Stap 2: Skill Tree data model
-- Nieuwe `player_skills` tabel: `user_id, skill_id, level, unlocked_at`
-- Skill tree definitie in constants met node-afhankelijkheden
-- UI: nieuwe SkillTreeView component met visuele boom-structuur
-
-### Stap 3: XP Multipliers
-- Multiplier berekening server-side in de `gain_xp` handler
-- UI indicator in GameHeader die actieve XP bonussen toont
-
-### Stap 4: Prestige systeem
-- `prestige_level` kolom toevoegen aan `player_state`
-- Prestige actie via edge function met validatie (level >= 50)
-- Prestige badge naast spelernaam op leaderboard
-
-## Aanbevolen eerste stap
-Start met **Skill Tree + server-side XP** omdat dit het meeste impact heeft op de gameplay en tegelijk de exploit-preventie verbetert.
+- `district_events` schema: `id uuid, district_id text, event_type text, title text, description text, data jsonb, created_at timestamptz, expires_at timestamptz`
+- RLS: iedereen kan lezen (publiek zichtbaar), alleen service_role kan schrijven
+- Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.district_events;`
+- Polling endpoint retourneert: `{ playerCounts: Record<DistrictId, number>, recentEvents: DistrictEvent[], territories: GangTerritory[] }`
 
