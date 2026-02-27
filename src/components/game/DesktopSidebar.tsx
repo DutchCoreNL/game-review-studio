@@ -7,7 +7,7 @@ import {
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings,
-  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle,
+  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
@@ -66,6 +66,7 @@ const CATEGORIES: Category[] = [
       { id: 'crew', label: 'Crew', icon: Users },
       { id: 'families', label: 'Facties', icon: Users },
       { id: 'gang', label: 'Gang', icon: Skull },
+      { id: 'organized-crimes', label: 'Organized Crime', icon: Waypoints },
       { id: 'war', label: 'Oorlog', icon: Swords },
       { id: 'corruption', label: 'Corruptie', icon: Handshake },
     ],
