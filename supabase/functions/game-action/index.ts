@@ -699,7 +699,7 @@ async function handleGetState(supabase: any, userId: string): Promise<ActionResu
     ps.hospital_until = null; ps.hp = ps.max_hp;
   }
 
-  const [invRes, gearRes, vehicleRes, districtRes, bizRes, crewRes, villaRes] = await Promise.all([
+  const [invRes, gearRes, vehicleRes, districtRes, bizRes, crewRes, villaRes, memberRes] = await Promise.all([
     supabase.from("player_inventory").select("*").eq("user_id", userId),
     supabase.from("player_gear").select("*").eq("user_id", userId),
     supabase.from("player_vehicles").select("*").eq("user_id", userId),
@@ -707,7 +707,21 @@ async function handleGetState(supabase: any, userId: string): Promise<ActionResu
     supabase.from("player_businesses").select("*").eq("user_id", userId),
     supabase.from("player_crew").select("*").eq("user_id", userId),
     supabase.from("player_villa").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("gang_members").select("gang_id").eq("user_id", userId),
   ]);
+
+  // Fetch gang territories for player's gang(s) to merge into ownedDistricts
+  let gangDistricts: string[] = [];
+  const gangIds = (memberRes.data || []).map((m: any) => m.gang_id);
+  if (gangIds.length > 0) {
+    const { data: gangTerritories } = await supabase.from("gang_territories")
+      .select("district_id").in("gang_id", gangIds);
+    gangDistricts = [...new Set((gangTerritories || []).map((t: any) => t.district_id))];
+  }
+
+  // Combine personal districts + gang territories (deduped)
+  const personalDistricts = (districtRes.data || []).map((d: any) => d.district_id);
+  const allDistricts = [...new Set([...personalDistricts, ...gangDistricts])];
 
   return {
     success: true, message: "State opgehaald.",
@@ -716,6 +730,7 @@ async function handleGetState(supabase: any, userId: string): Promise<ActionResu
       inventory: invRes.data || [], gear: gearRes.data || [], vehicles: vehicleRes.data || [],
       districts: districtRes.data || [], businesses: bizRes.data || [],
       crew: crewRes.data || [], villa: villaRes.data || null,
+      gangDistricts, allDistricts,
     },
   };
 }
