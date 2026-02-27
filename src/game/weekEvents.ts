@@ -32,7 +32,7 @@ export interface ActiveWeekEvent {
   claimed: boolean; // one-time reward claimed
 }
 
-const WEEK_EVENTS: WeekEvent[] = [
+export const WEEK_EVENTS: WeekEvent[] = [
   {
     id: 'fight_night',
     name: 'Noxhaven Fight Night',

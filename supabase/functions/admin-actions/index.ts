@@ -407,6 +407,29 @@ serve(async (req) => {
       return ok({ ok: true, message: 'Alle nieuws en district events gewist' });
     }
 
+    // ============ WEEK EVENT ACTIVATION ============
+
+    if (action === 'activate_week_event') {
+      const { eventData } = body;
+      if (!eventData || !eventData.eventId) return bad('eventData with eventId required');
+      await adminClient.from('world_state').update({ active_event: eventData }).eq('id', 1);
+      // Also broadcast as news
+      await adminClient.from('news_events').insert({
+        text: `${eventData.icon} ${eventData.name} is geactiveerd!`,
+        category: 'world', urgency: 'high', icon: eventData.icon || '🎉',
+        detail: eventData.desc || null,
+        expires_at: new Date(Date.now() + (eventData.durationDays || 3) * 24 * 60 * 60 * 1000).toISOString(),
+      });
+      await logAction('activate_week_event', { eventId: eventData.eventId, name: eventData.name });
+      return ok({ ok: true, message: `Week event "${eventData.name}" geactiveerd` });
+    }
+
+    if (action === 'deactivate_week_event') {
+      await adminClient.from('world_state').update({ active_event: null }).eq('id', 1);
+      await logAction('deactivate_week_event');
+      return ok({ ok: true, message: 'Week event gedeactiveerd' });
+    }
+
     // ============ GRANT ITEM TO PLAYER ============
 
     if (action === 'grant_cash') {

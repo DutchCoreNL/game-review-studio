@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useWorldState } from '@/hooks/useWorldState';
+import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { useAdmin } from '@/hooks/useAdmin';
 import { setVolume } from '@/game/sounds';
 import { setMusicScene, stopMusic, setMusicVolume } from '@/game/sounds/ambientMusic';
@@ -101,6 +102,19 @@ export function GameLayout() {
       playPopupOpen();
     }
   }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
+
+  // Sync world_state.active_event → local activeWeekEvent
+  const prevActiveEventRef = useRef<string | null>(null);
+  useEffect(() => {
+    const serverEvent = worldState.activeEvent as unknown as ActiveWeekEvent | null;
+    const serverEventId = serverEvent?.eventId ?? null;
+    if (serverEventId !== prevActiveEventRef.current) {
+      prevActiveEventRef.current = serverEventId;
+      if (serverEvent && serverEvent.daysLeft > 0) {
+        (state as any).activeWeekEvent = serverEvent;
+      }
+    }
+  }, [worldState.activeEvent]);
 
   const clearEffect = useCallback(() => {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
