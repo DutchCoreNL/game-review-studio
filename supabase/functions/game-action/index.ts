@@ -3187,6 +3187,18 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
   const blocked = checkBlocked(ps);
   if (blocked) return { success: false, message: blocked };
 
+  // Energy & nerve checks
+  const energyCost = 15;
+  const nerveCost = 10;
+  if (ps.energy < energyCost) return { success: false, message: `Niet genoeg energy (nodig: ${energyCost}, heb: ${ps.energy}).` };
+  if (ps.nerve < nerveCost) return { success: false, message: `Niet genoeg nerve (nodig: ${nerveCost}, heb: ${ps.nerve}).` };
+
+  // Crime cooldown check
+  if (ps.crime_cooldown_until && new Date(ps.crime_cooldown_until) > new Date()) {
+    const remaining = Math.ceil((new Date(ps.crime_cooldown_until).getTime() - Date.now()) / 1000);
+    return { success: false, message: `Crime cooldown actief. Wacht nog ${remaining}s.` };
+  }
+
   // Validate contract type exists
   const typeDef = CONTRACT_TYPES[contractType];
   if (!typeDef) return { success: false, message: "Onbekend contracttype." };
@@ -3204,6 +3216,9 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
   if (contractIdx === -1) return { success: false, message: "Contract niet gevonden in je actieve contracten." };
   
   const contract = saveData.activeContracts[contractIdx];
+
+  // Time-of-day modifiers
+  const timeMods = await getTimeModifiers(supabase);
 
   // Server-side reward calculation (prevents client tampering)
   const dayScaling = Math.min(ps.day * 0.02, 2.0);
@@ -3239,6 +3254,10 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
     heatGain = Math.floor(heatGain * 1.5);
     repGain = Math.max(2, Math.floor(repGain * 0.3));
   }
+
+  // Apply time-of-day modifiers
+  reward = Math.floor(reward * (timeMods.phase === 'night' ? 1.2 : timeMods.phase === 'dusk' ? 1.1 : 1.0));
+  heatGain = Math.floor(heatGain * timeMods.heatMultiplier);
 
   // Apply faction relation changes from contract
   if (contract.employer && contract.target) {
@@ -3290,6 +3309,8 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
     (saveData.ownedVehicles || []).find((v: any) => v.id === saveData.activeVehicle)?.vehicleHeat || 0
   );
 
+  const crimeCooldown = new Date(Date.now() + 90 * 1000).toISOString(); // 90s cooldown for contracts
+
   // Write back
   await supabase.from("player_state").update({
     save_data: saveData,
@@ -3299,6 +3320,9 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
     personal_heat: saveData.personalHeat || ps.personal_heat,
     xp: saveData.player.xp,
     level: saveData.player.level,
+    energy: ps.energy - energyCost,
+    nerve: ps.nerve - nerveCost,
+    crime_cooldown_until: crimeCooldown,
     stats_missions_completed: overallSuccess ? (ps.stats_missions_completed || 0) + 1 : ps.stats_missions_completed,
     stats_missions_failed: !overallSuccess ? (ps.stats_missions_failed || 0) + 1 : ps.stats_missions_failed,
     stats_total_earned: (ps.stats_total_earned || 0) + (overallSuccess ? reward : 0),
@@ -3313,9 +3337,10 @@ async function handleCompleteContract(supabase: any, userId: string, ps: any, pa
     result_data: { success: overallSuccess, reward, xpGain, repGain, heatGain },
   });
 
+  const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
   const msg = overallSuccess
-    ? `Contract voltooid! +€${reward.toLocaleString()} | +${xpGain} XP | +${repGain} REP${leveledUp ? " | LEVEL UP!" : ""}`
-    : `Contract mislukt. +${xpGain} XP | +${repGain} REP | Extra heat opgelopen.`;
+    ? `Contract voltooid!${nightLabel} +€${reward.toLocaleString()} | +${xpGain} XP | +${repGain} REP${leveledUp ? " | LEVEL UP!" : ""}`
+    : `Contract mislukt.${nightLabel} +${xpGain} XP | +${repGain} REP | Extra heat opgelopen.`;
 
   return {
     success: true,
