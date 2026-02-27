@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { SKILL_NODES, BRANCH_INFO, canUnlockSkill, getSkillLevel, PRESTIGE_CONFIG, LEVEL_GATES, type SkillBranch } from '@/game/skillTree';
 import { SectionHeader } from '../ui/SectionHeader';
@@ -26,24 +26,62 @@ const BRANCH_ACCENT: Record<SkillBranch, string> = {
   charm: 'text-gold',
 };
 
+const BRANCH_GLOW: Record<SkillBranch, string> = {
+  muscle: 'shadow-[0_0_20px_hsl(var(--blood)/0.6),0_0_40px_hsl(var(--blood)/0.3)]',
+  brains: 'shadow-[0_0_20px_hsl(var(--ice)/0.6),0_0_40px_hsl(var(--ice)/0.3)]',
+  charm: 'shadow-[0_0_20px_hsl(var(--gold)/0.6),0_0_40px_hsl(var(--gold)/0.3)]',
+};
+
+const PARTICLE_COLORS: Record<SkillBranch, string> = {
+  muscle: 'bg-blood',
+  brains: 'bg-ice',
+  charm: 'bg-gold',
+};
+
+function ParticleBurst({ branch }: { branch: SkillBranch }) {
+  const particles = Array.from({ length: 12 }, (_, i) => {
+    const angle = (i / 12) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const dist = 30 + Math.random() * 20;
+    return { x: Math.cos(rad) * dist, y: Math.sin(rad) * dist, delay: Math.random() * 0.1, size: 2 + Math.random() * 3 };
+  });
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-visible z-10">
+      {particles.map((p, i) => (
+        <motion.div
+          key={i}
+          className={`absolute rounded-full ${PARTICLE_COLORS[branch]}`}
+          style={{ width: p.size, height: p.size, left: '50%', top: '50%' }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+          animate={{ x: p.x, y: p.y, opacity: 0, scale: 0.2 }}
+          transition={{ duration: 0.6, delay: p.delay, ease: 'easeOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function SkillTreePanel() {
   const { state, dispatch, showToast } = useGame();
   const [activeBranch, setActiveBranch] = useState<SkillBranch>('muscle');
   const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
 
   const unlockedSkills = state.unlockedSkills || [];
   const sp = state.player.skillPoints;
   const prestige = state.prestigeLevel || 0;
 
-  const handleUnlock = async (skillId: string) => {
+  const handleUnlock = useCallback(async (skillId: string) => {
     setUnlocking(skillId);
     try {
       const result = await gameApi.unlockSkill(skillId);
       if (result.success) {
-        // Update local state from server response
         if (result.data) {
           dispatch({ type: 'SYNC_SKILLS', skills: result.data.skills, skillPoints: result.data.skillPoints });
         }
+        setJustUnlocked(skillId);
+        setTimeout(() => setJustUnlocked(null), 1200);
         showToast(result.message);
       } else {
         showToast(result.message, true);
@@ -52,7 +90,7 @@ export function SkillTreePanel() {
       showToast('Verbindingsfout', true);
     }
     setUnlocking(null);
-  };
+  }, [dispatch, showToast]);
 
   const handlePrestige = async () => {
     try {
@@ -144,21 +182,42 @@ export function SkillTreePanel() {
                 </div>
               )}
               
-              <div className={`game-card border-l-[3px] ${
+              <div className={`game-card border-l-[3px] relative transition-shadow duration-500 ${
+                justUnlocked === node.id ? BRANCH_GLOW[activeBranch] : ''
+              } ${
                 isMaxed ? `${BRANCH_COLORS[activeBranch]} border-l-emerald` :
                 currentLevel > 0 ? `${BRANCH_COLORS[activeBranch]}` :
                 isLocked ? 'opacity-50 border-l-border' :
                 'border-l-gold/50'
               }`}>
-                <div className="flex items-start gap-2.5">
+                {/* Particle burst on unlock */}
+                <AnimatePresence>
+                  {justUnlocked === node.id && <ParticleBurst branch={activeBranch} />}
+                </AnimatePresence>
+
+                {/* Glow flash overlay */}
+                {justUnlocked === node.id && (
+                  <motion.div
+                    className="absolute inset-0 rounded-lg pointer-events-none z-0"
+                    initial={{ opacity: 0.4, background: `radial-gradient(circle, hsl(var(--${activeBranch === 'muscle' ? 'blood' : activeBranch === 'brains' ? 'ice' : 'gold'}) / 0.3), transparent 70%)` }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 1 }}
+                  />
+                )}
+
+                <div className="flex items-start gap-2.5 relative z-[1]">
                   {/* Icon */}
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
-                    isMaxed ? 'bg-emerald/15 border border-emerald/40' :
-                    currentLevel > 0 ? `${BRANCH_COLORS[activeBranch]} border border-current/30` :
-                    'bg-muted border border-border'
-                  }`}>
+                  <motion.div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
+                      isMaxed ? 'bg-emerald/15 border border-emerald/40' :
+                      currentLevel > 0 ? `${BRANCH_COLORS[activeBranch]} border border-current/30` :
+                      'bg-muted border border-border'
+                    }`}
+                    animate={justUnlocked === node.id ? { scale: [1, 1.3, 1], rotate: [0, -10, 10, 0] } : {}}
+                    transition={{ duration: 0.5 }}
+                  >
                     {isLocked ? <Lock size={14} className="text-muted-foreground" /> : node.icon}
-                  </div>
+                  </motion.div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
