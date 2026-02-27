@@ -8,6 +8,8 @@ const corsHeaders = {
 const TIME_PHASES = ['dawn', 'day', 'dusk', 'night'] as const;
 const WEATHER_TYPES = ['clear', 'rain', 'fog', 'heatwave', 'storm'] as const;
 const WEATHER_WEIGHTS = [40, 25, 15, 10, 10]; // clear is most common
+const DISTRICTS = ['low', 'port', 'iron', 'neon', 'crown'];
+const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
 
 function weightedRandomWeather(): string {
   const total = WEATHER_WEIGHTS.reduce((a, b) => a + b, 0);
@@ -17,6 +19,113 @@ function weightedRandomWeather(): string {
     if (r <= 0) return WEATHER_TYPES[i];
   }
   return 'clear';
+}
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function pickDistrict(): string { return pick(DISTRICTS); }
+function pickDistrictName(): string { return DISTRICT_NAMES[pickDistrict()]; }
+
+// ========== NEWS POOL ==========
+interface NewsTemplate { text: string; icon: string; urgency: string; category: string; detail?: string; }
+
+function getPhaseNews(phase: string, weather: string, worldDay: number): NewsTemplate[] {
+  const pool: NewsTemplate[] = [];
+
+  // Time-of-day news
+  if (phase === 'night') {
+    pool.push(
+      { text: `Nachtleven explodeert in ${pickDistrictName()} — politie verhoogt patrouilles`, icon: '🌙', urgency: 'medium', category: 'world', detail: 'De nachtclubs draaien op volle toeren. Extra agenten zijn ingezet.' },
+      { text: 'Schaduwfiguren gespot bij verlaten pakhuis in de haven', icon: '👤', urgency: 'low', category: 'world', detail: 'Bewoners melden verdachte activiteit na middernacht.' },
+    );
+  } else if (phase === 'dawn') {
+    pool.push(
+      { text: `Dag ${worldDay} breekt aan over Noxhaven — de straten ontwaken`, icon: '🌅', urgency: 'low', category: 'world', detail: `Een nieuwe dag in de stad. Het weer: ${weather}.` },
+      { text: 'Vroege ochtendrazzia in Lowrise levert wapenvondst op', icon: '🔫', urgency: 'high', category: 'heat', detail: 'De NHPD trof automatische wapens aan in een kelder.' },
+    );
+  } else if (phase === 'dusk') {
+    pool.push(
+      { text: `Zonsondergang boven ${pickDistrictName()} — de stad verandert van gezicht`, icon: '🌆', urgency: 'low', category: 'world' },
+      { text: 'Handelaren sluiten hun kramen — avondmarkt begint in Neon Strip', icon: '🏪', urgency: 'low', category: 'market' },
+    );
+  }
+
+  // Weather-specific
+  if (weather === 'storm') {
+    pool.push(
+      { text: 'Code Oranje: Zware storm trekt over Noxhaven — havens gesloten', icon: '⛈️', urgency: 'high', category: 'weather', detail: 'Het KNMI waarschuwt voor windstoten tot 100 km/u.' },
+      { text: 'Stormschade in Iron Borough — dakpannen vliegen van gebouwen', icon: '💨', urgency: 'medium', category: 'weather' },
+    );
+  } else if (weather === 'fog') {
+    pool.push(
+      { text: 'Dichte mist legt verkeer lam — zichtbaarheid onder 50 meter', icon: '🌫️', urgency: 'medium', category: 'weather', detail: 'De politie adviseert om niet de weg op te gaan.' },
+    );
+  } else if (weather === 'heatwave') {
+    pool.push(
+      { text: 'Hittegolf houdt aan: temperaturen boven 35°C — "Blijf hydrateren"', icon: '🌡️', urgency: 'low', category: 'weather' },
+    );
+  } else if (weather === 'rain') {
+    pool.push(
+      { text: 'Aanhoudende regenval zorgt voor wateroverlast in Lowrise', icon: '🌧️', urgency: 'low', category: 'weather' },
+    );
+  }
+
+  // Flavor news (always add a few)
+  const flavor: NewsTemplate[] = [
+    { text: 'Burgemeester ontkent banden met onderwereld — "Absurd en ongefundeerd"', icon: '🏛️', urgency: 'medium', category: 'flavor', detail: 'Burgemeester Van Dijk reageerde furieus op beschuldigingen.' },
+    { text: `Restaurant "La Notte" in ${pickDistrictName()} uitgeroepen tot beste van het jaar`, icon: '🍽️', urgency: 'low', category: 'flavor' },
+    { text: 'Mysterieuze graffiti verschijnt op muren in Lowrise: "WIJ ZIEN ALLES"', icon: '👁️', urgency: 'low', category: 'flavor' },
+    { text: 'Noxhaven FC wint derby na controversieel doelpunt', icon: '⚽', urgency: 'low', category: 'flavor' },
+    { text: 'Havenarbeiders dreigen met staking na loonconflict', icon: '⚓', urgency: 'medium', category: 'flavor' },
+    { text: `Nieuwe nachtclub "Eclipse" trekt honderden bezoekers in ${pickDistrictName()}`, icon: '🌙', urgency: 'low', category: 'flavor' },
+    { text: `Stroomuitval treft delen van ${pickDistrictName()} — oorzaak onbekend`, icon: '💡', urgency: 'medium', category: 'flavor' },
+    { text: 'Archeologen ontdekken oude tunnels onder Crown Heights', icon: '🏗️', urgency: 'low', category: 'flavor' },
+    { text: 'Verdachte brand verwoest leegstaand pakhuis in Lowrise', icon: '🔥', urgency: 'medium', category: 'flavor' },
+    { text: 'Politie pakt illegale gokkring op in kelder van Crown Heights', icon: '🎲', urgency: 'medium', category: 'flavor' },
+    { text: 'Luxe jacht aangemeerd in Port Nero — eigenaar onbekend', icon: '🛥️', urgency: 'low', category: 'flavor' },
+    { text: 'Oud-commissaris schrijft onthullend boek over corruptie bij NHPD', icon: '📖', urgency: 'medium', category: 'flavor' },
+    { text: `Filmploeg gespot in ${pickDistrictName()} — opnames van nieuwe thriller`, icon: '🎬', urgency: 'low', category: 'flavor' },
+    { text: 'Anonieme tip leidt tot vondst van wapenarsenaal in kelder', icon: '🔫', urgency: 'high', category: 'heat' },
+    { text: `Explosieve groei van cryptocurrency-handel in Neon Strip`, icon: '₿', urgency: 'low', category: 'market' },
+    { text: 'NHPD: "Criminaliteitscijfers stijgen — we houden de situatie scherp in de gaten"', icon: '👮', urgency: 'medium', category: 'heat' },
+    { text: 'Mysterieuze zwarte bestelbus gespot in meerdere wijken', icon: '🚐', urgency: 'low', category: 'flavor' },
+    { text: `Haven van Port Nero breekt exportrecord dit kwartaal`, icon: '📦', urgency: 'low', category: 'market' },
+  ];
+
+  // Pick 2-3 random flavor items
+  const shuffled = flavor.sort(() => Math.random() - 0.5);
+  pool.push(...shuffled.slice(0, 2 + Math.floor(Math.random() * 2)));
+
+  return pool;
+}
+
+async function generateAndInsertNews(supabase: any, phase: string, weather: string, worldDay: number) {
+  const templates = getPhaseNews(phase, weather, worldDay);
+  // Pick 3-5 items, deduplicate by category
+  const seen = new Set<string>();
+  const selected: NewsTemplate[] = [];
+  for (const t of templates.sort(() => Math.random() - 0.5)) {
+    if (seen.has(t.category)) continue;
+    seen.add(t.category);
+    selected.push(t);
+    if (selected.length >= 4) break;
+  }
+
+  if (selected.length === 0) return;
+
+  const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString(); // 35 min (slightly longer than cycle)
+  const rows = selected.map(t => ({
+    text: t.text,
+    category: t.category,
+    urgency: t.urgency,
+    icon: t.icon,
+    detail: t.detail || null,
+    expires_at: expiresAt,
+  }));
+
+  await supabase.from('news_events').insert(rows);
+
+  // Cleanup old expired news (keep DB clean)
+  await supabase.from('news_events').delete().lt('expires_at', new Date().toISOString());
 }
 
 Deno.serve(async (req) => {
@@ -84,6 +193,11 @@ Deno.serve(async (req) => {
       data: { time_of_day: nextPhase, weather: update.current_weather || ws.current_weather, world_day: update.world_day || ws.world_day },
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
+
+    // Generate realtime news for this phase
+    const currentWeather = update.current_weather || ws.current_weather;
+    const currentDay = update.world_day || ws.world_day;
+    await generateAndInsertNews(supabase, nextPhase, currentWeather, currentDay);
 
     return new Response(JSON.stringify({
       success: true,

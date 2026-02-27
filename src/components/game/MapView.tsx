@@ -19,6 +19,7 @@ import { HidingOverlay } from './HidingOverlay';
 import { canTriggerFinalBoss } from '@/game/endgame';
 import { useDistrictData } from '@/hooks/useDistrictData';
 import { useWorldState } from '@/hooks/useWorldState';
+import { useRealtimeNews } from '@/hooks/useRealtimeNews';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -44,7 +45,7 @@ export function MapView() {
     }
   }, [state.loc]);
 
-  const newsItems = state.dailyNews;
+  const newsItems = useRealtimeNews(state.dailyNews);
 
   // Auto-tick is now handled by GameContext — no manual end-turn needed
 
