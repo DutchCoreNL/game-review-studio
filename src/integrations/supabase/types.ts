@@ -112,6 +112,33 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          message: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          message: string
+          user_id: string
+          username?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          message?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       daily_digests: {
         Row: {
           created_at: string

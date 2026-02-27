@@ -99,6 +99,7 @@ const TrophiesPanel = React.lazy(() => import('./profile/TrophiesPanel').then(m 
 const EducationView = React.lazy(() => import('./EducationView').then(m => ({ default: m.EducationView })));
 const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ default: m.PropertiesView })));
 const TravelViewLazy = React.lazy(() => import('./TravelView').then(m => ({ default: m.TravelView })));
+const ChatViewLazy = React.lazy(() => import('./ChatView').then(m => ({ default: m.ChatView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -151,13 +152,14 @@ const views: Record<string, React.ComponentType> = {
   education: EducationView,
   properties: PropertiesView,
   travel: TravelViewLazy,
+  chat: ChatViewLazy,
   // Admin
   admin: AdminPanelView,
 };
 
 // Map view to music scene
 function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
-  if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel'].includes(v)) return 'city';
+  if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties'].includes(v)) return 'empire';
