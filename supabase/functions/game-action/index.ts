@@ -3549,6 +3549,29 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
   const blocked = checkBlocked(ps);
   if (blocked) return { success: false, message: blocked };
 
+  // Energy & nerve checks (same as contracts)
+  const energyCost = 20;
+  const nerveCost = 15;
+  if (ps.energy < energyCost) return { success: false, message: `Niet genoeg energy (nodig: ${energyCost}, heb: ${ps.energy}).` };
+  if (ps.nerve < nerveCost) return { success: false, message: `Niet genoeg nerve (nodig: ${nerveCost}, heb: ${ps.nerve}).` };
+
+  // Crime cooldown check
+  if (ps.crime_cooldown_until && new Date(ps.crime_cooldown_until) > new Date()) {
+    const remaining = Math.ceil((new Date(ps.crime_cooldown_until).getTime() - Date.now()) / 1000);
+    return { success: false, message: `Crime cooldown actief. Wacht nog ${remaining}s.` };
+  }
+
+  // Anti-abuse: rate limit (max 8 hits per hour)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentHits } = await supabase.from("game_action_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("action_type", "complete_hit")
+    .gte("created_at", oneHourAgo);
+  if ((recentHits || 0) >= 8) {
+    return { success: false, message: "Te veel hits in korte tijd. Wacht even." };
+  }
+
   // Load save_data
   const { data: stateRow } = await supabase.from("player_state")
     .select("save_data, ammo_stock").eq("user_id", userId).maybeSingle();
@@ -3566,6 +3589,9 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
   // Validate target type
   const typeConfig = HIT_TYPE_CONFIG[hit.targetType];
   if (!typeConfig) return { success: false, message: "Ongeldig doelwit type." };
+
+  // Time-of-day modifiers
+  const timeMods = await getTimeModifiers(supabase);
 
   // Validate district
   if (ps.loc !== hit.district) {
@@ -3608,6 +3634,9 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
   chance += (muscle + brains) * 2.5;
   chance += ps.level * 2;
   chance -= hit.difficulty;
+  // Night bonus for hits
+  if (timeMods.phase === 'night') chance += 8;
+  else if (timeMods.phase === 'dusk') chance += 4;
   
   // Karma bonus
   if ((ps.karma || 0) < -30) chance += 5;
@@ -3627,11 +3656,15 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
   if (success) {
     const isMeedogenloos = (ps.karma || 0) < -30;
     const rewardMult = isMeedogenloos ? 1.15 : 1.0;
-    const reward = Math.floor(hit.reward * rewardMult);
+    let reward = Math.floor(hit.reward * rewardMult);
     const repGain = hit.repReward;
-    const xpGain = hit.xpReward;
-    const heatGain = hit.heatGain;
+    let xpGain = Math.floor((hit.xpReward || 0) * timeMods.xpMultiplier);
+    let heatGain = hit.heatGain;
     const karmaChange = hit.karmaEffect;
+
+    // Apply time-of-day modifiers
+    reward = Math.floor(reward * (timeMods.phase === 'night' ? 1.25 : timeMods.phase === 'dusk' ? 1.1 : 1.0));
+    heatGain = Math.floor(heatGain * timeMods.heatMultiplier);
 
     // Update save_data
     saveData.dirtyMoney = (saveData.dirtyMoney || 0) + reward;
@@ -3677,6 +3710,7 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
     saveData.hitContracts.splice(hitIdx, 1);
 
     // Write back
+    const crimeCooldown = new Date(Date.now() + 120 * 1000).toISOString(); // 120s cooldown for hits
     await supabase.from("player_state").update({
       save_data: saveData,
       dirty_money: (ps.dirty_money || 0) + reward,
@@ -3688,20 +3722,31 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
       level: saveData.player.level,
       ammo: totalAmmo,
       ammo_stock: ammoStock,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      crime_cooldown_until: crimeCooldown,
       stats_missions_completed: (ps.stats_missions_completed || 0) + 1,
       stats_total_earned: (ps.stats_total_earned || 0) + reward,
       updated_at: new Date().toISOString(),
       last_action_at: new Date().toISOString(),
     }).eq("user_id", userId);
 
+    // Log
+    await supabase.from("game_action_log").insert({
+      user_id: userId, action_type: "complete_hit",
+      action_data: { hitId, targetType: hit.targetType },
+      result_data: { success: true, reward, xpGain, repGain, heatGain, chance },
+    });
+
+    const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
     return {
       success: true,
-      message: `${hit.targetName} is uitgeschakeld! +€${reward.toLocaleString()} | +${repGain} REP | +${xpGain} XP${leveledUp ? " | LEVEL UP!" : ""}`,
+      message: `${hit.targetName} is uitgeschakeld!${nightLabel} +€${reward.toLocaleString()} | +${repGain} REP | +${xpGain} XP${leveledUp ? " | LEVEL UP!" : ""}`,
       data: { overallSuccess: true, reward, repGain, xpGain, heatGain, karmaChange, leveledUp, chance, saveData },
     };
   } else {
-    // Failed hit
-    const extraHeat = Math.floor(hit.heatGain * 1.5);
+    // Failed hit — still costs energy/nerve
+    const extraHeat = Math.floor(hit.heatGain * 1.5 * timeMods.heatMultiplier);
     saveData.personalHeat = Math.min(100, (saveData.personalHeat || 0) + Math.floor(extraHeat * 0.7));
     saveData.heat = Math.max(saveData.personalHeat || 0,
       (saveData.ownedVehicles || []).find((v: any) => v.id === saveData.activeVehicle)?.vehicleHeat || 0
@@ -3727,20 +3772,32 @@ async function handleCompleteHit(supabase: any, userId: string, ps: any, payload
     // Remove contract
     saveData.hitContracts.splice(hitIdx, 1);
 
+    const crimeCooldown = new Date(Date.now() + 120 * 1000).toISOString();
     await supabase.from("player_state").update({
       save_data: saveData,
       heat: saveData.heat || ps.heat,
       personal_heat: saveData.personalHeat || ps.personal_heat,
       ammo: totalAmmo,
       ammo_stock: ammoStock,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      crime_cooldown_until: crimeCooldown,
       stats_missions_failed: (ps.stats_missions_failed || 0) + 1,
       updated_at: new Date().toISOString(),
       last_action_at: new Date().toISOString(),
     }).eq("user_id", userId);
 
+    // Log
+    await supabase.from("game_action_log").insert({
+      user_id: userId, action_type: "complete_hit",
+      action_data: { hitId, targetType: hit.targetType },
+      result_data: { success: false, heatGain: extraHeat, chance },
+    });
+
+    const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
     return {
       success: true,
-      message: `De aanslag op ${hit.targetName} is mislukt! Extra heat opgelopen.`,
+      message: `De aanslag op ${hit.targetName} is mislukt!${nightLabel} Extra heat opgelopen.`,
       data: { overallSuccess: false, reward: 0, heatGain: extraHeat, chance, saveData },
     };
   }
