@@ -128,6 +128,134 @@ async function generateAndInsertNews(supabase: any, phase: string, weather: stri
   await supabase.from('news_events').delete().lt('expires_at', new Date().toISOString());
 }
 
+// ========== BOT SIMULATION ==========
+const BOT_ACTIONS = [
+  { action: 'travel', weight: 30 },
+  { action: 'trade', weight: 25 },
+  { action: 'crime', weight: 20 },
+  { action: 'fight', weight: 10 },
+  { action: 'idle', weight: 15 },
+];
+
+const BOT_NEWS_TEMPLATES = [
+  (name: string, loc: string) => ({ text: `${name} gespot in ${DISTRICT_NAMES[loc] || loc} — handelt grote partij goederen`, icon: '📦', urgency: 'low' as const, category: 'player' }),
+  (name: string, loc: string) => ({ text: `${name} pleegt gewapende overval in ${DISTRICT_NAMES[loc] || loc}`, icon: '💥', urgency: 'medium' as const, category: 'heat' }),
+  (name: string, _: string) => ({ text: `${name} beklimt de ranglijst — reputatie stijgt snel`, icon: '📈', urgency: 'low' as const, category: 'player' }),
+  (name: string, loc: string) => ({ text: `Schietpartij gemeld in ${DISTRICT_NAMES[loc] || loc} — ${name} betrokken`, icon: '🔫', urgency: 'high' as const, category: 'heat' }),
+  (name: string, loc: string) => ({ text: `${name} koopt vastgoed op in ${DISTRICT_NAMES[loc] || loc}`, icon: '🏠', urgency: 'low' as const, category: 'market' }),
+  (name: string, _: string) => ({ text: `${name} gezien bij nachtclub met onbekende zakenlieden`, icon: '🍸', urgency: 'low' as const, category: 'flavor' }),
+  (name: string, loc: string) => ({ text: `Politie zoekt ${name} na incident in ${DISTRICT_NAMES[loc] || loc}`, icon: '🚔', urgency: 'medium' as const, category: 'heat' }),
+  (name: string, _: string) => ({ text: `${name} sluit lucratieve deal — miljoenen verdiend`, icon: '💰', urgency: 'low' as const, category: 'market' }),
+];
+
+function pickWeighted(items: { action: string; weight: number }[]): string {
+  const total = items.reduce((s, i) => s + i.weight, 0);
+  let r = Math.random() * total;
+  for (const item of items) {
+    r -= item.weight;
+    if (r <= 0) return item.action;
+  }
+  return items[0].action;
+}
+
+async function simulateBots(supabase: any, phase: string, worldDay: number) {
+  try {
+    const { data: bots } = await supabase
+      .from('bot_players')
+      .select('*')
+      .eq('is_active', true);
+
+    if (!bots || bots.length === 0) return;
+
+    const newsToInsert: any[] = [];
+    const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
+
+    // Simulate 40-70% of bots per tick
+    const activeFraction = 0.4 + Math.random() * 0.3;
+    const shuffled = bots.sort(() => Math.random() - 0.5);
+    const activeCount = Math.max(1, Math.floor(shuffled.length * activeFraction));
+
+    for (let i = 0; i < activeCount; i++) {
+      const bot = shuffled[i];
+      const action = pickWeighted(BOT_ACTIONS);
+      const updates: Record<string, any> = {};
+
+      switch (action) {
+        case 'travel': {
+          const newLoc = pick(DISTRICTS.filter(d => d !== bot.loc));
+          updates.loc = newLoc;
+          break;
+        }
+        case 'trade': {
+          const cashGain = Math.floor(Math.random() * 3000) + 500;
+          const repGain = Math.floor(Math.random() * 5) + 1;
+          updates.cash = Math.max(0, bot.cash + (Math.random() > 0.3 ? cashGain : -Math.floor(cashGain * 0.5)));
+          updates.rep = bot.rep + repGain;
+          break;
+        }
+        case 'crime': {
+          const success = Math.random() > 0.35;
+          if (success) {
+            updates.cash = bot.cash + Math.floor(Math.random() * 5000) + 1000;
+            updates.rep = bot.rep + Math.floor(Math.random() * 8) + 2;
+          } else {
+            updates.hp = Math.max(10, bot.hp - Math.floor(Math.random() * 20));
+          }
+          break;
+        }
+        case 'fight': {
+          const won = Math.random() > 0.4;
+          if (won) {
+            updates.rep = bot.rep + Math.floor(Math.random() * 15) + 5;
+            updates.cash = bot.cash + Math.floor(Math.random() * 2000);
+          } else {
+            updates.hp = Math.max(10, bot.hp - Math.floor(Math.random() * 30));
+          }
+          break;
+        }
+        default:
+          updates.hp = Math.min(bot.max_hp, bot.hp + Math.floor(Math.random() * 10) + 5);
+          break;
+      }
+
+      // Level up
+      const newRep = updates.rep ?? bot.rep;
+      const expectedLevel = Math.max(1, Math.floor(newRep / 15) + 1);
+      if (expectedLevel > bot.level) {
+        updates.level = Math.min(expectedLevel, 50);
+        updates.max_hp = 100 + (updates.level - 1) * 5;
+      }
+
+      updates.day = bot.day + 1;
+
+      if (Math.random() < 0.03 && newRep > 100) {
+        updates.districts_owned = Math.min(5, bot.districts_owned + 1);
+      }
+      if (Math.random() < 0.05 && newRep > 50) {
+        updates.crew_size = Math.min(4, bot.crew_size + 1);
+      }
+      if (Math.random() < 0.15) {
+        updates.karma = bot.karma + (Math.random() > 0.5 ? 1 : -1);
+      }
+
+      await supabase.from('bot_players').update(updates).eq('id', bot.id);
+
+      // 10% chance news about this bot
+      if (Math.random() < 0.10) {
+        const template = pick(BOT_NEWS_TEMPLATES);
+        const news = template(bot.username, updates.loc || bot.loc);
+        newsToInsert.push({ text: news.text, icon: news.icon, urgency: news.urgency, category: news.category, expires_at: expiresAt });
+      }
+    }
+
+    if (newsToInsert.length > 0) {
+      await supabase.from('news_events').insert(newsToInsert);
+    }
+  } catch (e) {
+    console.error('Bot simulation error:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -198,6 +326,9 @@ Deno.serve(async (req) => {
     const currentWeather = update.current_weather || ws.current_weather;
     const currentDay = update.world_day || ws.world_day;
     await generateAndInsertNews(supabase, nextPhase, currentWeather, currentDay);
+
+    // ========== SIMULATE BOT ACTIVITY ==========
+    await simulateBots(supabase, nextPhase, currentDay);
 
     return new Response(JSON.stringify({
       success: true,
