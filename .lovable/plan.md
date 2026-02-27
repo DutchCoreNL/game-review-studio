@@ -1,43 +1,49 @@
 
 
-## Plan: Factie World Boss Systeem
+## Analyse: Factie-systeem in MMO Context
 
-### Huidige situatie
-- `faction_relations` tabel bestaat al met gedeelde boss HP, conquest phases, en `conquered_by`/`vassal_owner_id`
-- `handleAttackFaction` in game-action verwerkt al schade server-side
-- Probleem: na verovering blijft de factie permanent "vassal" voor één speler — geen reset, geen competitie
+### Wat al werkt (server-side)
+- **World Boss mechaniek**: `handleAttackFaction` in `game-action` tracked schade per speler, 3-fase conquest (defense → subboss → leader), boss HP gedeeld
+- **48h reset timer**: `world-tick` reset conquered facties automatisch na 48 uur
+- **Damage leaderboard**: Top-3 beloningen bij conquest (€50k/€25k/€10k)
+- **Realtime updates**: `useFactionState` hook luistert naar postgres_changes
+- **FactionCard**: Toont boss HP bar, damage leaderboard, countdown timer, conquest fases
 
-### Wat verandert
+### Problemen / Ontbrekende stukken
 
-**Database (migration):**
-- Kolom `reset_at` (timestamptz) toevoegen aan `faction_relations` — wanneer de boss respawnt
-- Kolom `total_damage_dealt` (jsonb, default `{}`) — tracked per-user schade bijdrage voor rewards
-- Kolom `conquest_reward_claimed` (jsonb, default `[]`) — voorkomt dubbele reward claims
+1. **Client-side staat conflicteert met server**: `state.conqueredFactions`, `state.leadersDefeated`, `state.familyRel` zijn lokale game state die niets weten van andere spelers. Het FamiliesPanel toont "vazal" alleen als de lokale speler het heeft veroverd.
 
-**Edge function `world-tick`:**
-- Bij elke tick: check of veroverde facties voorbij hun `reset_at` zijn (48 uur na conquest)
-- Zo ja: reset faction naar `active`, boss_hp naar 100, conquest_phase naar `none`, wis conquered_by
-- Genereer een news_event: "De [factie] heeft zich hersteld en een nieuwe leider gekozen!"
+2. **Relatie-systeem is single-player**: Elke speler heeft z'n eigen `familyRel[familyId]` — maar in een MMO zou de relatie per-speler moeten zijn (al server-side) OF gedeeld (global_relation in `faction_relations`).
 
-**Edge function `game-action` (handleAttackFaction):**
-- Track individuele schade in `total_damage_dealt` jsonb: `{ "user-id": 150, "user-id-2": 80 }`
-- Bij conquest: zet `reset_at = now() + 48h`, geef top-3 damage dealers extra rewards
-- De `conquered_by` speler krijgt tijdelijke vazal-bonussen (48h passief inkomen)
+3. **Conquest fases starten lokaal**: `canStartConquestPhase` en `getConquestPhase` checken lokale state in plaats van de server faction state.
 
-**Frontend FactionCard:**
-- Toon gedeelde boss HP bar met "X spelers hebben aangevallen" indicator
-- Bij veroverde factie: toon countdown timer tot reset
-- Toon damage leaderboard (top aanvallers) per factie
-- Verwijder permanent "vazal" state — vervang door tijdelijke controle indicator
+4. **Geen schaling**: Boss HP is vast 100/150 — met veel spelers gaat dit te snel. HP zou moeten schalen met actieve spelers.
 
-**Frontend useFactionState hook:**
-- Voeg `resetCountdown` berekening toe op basis van `reset_at`
-- Realtime updates werken al via postgres_changes subscription
+5. **Geen factie-bonussen voor gang**: Gangs zouden factie-territory voordelen moeten krijgen.
 
-### Stappen
-1. Database migration: `reset_at`, `total_damage_dealt`, `conquest_reward_claimed` kolommen
-2. Update `world-tick`: faction reset logica bij verlopen timer
-3. Update `game-action/handleAttackFaction`: damage tracking per user, reset_at bij conquest, rewards voor top damage dealers
-4. Update `FactionCard`: countdown timer, damage leaderboard, gedeelde boss HP indicator
-5. Update `FamiliesPanel`/`useFactionState`: verwerk nieuwe velden
+### Aanbevolen aanpak
+
+**Stap 1: Server-authoritative faction state**
+- FactionCard en FamiliesPanel volledig laten leunen op `mmoFaction` data uit `useFactionState` in plaats van lokale `state.conqueredFactions` / `state.leadersDefeated`
+- Conquest fases, boss HP, relatie status — allemaal uit de server
+
+**Stap 2: Boss HP schaling**
+- In `handleAttackFaction`: boss_max_hp schalen op basis van aantal unieke aanvallers (bijv. base 100 + 20 per extra aanvaller, max 500)
+- Dynamische moeilijkheidsgraad
+
+**Stap 3: Gang-factie koppeling**
+- Gangs kunnen een factie "claimen" na conquest — de hele gang krijgt bonussen
+- Gang-leden bijdragen tellen samen voor gang-ranking per factie
+
+**Stap 4: Seizoensrotatie**
+- Facties krijgen een wekelijkse "event modifier" (bijv. Cartel is deze week +50% sterker, maar geeft dubbele rewards)
+- Variatie per week via `world_state.active_event`
+
+### Implementatiestappen
+
+1. **Verwijder lokale faction conquest state** — `conqueredFactions`, `leadersDefeated` checks in FactionCard/FamiliesPanel vervangen door `mmoFaction.status` en `mmoFaction.conquered_by`
+2. **Boss HP schaling** — update `handleAttackFaction` om boss_max_hp dynamisch te verhogen op basis van `Object.keys(total_damage_dealt).length`
+3. **Conquest bonussen voor hele gang** — als de conqueror in een gang zit, krijgen alle gangleden de vazal-bonussen (korting, passief inkomen)
+4. **FamiliesPanel updaten** — conquest voortgangsbalk tonen op basis van server data, niet lokale arrays
+5. **Wekelijkse factie-modifiers** — in `world-tick` een random factie-buff/debuff toevoegen die meeweegt in combat
 
