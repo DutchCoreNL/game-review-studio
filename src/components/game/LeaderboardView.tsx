@@ -147,6 +147,7 @@ export function LeaderboardView() {
       {selectedPlayer && (
         <PlayerDetailPopup
           player={selectedPlayer}
+          userId={selectedPlayer.user_id}
           onClose={() => setSelectedPlayer(null)}
         />
       )}

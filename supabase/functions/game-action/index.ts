@@ -832,6 +832,90 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
   return { success: true, message: `${result.length} spelers gevonden.`, data: { players: result } };
 }
 
+// ========== PUBLIC PROFILE ==========
+
+async function handleGetPublicProfile(supabase: any, targetUserId: string): Promise<ActionResult> {
+  if (!targetUserId) return { success: false, message: "Geen speler opgegeven." };
+
+  const [profileRes, stateRes, gearRes, vehicleRes, districtRes, bizRes, crewRes] = await Promise.all([
+    supabase.from("profiles").select("username, created_at").eq("id", targetUserId).maybeSingle(),
+    supabase.from("player_state").select("level, xp, rep, karma, hp, max_hp, loc, backstory, endgame_phase, stats, loadout, day, money, dirty_money, hospitalizations, stats_total_earned, stats_trades_completed, stats_missions_completed, stats_casino_won, stats_casino_lost").eq("user_id", targetUserId).maybeSingle(),
+    supabase.from("player_gear").select("gear_id").eq("user_id", targetUserId),
+    supabase.from("player_vehicles").select("vehicle_id, is_active, condition, vehicle_heat").eq("user_id", targetUserId),
+    supabase.from("player_districts").select("district_id, district_rep").eq("user_id", targetUserId),
+    supabase.from("player_businesses").select("business_id").eq("user_id", targetUserId),
+    supabase.from("player_crew").select("name, role, level, specialization").eq("user_id", targetUserId),
+  ]);
+
+  if (!stateRes.data) return { success: false, message: "Speler niet gevonden." };
+
+  const ps = stateRes.data;
+  const profile = profileRes.data;
+
+  // Map gear IDs to names
+  const gearList = (gearRes.data || []).map((g: any) => {
+    const gear = GEAR.find(gi => gi.id === g.gear_id);
+    return { id: g.gear_id, name: gear?.name || g.gear_id, type: gear?.type || "unknown" };
+  });
+
+  // Map vehicle IDs to names
+  const vehicleList = (vehicleRes.data || []).map((v: any) => {
+    const veh = VEHICLES.find(vi => vi.id === v.vehicle_id);
+    return { id: v.vehicle_id, name: veh?.name || v.vehicle_id, active: v.is_active, condition: v.condition };
+  });
+
+  // Map district IDs to names
+  const districtNames: Record<string, string> = {
+    low: "Lowrise", port: "Port Nero", iron: "Iron Borough", neon: "Neon Strip", crown: "Crown Heights"
+  };
+  const districtList = (districtRes.data || []).map((d: any) => ({
+    id: d.district_id, name: districtNames[d.district_id] || d.district_id, rep: d.district_rep,
+  }));
+
+  // Map business IDs to names
+  const bizList = (bizRes.data || []).map((b: any) => {
+    const biz = BUSINESSES.find(bi => bi.id === b.business_id);
+    return { id: b.business_id, name: biz?.name || b.business_id };
+  });
+
+  const crewList = (crewRes.data || []).map((c: any) => ({
+    name: c.name, role: c.role, level: c.level, spec: c.specialization,
+  }));
+
+  return {
+    success: true,
+    message: "Profiel opgehaald.",
+    data: {
+      username: profile?.username || "Onbekend",
+      memberSince: profile?.created_at || null,
+      level: ps.level,
+      xp: ps.xp,
+      rep: ps.rep,
+      karma: ps.karma,
+      hp: ps.hp,
+      maxHp: ps.max_hp,
+      loc: ps.loc,
+      locName: districtNames[ps.loc] || ps.loc,
+      backstory: ps.backstory,
+      endgamePhase: ps.endgame_phase,
+      day: ps.day,
+      wealth: (ps.money || 0) + (ps.dirty_money || 0),
+      stats: ps.stats,
+      hospitalizations: ps.hospitalizations,
+      totalEarned: ps.stats_total_earned,
+      tradesCompleted: ps.stats_trades_completed,
+      missionsCompleted: ps.stats_missions_completed,
+      casinoWon: ps.stats_casino_won,
+      casinoLost: ps.stats_casino_lost,
+      gear: gearList,
+      vehicles: vehicleList,
+      districts: districtList,
+      businesses: bizList,
+      crew: crewList,
+    },
+  };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -936,6 +1020,9 @@ Deno.serve(async (req) => {
         break;
       case "list_players":
         result = await handleListPlayers(supabase, user.id, playerState);
+        break;
+      case "get_public_profile":
+        result = await handleGetPublicProfile(supabase, payload?.targetUserId);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

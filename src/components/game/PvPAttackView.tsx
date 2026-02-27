@@ -9,7 +9,8 @@ import { StatBar } from './ui/StatBar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle } from 'lucide-react';
+import { Swords, Shield, Heart, Skull, RefreshCw, Zap, Brain, Trophy, AlertTriangle, User } from 'lucide-react';
+import { PlayerDetailPopup } from './PlayerDetailPopup';
 
 interface PlayerTarget {
   userId: string;
@@ -38,6 +39,7 @@ export function PvPAttackView() {
   const [attacking, setAttacking] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<PlayerTarget | null>(null);
   const [lastResult, setLastResult] = useState<AttackResult | null>(null);
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
 
   const fetchPlayers = useCallback(async () => {
     if (!user) return;
@@ -177,9 +179,10 @@ export function PvPAttackView() {
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewProfileId(p.userId)}>
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="font-bold text-xs truncate">{p.username}</span>
+                  <User size={8} className="text-muted-foreground" />
+                  <span className="font-bold text-xs truncate hover:text-gold transition-colors">{p.username}</span>
                   <GameBadge variant="muted" size="xs">Lv.{p.level}</GameBadge>
                 </div>
                 <div className="flex items-center gap-1">
@@ -221,6 +224,11 @@ export function PvPAttackView() {
         onConfirm={() => { if (confirmTarget) executeAttack(confirmTarget); }}
         onCancel={() => setConfirmTarget(null)}
       />
+
+      {/* Public Profile Popup */}
+      {viewProfileId && (
+        <PlayerDetailPopup userId={viewProfileId} onClose={() => setViewProfileId(null)} />
+      )}
     </div>
   );
 }
