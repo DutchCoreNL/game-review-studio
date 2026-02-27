@@ -475,6 +475,19 @@ serve(async (req) => {
       return ok({ ok: true, message: `Event "${eventTitle}" getriggerd` });
     }
 
+    if (action === 'set_maintenance') {
+      const enabled = !!body.enabled;
+      const msg = body.message || null;
+      await adminClient.from('world_state').update({ maintenance_mode: enabled, maintenance_message: msg }).eq('id', 1);
+      await logAction('set_maintenance', { enabled, message: msg });
+      return ok({ ok: true, message: enabled ? 'Onderhoudsmodus ingeschakeld' : 'Onderhoudsmodus uitgeschakeld' });
+    }
+
+    if (action === 'get_maintenance') {
+      const { data } = await adminClient.from('world_state').select('maintenance_mode, maintenance_message').eq('id', 1).single();
+      return ok({ maintenance_mode: data?.maintenance_mode ?? false, maintenance_message: data?.maintenance_message ?? null });
+    }
+
     return bad('Unknown action');
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
