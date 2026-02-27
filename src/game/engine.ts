@@ -150,6 +150,10 @@ export function recalcMaxInv(state: GameState): number {
   if (state.villa?.modules.includes('opslagkelder')) {
     inv += 10;
   }
+  // Property storage bonus
+  const { getCurrentProperty } = require('./properties');
+  const prop = getCurrentProperty(state.propertyId);
+  if (prop?.bonuses?.storageSlots) inv += prop.bonuses.storageSlots;
   return inv;
 }
 
@@ -1060,6 +1064,19 @@ export function endTurn(state: GameState): NightReportData {
       report.businessIncome += 500;
     }
   });
+
+  // === PROPERTY PASSIVE INCOME ===
+  const { getCurrentProperty } = require('./properties');
+  const currentProp = getCurrentProperty(state.propertyId);
+  if (currentProp?.bonuses?.passiveIncome) {
+    state.money += currentProp.bonuses.passiveIncome;
+    state.stats.totalEarned += currentProp.bonuses.passiveIncome;
+    report.businessIncome += currentProp.bonuses.passiveIncome;
+  }
+  // Property heat reduction
+  if (currentProp?.bonuses?.heatReduction && state.heat > 0) {
+    state.heat = Math.max(0, state.heat - currentProp.bonuses.heatReduction);
+  }
 
   // === POWER DECAY: defeated-but-not-conquered factions lose influence ===
   if (!state.leaderDefeatedDay) state.leaderDefeatedDay = {};

@@ -5,19 +5,23 @@ import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, ArrowRight, Lock, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Home, ArrowUp, Lock, CheckCircle2, TrendingUp, Sparkles } from 'lucide-react';
 
 export function PropertiesView() {
   const { state, dispatch } = useGame();
   const [toast, setToast] = useState<string | null>(null);
 
-  // Use villa existence as proxy for property ownership progression
-  const currentPropId = state.villa ? 'villa' : 
-    state.player.level >= 12 ? 'penthouse' :
-    state.player.level >= 5 ? 'appartement' : 'kraakpand';
-  
-  const currentProp = getCurrentProperty(currentPropId);
-  const nextProp = getNextProperty(currentPropId);
+  const currentProp = getCurrentProperty(state.propertyId);
+  const nextProp = getNextProperty(state.propertyId || 'kraakpand');
+
+  const handleBuy = (prop: Property) => {
+    if (prop.id === 'villa') {
+      dispatch({ type: 'BUY_PROPERTY', propertyId: 'villa' });
+    } else {
+      dispatch({ type: 'BUY_PROPERTY', propertyId: prop.id });
+    }
+    setToast(`🏠 Verhuisd naar ${prop.name}!`);
+  };
 
   return (
     <ViewWrapper>
@@ -38,6 +42,11 @@ export function PropertiesView() {
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Huidige woning</p>
             <h2 className="text-lg font-bold text-foreground">{currentProp.name}</h2>
+          </div>
+          <div className="ml-auto">
+            <span className="text-[0.5rem] uppercase font-bold px-2 py-0.5 rounded-full bg-gold/20 text-gold border border-gold/30">
+              Tier {currentProp.tier}
+            </span>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">{currentProp.description}</p>
@@ -94,14 +103,13 @@ export function PropertiesView() {
                   {prop.reqRep > 0 && <span>Rep {prop.reqRep}</span>}
                 </div>
               </div>
-              {isNext && (
-                <div className="text-right">
-                  {canBuy ? (
-                    <span className="text-[0.6rem] text-gold font-bold">Beschikbaar</span>
-                  ) : (
-                    <span className="text-[0.6rem] text-muted-foreground">Niet beschikbaar</span>
-                  )}
-                </div>
+              {isNext && canBuy && (
+                <GameButton size="sm" variant="gold" onClick={() => handleBuy(prop)}>
+                  <ArrowUp size={14} /> Kopen
+                </GameButton>
+              )}
+              {isNext && !canBuy && (
+                <span className="text-[0.6rem] text-muted-foreground whitespace-nowrap">Niet beschikbaar</span>
               )}
             </motion.div>
           );
@@ -123,9 +131,16 @@ export function PropertiesView() {
           {nextProp.bonuses && Object.keys(nextProp.bonuses).length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {nextProp.bonuses.maxEnergy && <BonusTag label={`+${nextProp.bonuses.maxEnergy} Energy`} />}
+              {nextProp.bonuses.maxHp && <BonusTag label={`+${nextProp.bonuses.maxHp} HP`} />}
               {nextProp.bonuses.passiveIncome && <BonusTag label={`€${nextProp.bonuses.passiveIncome}/dag`} />}
               {nextProp.bonuses.heatReduction && <BonusTag label={`-${nextProp.bonuses.heatReduction}% heat`} />}
+              {nextProp.bonuses.storageSlots && <BonusTag label={`+${nextProp.bonuses.storageSlots} opslag`} />}
             </div>
+          )}
+          {canAffordProperty(nextProp, state.money, state.player.level, state.rep) && (
+            <GameButton variant="gold" fullWidth onClick={() => handleBuy(nextProp)}>
+              <Sparkles size={14} /> Upgrade naar {nextProp.name} — €{nextProp.cost.toLocaleString()}
+            </GameButton>
           )}
         </div>
       )}
