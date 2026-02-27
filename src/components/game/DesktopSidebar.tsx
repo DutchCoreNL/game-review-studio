@@ -7,7 +7,7 @@ import {
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings,
-  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane,
+  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
@@ -28,6 +28,7 @@ const CATEGORIES: Category[] = [
     items: [
       { id: 'city', label: 'Kaart', icon: Map },
       { id: 'travel', label: 'Reizen', icon: Plane },
+      { id: 'chat', label: 'Chat', icon: MessageCircle },
       { id: 'casino', label: 'Casino', icon: Dices },
       { id: 'hospital', label: 'Ziekenhuis', icon: Heart },
       { id: 'safehouse', label: 'Safehouse', icon: Home },
