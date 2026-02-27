@@ -1,4 +1,4 @@
-import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText } from 'lucide-react';
+import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
@@ -13,6 +13,7 @@ import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
+import { useMuteStatus } from '@/hooks/useMuteStatus';
 import tradeBg from '@/assets/trade-bg.jpg';
 
 type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
@@ -20,6 +21,7 @@ type TradeSubTab = 'market' | 'analysis' | 'auction' | 'launder' | 'gear' | 'sto
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
   const { state } = useGame();
+  const { isMuted, reason, expiresAt } = useMuteStatus();
 
   const hasProfitableRoute = useMemo(() => {
     const totalCharm = getPlayerStat(state, 'charm');
@@ -49,15 +51,33 @@ export function TradeView() {
 
   return (
     <ViewWrapper bg={tradeBg}>
-      <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as TradeSubTab)} />
+      {isMuted && (
+        <div className="bg-ice/10 border border-ice/30 rounded p-3 mb-3 flex items-start gap-2">
+          <VolumeX size={14} className="text-ice shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[0.6rem] font-bold text-ice">🔇 Je bent gemute — Handel is geblokkeerd</p>
+            {reason && <p className="text-[0.5rem] text-muted-foreground mt-0.5">"{reason}"</p>}
+            {expiresAt && <p className="text-[0.45rem] text-muted-foreground mt-0.5">Verloopt: {new Date(expiresAt).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>}
+          </div>
+        </div>
+      )}
 
-      {subTab === 'market' && <MarketPanel />}
-      {subTab === 'analysis' && <MarketAnalysisPanel />}
-      {subTab === 'auction' && <AuctionPanel />}
-      {subTab === 'stocks' && <StockMarketPanel />}
-      {subTab === 'launder' && <LaunderingPanel />}
-      {subTab === 'gear' && <GearPanel />}
-      {subTab === 'log' && <TradeLogPanel />}
+      {isMuted ? (
+        <div className="text-center py-12 text-muted-foreground text-xs">
+          Handel is tijdelijk uitgeschakeld vanwege een mute-sanctie.
+        </div>
+      ) : (
+        <>
+          <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as TradeSubTab)} />
+          {subTab === 'market' && <MarketPanel />}
+          {subTab === 'analysis' && <MarketAnalysisPanel />}
+          {subTab === 'auction' && <AuctionPanel />}
+          {subTab === 'stocks' && <StockMarketPanel />}
+          {subTab === 'launder' && <LaunderingPanel />}
+          {subTab === 'gear' && <GearPanel />}
+          {subTab === 'log' && <TradeLogPanel />}
+        </>
+      )}
     </ViewWrapper>
   );
 }
