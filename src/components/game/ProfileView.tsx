@@ -28,6 +28,8 @@ import { useState } from 'react';
 import profileBg from '@/assets/profile-bg.jpg';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { LinkAccountPanel } from './profile/LinkAccountPanel';
+import { AdminPanel } from './AdminPanel';
+import { useAdmin } from '@/hooks/useAdmin';
 
 const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
   { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
@@ -41,12 +43,13 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'imperium' | 'settings';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'imperium' | 'settings' | 'admin';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
   const [profileTab, setProfileTab] = useState<ProfileTab>('stats');
   const [confirmReset, setConfirmReset] = useState(false);
+  const { isAdmin } = useAdmin();
   const xpPct = Math.min(100, (state.player.xp / state.player.nextXp) * 100);
   const rank = getRankTitle(state.rep);
   const stats = state.stats;
@@ -90,6 +93,7 @@ export function ProfileView() {
           { id: 'leaderboard', label: 'ONLINE', icon: <Crown size={11} /> },
           { id: 'imperium', label: 'IMPERIUM', icon: <Skull size={11} /> },
           { id: 'settings', label: '⚙️', icon: <Settings size={11} /> },
+          ...(isAdmin ? [{ id: 'admin', label: 'ADMIN', icon: <Shield size={11} />, badge: true }] : []),
         ] as SubTab<string>[]}
         active={profileTab}
         onChange={(id) => setProfileTab(id as ProfileTab)}
@@ -236,6 +240,8 @@ export function ProfileView() {
       )}
 
       {profileTab === 'settings' && <AudioSettingsPanel />}
+
+      {profileTab === 'admin' && isAdmin && <AdminPanel />}
 
       {profileTab === 'districts' && (
         <>
