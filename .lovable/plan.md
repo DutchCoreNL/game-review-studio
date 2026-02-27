@@ -1,51 +1,94 @@
 
 
-## Verbeteringsgebieden die ik heb geïdentificeerd
+## UI Verbeterplan — Noxhaven
 
-Na analyse van de codebase zie ik de volgende verbetermogelijkheden:
-
-### 1. Performance: `JSON.parse(JSON.stringify(state))` deep clone
-De game reducer (regel 225 GameContext.tsx) kloont bij **elke actie** de volledige `GameState` met `JSON.parse(JSON.stringify())`. Dit is extreem traag bij een state van deze omvang (2800+ regels reducer, 1000+ regels types). Dit zou vervangen moeten worden door een structurele immutable-update aanpak (of `structuredClone` als minimum, of beter: `immer`).
-
-### 2. Reducer is te groot (~2600 regels in één bestand)
-`GameContext.tsx` is bijna 2850 regels. Dit maakt het moeilijk te onderhouden. De reducer zou opgesplitst moeten worden in domein-specifieke sub-reducers (trade, combat, villa, heist, etc.).
-
-### 3. Save state migraties zijn fragiel
-Bij `SET_STATE` worden ~20 handmatige migratie-checks gedaan (regels 228-269). Dit zou een versioned migration-systeem moeten zijn met een schema-versienummer.
-
-### 4. Trade log mist winst/verlies totalen per dag
-De `TradeLogPanel` toont individuele trades maar geen dagelijkse samenvatting of grafiek van totale winst over tijd.
-
-### 5. Crafting recepten hebben geen unlock-feedback in het nachtrapport
-Wanneer je een villa-module installeert krijg je een toast, maar het nachtrapport toont geen crafting-activiteit of productiewaarde.
-
-### 6. Crew loyalty system mist visuele indicatoren in het overzicht
-Het crew-paneel toont geen loyaliteitsbalk of waarschuwingen voor lage loyaliteit. Spelers worden verrast door defecties.
-
-### 7. Leaderboard sync is onbeschermd
-`syncLeaderboard.ts` stuurt data zonder validatie. Een speler kan via de browser console valse scores injecteren.
+Na analyse van alle views, componenten en patronen identificeer ik de volgende concrete UI-problemen en oplossingen:
 
 ---
 
-## Aanbevolen prioriteit
+### 1. Unified Sub-Tab Component (DRY)
+Elke view (Trade, Ops, Imperium, Profile) implementeert sub-tabs met eigen inline styling. Dit leidt tot inconsistente spacing, font-sizes en badge-stijlen.
 
-Ik zou aanraden te focussen op de **meest impactvolle verbeteringen voor de speler**:
+**Oplossing:** Eén `SubTabBar` component maken die overal wordt hergebruikt:
+- Horizontaal scrollbaar met `scrollbar-hide` (zoals Imperium/Profile al doen, maar Trade/Ops niet)
+- Consistent: `flex-shrink-0`, `px-3 py-2`, `text-[0.55rem]`, icoon + label + optionele badge
+- Badge-stijl unificeren (nu verschilt badge per view: dot vs. getal vs. boolean)
 
-| # | Verbetering | Impact |
-|---|------------|--------|
-| 1 | Crew loyaliteitsbalk toevoegen aan crew-overzicht | Voorkomt frustratie door onverwachte defecties |
-| 2 | Dagelijkse winst/verlies samenvatting in trade log | Betere inzicht in financiële prestaties |
-| 3 | Crafting output tonen in nachtrapport | Completer overzicht van nachtelijke productie |
-| 4 | Performance verbeteren met immer | Snellere gameplay, minder lag |
-| 5 | Reducer opsplitsen | Betere onderhoudbaarheid |
+**Bestanden:** Nieuw `src/components/game/ui/SubTabBar.tsx`, aanpassingen in `TradeView`, `OperationsView`, `ImperiumView`, `ProfileView`
 
-### Technische details
+---
 
-**Crew loyaliteitsbalk**: Een gekleurde voortgangsbalk (groen >80, geel >50, oranje >20, rood <20) naast elk crewlid in het bestaande crew-overzicht, met een waarschuwingsicoon bij lage loyaliteit.
+### 2. Profile Tabs opschonen (12 tabs → 8 gegroepeerde)
+De Profile-sectie heeft 12 sub-tabs. Dit is overweldigend op mobiel.
 
-**Dagelijkse trade samenvatting**: Een klein staafdiagram bovenaan de TradeLogPanel dat winst/verlies per dag toont over de laatste 10 dagen, berekend uit bestaande `tradeLog` data.
+**Oplossing:** Groepeer gerelateerde tabs:
+- Merge "STATS" + "CHARTS" → **STATS** (charts inline onder stats)
+- Merge "VILLA" + "💀 IMPERIUM" → **IMPERIUM** (villa-samenvatting + drug empire samen)
+- Merge "🔊 AUDIO" in een settings-icoon (⚙️) in de header of onderaan profiel
+- "📖 WIKI" verplaatsen naar main menu (hoort niet bij profiel)
+- Resultaat: **STATS, LOADOUT, NPC'S, REPUTATIE, BOGEN, TROFEEËN, ONLINE, IMPERIUM** (8 tabs)
 
-**Crafting in nachtrapport**: Een nieuwe sectie in NightReport die crafting-output van die beurt toont (als er gecrafted is), vergelijkbaar met de bestaande lab/villa productie secties.
+**Bestanden:** `ProfileView.tsx`
 
-**Performance (immer)**: Vervang `JSON.parse(JSON.stringify(state))` door `produce()` van immer. Dit vereist het toevoegen van de `immer` dependency en het wrappen van de reducer.
+---
+
+### 3. MapView Action Buttons → Contextual Action Bar
+De kaartweergave heeft 2-6 knoppen onderaan die dynamisch verschijnen/verdwijnen. Op kleine schermen wrappen ze onhandig.
+
+**Oplossing:** 
+- "DAG AFSLUITEN" wordt een vaste brede knop onderaan
+- Locatie-specifieke acties (Casino, Chop Shop, Ziekenhuis, Safehouse, Villa) worden horizontaal scrollbare icoon-knoppen boven de "DAG AFSLUITEN" knop
+- Decker-knop krijgt een speciale prominente positie als die beschikbaar is
+
+**Bestanden:** `MapView.tsx`
+
+---
+
+### 4. Header Resource Tiles — Beter Gegroepeerd
+De resource-tiles in de header vormen een horizontale rij die op kleine schermen moeilijk leesbaar is. HP, REP, LVL staan op dezelfde lijn als HEAT, KARMA, SCHULD.
+
+**Oplossing:**
+- Splits in twee visuele groepen met een subtiele separator: **Player stats** (HP, LVL, REP) | **Risk stats** (HEAT, KARMA, AMMO)
+- Conditionals (SCHULD, SCHUIL, GOUD) worden compacter: alleen icoon + getal, geen label
+- Geld (€) verplaatsen naar een tile in de resource-rij in plaats van apart rechtsboven
+
+**Bestanden:** `GameHeader.tsx`
+
+---
+
+### 5. Consistente View Layout Wrapper
+Elke view herhaalt dezelfde boilerplate: background image + gradient + `relative z-10` wrapper.
+
+**Oplossing:** Eén `ViewWrapper` component:
+```tsx
+<ViewWrapper bg={tradeBg}>
+  {children}
+</ViewWrapper>
+```
+
+**Bestanden:** Nieuw `src/components/game/ui/ViewWrapper.tsx`, aanpassingen in alle 4 views
+
+---
+
+### 6. "Terug naar kaart" knoppen → Consistente back-navigatie
+MapView heeft 5 sub-views (Villa, Hospital, ChopShop, Safehouse, Casino) elk met een handmatige "← TERUG NAAR KAART" knop met inline styling.
+
+**Oplossing:** Eén `BackButton` component, of beter: verplaats deze sub-views naar een modal/sheet-patroon zodat de kaart zichtbaar blijft op de achtergrond.
+
+**Bestanden:** `MapView.tsx`, eventueel nieuw `ui/BackButton.tsx`
+
+---
+
+### Technische Details
+
+| Component | Nieuw/Gewijzigd | Geschatte impact |
+|-----------|----------------|-----------------|
+| `SubTabBar.tsx` | Nieuw | Verwijdert ~80 regels duplicatie |
+| `ViewWrapper.tsx` | Nieuw | Verwijdert ~20 regels duplicatie |
+| `ProfileView.tsx` | Gewijzigd | 12→8 tabs, betere groepering |
+| `MapView.tsx` | Gewijzigd | Nettere action bar layout |
+| `GameHeader.tsx` | Gewijzigd | Betere groepering resources |
+| `TradeView.tsx` | Gewijzigd | Gebruikt SubTabBar |
+| `OperationsView.tsx` | Gewijzigd | Gebruikt SubTabBar |
+| `ImperiumView.tsx` | Gewijzigd | Gebruikt SubTabBar |
 
