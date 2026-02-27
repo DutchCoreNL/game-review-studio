@@ -21,6 +21,11 @@ export interface BackstoryDef {
     karma?: number;
     startDistrict?: DistrictId;
   };
+  mmoPerk: {
+    label: string;
+    desc: string;
+    icon: string;
+  };
   exclusiveArcId: string; // ID of the exclusive story arc
   color: string; // theme color class
 }
@@ -35,6 +40,11 @@ export const BACKSTORIES: BackstoryDef[] = [
     longDesc: 'Een routinecontrole die escaleerde. Een waarschuwingsschot dat geen waarschuwing was. Ze namen alles van je — nu neem jij alles van hen. De straten van Noxhaven kennen je pijn, en ze zullen je woede leren kennen.',
     statBonuses: { muscle: 3 },
     startBonuses: { policeRel: -20, karma: -10, startDistrict: 'iron' },
+    mmoPerk: {
+      label: 'Bloedpact',
+      desc: '+10% PvP-schade & +10 startrelatie met Bikers',
+      icon: '⚔️',
+    },
     exclusiveArcId: 'backstory_wraak',
     color: 'blood',
   },
@@ -46,7 +56,12 @@ export const BACKSTORIES: BackstoryDef[] = [
     desc: 'Je verloor alles door een corrupte deal. Nu neem je het terug.',
     longDesc: 'Je was de jongste VP bij Van der Berg & Partners. Tot je ontdekte dat je collega\'s miljoenen wegsluisden — en jou als zondebok gebruikten. Alles verloren: carrière, huis, reputatie. Maar je kent het systeem van binnenuit. En dat is je grootste wapen.',
     statBonuses: { brains: 3 },
-    startBonuses: { money: 3000, karma: 0, startDistrict: 'crown' },
+    startBonuses: { money: 5000, karma: 0, startDistrict: 'crown' },
+    mmoPerk: {
+      label: 'Insider Trading',
+      desc: '-15% handelskosten op de gedeelde markt',
+      icon: '📊',
+    },
     exclusiveArcId: 'backstory_schuld',
     color: 'gold',
   },
@@ -59,6 +74,11 @@ export const BACKSTORIES: BackstoryDef[] = [
     longDesc: 'Geen ouders, geen huis, geen regels. De straten van Lowrise waren je wieg en je school. Je leerde praten voordat je leerde lezen — en je leerde vechten voordat je leerde praten. Nu ben je volwassen, en de stad die je groot maakte, zal van jou worden.',
     statBonuses: { charm: 3 },
     startBonuses: { rep: 30, karma: 5, startDistrict: 'low' },
+    mmoPerk: {
+      label: 'Straatnetwerk',
+      desc: 'Extra crew-slot bij start & 20% snellere heat-reductie',
+      icon: '🔗',
+    },
     exclusiveArcId: 'backstory_loyaliteit',
     color: 'emerald',
   },
@@ -82,6 +102,24 @@ export function applyBackstory(state: any, backstoryId: BackstoryId): void {
   if (def.startBonuses.policeRel) state.policeRel += def.startBonuses.policeRel;
   if (def.startBonuses.karma) state.karma = (state.karma || 0) + def.startBonuses.karma;
   if (def.startBonuses.startDistrict) state.loc = def.startBonuses.startDistrict;
+
+  // Apply MMO perks
+  if (backstoryId === 'weduwnaar') {
+    // +10 Bikers faction relation
+    if (state.familyRel) state.familyRel.bikers = (state.familyRel.bikers || 0) + 10;
+    // PvP damage bonus tracked as a modifier flag
+    if (!state.mmoPerkFlags) state.mmoPerkFlags = {};
+    state.mmoPerkFlags.pvpDamageBonus = 0.10; // +10%
+  } else if (backstoryId === 'bankier') {
+    // Trade discount tracked as a modifier flag
+    if (!state.mmoPerkFlags) state.mmoPerkFlags = {};
+    state.mmoPerkFlags.tradeDiscount = 0.15; // -15%
+  } else if (backstoryId === 'straatkind') {
+    // Extra crew slot at start
+    if (!state.mmoPerkFlags) state.mmoPerkFlags = {};
+    state.mmoPerkFlags.heatReductionBonus = 0.20; // 20% faster
+    // Add an extra empty crew slot capacity (crew system uses array length)
+  }
 
   // Set backstory
   state.backstory = backstoryId;

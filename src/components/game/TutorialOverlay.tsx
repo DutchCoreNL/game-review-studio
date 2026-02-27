@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff, Swords, Home, TrendingUp, Heart, Crown } from 'lucide-react';
+import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff, Swords, Home, TrendingUp, Heart, Crown, Globe, Target, UserCheck } from 'lucide-react';
 
 import tutWelcome from '@/assets/items/tut-welcome.jpg';
 import tutTrade from '@/assets/items/tut-trade.jpg';
@@ -13,6 +13,9 @@ import tutVilla from '@/assets/items/tut-villa.jpg';
 import tutKarma from '@/assets/items/tut-karma.jpg';
 import tutImperium from '@/assets/items/tut-imperium.jpg';
 import tutKingpin from '@/assets/items/tut-kingpin.jpg';
+import tutMmoMarket from '@/assets/items/tut-mmo-market.jpg';
+import tutMmoBosses from '@/assets/items/tut-mmo-bosses.jpg';
+import tutMmoPlayers from '@/assets/items/tut-mmo-players.jpg';
 
 const STEPS = [
   {
@@ -28,6 +31,12 @@ const STEPS = [
     image: tutTrade,
   },
   {
+    title: "De Gedeelde Markt",
+    desc: "Prijzen worden bepaald door alle spelers. Koop je veel Synthetica? Dan stijgt de prijs voor iedereen. Verkoop slim en beïnvloed de markteconomie in jouw voordeel.",
+    icon: <Globe size={32} className="text-ice" />,
+    image: tutMmoMarket,
+  },
+  {
     title: "Crew & Missies",
     desc: "Huur specialisten met unieke vaardigheden. Neem contracten aan die variëren van leveringen tot sabotage. Pas op: missies kunnen verrassende wendingen hebben.",
     icon: <Users size={32} className="text-gold" />,
@@ -38,6 +47,12 @@ const STEPS = [
     desc: "Elk gevecht speelt zich af in de sfeer van het district. Kies uit 5 acties inclusief een unieke tactische optie per locatie. Baasgevechten hebben hun eigen verhaallijnen.",
     icon: <Swords size={32} className="text-blood" />,
     image: tutCombat,
+  },
+  {
+    title: "World Bosses",
+    desc: "Factieleiders zijn gedeelde vijanden. Alle spelers vallen dezelfde boss aan — de top-3 damage dealers ontvangen extra beloningen. Na verovering reset de boss na 48 uur.",
+    icon: <Target size={32} className="text-blood" />,
+    image: tutMmoBosses,
   },
   {
     title: "Voertuig & Persoonlijke Heat",
@@ -68,6 +83,12 @@ const STEPS = [
     desc: "Verover districten, beheer smokkelroutes en verdedig je territorium. Solo-operaties leveren dynamische beloningen op basis van je dag, locatie en heat.",
     icon: <TrendingUp size={32} className="text-gold" />,
     image: tutImperium,
+  },
+  {
+    title: "Andere Spelers",
+    desc: "Je bent niet alleen. Val rivalen aan, plaats bounties op vijanden en stuur berichten. Check het leaderboard om te zien wie de echte Kingpin van Noxhaven is.",
+    icon: <UserCheck size={32} className="text-gold" />,
+    image: tutMmoPlayers,
   },
   {
     title: "Word de Kingpin",
