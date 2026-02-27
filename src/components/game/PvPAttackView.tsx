@@ -61,20 +61,6 @@ export function PvPAttackView() {
   if (state.activePvPCombat) {
     return <PvPCombatView />;
   }
-    if (!user) return;
-    setLoading(true);
-    try {
-      const res = await gameApi.listPlayers();
-      if (res.success && res.data?.players) {
-        setPlayers(res.data.players);
-      }
-    } catch {
-      showToast('Kon spelers niet laden.', true);
-    }
-    setLoading(false);
-  }, [user, showToast]);
-
-  useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
   const executeAttack = async (target: PlayerTarget) => {
     setAttacking(true);
