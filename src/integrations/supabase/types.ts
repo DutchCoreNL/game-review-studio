@@ -596,6 +596,42 @@ export type Database = {
         }
         Relationships: []
       }
+      news_events: {
+        Row: {
+          category: string
+          created_at: string
+          detail: string | null
+          district_id: string | null
+          expires_at: string
+          icon: string
+          id: string
+          text: string
+          urgency: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          detail?: string | null
+          district_id?: string | null
+          expires_at?: string
+          icon?: string
+          id?: string
+          text: string
+          urgency?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          detail?: string | null
+          district_id?: string | null
+          expires_at?: string
+          icon?: string
+          id?: string
+          text?: string
+          urgency?: string
+        }
+        Relationships: []
+      }
       player_bounties: {
         Row: {
           amount: number
