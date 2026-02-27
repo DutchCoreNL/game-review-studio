@@ -248,7 +248,7 @@ function syncChallenges(s: GameState): void {
 /** Energy/Nerve cost constants for MMO actions */
 const ENERGY_COSTS: Record<string, number> = {
   TRADE: 2, TRAVEL: 5, SOLO_OP: 10, EXECUTE_CONTRACT: 15, START_COMBAT: 8,
-  START_NEMESIS_COMBAT: 10, EXECUTE_HIT: 12, LAUNCH_HEIST: 20, BUY_DISTRICT: 5,
+  START_NEMESIS_COMBAT: 10, EXECUTE_HIT: 12, LAUNCH_HEIST: 20,
   ATTEMPT_CAR_THEFT: 8, START_RACE: 5, CRAFT_ITEM: 3,
 };
 const NERVE_COSTS: Record<string, number> = {

@@ -5,7 +5,6 @@ interface CityAmbienceProps {
   roads: string[];
   smuggleRoutes: SmuggleRoute[];
   districtRep: Record<DistrictId, number>;
-  ownedDistricts: DistrictId[];
   districtMeta: Record<DistrictId, { cx: number; cy: number }>;
 }
 
@@ -199,35 +198,7 @@ function SmuggleRouteLines({ routes, districtMeta }: { routes: SmuggleRoute[]; d
   );
 }
 
-// ========== OWNED DISTRICT TERRITORY GLOW ==========
-function OwnedDistrictGlow({ ownedDistricts }: { ownedDistricts: DistrictId[] }) {
-  if (ownedDistricts.length === 0) return null;
-
-  const zones: Record<DistrictId, { x: number; y: number; w: number; h: number }> = {
-    port:  { x: 30,  y: 50,  w: 100, h: 65 },
-    crown: { x: 270, y: 40,  w: 110, h: 75 },
-    iron:  { x: 30,  y: 185, w: 110, h: 65 },
-    low:   { x: 275, y: 195, w: 100, h: 60 },
-    neon:  { x: 155, y: 145, w: 100, h: 60 },
-  };
-
-  return (
-    <g pointerEvents="none">
-      {ownedDistricts.map(id => {
-        const z = zones[id];
-        return (
-          <motion.rect key={`owned-glow-${id}`}
-            x={z.x} y={z.y} width={z.w} height={z.h} rx="6"
-            fill="hsla(0, 72%, 40%, 0.04)"
-            stroke="hsla(0, 72%, 40%, 0.06)" strokeWidth="1"
-            animate={{ opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        );
-      })}
-    </g>
-  );
-}
+// ========== OWNED DISTRICT TERRITORY GLOW (removed for MMO) ==========
 
 // ========== DISTRICT ACTIVITY LEVEL ==========
 function DistrictActivity({ districtRep }: { districtRep: Record<DistrictId, number> }) {
@@ -319,11 +290,10 @@ function ParkDetails() {
 }
 
 // ========== MAIN EXPORT ==========
-export function CityAmbience({ roads, smuggleRoutes, districtRep, ownedDistricts, districtMeta }: CityAmbienceProps) {
+export function CityAmbience({ roads, smuggleRoutes, districtRep, districtMeta }: CityAmbienceProps) {
   return (
     <g>
       <CityGlow />
-      <OwnedDistrictGlow ownedDistricts={ownedDistricts} />
       <DistrictActivity districtRep={districtRep} />
       <StreetLights roads={roads} />
       <TrafficLights />

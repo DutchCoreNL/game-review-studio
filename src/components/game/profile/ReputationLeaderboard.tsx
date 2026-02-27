@@ -38,7 +38,7 @@ export function ReputationLeaderboard() {
     { rank: 0, name: 'Rosa Delgado', title: 'Informant', power: 200 + state.day * 2, isPlayer: false, status: 'active' },
   ];
 
-  const playerPower = state.rep + state.player.level * 50 + state.ownedDistricts.length * 100 + (state.conqueredFactions?.length || 0) * 200;
+  const playerPower = state.rep + state.player.level * 50 + (state.conqueredFactions?.length || 0) * 200;
   const playerEntry: LeaderboardEntry = {
     rank: 0,
     name: 'The Boss (Jij)',

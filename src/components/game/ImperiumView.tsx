@@ -67,7 +67,7 @@ function BusinessPanel() {
   };
 
   const isUnlocked = (b: typeof BUSINESSES[0]) => {
-    if (b.reqDistrict && !state.ownedDistricts.includes(b.reqDistrict)) return false;
+    // reqDistrict removed (MMO: gang influence only)
     if (b.reqRep && state.rep < b.reqRep) return false;
     if (b.reqDay && state.day < b.reqDay) return false;
     if (b.reqBusinessCount && state.ownedBusinesses.length < b.reqBusinessCount) return false;

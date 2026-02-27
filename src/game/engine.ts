@@ -137,7 +137,7 @@ export function recalcMaxInv(state: GameState): number {
     inv += totalBonus;
   }
   if (state.villa?.modules.includes('garage_uitbreiding')) inv += 10;
-  if (state.ownedDistricts.includes('port')) inv = Math.floor(inv * 1.1);
+  // District perk removed (MMO: gang influence only)
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
   // Safehouse storage bonuses (level 2: +5, level 3: +10)
   if (state.safehouses) {
@@ -780,10 +780,8 @@ export function endTurn(state: GameState): NightReportData {
     }
   }
 
-  // District income (0 while hiding)
-  if (!isHiding) {
-    report.districtIncome = state.ownedDistricts.reduce((s, id) => s + DISTRICTS[id].income, 0);
-  }
+  // District income removed (MMO: gang influence only)
+  report.districtIncome = 0;
 
   // Business income & washing (0 while hiding)
   if (!isHiding) {
@@ -792,7 +790,6 @@ export function endTurn(state: GameState): NightReportData {
       if (biz) {
         report.businessIncome += biz.income;
         let washAmount = Math.min(state.dirtyMoney, biz.clean);
-        if (state.ownedDistricts.includes('neon')) washAmount = Math.floor(washAmount * 1.2);
         state.dirtyMoney -= washAmount;
         const washed = Math.floor(washAmount * 0.85);
         state.money += washed;
@@ -807,7 +804,7 @@ export function endTurn(state: GameState): NightReportData {
   // === VEHICLE HEAT DECAY (each vehicle) ===
   state.ownedVehicles.forEach(v => {
     let vDecay = 8;
-    if (state.ownedDistricts.includes('crown')) vDecay += 2;
+    // District perk removed (MMO)
     if (state.villa?.modules.includes('server_room')) vDecay += 3;
     v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
     // Rekat cooldown countdown
@@ -816,7 +813,7 @@ export function endTurn(state: GameState): NightReportData {
 
    // === PERSONAL HEAT DECAY ===
   let pDecay = 2;
-  if (state.ownedDistricts.includes('crown')) pDecay += 1;
+  // District perk removed (MMO)
   if (state.villa?.modules.includes('server_room')) pDecay += 3;
   if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
   // Karma: Eerbaar extra heat decay
@@ -1493,8 +1490,7 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
   if (state.player.level < op.level) return { success: false, message: "Te laag level." };
 
   const statVal = getPlayerStat(state, op.stat);
-  const isLowrise = state.ownedDistricts.includes('low');
-  const effectiveRisk = isLowrise ? Math.floor(op.risk * 0.7) : op.risk;
+  const effectiveRisk = op.risk;
   const chance = Math.min(95, 100 - effectiveRisk + (statVal * 5));
 
   // Scale reward with player level (cap at 3x base)
@@ -1645,7 +1641,7 @@ export function healCrew(state: GameState, crewIndex: number): { success: boolea
 
   const hpNeeded = 100 - member.hp;
   let costPerHp = 50;
-  if (state.ownedDistricts.includes('iron')) costPerHp = Math.floor(costPerHp * 0.8); // Iron Borough perk
+  // District perk removed (MMO)
   const totalCost = hpNeeded * costPerHp;
 
   if (state.money < totalCost) return { success: false, message: 'Niet genoeg geld.', cost: totalCost };
@@ -2037,12 +2033,12 @@ export function getBestTradeRoute(state: GameState): { good: GoodId; buyDistrict
 }
 
 export function getWashCapacity(state: GameState): { total: number; used: number; remaining: number } {
-  let total = 3000 + (state.ownedDistricts.length * 1000);
+  let total = 3000;
   state.ownedBusinesses.forEach(bid => {
     const biz = BUSINESSES.find(b => b.id === bid);
     if (biz) total += biz.clean;
   });
-  if (state.ownedDistricts.includes('neon')) total = Math.floor(total * 1.2);
+  // District perk removed (MMO)
   const used = state.washUsedToday || 0;
   return { total, used, remaining: Math.max(0, total - used) };
 }
@@ -2270,10 +2266,7 @@ export function conquerFaction(state: GameState, familyId: FamilyId): { success:
   state.rep += 300;
   gainXp(state, 150);
 
-  // Grant the faction's home district if not owned
-  if (!state.ownedDistricts.includes(fam.home)) {
-    state.ownedDistricts.push(fam.home);
-  }
+  // District grant removed (MMO: gang influence only)
 
   return { success: true, message: `${fam.name} is nu jouw vazal! Je krijgt hun thuisdistrict, +€1000/dag passief inkomen, en permanente marktkorting.` };
 }
@@ -2301,10 +2294,7 @@ export function annexFaction(state: GameState, familyId: FamilyId): { success: b
   state.rep += 200;
   gainXp(state, 100);
 
-  // Grant the faction's home district if not owned
-  if (!state.ownedDistricts.includes(fam.home)) {
-    state.ownedDistricts.push(fam.home);
-  }
+  // District grant removed (MMO: gang influence only)
 
   return { success: true, message: `${fam.name} is diplomatiek geannexeerd! Je krijgt hun thuisdistrict, +€1000/dag passief inkomen, en permanente marktkorting.` };
 }

@@ -377,7 +377,6 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           roads={ROADS}
           smuggleRoutes={smuggleRoutes}
           districtRep={defaultDistrictRep}
-          ownedDistricts={ownedDistricts}
           districtMeta={DISTRICT_META}
         />
 

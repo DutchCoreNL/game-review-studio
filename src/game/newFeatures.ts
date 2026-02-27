@@ -246,11 +246,7 @@ export function updateNemesis(state: GameState, report: NightReportData): void {
   // === REACTIONS TO PLAYER ACTIONS (with personality taunts) ===
   const reactions: string[] = [];
 
-  // React to player buying district (archetype-specific taunt)
-  if (state.ownedDistricts.length > 0 && Math.random() < 0.15) {
-    sendNemesisTaunt(state, nem, 'onDistrictBuy');
-    reactions.push('dreigt na jouw districtaankoop');
-  }
+  // District buy reaction removed (MMO: gang influence only)
 
   // Random personality taunt (15% chance)
   if (Math.random() < 0.15) {

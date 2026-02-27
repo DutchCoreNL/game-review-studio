@@ -16,8 +16,7 @@ function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect:
   const districtData = DISTRICTS[district];
 
   if (!sh) {
-    // District owned but no safehouse — show buy option
-    if (!state.ownedDistricts.includes(district)) return null;
+    // No safehouse yet — show buy option (MMO: no district ownership needed)
     const cost = SAFEHOUSE_COSTS[district];
     return (
       <motion.button
@@ -76,7 +75,7 @@ function SafehouseDetail({ district, onBack }: { district: DistrictId; onBack: (
   const { state, dispatch, showToast } = useGame();
   const sh = state.safehouses.find(h => h.district === district);
   const districtData = DISTRICTS[district];
-  const isOwned = state.ownedDistricts.includes(district);
+  const isOwned = true; // MMO: no district ownership needed
 
   // Buy mode
   if (!sh) {
@@ -289,11 +288,11 @@ export function SafehouseView() {
                 <SafehouseCard key={d} district={d} onSelect={() => setSelectedDistrict(d)} />
               ))}
             </div>
-            {state.ownedDistricts.length === 0 && (
+            {state.safehouses.length === 0 && (
               <div className="text-center py-6 text-[0.55rem] text-muted-foreground">
                 <Home size={24} className="mx-auto mb-2 opacity-30" />
-                <p className="font-bold mb-1">Geen districten in bezit</p>
-                <p>Koop een district om een safehouse te bouwen.</p>
+                <p className="font-bold mb-1">Geen safehouses</p>
+                <p>Klik op een district om een safehouse te kopen.</p>
               </div>
             )}
           </motion.div>
