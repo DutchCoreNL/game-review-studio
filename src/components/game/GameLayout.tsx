@@ -39,6 +39,7 @@ import { NpcEventPopup } from './NpcEventPopup';
 import { WeekEventBanner } from './WeekEventBanner';
 import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
+import { SanctionBanner } from './SanctionBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const views: Record<string, React.ComponentType> = {
@@ -99,6 +100,7 @@ export function GameLayout() {
         <GameHeader />
 
         <main className="flex-1 overflow-y-auto pb-2 px-4 pt-2 game-scroll">
+          <SanctionBanner />
           <WeekEventBanner />
           <AnimatePresence mode="wait">
             <motion.div
