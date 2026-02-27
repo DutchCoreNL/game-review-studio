@@ -1309,6 +1309,7 @@ export type Database = {
       }
       world_state: {
         Row: {
+          active_event: Json | null
           current_weather: string
           id: number
           next_cycle_at: string
@@ -1318,6 +1319,7 @@ export type Database = {
           world_day: number
         }
         Insert: {
+          active_event?: Json | null
           current_weather?: string
           id?: number
           next_cycle_at?: string
@@ -1327,6 +1329,7 @@ export type Database = {
           world_day?: number
         }
         Update: {
+          active_event?: Json | null
           current_weather?: string
           id?: number
           next_cycle_at?: string
