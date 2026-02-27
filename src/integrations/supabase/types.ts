@@ -568,6 +568,7 @@ export type Database = {
           day: number
           districts_owned: number
           id: string
+          is_hardcore: boolean
           karma: number
           level: number
           prestige_level: number
@@ -583,6 +584,7 @@ export type Database = {
           day?: number
           districts_owned?: number
           id?: string
+          is_hardcore?: boolean
           karma?: number
           level?: number
           prestige_level?: number
@@ -598,6 +600,7 @@ export type Database = {
           day?: number
           districts_owned?: number
           id?: string
+          is_hardcore?: boolean
           karma?: number
           level?: number
           prestige_level?: number
@@ -1211,6 +1214,7 @@ export type Database = {
           hospitalizations: number
           hp: number
           id: string
+          is_hardcore: boolean
           karma: number
           last_action_at: string
           last_save_at: string | null
@@ -1275,6 +1279,7 @@ export type Database = {
           hospitalizations?: number
           hp?: number
           id?: string
+          is_hardcore?: boolean
           karma?: number
           last_action_at?: string
           last_save_at?: string | null
@@ -1339,6 +1344,7 @@ export type Database = {
           hospitalizations?: number
           hp?: number
           id?: string
+          is_hardcore?: boolean
           karma?: number
           last_action_at?: string
           last_save_at?: string | null

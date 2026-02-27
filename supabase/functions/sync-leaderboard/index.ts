@@ -16,6 +16,7 @@ interface SyncPayload {
   karma: number;
   backstory: string | null;
   prestige_level: number;
+  is_hardcore: boolean;
 }
 
 // Reasonable bounds for validation
@@ -54,6 +55,9 @@ function validate(data: unknown): { ok: true; data: SyncPayload } | { ok: false;
   if (typeof d.backstory === "string" && d.backstory.length > 50) {
     return { ok: false, error: "backstory too long" };
   }
+  if (typeof d.is_hardcore !== "boolean") {
+    return { ok: false, error: "is_hardcore must be a boolean" };
+  }
 
   return {
     ok: true,
@@ -67,6 +71,7 @@ function validate(data: unknown): { ok: true; data: SyncPayload } | { ok: false;
       karma: d.karma as number,
       backstory: (d.backstory as string | null),
       prestige_level: d.prestige_level as number,
+      is_hardcore: d.is_hardcore as boolean,
     },
   };
 }
@@ -85,8 +90,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const anonClient = createClient(supabaseUrl, supabaseAnonKey, {

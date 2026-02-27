@@ -59,8 +59,13 @@ export function GameOverScreen() {
 
         <div>
           <h1 className="text-2xl font-black uppercase tracking-wider text-blood">Game Over</h1>
+          {state.hardcoreMode && (
+            <p className="text-[0.6rem] uppercase tracking-widest text-blood/70 font-bold mt-1">☠️ HARDCORE MODE</p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
-            Je lichaam kon het niet meer aan. Na {state.hospitalizations} ziekenhuisopnames is het voorbij.
+            {state.hardcoreMode
+              ? 'Eén leven. Geen tweede kans. De straten van Noxhaven zijn meedogenloos.'
+              : `Je lichaam kon het niet meer aan. Na ${state.hospitalizations} ziekenhuisopnames is het voorbij.`}
           </p>
         </div>
 
@@ -99,6 +104,18 @@ export function GameOverScreen() {
           >
             TERUG NAAR HOOFDMENU
           </GameButton>
+          {state.hardcoreMode && (
+            <GameButton
+              variant="blood"
+              size="md"
+              fullWidth
+              icon={<Skull size={14} />}
+              onClick={() => dispatch({ type: 'START_HARDCORE' })}
+              className="mt-2"
+            >
+              OPNIEUW HARDCORE
+            </GameButton>
+          )}
         </motion.div>
       </motion.div>
     </motion.div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap } from 'lucide-react';
+import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap, Skull } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
@@ -8,6 +8,7 @@ interface MainMenuProps {
   hasSave: boolean;
   onNewGame: () => void;
   onContinue: () => void;
+  onHardcoreStart?: () => void;
   isLoggedIn?: boolean;
   username?: string;
   onLoginClick?: () => void;
@@ -33,10 +34,11 @@ const HOW_TO_PLAY = [
 
 type SubScreen = 'settings' | 'credits' | 'howto' | null;
 
-export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginClick, onLogoutClick }: MainMenuProps) {
+export function MainMenu({ hasSave, onNewGame, onContinue, onHardcoreStart, isLoggedIn, onLoginClick, onLogoutClick }: MainMenuProps) {
   const [show, setShow] = useState(false);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [confirmHardcore, setConfirmHardcore] = useState(false);
   const [muted, setMuted] = useState(false);
   const [nickname, setNickname] = useState('');
   const [nickError, setNickError] = useState('');
@@ -206,6 +208,40 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                   accent={!hasSave}
                   onClick={isLoggedIn ? handleNewGame : (hasSave ? handleNewGame : handleQuickNewGame)}
                 />
+              )}
+
+              {/* Hardcore Mode */}
+              {!confirmHardcore ? (
+                <MenuButton
+                  icon={<Skull size={18} />}
+                  label="HARDCORE MODE"
+                  onClick={() => setConfirmHardcore(true)}
+                  className="!border-blood/50 !text-blood hover:!bg-blood/10"
+                />
+              ) : (
+                <div className="flex flex-col gap-2 p-3 rounded border border-blood/50 bg-blood/5">
+                  <p className="text-xs text-center text-blood font-ui font-bold">
+                    ☠️ HARDCORE MODE
+                  </p>
+                  <p className="text-[0.6rem] text-muted-foreground text-center">
+                    Eén leven. Geen Last Stand. Geen tweede kans. +50% beloningen.
+                  </p>
+                  <div className="flex gap-2">
+                    <MenuButton
+                      icon={<Skull size={16} />}
+                      label="START HARDCORE"
+                      accent
+                      onClick={() => onHardcoreStart?.()}
+                      className="flex-1 !border-blood/50 !bg-blood/10 !text-blood"
+                    />
+                    <MenuButton
+                      icon={<RotateCcw size={16} />}
+                      label="ANNULEER"
+                      onClick={() => setConfirmHardcore(false)}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               )}
 
               <div className="h-px bg-border/50 my-1" />

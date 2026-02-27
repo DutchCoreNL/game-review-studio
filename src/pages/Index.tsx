@@ -10,6 +10,7 @@ const Index = () => {
   const [inGame, setInGame] = useState(false);
   const [hasSave, setHasSave] = useState(false);
   const [forceNew, setForceNew] = useState(false);
+  const [startHardcore, setStartHardcore] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [showAuth, setShowAuth] = useState(false);
   const { user, signOut } = useAuth();
@@ -27,6 +28,16 @@ const Index = () => {
   const handleNewGame = () => {
     deleteGame();
     setForceNew(true);
+    setStartHardcore(false);
+    setGameKey(k => k + 1);
+    setInGame(true);
+  };
+
+  const handleHardcoreStart = () => {
+    deleteGame();
+    localStorage.setItem('noxhaven_start_hardcore', '1');
+    setForceNew(true);
+    setStartHardcore(true);
     setGameKey(k => k + 1);
     setInGame(true);
   };
@@ -57,6 +68,7 @@ const Index = () => {
       username={user ? undefined : undefined}
       onLoginClick={() => setShowAuth(true)}
       onLogoutClick={signOut}
+      onHardcoreStart={handleHardcoreStart}
     />
   );
 };

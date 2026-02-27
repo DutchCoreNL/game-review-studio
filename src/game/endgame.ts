@@ -519,6 +519,59 @@ export function createNewGamePlus(state: GameState): GameState {
   return fresh;
 }
 
+// ========== PRESTIGE RESET ==========
+
+export function createPrestigeReset(state: GameState): GameState {
+  const fresh = createInitialState() as GameState;
+  const newPrestige = (state.prestigeLevel || 0) + 1;
+
+  // Keep persistent data
+  fresh.achievements = [...state.achievements];
+  fresh.runHistory = [...(state.runHistory || [])];
+  fresh.backstory = state.backstory;
+  fresh.tutorialDone = true;
+  fresh.prestigeLevel = newPrestige;
+  fresh.prestigeResetCount = (state.prestigeResetCount || 0) + 1;
+
+  // Prestige bonuses
+  fresh.money = 5000 + newPrestige * 2000; // +€2000 per prestige level
+  fresh.player.stats.muscle = 1 + newPrestige; // +1 base stat per level
+  fresh.player.stats.brains = 1 + newPrestige;
+  fresh.player.stats.charm = 1 + newPrestige;
+
+  // Carry over hardcore mode if active
+  fresh.hardcoreMode = state.hardcoreMode;
+
+  // Save current run to history
+  const vData = buildVictoryData(state);
+  const runRecord: import('./types').RunRecord = {
+    ngLevel: state.newGamePlusLevel,
+    day: state.day,
+    score: vData.score,
+    rank: vData.rank,
+    method: vData.method,
+    factionsConquered: vData.factionsConquered,
+    districtsOwned: vData.districtsOwned,
+    achievementsUnlocked: vData.achievementsUnlocked,
+    totalEarned: vData.totalEarned,
+    nemesisDefeated: vData.nemesisDefeated >= 1,
+    crewSize: vData.crewSize,
+    karma: state.karma,
+    timestamp: Date.now(),
+  };
+  fresh.runHistory.push(runRecord);
+
+  return fresh;
+}
+
+// ========== HARDCORE MODE ==========
+
+export function createHardcoreStart(): Partial<GameState> {
+  return {
+    hardcoreMode: true,
+  };
+}
+
 // ========== ENDGAME NOTIFICATIONS ==========
 
 export function getPhaseUpMessage(oldPhase: EndgamePhase, newPhase: EndgamePhase): string | null {

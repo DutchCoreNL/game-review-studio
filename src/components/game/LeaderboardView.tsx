@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, ChevronUp, ChevronDown, Skull } from 'lucide-react';
 import { PrestigeBadge } from './ui/PrestigeBadge';
 import { motion } from 'framer-motion';
 import { SectionHeader } from './ui/SectionHeader';
@@ -22,12 +22,14 @@ interface LeaderboardEntry {
   backstory: string | null;
   updated_at: string;
   prestige_level?: number;
+  is_hardcore?: boolean;
 }
 
 export function LeaderboardView() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortField>('rep');
+  const [hardcoreFilter, setHardcoreFilter] = useState<'all' | 'hardcore'>('all');
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardEntry | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -36,18 +38,24 @@ export function LeaderboardView() {
       setCurrentUserId(data.user?.id ?? null);
     });
     fetchLeaderboard();
-  }, [sortBy]);
+  }, [sortBy, hardcoreFilter]);
 
   const fetchLeaderboard = async () => {
     setLoading(true);
     const TARGET_COUNT = 50;
 
     // Fetch real players
-    const { data: realData } = await supabase
+    let query = supabase
       .from('leaderboard_entries')
       .select('*')
       .order(sortBy, { ascending: false })
       .limit(TARGET_COUNT);
+
+    if (hardcoreFilter === 'hardcore') {
+      query = query.eq('is_hardcore', true);
+    }
+
+    const { data: realData } = await query;
 
     const realEntries = (realData as LeaderboardEntry[]) || [];
 
@@ -104,6 +112,24 @@ export function LeaderboardView() {
   return (
     <div>
       <SectionHeader title="Online Ranking" icon={<Trophy size={12} />} />
+
+      {/* Hardcore filter tabs */}
+      <div className="flex gap-1.5 mb-2">
+        {(['all', 'hardcore'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setHardcoreFilter(tab)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all ${
+              hardcoreFilter === tab
+                ? tab === 'hardcore' ? 'bg-blood/15 border border-blood text-blood' : 'bg-gold/15 border border-gold text-gold'
+                : 'bg-muted border border-border text-muted-foreground'
+            }`}
+          >
+            {tab === 'hardcore' && <Skull size={10} />}
+            {tab === 'all' ? 'ALLE' : 'HARDCORE'}
+          </button>
+        ))}
+      </div>
 
       {/* Sort pills */}
       <div className="flex gap-1.5 mb-3">
@@ -166,6 +192,7 @@ export function LeaderboardView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <span className={`text-xs font-bold truncate ${isMe ? 'text-gold' : ''}`}>{entry.username}</span>
+                    {entry.is_hardcore && <Skull size={10} className="text-blood" />}
                     {(entry.prestige_level || 0) > 0 && <PrestigeBadge level={entry.prestige_level!} />}
                     <span className="text-[0.5rem] text-muted-foreground">Lv.{entry.level}</span>
                   </div>

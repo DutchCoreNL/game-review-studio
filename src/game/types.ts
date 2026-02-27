@@ -1137,6 +1137,10 @@ export interface GameState {
   prestigeLevel: number;
   xpStreak: number; // consecutive actions without hospitalization
 
+  // ========== PRESTIGE RESET & HARDCORE MODE ==========
+  hardcoreMode: boolean;
+  prestigeResetCount: number; // voluntary resets (separate from NG+)
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
