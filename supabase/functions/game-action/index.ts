@@ -789,7 +789,381 @@ async function handleGetState(supabase: any, userId: string): Promise<ActionResu
   };
 }
 
-// ========== PVP ATTACK ==========
+// ========== PVP COMBAT (TURN-BASED) ==========
+
+const PVP_COMBAT_SKILLS: { id: string; name: string; icon: string; unlockLevel: number; cooldownTurns: number; effect: any }[] = [
+  { id: "snelle_slag", name: "Snelle Slag", icon: "⚡", unlockLevel: 1, cooldownTurns: 0, effect: { type: "damage", value: 8 } },
+  { id: "schild_muur", name: "Schild Muur", icon: "🛡️", unlockLevel: 3, cooldownTurns: 4, effect: { type: "buff", buffId: "defense_boost", duration: 2 } },
+  { id: "adrenaline_rush", name: "Adrenaline Rush", icon: "💉", unlockLevel: 6, cooldownTurns: 5, effect: { type: "heal_and_buff", healAmount: 20, buffId: "damage_boost", duration: 3 } },
+  { id: "vuistcombo", name: "Vuistcombo", icon: "👊", unlockLevel: 8, cooldownTurns: 3, effect: { type: "multi_hit", hits: 3, damagePerHit: 6 } },
+  { id: "dodelijke_precisie", name: "Dodelijke Precisie", icon: "🎯", unlockLevel: 11, cooldownTurns: 4, effect: { type: "crit", multiplier: 2.5 } },
+  { id: "intimidatie", name: "Intimidatie", icon: "😈", unlockLevel: 13, cooldownTurns: 5, effect: { type: "stun", chance: 0.7, stat: "charm" } },
+  { id: "executie", name: "Executie", icon: "💀", unlockLevel: 16, cooldownTurns: 6, effect: { type: "execute", thresholdPct: 0.3, bonusDamage: 25 } },
+];
+
+const COMBO_THRESHOLD = 3;
+const COMBO_FINISHER_DAMAGE = 35;
+
+interface PvPCombatFighterState {
+  hp: number;
+  maxHp: number;
+  muscle: number;
+  brains: number;
+  charm: number;
+  level: number;
+  loadout: Record<string, string | null>;
+  activeBuffs: { id: string; duration: number }[];
+  skillCooldowns: Record<string, number>;
+  comboCounter: number;
+  stunned: boolean;
+}
+
+function createFighterState(ps: any): PvPCombatFighterState {
+  return {
+    hp: ps.hp || 100,
+    maxHp: ps.max_hp || 100,
+    muscle: getPlayerStat(ps.stats || {}, ps.loadout || {}, "muscle"),
+    brains: getPlayerStat(ps.stats || {}, ps.loadout || {}, "brains"),
+    charm: getPlayerStat(ps.stats || {}, ps.loadout || {}, "charm"),
+    level: ps.level || 1,
+    loadout: ps.loadout || { weapon: null, armor: null, gadget: null },
+    activeBuffs: [],
+    skillCooldowns: {},
+    comboCounter: 0,
+    stunned: false,
+  };
+}
+
+function pvpApplySkill(attacker: PvPCombatFighterState, defender: PvPCombatFighterState, skillId: string): { damage: number; log: string; stunApplied: boolean } {
+  const skill = PVP_COMBAT_SKILLS.find(s => s.id === skillId);
+  if (!skill) return { damage: 0, log: "Onbekende skill.", stunApplied: false };
+  const eff = skill.effect;
+  let damage = 0;
+  let log = "";
+  let stunApplied = false;
+
+  switch (eff.type) {
+    case "damage":
+      damage = Math.floor(attacker.muscle * 2 + (eff.value || 8) + Math.random() * 5);
+      log = `${skill.icon} ${skill.name}! ${damage} schade!`;
+      break;
+    case "buff":
+      attacker.activeBuffs.push({ id: eff.buffId, duration: eff.duration });
+      log = `${skill.icon} ${skill.name} geactiveerd!`;
+      break;
+    case "heal_and_buff":
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + (eff.healAmount || 0));
+      attacker.activeBuffs.push({ id: eff.buffId, duration: eff.duration });
+      log = `${skill.icon} ${skill.name}! +${eff.healAmount} HP!`;
+      break;
+    case "multi_hit": {
+      const hits = eff.hits || 3;
+      for (let i = 0; i < hits; i++) damage += Math.floor((eff.damagePerHit || 6) + attacker.muscle * 0.8 + Math.random() * 3);
+      log = `${skill.icon} ${skill.name}! ${hits}x treffer = ${damage} schade!`;
+      break;
+    }
+    case "crit":
+      damage = Math.floor((10 + attacker.muscle * 2.5 + Math.random() * 8) * (eff.multiplier || 2.5));
+      log = `${skill.icon} ${skill.name}! KRITIEK! ${damage} schade!`;
+      break;
+    case "stun": {
+      const statVal = eff.stat === "charm" ? attacker.charm : attacker.muscle;
+      if (Math.random() < (eff.chance || 0.7) + statVal * 0.02) {
+        stunApplied = true;
+        damage = Math.floor(3 + attacker.charm);
+        log = `${skill.icon} ${skill.name}! Vijand STUNNED! +${damage} schade.`;
+      } else {
+        log = `${skill.icon} ${skill.name} mislukt!`;
+      }
+      break;
+    }
+    case "execute": {
+      if (defender.hp <= defender.maxHp * (eff.thresholdPct || 0.3)) {
+        damage = Math.floor(attacker.muscle * 3 + (eff.bonusDamage || 25) + Math.random() * 10);
+        log = `${skill.icon} ${skill.name}! EXECUTIE! ${damage} schade!`;
+      } else {
+        damage = Math.floor(attacker.muscle * 2 + Math.random() * 8);
+        log = `${skill.icon} ${skill.name}! ${damage} schade.`;
+      }
+      break;
+    }
+  }
+
+  // Apply damage boost buff
+  if (damage > 0 && attacker.activeBuffs.some(b => b.id === "damage_boost")) {
+    damage = Math.floor(damage * 1.3);
+  }
+  // Apply defense boost on defender
+  if (damage > 0 && defender.activeBuffs.some(b => b.id === "defense_boost")) {
+    damage = Math.floor(damage * 0.5);
+  }
+
+  return { damage, log, stunApplied };
+}
+
+function pvpTickBuffsAndCooldowns(fighter: PvPCombatFighterState) {
+  fighter.activeBuffs = fighter.activeBuffs.map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
+  for (const key of Object.keys(fighter.skillCooldowns)) {
+    fighter.skillCooldowns[key] = Math.max(0, fighter.skillCooldowns[key] - 1);
+    if (fighter.skillCooldowns[key] <= 0) delete fighter.skillCooldowns[key];
+  }
+}
+
+function pvpBasicAttack(attacker: PvPCombatFighterState, defender: PvPCombatFighterState, actionType: "attack" | "heavy" | "defend"): { damage: number; counterDamage: number; log: string; counterLog: string } {
+  let damage = 0;
+  let log = "";
+  if (actionType === "attack") {
+    damage = Math.floor(5 + attacker.muscle * 1.5 + Math.random() * 8);
+    if (attacker.activeBuffs.some(b => b.id === "damage_boost")) damage = Math.floor(damage * 1.3);
+    if (defender.activeBuffs.some(b => b.id === "defense_boost")) damage = Math.floor(damage * 0.5);
+    log = `⚔️ Aanval! ${damage} schade.`;
+  } else if (actionType === "heavy") {
+    damage = Math.floor(10 + attacker.muscle * 2.5 + Math.random() * 12);
+    if (attacker.activeBuffs.some(b => b.id === "damage_boost")) damage = Math.floor(damage * 1.3);
+    if (defender.activeBuffs.some(b => b.id === "defense_boost")) damage = Math.floor(damage * 0.5);
+    log = `💥 Zware aanval! ${damage} schade!`;
+  } else {
+    damage = 0;
+    log = `🛡️ Verdedigde!`;
+  }
+
+  // Counter-attack from defender (AI)
+  let counterDamage = 0;
+  let counterLog = "";
+  if (!defender.stunned) {
+    counterDamage = Math.floor(3 + defender.muscle * 1.2 + Math.random() * 6);
+    if (actionType === "defend") counterDamage = Math.floor(counterDamage * 0.4);
+    if (defender.activeBuffs.some(b => b.id === "damage_boost")) counterDamage = Math.floor(counterDamage * 1.3);
+    if (attacker.activeBuffs.some(b => b.id === "defense_boost")) counterDamage = Math.floor(counterDamage * 0.5);
+    counterLog = `Tegenstander slaat terug voor ${counterDamage} schade!`;
+  } else {
+    counterLog = "Tegenstander is verdoofd!";
+    defender.stunned = false;
+  }
+
+  return { damage, counterDamage, log, counterLog };
+}
+
+async function handlePvPCombatStart(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId) return { success: false, message: "Geen doelwit opgegeven." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt jezelf niet aanvallen." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  const energyErr = checkEnergy(ps, "attack");
+  if (energyErr) return { success: false, message: energyErr };
+  const nerveErr = checkNerve(ps, "attack");
+  if (nerveErr) return { success: false, message: nerveErr };
+
+  if (ps.attack_cooldown_until && new Date(ps.attack_cooldown_until) > new Date()) {
+    const secs = Math.ceil((new Date(ps.attack_cooldown_until).getTime() - Date.now()) / 1000);
+    return { success: false, message: `Aanval op cooldown (${secs}s).` };
+  }
+
+  const attackerState = createFighterState(ps);
+  let defenderState: PvPCombatFighterState;
+  let targetName: string;
+  const isBot = targetUserId.startsWith("bot_");
+
+  if (isBot) {
+    const botId = targetUserId.replace("bot_", "");
+    const { data: bot } = await supabase.from("bot_players").select("*").eq("id", botId).maybeSingle();
+    if (!bot) return { success: false, message: "Bot niet gevonden." };
+    defenderState = {
+      hp: bot.hp, maxHp: bot.max_hp, level: bot.level,
+      muscle: Math.floor(bot.level * 1.5) + 3, brains: Math.floor(bot.level * 0.8), charm: Math.floor(bot.level * 0.5),
+      loadout: { weapon: null, armor: null, gadget: null },
+      activeBuffs: [], skillCooldowns: {}, comboCounter: 0, stunned: false,
+    };
+    targetName = bot.username;
+  } else {
+    const { data: target } = await supabase.from("player_state").select("*").eq("user_id", targetUserId).maybeSingle();
+    if (!target) return { success: false, message: "Doelwit niet gevonden." };
+    if (target.hospital_until && new Date(target.hospital_until) > new Date()) return { success: false, message: "Doelwit in ziekenhuis." };
+    if (target.prison_until && new Date(target.prison_until) > new Date()) return { success: false, message: "Doelwit in gevangenis." };
+    defenderState = createFighterState(target);
+    const { data: prof } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+    targetName = prof?.username || "Onbekend";
+  }
+
+  // Deduct energy/nerve, set cooldown
+  const cooldownUntil = new Date(Date.now() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+  await supabase.from("player_state").update({
+    energy: ps.energy - (ENERGY_COSTS.attack || 15),
+    nerve: ps.nerve - (NERVE_COSTS.attack || 10),
+    attack_cooldown_until: cooldownUntil,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Create combat session
+  const { data: session, error } = await supabase.from("pvp_combat_sessions").insert({
+    attacker_id: userId,
+    defender_id: targetUserId,
+    attacker_state: attackerState,
+    defender_state: defenderState,
+    combat_log: [{ turn: 0, text: `Gevecht gestart tegen ${targetName}!` }],
+    status: "active",
+    turn: 0,
+  }).select("id").single();
+
+  if (error) return { success: false, message: "Kon gevechtssessie niet aanmaken." };
+
+  return {
+    success: true,
+    message: `Gevecht gestart tegen ${targetName}!`,
+    data: {
+      sessionId: session.id,
+      attackerState,
+      defenderState,
+      targetName,
+      targetUserId,
+    },
+  };
+}
+
+async function handlePvPCombatAction(supabase: any, userId: string, payload: { sessionId: string; action: string; skillId?: string }): Promise<ActionResult> {
+  const { sessionId, action, skillId } = payload;
+  if (!sessionId || !action) return { success: false, message: "Ongeldige parameters." };
+
+  const { data: session } = await supabase.from("pvp_combat_sessions").select("*").eq("id", sessionId).eq("attacker_id", userId).maybeSingle();
+  if (!session) return { success: false, message: "Sessie niet gevonden." };
+  if (session.status !== "active") return { success: false, message: "Gevecht is al afgelopen." };
+
+  const attacker: PvPCombatFighterState = session.attacker_state;
+  const defender: PvPCombatFighterState = session.defender_state;
+  const combatLog: { turn: number; text: string }[] = session.combat_log || [];
+  const turn = (session.turn || 0) + 1;
+  const logs: string[] = [];
+
+  if (action === "skill" && skillId) {
+    const skill = PVP_COMBAT_SKILLS.find(s => s.id === skillId);
+    if (!skill) return { success: false, message: "Onbekende skill." };
+    if (attacker.skillCooldowns[skillId] > 0) return { success: false, message: "Skill op cooldown." };
+    attacker.skillCooldowns[skillId] = skill.cooldownTurns;
+    const result = pvpApplySkill(attacker, defender, skillId);
+    defender.hp = Math.max(0, defender.hp - result.damage);
+    if (result.stunApplied) defender.stunned = true;
+    if (result.damage > 0) attacker.comboCounter++;
+    logs.push(result.log);
+  } else if (action === "combo_finisher") {
+    if (attacker.comboCounter < COMBO_THRESHOLD) return { success: false, message: "Combo meter niet vol." };
+    let damage = COMBO_FINISHER_DAMAGE + Math.floor(attacker.muscle * 2);
+    if (attacker.activeBuffs.some(b => b.id === "damage_boost")) damage = Math.floor(damage * 1.3);
+    if (defender.activeBuffs.some(b => b.id === "defense_boost")) damage = Math.floor(damage * 0.5);
+    defender.hp = Math.max(0, defender.hp - damage);
+    if (Math.random() < 0.4) { defender.stunned = true; logs.push("💫 STUNNED!"); }
+    attacker.comboCounter = 0;
+    logs.push(`🔥 COMBO FINISHER! ${damage} schade!`);
+  } else {
+    // Basic action: attack/heavy/defend
+    const basicAction = (["attack", "heavy", "defend"].includes(action) ? action : "attack") as "attack" | "heavy" | "defend";
+    const result = pvpBasicAttack(attacker, defender, basicAction);
+    defender.hp = Math.max(0, defender.hp - result.damage);
+    attacker.hp = Math.max(0, attacker.hp - result.counterDamage);
+    if (basicAction !== "defend" && result.damage > 0) attacker.comboCounter++;
+    else if (basicAction === "defend") attacker.comboCounter = 0;
+    logs.push(result.log);
+    if (defender.hp > 0 && attacker.hp > 0) logs.push(result.counterLog);
+  }
+
+  // Check if combat ended
+  let status = "active";
+  let winnerId: string | null = null;
+
+  if (defender.hp <= 0) {
+    status = "finished";
+    winnerId = userId;
+    logs.push("🏆 Je hebt gewonnen!");
+  } else if (attacker.hp <= 0) {
+    status = "finished";
+    winnerId = session.defender_id;
+    logs.push("💀 Je bent verslagen...");
+  } else if (turn >= 20) {
+    // Max turns reached — whoever has more HP% wins
+    status = "finished";
+    const attackerPct = attacker.hp / attacker.maxHp;
+    const defenderPct = defender.hp / defender.maxHp;
+    winnerId = attackerPct >= defenderPct ? userId : session.defender_id;
+    logs.push(winnerId === userId ? "⏰ Tijd op! Je wint op punten!" : "⏰ Tijd op! Je verliest op punten...");
+  }
+
+  // Enemy AI turn (if combat still active and defender not stunned)
+  if (status === "active" && !defender.stunned && action !== "combo_finisher") {
+    // Simple AI: random actions weighted by HP
+    const defHpPct = defender.hp / defender.maxHp;
+    let aiAction: "attack" | "heavy" | "defend";
+    const roll = Math.random();
+    if (defHpPct < 0.3) aiAction = roll < 0.5 ? "heavy" : "defend";
+    else if (defHpPct < 0.6) aiAction = roll < 0.4 ? "heavy" : roll < 0.7 ? "attack" : "defend";
+    else aiAction = roll < 0.5 ? "attack" : "heavy";
+
+    // (Counter-attack already handled in basic attacks; for skill/combo, do a separate AI turn)
+    if (action === "skill" || action === "combo_finisher") {
+      const aiResult = pvpBasicAttack(defender, attacker, aiAction);
+      attacker.hp = Math.max(0, attacker.hp - aiResult.damage);
+      logs.push(`Tegenstander: ${aiResult.log}`);
+      if (attacker.hp <= 0) {
+        status = "finished";
+        winnerId = session.defender_id;
+        logs.push("💀 Je bent verslagen...");
+      }
+    }
+  } else if (defender.stunned && (action === "skill" || action === "combo_finisher")) {
+    logs.push("Tegenstander is verdoofd en kan niet aanvallen!");
+    defender.stunned = false;
+  }
+
+  // Tick buffs/cooldowns for both sides
+  pvpTickBuffsAndCooldowns(attacker);
+  pvpTickBuffsAndCooldowns(defender);
+
+  // Add logs to combat log
+  for (const l of logs) combatLog.push({ turn, text: l });
+
+  // Apply rewards if finished
+  if (status === "finished") {
+    const attackerWon = winnerId === userId;
+    if (attackerWon) {
+      await supabase.from("player_state").update({
+        xp: (await supabase.from("player_state").select("xp").eq("user_id", userId).single()).data?.xp + 50,
+        personal_heat: Math.min(100, (await supabase.from("player_state").select("personal_heat").eq("user_id", userId).single()).data?.personal_heat + 15),
+      }).eq("user_id", userId);
+
+      const isBot = session.defender_id.startsWith("bot_");
+      if (!isBot) {
+        await upsertRivalry(supabase, userId, session.defender_id, 10, "pvp");
+      }
+    }
+  }
+
+  // Update session
+  await supabase.from("pvp_combat_sessions").update({
+    attacker_state: attacker,
+    defender_state: defender,
+    combat_log: combatLog,
+    turn,
+    status,
+    winner_id: winnerId,
+    updated_at: new Date().toISOString(),
+  }).eq("id", sessionId);
+
+  return {
+    success: true,
+    message: logs.join(" "),
+    data: {
+      sessionId,
+      turn,
+      attackerState: attacker,
+      defenderState: defender,
+      logs,
+      status,
+      winnerId,
+    },
+  };
+}
+
+// ========== PVP ATTACK (LEGACY 1-CLICK) ==========
 
 async function handleAttack(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
   const { targetUserId } = payload;
@@ -2255,6 +2629,12 @@ Deno.serve(async (req) => {
         break;
       case "load_state":
         result = await handleLoadState(supabase, user.id);
+        break;
+      case "pvp_combat_start":
+        result = await handlePvPCombatStart(supabase, user.id, playerState, payload);
+        break;
+      case "pvp_combat_action":
+        result = await handlePvPCombatAction(supabase, user.id, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
