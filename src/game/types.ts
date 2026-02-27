@@ -444,6 +444,7 @@ export interface GearItem {
   stats: Partial<Record<StatId, number>>;
   desc: string;
   reqRep: { f: FamilyId; val: number } | null;
+  reqPrestige?: number; // minimum prestige level required
   ammoType?: AmmoType | null; // null = melee, undefined = non-weapon
   clipSize?: number; // 0 = melee (unlimited)
 }

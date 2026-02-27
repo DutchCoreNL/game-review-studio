@@ -316,7 +316,12 @@ export const GEAR: GearItem[] = [
   { id: 'laptop', type: 'gadget', name: 'Hacker Laptop', cost: 5000, stats: { brains: 4 }, desc: '+4 Vernuft. Deep web.', reqRep: null },
   { id: 'cartel_blade', type: 'weapon', name: 'El Serpiente\'s Blade', cost: 12000, stats: { muscle: 8 }, desc: '+8 Kracht. Legendarisch zwaard van El Serpiente. Geen munitie nodig.', reqRep: { f: 'cartel', val: 60 }, ammoType: null, clipSize: 0 },
   { id: 'lotus_implant', type: 'gadget', name: 'Neural Implant', cost: 18000, stats: { brains: 7, charm: 2 }, desc: '+7 Vernuft, +2 Charisma.', reqRep: { f: 'syndicate', val: 60 } },
-  { id: 'skull_armor', type: 'armor', name: 'Skull Plate Armor', cost: 15000, stats: { muscle: 5 }, desc: '+5 Kracht. Onbreekbaar.', reqRep: { f: 'bikers', val: 60 } }
+  { id: 'skull_armor', type: 'armor', name: 'Skull Plate Armor', cost: 15000, stats: { muscle: 5 }, desc: '+5 Kracht. Onbreekbaar.', reqRep: { f: 'bikers', val: 60 } },
+  // Prestige 3+ Gear
+  { id: 'voidcaster', type: 'weapon', name: 'Voidcaster Mk-III', cost: 45000, stats: { muscle: 12 }, desc: '+12 Kracht. Experimenteel prototype. Prestige-only.', reqRep: null, reqPrestige: 3, ammoType: '7.62mm', clipSize: 20 },
+  { id: 'nox_exosuit', type: 'armor', name: 'Nox Exo-Suit', cost: 60000, stats: { muscle: 8, charm: 3 }, desc: '+8 Kracht, +3 Charisma. Gepantserd exoskelet van Noxhaven-tech.', reqRep: null, reqPrestige: 3 },
+  { id: 'quantum_deck', type: 'gadget', name: 'Quantum Hacking Deck', cost: 55000, stats: { brains: 10, charm: 1 }, desc: '+10 Vernuft, +1 Charisma. Kraak elk systeem. Prestige-only.', reqRep: null, reqPrestige: 3 },
+  { id: 'obsidian_edge', type: 'weapon', name: 'Obsidian Edge', cost: 75000, stats: { muscle: 15 }, desc: '+15 Kracht. Monomoleculair mes. De ultieme stille killer.', reqRep: null, reqPrestige: 4, ammoType: null, clipSize: 0 },
 ];
 
 export const BUSINESSES: Business[] = [
