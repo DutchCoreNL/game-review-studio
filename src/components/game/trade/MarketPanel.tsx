@@ -11,8 +11,8 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw } from 'lucide-react';
-import { useState, useCallback, useEffect } from 'react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
 import { gameApi } from '@/lib/gameApi';
@@ -56,6 +56,8 @@ export function MarketPanel() {
   const [pendingSellAll, setPendingSellAll] = useState<{ totalGains: number } | null>(null);
   const [serverPrices, setServerPrices] = useState<Record<string, Record<string, ServerMarketData>> | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
+  const [priceAlerts, setPriceAlerts] = useState<{ gid: string; name: string; pct: number; direction: 'up' | 'down' }[]>([]);
+  const prevPricesRef = useRef<Record<string, Record<string, number>>>({});
 
   // Fetch server prices on mount and when district changes
   useEffect(() => {
@@ -71,7 +73,24 @@ export function MarketPanel() {
     return () => { cancelled = true; };
   }, [state.loc]);
 
-  // Realtime price updates
+  // Store initial prices for alert comparison
+  useEffect(() => {
+    if (serverPrices) {
+      // Only store if we don't have previous prices yet for a district
+      Object.entries(serverPrices).forEach(([distId, goods]) => {
+        if (!prevPricesRef.current[distId]) {
+          prevPricesRef.current[distId] = {};
+        }
+        Object.entries(goods).forEach(([gid, data]) => {
+          if (prevPricesRef.current[distId][gid] === undefined) {
+            prevPricesRef.current[distId][gid] = (data as ServerMarketData).price;
+          }
+        });
+      });
+    }
+  }, [serverPrices]);
+
+  // Realtime price updates with alert detection
   useEffect(() => {
     const channel = supabase
       .channel('market-prices-panel')
@@ -81,6 +100,39 @@ export function MarketPanel() {
         table: 'market_prices',
       }, (payload) => {
         const row = payload.new as any;
+
+        // Check for >20% price change in current district
+        if (row.district_id === state.loc) {
+          const prevPrice = prevPricesRef.current[row.district_id]?.[row.good_id];
+          if (prevPrice && prevPrice > 0) {
+            const pctChange = ((row.current_price - prevPrice) / prevPrice) * 100;
+            if (Math.abs(pctChange) >= 20) {
+              const good = GOODS.find(g => g.id === row.good_id);
+              if (good) {
+                const alert = {
+                  gid: row.good_id,
+                  name: good.name,
+                  pct: Math.round(pctChange),
+                  direction: pctChange > 0 ? 'up' as const : 'down' as const,
+                };
+                setPriceAlerts(prev => {
+                  // Replace existing alert for same good or add new
+                  const filtered = prev.filter(a => a.gid !== row.good_id);
+                  return [...filtered, alert].slice(-5); // max 5 alerts
+                });
+                // Auto-dismiss after 15s
+                setTimeout(() => {
+                  setPriceAlerts(prev => prev.filter(a => a.gid !== row.good_id));
+                }, 15000);
+              }
+            }
+          }
+        }
+
+        // Update stored previous price
+        if (!prevPricesRef.current[row.district_id]) prevPricesRef.current[row.district_id] = {};
+        prevPricesRef.current[row.district_id][row.good_id] = row.current_price;
+
         setServerPrices(prev => {
           if (!prev) return prev;
           const updated = { ...prev };
@@ -99,7 +151,12 @@ export function MarketPanel() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [state.loc]);
+
+  // Clear alerts on district change
+  useEffect(() => {
+    setPriceAlerts([]);
+  }, [state.loc]);
 
   const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
   const totalCharm = getPlayerStat(state, 'charm');
@@ -232,6 +289,36 @@ export function MarketPanel() {
           </span>
         </div>
       )}
+
+      {/* Price alert banners */}
+      <AnimatePresence>
+        {priceAlerts.map(alert => (
+          <motion.div
+            key={alert.gid}
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className={`flex items-center gap-2 text-xs font-bold p-2 rounded mb-2 border ${
+              alert.direction === 'up'
+                ? 'bg-blood/10 border-blood/30 text-blood'
+                : 'bg-emerald/10 border-emerald/30 text-emerald'
+            }`}
+          >
+            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.5, repeat: 2 }}>
+              {alert.direction === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+            </motion.div>
+            <div className="flex-1">
+              <span className="font-bold">{alert.name}</span>
+              <span className="font-normal opacity-80"> {alert.direction === 'up' ? '+' : ''}{alert.pct}%</span>
+              <span className="block text-[0.45rem] font-normal opacity-60">
+                {alert.direction === 'up' ? '📈 Prijsstijging — overweeg verkoop!' : '📉 Prijsdaling — koopkans!'}
+              </span>
+            </div>
+            <button onClick={() => setPriceAlerts(prev => prev.filter(a => a.gid !== alert.gid))}
+              className="text-[0.5rem] opacity-50 hover:opacity-100">✕</button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       {/* Stats strip */}
       <div className="flex justify-between items-center mb-3">
