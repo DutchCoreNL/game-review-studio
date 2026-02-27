@@ -1,100 +1,74 @@
 
 
-# Analyse: Singleplayer functies die verbeterd moeten worden voor MMO
+## Analyse: Huidig Level Systeem
 
-Na een grondige audit van de volledige codebase heb ik een duidelijk patroon gevonden: het spel heeft een **hybride architectuur** waarbij sommige systemen al via de server-side edge function draaien (trade, travel, solo ops, PvP, gangs, messaging, bounties) maar veel kernfuncties nog **puur client-side** werken via de lokale `GameContext` reducer en `localStorage`. Dit creëert inconsistentie en potentieel voor cheating.
+Het huidige systeem is simpel:
+- **3 stats**: muscle, brains, charm (+1 per skill point)
+- **2 skill points per level up**
+- **XP scaling**: `nextXp * 1.4` per level (exponentieel)
+- **XP bronnen**: vast bedrag per actie (15 XP voor solo ops, 100 XP voor faction boss, etc.)
+- **Geen level cap, geen prestige, geen skill tree**
+- **Volledig client-side** - XP wordt lokaal berekend, manipuleerbaar
 
-## Problematische singleplayer systemen
+## Verbetervoorstellen voor MMO
 
-### 1. Casino (volledig client-side, geen server-validatie)
-- Blackjack, Roulette, Slots, High-Low en Russian Roulette draaien volledig in de browser
-- Spelers kunnen via devtools hun geld manipuleren of winsten faken
-- **Verbetering**: Server-side casino sessies met seed-based RNG, anti-exploit limieten
+### 1. Server-side XP Validatie
+Alle XP-toekenning verplaatsen naar de edge function. Client kan geen XP meer zelf toevoegen.
 
-### 2. Heists (volledig client-side)
-- Planning, recon, equipment, uitvoering en beloningen worden allemaal lokaal berekend
-- Geen validatie dat de speler daadwerkelijk de juiste gear/crew/level heeft
-- **Verbetering**: Server-side heist sessies met gevalideerde fasen en beloningen
+### 2. Skill Tree systeem (vervangt platte stat upgrades)
+In plaats van simpel `muscle++`, een vertakkende skill tree per stat:
+- **Muscle branch**: Brawler → Tank → Berserker (passive bonussen zoals +crit, +armor, +lifesteal)
+- **Brains branch**: Hacker → Strategist → Mastermind (+hack success, +trade bonus, +heist intel)
+- **Charm branch**: Smooth Talker → Negotiator → Kingpin (+NPC relations, +recruit chance, +corruption discount)
 
-### 3. Contract/Missie systeem (client-side)
-- `EXECUTE_CONTRACT` en het complete missiesysteem (briefing, encounters, keuzes) zijn client-only
-- Contractbeloningen, XP en rep worden lokaal toegekend zonder server-check
-- **Verbetering**: Server-side contract executie met gevalideerde beloningen
+Elke node kost 1-3 SP en unlockt passieve bonussen of actieve abilities.
 
-### 4. Faction/Conquest systeem (client-side)
-- Faction relations, conquest phases, alliance pacts - allemaal lokaal
-- Spelers kunnen facties "veroveren" zonder server-validatie
-- **Verbetering**: Server-side faction state die gedeeld is tussen alle spelers
+### 3. Prestige / New Game+ verbetering
+Bij max level (bijv. 50) kun je "prestige" doen:
+- Level reset naar 1, maar behoud permanente bonussen (+5% XP gain per prestige)
+- Unieke prestige badges en cosmetische rewards
+- Prestige-only content (speciale heists, wapens)
 
-### 5. Villa & Drug Empire (client-side)
-- Villa aankoop, modules, productie, dealers, NoxCrystal - volledig lokaal
-- Passieve inkomsten worden client-side berekend (manipuleerbaar)
-- **Verbetering**: Server-side villa state en productie via passive-income edge function
+### 4. XP Multipliers systeem
+- **District bonus**: +10-20% XP in gevaarlijkere districten
+- **Streak bonus**: Opeenvolgende acties zonder hospitalisatie = +XP
+- **Gang bonus**: XP boost als je in een gang zit
+- **First-of-day bonus**: Eerste actie per dag geeft 2x XP
 
-### 6. Hitman/Bounty systeem (hybride, inconsistent)
-- Server-side bounties op spelers bestaan al, maar singleplayer hit contracts zijn puur lokaal
-- **Verbetering**: Hit contracts via server valideren (energy/nerve check, cooldown)
-
-### 7. Car Theft & Chop Shop (client-side)
-- Autodiefstal, omkatten, upgraden, verkopen - allemaal lokaal
-- **Verbetering**: Server-side gestolen auto registry (voorkomt duplicatie/exploits)
-
-### 8. Corruption Network (client-side)
-- Corrupte contacten (rechter, advocaat, douane) worden lokaal beheerd
-- **Verbetering**: Server-side contact state met maandelijkse kosten via passive-income
-
-### 9. Day Progression / Night Report (client-side AUTO_TICK)
-- De kernloop van het spel (dag wisselen, passieve inkomsten, events) draait via een client-side timer
-- Dit is het grootste probleem: spelers kunnen de klok manipuleren
-- **Verbetering**: Server-side tick via de bestaande `passive-income` edge function
-
-### 10. Nemesis systeem (client-side)
-- De hele rivaal AI (spawn, combat, wraakacties, defeat choices) is lokaal
-- In een MMO zou de nemesis gedeeld of persistent moeten zijn
-- **Verbetering**: Nemesis state opslaan in DB, wraakacties via passive-income verwerken
-
-## Prioriteiten (impact vs. complexiteit)
-
+### 5. Level-gated MMO Content
+Duidelijke level tiers die nieuwe content unlocken:
 ```text
-Hoog impact, laag complex:
-├── Casino server-validatie (voorkomt geldexploits)
-├── Contract/Solo-op beloningen server-side valideren
-└── Villa passieve inkomsten via passive-income function
-
-Hoog impact, medium complex:
-├── Day progression naar server-side tick
-├── Faction conquest shared state
-└── Heist server-side sessies
-
-Medium impact:
-├── Car theft server registry
-├── Corruption network server state
-├── Hit contracts server-validatie
-└── Nemesis persistence
+Lv 1-10:  Solo ops, basic trade
+Lv 10-20: Contracts, car theft, basic PvP
+Lv 20-30: Heists, factions, casino VIP
+Lv 30-40: Villa, drug empire, gang wars
+Lv 40-50: Endgame bosses, prestige unlock
 ```
 
-## Aanbevolen implementatievolgorde
+### 6. Leaderboard XP Racing
+Wekelijkse XP-leaderboards met rewards voor top 10 spelers.
 
-1. **Casino server-validatie** -- Nieuwe edge function actions: `casino_bet`, `casino_result` met server-side RNG seed. Voorkomt het grootste exploitrisico.
+## Implementatieplan
 
-2. **Passieve inkomsten centraliseren** -- De bestaande `passive-income` edge function uitbreiden met villa productie, business income, drug empire, heat decay. Dit vervangt de client-side `endTurn()`.
+### Stap 1: Server-side XP validatie
+- Nieuwe `gain_xp` handler in edge function die level-up logica server-side afhandelt
+- Alle bestaande `gainXp()` calls in client omzetten naar server-responses
+- `player_state` tabel wordt single source of truth voor level/xp/skillpoints
 
-3. **Contract/missie beloningen server-side** -- Nieuwe action `complete_contract` die crew, level, gear valideert en pas dan rewards toekent.
+### Stap 2: Skill Tree data model
+- Nieuwe `player_skills` tabel: `user_id, skill_id, level, unlocked_at`
+- Skill tree definitie in constants met node-afhankelijkheden
+- UI: nieuwe SkillTreeView component met visuele boom-structuur
 
-4. **Faction state naar database** -- `faction_relations` tabel die gedeeld is. Conquest phases worden server-validated. Alliance pacts worden zichtbaar voor andere spelers.
+### Stap 3: XP Multipliers
+- Multiplier berekening server-side in de `gain_xp` handler
+- UI indicator in GameHeader die actieve XP bonussen toont
 
-5. **Heist sessies server-side** -- Vergelijkbaar met PvP combat sessions: `heist_sessions` tabel met fase-tracking.
+### Stap 4: Prestige systeem
+- `prestige_level` kolom toevoegen aan `player_state`
+- Prestige actie via edge function met validatie (level >= 50)
+- Prestige badge naast spelernaam op leaderboard
 
-6. **Villa/Drug Empire naar server** -- `player_villa` en `player_drug_empire` tabellen met server-side productie.
-
-7. **Overige systemen** -- Car theft registry, corruption contacts, nemesis persistence.
-
-## Technische aanpak per stap
-
-Elke stap volgt hetzelfde patroon:
-- Database migratie: nieuwe tabel(len) aanmaken
-- Edge function handler toevoegen aan `game-action/index.ts`
-- `gameApi.ts` uitbreiden met nieuwe action types
-- Client-side reducer aanpassen om server-response te gebruiken i.p.v. lokale berekening
-- Bestaande UI componenten hoeven nauwelijks te wijzigen (alleen de dispatch/API call laag)
+## Aanbevolen eerste stap
+Start met **Skill Tree + server-side XP** omdat dit het meeste impact heeft op de gameplay en tegelijk de exploit-preventie verbetert.
 
