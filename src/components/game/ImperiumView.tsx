@@ -12,13 +12,14 @@ import { DistrictDefensePanel } from './imperium/DistrictDefensePanel';
 import { CorruptionView } from './CorruptionView';
 import { AlliancePactPanel } from './imperium/AlliancePactPanel';
 import { Car, Factory, Store, Users, Skull, Handshake, Swords, Shield } from 'lucide-react';
+import { GangView } from './GangView';
 import { useState } from 'react';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import imperiumBg from '@/assets/imperium-bg.jpg';
 import { GarageView } from './garage/GarageView';
 
-type ImperiumSubTab = 'garage' | 'business' | 'families' | 'war' | 'corruption';
+type ImperiumSubTab = 'garage' | 'business' | 'families' | 'war' | 'corruption' | 'gang';
 
 export function ImperiumView() {
   const { state, dispatch, showToast } = useGame();
@@ -28,6 +29,7 @@ export function ImperiumView() {
     { id: 'garage', label: 'GARAGE', icon: <Car size={12} /> },
     { id: 'business', label: 'BUSINESS', icon: <Store size={12} /> },
     { id: 'families', label: 'FACTIES', icon: <Users size={12} /> },
+    { id: 'gang', label: 'GANG', icon: <Skull size={12} /> },
     { id: 'war', label: 'OORLOG', icon: <Swords size={12} /> },
     { id: 'corruption', label: 'CORRUPTIE', icon: <Handshake size={12} /> },
   ];
@@ -37,6 +39,7 @@ export function ImperiumView() {
       <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as ImperiumSubTab)} />
 
       {subTab === 'garage' && <GarageView />}
+      {subTab === 'gang' && <GangView />}
       {subTab === 'business' && <BusinessPanel />}
       {subTab === 'war' && <DistrictDefensePanel />}
       {subTab === 'families' && <FamiliesPanel />}
