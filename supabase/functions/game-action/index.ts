@@ -56,11 +56,14 @@ const BUSINESSES = [
 ];
 
 const ENERGY_COSTS: Record<string, number> = {
-  trade: 2, travel: 5, solo_op: 10, buy_gear: 0, buy_vehicle: 0, wash_money: 3, bribe: 5,
+  trade: 2, travel: 5, solo_op: 10, buy_gear: 0, buy_vehicle: 0, wash_money: 3, bribe: 5, attack: 15,
 };
 const NERVE_COSTS: Record<string, number> = {
   solo_op: 5, attack: 10,
 };
+
+const ATTACK_COOLDOWN_SECONDS = 300; // 5 minutes
+const HOSPITAL_SECONDS = 600; // 10 minutes base
 
 // ========== HELPERS ==========
 
@@ -651,6 +654,184 @@ async function handleGetState(supabase: any, userId: string): Promise<ActionResu
   };
 }
 
+// ========== PVP ATTACK ==========
+
+async function handleAttack(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId) return { success: false, message: "Geen doelwit opgegeven." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt jezelf niet aanvallen." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  const energyErr = checkEnergy(ps, "attack");
+  if (energyErr) return { success: false, message: energyErr };
+  const nerveErr = checkNerve(ps, "attack");
+  if (nerveErr) return { success: false, message: nerveErr };
+
+  // Check attack cooldown
+  if (ps.attack_cooldown_until && new Date(ps.attack_cooldown_until) > new Date()) {
+    const secs = Math.ceil((new Date(ps.attack_cooldown_until).getTime() - Date.now()) / 1000);
+    return { success: false, message: `Aanval op cooldown (${secs}s).` };
+  }
+
+  // Get target player state
+  const { data: target } = await supabase.from("player_state").select("*").eq("user_id", targetUserId).maybeSingle();
+  if (!target) return { success: false, message: "Doelwit niet gevonden." };
+
+  // Target must not be in hospital/prison/hiding
+  if (target.hospital_until && new Date(target.hospital_until) > new Date()) {
+    return { success: false, message: "Doelwit ligt in het ziekenhuis." };
+  }
+  if (target.prison_until && new Date(target.prison_until) > new Date()) {
+    return { success: false, message: "Doelwit zit in de gevangenis." };
+  }
+
+  // Get gear for both players
+  const [attackerGear, defenderGear] = await Promise.all([
+    supabase.from("player_gear").select("gear_id").eq("user_id", userId),
+    supabase.from("player_gear").select("gear_id").eq("user_id", targetUserId),
+  ]);
+
+  // Calculate combat power
+  const attackerMuscle = getPlayerStat(ps.stats || {}, ps.loadout || {}, "muscle");
+  const defenderMuscle = getPlayerStat(target.stats || {}, target.loadout || {}, "muscle");
+
+  // Combat formula: power = muscle * level_factor + random
+  const attackerPower = attackerMuscle * (1 + ps.level * 0.1) + Math.random() * 20;
+  const defenderPower = defenderMuscle * (1 + target.level * 0.1) + Math.random() * 20;
+
+  const attackerWins = attackerPower > defenderPower;
+  const now = new Date();
+  const cooldownUntil = new Date(now.getTime() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+
+  // Get target profile for username
+  const { data: targetProfile } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+  const targetName = targetProfile?.username || "Onbekend";
+
+  const energyCost = ENERGY_COSTS.attack || 15;
+  const nerveCost = NERVE_COSTS.attack || 10;
+
+  if (attackerWins) {
+    // Steal money: 5-15% of target's cash
+    const stealPct = 0.05 + Math.random() * 0.10;
+    const stolen = Math.floor((target.money || 0) * stealPct);
+    const dmgToTarget = 20 + Math.floor(Math.random() * 30); // 20-50 damage
+    const targetNewHp = Math.max(0, (target.hp || 100) - dmgToTarget);
+
+    // Hospitalize target if HP <= 0
+    const hospitalUntil = targetNewHp <= 0
+      ? new Date(now.getTime() + HOSPITAL_SECONDS * 1000).toISOString()
+      : null;
+
+    // Update attacker
+    await supabase.from("player_state").update({
+      money: (ps.money || 0) + stolen,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      attack_cooldown_until: cooldownUntil,
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + 15),
+      xp: (ps.xp || 0) + 50,
+      last_action_at: now.toISOString(),
+    }).eq("user_id", userId);
+
+    // Update target
+    const targetUpdate: any = {
+      money: Math.max(0, (target.money || 0) - stolen),
+      hp: targetNewHp,
+      updated_at: now.toISOString(),
+    };
+    if (hospitalUntil) {
+      targetUpdate.hospital_until = hospitalUntil;
+      targetUpdate.hospitalizations = (target.hospitalizations || 0) + 1;
+      targetUpdate.hp = target.max_hp || 100; // Heal on hospital admit
+    }
+    await supabase.from("player_state").update(targetUpdate).eq("user_id", targetUserId);
+
+    const hospitalMsg = hospitalUntil ? ` ${targetName} is gehospitaliseerd!` : "";
+    return {
+      success: true,
+      message: `Je hebt ${targetName} verslagen! €${stolen.toLocaleString()} gestolen.${hospitalMsg}`,
+      data: {
+        won: true, stolen, damage: dmgToTarget, targetHospitalized: !!hospitalUntil,
+        targetName, attackerPower: Math.round(attackerPower), defenderPower: Math.round(defenderPower),
+      },
+    };
+  } else {
+    // Attacker loses
+    const dmgToAttacker = 15 + Math.floor(Math.random() * 25); // 15-40 damage
+    const attackerNewHp = Math.max(0, (ps.hp || 100) - dmgToAttacker);
+
+    const hospitalUntil = attackerNewHp <= 0
+      ? new Date(now.getTime() + HOSPITAL_SECONDS * 1000).toISOString()
+      : null;
+
+    const attackerUpdate: any = {
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      attack_cooldown_until: cooldownUntil,
+      hp: attackerNewHp,
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + 10),
+      last_action_at: now.toISOString(),
+    };
+    if (hospitalUntil) {
+      attackerUpdate.hospital_until = hospitalUntil;
+      attackerUpdate.hospitalizations = (ps.hospitalizations || 0) + 1;
+      attackerUpdate.hp = ps.max_hp || 100;
+    }
+    await supabase.from("player_state").update(attackerUpdate).eq("user_id", userId);
+
+    const hospitalMsg = hospitalUntil ? " Je bent gehospitaliseerd!" : "";
+    return {
+      success: true,
+      message: `${targetName} heeft je verslagen! -${dmgToAttacker} HP.${hospitalMsg}`,
+      data: {
+        won: false, damage: dmgToAttacker, hospitalized: !!hospitalUntil,
+        targetName, attackerPower: Math.round(attackerPower), defenderPower: Math.round(defenderPower),
+      },
+    };
+  }
+}
+
+// ========== LIST PLAYERS (for PvP targeting) ==========
+
+async function handleListPlayers(supabase: any, userId: string, ps: any): Promise<ActionResult> {
+  // Get players in the same district, excluding self, hospital, prison
+  const { data: players } = await supabase
+    .from("player_state")
+    .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until")
+    .eq("loc", ps.loc)
+    .neq("user_id", userId)
+    .eq("game_over", false)
+    .limit(20);
+
+  if (!players || players.length === 0) {
+    return { success: true, message: "Geen spelers in dit district.", data: { players: [] } };
+  }
+
+  // Get profiles for usernames
+  const userIds = players.map((p: any) => p.user_id);
+  const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", userIds);
+  const profileMap: Record<string, string> = {};
+  (profiles || []).forEach((p: any) => { profileMap[p.id] = p.username; });
+
+  const now = new Date();
+  const result = players
+    .filter((p: any) => {
+      if (p.hospital_until && new Date(p.hospital_until) > now) return false;
+      if (p.prison_until && new Date(p.prison_until) > now) return false;
+      return true;
+    })
+    .map((p: any) => ({
+      userId: p.user_id,
+      username: profileMap[p.user_id] || "Onbekend",
+      level: p.level,
+      hp: p.hp,
+      maxHp: p.max_hp,
+    }));
+
+  return { success: true, message: `${result.length} spelers gevonden.`, data: { players: result } };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -749,6 +930,12 @@ Deno.serve(async (req) => {
         break;
       case "buy_business":
         result = await handleBuyBusiness(supabase, user.id, playerState, payload);
+        break;
+      case "attack":
+        result = await handleAttack(supabase, user.id, playerState, payload);
+        break;
+      case "list_players":
+        result = await handleListPlayers(supabase, user.id, playerState);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
