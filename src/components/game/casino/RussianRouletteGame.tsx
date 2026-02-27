@@ -3,9 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Crosshair, Skull, DollarSign, Zap } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
-import { getTotalVipBonus, applyVipToWinnings } from './casinoUtils';
 import { playCoinSound, playNegativeSound, playDramaticReveal } from '@/game/sounds';
-import { MINIGAME_IMAGES } from '@/assets/items';
+import { gameApi } from '@/lib/gameApi';
 
 interface Props {
   dispatch: (action: any) => void;
@@ -25,72 +24,112 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
   const [phase, setPhase] = useState<Phase>('betting');
   const [round, setRound] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<'alive' | 'dead' | null>(null);
   const [cylinderAngle, setCylinderAngle] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [resultData, setResultData] = useState<{ survived: number; dead: boolean; mult?: number; netResult?: number } | null>(null);
 
-  const vipBonus = getTotalVipBonus(state);
   const currentMultiplier = round > 0 ? MULTIPLIERS[Math.min(round - 1, MULTIPLIERS.length - 1)] : 1;
   const potentialWin = Math.floor(bet * currentMultiplier);
 
   const startGame = useCallback(() => {
     if (bet < 10 || bet > money) return;
-    dispatch({ type: 'CASINO_BET', amount: bet });
     setPhase('playing');
     setRound(0);
-    setResult(null);
-  }, [bet, money, dispatch]);
+    setResultData(null);
+  }, [bet, money]);
 
-  const pullTrigger = useCallback(() => {
-    if (spinning) return;
+  const pullTrigger = useCallback(async () => {
+    if (spinning || loading) return;
     setSpinning(true);
     playDramaticReveal();
     setCylinderAngle(prev => prev + 720 + Math.random() * 360);
 
-    const nextRound = round + 1;
-    // Probability: 1/(CHAMBERS - round) — gets harder each round
-    const chambersLeft = CHAMBERS - round;
-    const isDead = Math.random() < (1 / chambersLeft);
+    // Submit ALL rounds up to current + 1 to server
+    const targetRounds = round + 1;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       setSpinning(false);
-      setRound(nextRound);
+      setLoading(true);
 
-      if (isDead) {
-        setResult('dead');
-        setPhase('result');
-        playNegativeSound();
-        dispatch({ type: 'CASINO_BET', amount: 0 }); // loss already deducted
-        onResult(false, -bet);
-        showToast(`💀 BANG! Je verliest €${bet.toLocaleString()}`, true);
-      } else {
-        setResult('alive');
-        // Auto cash-out at max round
-        if (nextRound >= MULTIPLIERS.length) {
-          cashOut(nextRound);
+      try {
+        const res = await gameApi.casinoPlay('russian_roulette', bet, { rounds: targetRounds });
+        if (!res.success) {
+          showToast(res.message, true);
+          setLoading(false);
+          return;
         }
+
+        const data = res.data!;
+        setResultData(data as any);
+
+        if (data.dead) {
+          // Player died at some round
+          setRound(data.survived);
+          setPhase('result');
+          playNegativeSound();
+          onResult(false, data.netResult);
+          showToast(`💀 BANG! Je verliest €${bet.toLocaleString()}`, true);
+        } else {
+          // Survived this round
+          setRound(data.survived);
+          if (data.survived >= MULTIPLIERS.length) {
+            // Max rounds - auto cash out
+            setPhase('result');
+            playCoinSound();
+            onResult(true, data.netResult);
+            showToast(`💰 Cash out! €${(data.netResult + bet).toLocaleString()} (${data.mult}x)`);
+          }
+          // Otherwise stay in playing phase for next pull or cash out
+        }
+
+        if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+      } catch {
+        showToast('Server fout.', true);
+      } finally {
+        setLoading(false);
       }
     }, 1500);
-  }, [spinning, round, bet, dispatch, onResult, showToast]);
+  }, [spinning, loading, round, bet, dispatch, onResult, showToast]);
 
-  const cashOut = useCallback((atRound?: number) => {
-    const r = atRound || round;
-    const mult = MULTIPLIERS[Math.min(r - 1, MULTIPLIERS.length - 1)];
-    let winnings = Math.floor(bet * mult);
-    if (vipBonus > 0) {
-      winnings = applyVipToWinnings(winnings, bet, vipBonus);
+  const cashOut = useCallback(async () => {
+    if (round <= 0 || loading) return;
+    setLoading(true);
+
+    try {
+      // Server resolves with current rounds
+      const res = await gameApi.casinoPlay('russian_roulette', bet, { rounds: round });
+      if (!res.success) {
+        showToast(res.message, true);
+        setLoading(false);
+        return;
+      }
+
+      const data = res.data!;
+      setResultData(data as any);
+
+      if (!data.dead && data.netResult > 0) {
+        setPhase('result');
+        playCoinSound();
+        onResult(true, data.netResult);
+        showToast(`💰 Cash out! €${(data.netResult + bet).toLocaleString()} (${data.mult}x)`);
+      } else if (data.dead) {
+        setPhase('result');
+        playNegativeSound();
+        onResult(false, data.netResult);
+      }
+
+      if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
+    } catch {
+      showToast('Server fout.', true);
+    } finally {
+      setLoading(false);
     }
-    dispatch({ type: 'CASINO_WIN', amount: winnings });
-    onResult(true, winnings - bet);
-    playCoinSound();
-    showToast(`💰 Cash out! €${winnings.toLocaleString()} (${mult}x)`);
-    setPhase('result');
-    setResult('alive');
-  }, [round, bet, vipBonus, dispatch, onResult, showToast]);
+  }, [round, bet, loading, dispatch, onResult, showToast]);
 
   const reset = () => {
     setPhase('betting');
     setRound(0);
-    setResult(null);
+    setResultData(null);
   };
 
   return (
@@ -104,21 +143,14 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
           </div>
 
           <div className="game-card p-3 space-y-2 text-[0.6rem]">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Ronde 1</span><span className="text-gold font-bold">1.5x</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Ronde 2</span><span className="text-gold font-bold">2.5x</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Ronde 3</span><span className="text-gold font-bold">4x</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Ronde 4</span><span className="text-gold font-bold">7x</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Ronde 5</span><span className="text-blood font-bold">12x ☠️</span>
-            </div>
+            {MULTIPLIERS.map((m, i) => (
+              <div key={i} className="flex justify-between text-muted-foreground">
+                <span>Ronde {i + 1}</span>
+                <span className={`font-bold ${i === MULTIPLIERS.length - 1 ? 'text-blood' : 'text-gold'}`}>
+                  {m}x {i === MULTIPLIERS.length - 1 ? '☠️' : ''}
+                </span>
+              </div>
+            ))}
           </div>
 
           <BetControls bet={bet} setBet={setBet} money={money} />
@@ -139,7 +171,7 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
             >
               {Array.from({ length: CHAMBERS }).map((_, i) => {
                 const angle = (i * 360) / CHAMBERS;
-                const isFilled = i === 0; // visual hint — 1 bullet
+                const isFilled = i === 0;
                 return (
                   <div
                     key={i}
@@ -175,29 +207,15 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
             )}
           </div>
 
-          {/* Alive flash */}
-          <AnimatePresence>
-            {result === 'alive' && !spinning && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center text-emerald font-bold text-sm"
-              >
-                ✓ KLIK — Overleeft! ({currentMultiplier}x)
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Actions */}
           <div className="flex gap-2">
             {round > 0 && (
-              <GameButton variant="gold" fullWidth onClick={() => cashOut()} disabled={spinning} icon={<DollarSign size={14} />}>
+              <GameButton variant="gold" fullWidth onClick={cashOut} disabled={spinning || loading} icon={<DollarSign size={14} />}>
                 CASH OUT €{potentialWin.toLocaleString()}
               </GameButton>
             )}
-            <GameButton variant="blood" fullWidth onClick={pullTrigger} disabled={spinning} icon={<Zap size={14} />}>
-              {spinning ? 'DRAAIT...' : 'TREK DE TREKKER'}
+            <GameButton variant="blood" fullWidth onClick={pullTrigger} disabled={spinning || loading} icon={<Zap size={14} />}>
+              {spinning || loading ? 'DRAAIT...' : 'TREK DE TREKKER'}
             </GameButton>
           </div>
         </div>
@@ -205,7 +223,7 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
 
       {phase === 'result' && (
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-3">
-          {result === 'dead' ? (
+          {resultData?.dead ? (
             <>
               <Skull size={48} className="text-blood mx-auto" />
               <h3 className="font-display text-lg text-blood uppercase">BANG!</h3>
@@ -216,7 +234,7 @@ export function RussianRouletteGame({ dispatch, showToast, money, state, onResul
               <DollarSign size={48} className="text-gold mx-auto" />
               <h3 className="font-display text-lg text-gold uppercase">Overleefd!</h3>
               <p className="text-sm text-emerald font-bold">
-                €{potentialWin.toLocaleString()} gewonnen
+                €{((resultData?.netResult || 0) + bet).toLocaleString()} gewonnen
               </p>
             </>
           )}

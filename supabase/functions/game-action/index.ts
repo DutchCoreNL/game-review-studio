@@ -2451,6 +2451,292 @@ async function handleDistrictLeaderboard(supabase: any): Promise<ActionResult> {
   return { success: true, message: "District leaderboard opgehaald.", data: { districts: result } };
 }
 
+// ========== CASINO (SERVER-SIDE RNG) ==========
+
+const CASINO_RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const CASINO_SUITS = ['spade', 'heart', 'diamond', 'club'];
+
+function serverCreateDeck() {
+  const deck: { rank: string; suit: string }[] = [];
+  for (const suit of CASINO_SUITS) {
+    for (const rank of CASINO_RANKS) {
+      deck.push({ rank, suit });
+    }
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+function bjScore(hand: { rank: string }[]) {
+  let score = 0, aces = 0;
+  for (const c of hand) {
+    if (c.rank === 'A') { aces++; score += 11; }
+    else if (['K','Q','J'].includes(c.rank)) score += 10;
+    else score += parseInt(c.rank);
+  }
+  while (score > 21 && aces > 0) { score -= 10; aces--; }
+  return score;
+}
+
+function getCardRankVal(rank: string): number {
+  return CASINO_RANKS.indexOf(rank);
+}
+
+async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { game, bet, choice } = payload || {};
+  if (!game || !bet || bet < 10) return { success: false, message: "Ongeldige casino parameters." };
+  if (bet > Number(ps.money)) return { success: false, message: "Niet genoeg geld." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Anti-exploit: max bet cap per game
+  const MAX_BET = 500000;
+  if (bet > MAX_BET) return { success: false, message: `Maximale inzet is €${MAX_BET.toLocaleString()}.` };
+
+  let netResult = 0; // positive = player wins, negative = player loses
+  let resultData: Record<string, any> = {};
+
+  switch (game) {
+    case "blackjack": {
+      // Full blackjack simulation server-side
+      const deck = serverCreateDeck();
+      const playerHand = [deck.pop()!, deck.pop()!];
+      const dealerHand = [deck.pop()!, deck.pop()!];
+
+      const action = choice?.action; // 'stand', 'hit', or 'double'
+      // For simplicity: client sends the FULL action sequence as an array
+      // e.g. choice = { actions: ['hit', 'hit', 'stand'] }
+      const actions: string[] = choice?.actions || ['stand'];
+      let activeBet = bet;
+      let doubled = false;
+
+      for (const act of actions) {
+        if (act === 'hit') {
+          playerHand.push(deck.pop()!);
+          if (bjScore(playerHand) > 21) break;
+        } else if (act === 'double') {
+          if (!doubled && playerHand.length === 2 && activeBet <= Number(ps.money) - bet) {
+            activeBet = bet * 2;
+            doubled = true;
+            playerHand.push(deck.pop()!);
+            break; // after double, auto-stand
+          }
+        } else { // stand
+          break;
+        }
+      }
+
+      const ps_score = bjScore(playerHand);
+      let ds_score = bjScore(dealerHand);
+
+      if (ps_score <= 21) {
+        // Dealer draws
+        while (ds_score < 17) {
+          dealerHand.push(deck.pop()!);
+          ds_score = bjScore(dealerHand);
+        }
+      }
+
+      const isBj = ps_score === 21 && playerHand.length === 2;
+      let won: boolean | null = null;
+      if (ps_score > 21) { won = false; }
+      else if (ds_score > 21) { won = true; }
+      else if (ps_score > ds_score) { won = true; }
+      else if (ps_score === ds_score) { won = null; } // push
+      else { won = false; }
+
+      if (won === true) {
+        const mult = isBj ? 2.5 : 2;
+        netResult = Math.floor(activeBet * mult) - activeBet;
+      } else if (won === false) {
+        netResult = -activeBet;
+      } else {
+        netResult = 0; // push - return bet
+      }
+
+      resultData = { playerHand, dealerHand, playerScore: ps_score, dealerScore: ds_score, won, isBj, activeBet };
+      break;
+    }
+
+    case "roulette": {
+      const num = Math.floor(Math.random() * 37); // 0-36
+      const RED_NUMS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+      const color = num === 0 ? 'green' : RED_NUMS.includes(num) ? 'red' : 'black';
+      const betType = choice?.betType; // 'red','black','green','even','odd','low','high'
+
+      let won = false, mult = 0;
+      if (betType === 'red' && color === 'red') { won = true; mult = 2; }
+      else if (betType === 'black' && color === 'black') { won = true; mult = 2; }
+      else if (betType === 'green' && num === 0) { won = true; mult = 14; }
+      else if (betType === 'even' && num > 0 && num % 2 === 0) { won = true; mult = 2; }
+      else if (betType === 'odd' && num % 2 === 1) { won = true; mult = 2; }
+      else if (betType === 'low' && num >= 1 && num <= 18) { won = true; mult = 2; }
+      else if (betType === 'high' && num >= 19 && num <= 36) { won = true; mult = 2; }
+
+      netResult = won ? Math.floor(bet * mult) - bet : -bet;
+      resultData = { num, color, won, mult };
+      break;
+    }
+
+    case "slots": {
+      const BASE_SYMBOLS = ['🍒','🍒','🍋','🍋','🍇','🍊','🔔','⭐','🍀','🎲','💎','7️⃣'];
+      const pick = () => BASE_SYMBOLS[Math.floor(Math.random() * BASE_SYMBOLS.length)];
+      const reels = [pick(), pick(), pick()];
+      const [a, b, c] = reels;
+
+      let winMult = 0;
+      let isJackpot = false;
+
+      if (a === b && b === c) {
+        if (a === '7️⃣') { winMult = 0; isJackpot = true; } // jackpot handled separately
+        else if (a === '💎') { winMult = 25; }
+        else { winMult = 8; }
+      } else if (a === b || b === c || a === c) {
+        winMult = 1.2;
+      }
+
+      if (isJackpot) {
+        // Award jackpot from player_state
+        const jackpotAmount = ps.casino_jackpot || 10000;
+        netResult = jackpotAmount; // full jackpot as net win
+        // Reset jackpot
+        await supabase.from("player_state").update({ casino_jackpot: 500 }).eq("user_id", userId);
+        resultData = { reels, isJackpot: true, jackpotAmount };
+      } else {
+        // Add to jackpot pool
+        const jackpotAdd = Math.floor(bet * 0.05);
+        await supabase.from("player_state").update({
+          casino_jackpot: (ps.casino_jackpot || 10000) + jackpotAdd,
+        }).eq("user_id", userId);
+
+        if (winMult > 0) {
+          netResult = Math.floor(bet * winMult) - bet;
+        } else {
+          netResult = -bet;
+        }
+        resultData = { reels, winMult, isJackpot: false };
+      }
+      break;
+    }
+
+    case "highlow": {
+      // Server plays the full high-low game
+      // choice = { guesses: ['higher', 'lower', ...], cashOutAfter?: number }
+      const deck = serverCreateDeck();
+      const guesses: string[] = choice?.guesses || [];
+      const MULT_LADDER = [1.3, 1.8, 2.5, 4, 7, 12];
+      let currentCard = deck.pop()!;
+      const cards = [currentCard];
+      let round = 0;
+      let lost = false;
+
+      for (let i = 0; i < guesses.length && i < 6; i++) {
+        const nextCard = deck.pop()!;
+        cards.push(nextCard);
+        const curVal = getCardRankVal(currentCard.rank);
+        const nextVal = getCardRankVal(nextCard.rank);
+        const guess = guesses[i];
+
+        const correct = guess === 'higher' ? nextVal > curVal : nextVal < curVal;
+        if (!correct) {
+          lost = true;
+          break;
+        }
+        round++;
+        currentCard = nextCard;
+      }
+
+      if (lost) {
+        netResult = -bet;
+        resultData = { cards, round, lost: true };
+      } else if (round > 0) {
+        const mult = MULT_LADDER[Math.min(round - 1, MULT_LADDER.length - 1)];
+        netResult = Math.floor(bet * mult) - bet;
+        resultData = { cards, round, lost: false, mult };
+      } else {
+        netResult = 0;
+        resultData = { cards, round: 0, lost: false };
+      }
+      break;
+    }
+
+    case "russian_roulette": {
+      // choice = { rounds: number } - how many times to pull trigger
+      const rounds = Math.min(choice?.rounds || 1, 5);
+      const ROUL_MULTS = [1.5, 2.5, 4, 7, 12];
+      const CHAMBERS = 6;
+      let survived = 0;
+      let dead = false;
+
+      for (let i = 0; i < rounds; i++) {
+        const chambersLeft = CHAMBERS - i;
+        if (Math.random() < (1 / chambersLeft)) {
+          dead = true;
+          break;
+        }
+        survived++;
+      }
+
+      if (dead) {
+        netResult = -bet;
+        resultData = { survived, dead: true };
+      } else if (survived > 0) {
+        const mult = ROUL_MULTS[Math.min(survived - 1, ROUL_MULTS.length - 1)];
+        netResult = Math.floor(bet * mult) - bet;
+        resultData = { survived, dead: false, mult };
+      } else {
+        netResult = 0;
+        resultData = { survived: 0, dead: false };
+      }
+      break;
+    }
+
+    default:
+      return { success: false, message: `Onbekend casino spel: ${game}` };
+  }
+
+  // Apply VIP bonus on net wins
+  if (netResult > 0) {
+    const { data: ownedDistricts } = await supabase.from("player_districts").select("district_id").eq("user_id", userId);
+    const ownsNeon = (ownedDistricts || []).some((d: any) => d.district_id === "neon");
+    let vipBonus = 0;
+    if (ownsNeon) vipBonus += 5;
+    // Cap VIP at 15%
+    vipBonus = Math.min(vipBonus, 15);
+    if (vipBonus > 0) {
+      netResult = netResult + Math.floor(netResult * (vipBonus / 100));
+    }
+  }
+
+  // Update player money and stats
+  const newMoney = Number(ps.money) + netResult;
+  const updateData: Record<string, any> = {
+    money: Math.max(0, newMoney),
+    last_action_at: new Date().toISOString(),
+  };
+
+  if (netResult > 0) {
+    updateData.stats_casino_won = (ps.stats_casino_won || 0) + netResult;
+    updateData.stats_total_earned = (ps.stats_total_earned || 0) + netResult;
+  } else if (netResult < 0) {
+    updateData.stats_casino_lost = (ps.stats_casino_lost || 0) + Math.abs(netResult);
+    updateData.stats_total_spent = (ps.stats_total_spent || 0) + Math.abs(netResult);
+  }
+
+  await supabase.from("player_state").update(updateData).eq("user_id", userId);
+
+  const won = netResult > 0;
+  return {
+    success: true,
+    message: won ? `Gewonnen! +€${netResult.toLocaleString()}` : netResult === 0 ? 'Gelijkspel.' : `Verloren: -€${Math.abs(netResult).toLocaleString()}`,
+    data: { ...resultData, netResult, newMoney: Math.max(0, newMoney) },
+  };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -2643,6 +2929,9 @@ Deno.serve(async (req) => {
         break;
       case "pvp_combat_action":
         result = await handlePvPCombatAction(supabase, user.id, payload);
+        break;
+      case "casino_play":
+        result = await handleCasinoPlay(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

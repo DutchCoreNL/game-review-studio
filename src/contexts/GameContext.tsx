@@ -102,6 +102,7 @@ type GameAction =
   | { type: 'TRACK_HIGHLOW_ROUND'; round: number }
   | { type: 'JACKPOT_ADD'; amount: number }
   | { type: 'JACKPOT_RESET' }
+  | { type: 'SET_MONEY'; amount: number }
   | { type: 'START_FINAL_BOSS' }
   | { type: 'START_BOSS_PHASE_2' }
   | { type: 'RESOLVE_FINAL_BOSS' }
@@ -941,6 +942,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'JACKPOT_RESET': {
       s.casinoJackpot = 10000;
+      return s;
+    }
+
+    case 'SET_MONEY': {
+      s.money = action.amount;
       return s;
     }
 

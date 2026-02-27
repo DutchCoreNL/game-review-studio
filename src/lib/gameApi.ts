@@ -18,7 +18,8 @@ export type GameAction =
   | "get_market_prices"
   | "place_bounty" | "get_most_wanted"
   | "district_leaderboard"
-  | "pvp_combat_start" | "pvp_combat_action";
+  | "pvp_combat_start" | "pvp_combat_action"
+  | "casino_play";
 
 interface GameActionResult {
   success: boolean;
@@ -102,6 +103,10 @@ export const gameApi = {
   pvpCombatStart: (targetUserId: string) => invokeGameAction("pvp_combat_start", { targetUserId }),
   pvpCombatAction: (sessionId: string, action: string, skillId?: string) =>
     invokeGameAction("pvp_combat_action", { sessionId, action, skillId }),
+
+  // Casino (server-validated)
+  casinoPlay: (game: string, bet: number, choice?: any) =>
+    invokeGameAction("casino_play", { game, bet, choice }),
 
   // Cloud saves
   saveState: (saveData: any, day: number) => invokeGameAction("save_state", { saveData, day }),
