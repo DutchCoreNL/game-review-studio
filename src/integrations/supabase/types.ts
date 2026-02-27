@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      game_action_log: {
+        Row: {
+          action_data: Json | null
+          action_type: string
+          created_at: string
+          id: string
+          result_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          action_data?: Json | null
+          action_type: string
+          created_at?: string
+          id?: string
+          result_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          action_data?: Json | null
+          action_type?: string
+          created_at?: string
+          id?: string
+          result_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       leaderboard_entries: {
         Row: {
           backstory: string | null
@@ -97,6 +124,168 @@ export type Database = {
           },
         ]
       }
+      player_businesses: {
+        Row: {
+          acquired_at: string
+          business_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          business_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          business_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_crew: {
+        Row: {
+          created_at: string
+          hp: number
+          id: string
+          level: number
+          loyalty: number
+          name: string
+          role: string
+          slot_index: number
+          specialization: string | null
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          hp?: number
+          id?: string
+          level?: number
+          loyalty?: number
+          name: string
+          role: string
+          slot_index?: number
+          specialization?: string | null
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          hp?: number
+          id?: string
+          level?: number
+          loyalty?: number
+          name?: string
+          role?: string
+          slot_index?: number
+          specialization?: string | null
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      player_districts: {
+        Row: {
+          captured_at: string
+          defense: Json
+          district_id: string
+          district_rep: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          defense?: Json
+          district_id: string
+          district_rep?: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          defense?: Json
+          district_id?: string
+          district_rep?: number
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_gear: {
+        Row: {
+          acquired_at: string
+          gear_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          gear_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          gear_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_inventory: {
+        Row: {
+          avg_cost: number
+          good_id: string
+          id: string
+          quantity: number
+          user_id: string
+        }
+        Insert: {
+          avg_cost?: number
+          good_id: string
+          id?: string
+          quantity?: number
+          user_id: string
+        }
+        Update: {
+          avg_cost?: number
+          good_id?: string
+          id?: string
+          quantity?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_safehouses: {
+        Row: {
+          acquired_at: string
+          district_id: string
+          id: string
+          level: number
+          upgrades: Json
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          district_id: string
+          id?: string
+          level?: number
+          upgrades?: Json
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          district_id?: string
+          id?: string
+          level?: number
+          upgrades?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       player_sanctions: {
         Row: {
           active: boolean
@@ -127,6 +316,267 @@ export type Database = {
           reason?: string | null
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      player_state: {
+        Row: {
+          ammo: number
+          ammo_factory_level: number
+          ammo_stock: Json
+          attack_cooldown_until: string | null
+          backstory: string | null
+          casino_jackpot: number
+          created_at: string
+          crime_cooldown_until: string | null
+          day: number
+          debt: number
+          dirty_money: number
+          endgame_phase: string
+          energy: number
+          energy_regen_at: string
+          final_boss_defeated: boolean
+          free_play_mode: boolean
+          game_over: boolean
+          heat: number
+          heist_cooldown_until: string | null
+          hiding_until: string | null
+          hospital_until: string | null
+          hospitalizations: number
+          hp: number
+          id: string
+          karma: number
+          last_action_at: string
+          level: number
+          loadout: Json
+          loc: string
+          max_energy: number
+          max_hp: number
+          max_nerve: number
+          money: number
+          nerve: number
+          nerve_regen_at: string
+          new_game_plus_level: number
+          next_xp: number
+          personal_heat: number
+          police_rel: number
+          prison_reason: string | null
+          prison_until: string | null
+          rep: number
+          skill_points: number
+          stats: Json
+          stats_casino_lost: number
+          stats_casino_won: number
+          stats_days_played: number
+          stats_missions_completed: number
+          stats_missions_failed: number
+          stats_total_earned: number
+          stats_total_spent: number
+          stats_trades_completed: number
+          travel_cooldown_until: string | null
+          updated_at: string
+          user_id: string
+          wash_used_today: number
+          xp: number
+        }
+        Insert: {
+          ammo?: number
+          ammo_factory_level?: number
+          ammo_stock?: Json
+          attack_cooldown_until?: string | null
+          backstory?: string | null
+          casino_jackpot?: number
+          created_at?: string
+          crime_cooldown_until?: string | null
+          day?: number
+          debt?: number
+          dirty_money?: number
+          endgame_phase?: string
+          energy?: number
+          energy_regen_at?: string
+          final_boss_defeated?: boolean
+          free_play_mode?: boolean
+          game_over?: boolean
+          heat?: number
+          heist_cooldown_until?: string | null
+          hiding_until?: string | null
+          hospital_until?: string | null
+          hospitalizations?: number
+          hp?: number
+          id?: string
+          karma?: number
+          last_action_at?: string
+          level?: number
+          loadout?: Json
+          loc?: string
+          max_energy?: number
+          max_hp?: number
+          max_nerve?: number
+          money?: number
+          nerve?: number
+          nerve_regen_at?: string
+          new_game_plus_level?: number
+          next_xp?: number
+          personal_heat?: number
+          police_rel?: number
+          prison_reason?: string | null
+          prison_until?: string | null
+          rep?: number
+          skill_points?: number
+          stats?: Json
+          stats_casino_lost?: number
+          stats_casino_won?: number
+          stats_days_played?: number
+          stats_missions_completed?: number
+          stats_missions_failed?: number
+          stats_total_earned?: number
+          stats_total_spent?: number
+          stats_trades_completed?: number
+          travel_cooldown_until?: string | null
+          updated_at?: string
+          user_id: string
+          wash_used_today?: number
+          xp?: number
+        }
+        Update: {
+          ammo?: number
+          ammo_factory_level?: number
+          ammo_stock?: Json
+          attack_cooldown_until?: string | null
+          backstory?: string | null
+          casino_jackpot?: number
+          created_at?: string
+          crime_cooldown_until?: string | null
+          day?: number
+          debt?: number
+          dirty_money?: number
+          endgame_phase?: string
+          energy?: number
+          energy_regen_at?: string
+          final_boss_defeated?: boolean
+          free_play_mode?: boolean
+          game_over?: boolean
+          heat?: number
+          heist_cooldown_until?: string | null
+          hiding_until?: string | null
+          hospital_until?: string | null
+          hospitalizations?: number
+          hp?: number
+          id?: string
+          karma?: number
+          last_action_at?: string
+          level?: number
+          loadout?: Json
+          loc?: string
+          max_energy?: number
+          max_hp?: number
+          max_nerve?: number
+          money?: number
+          nerve?: number
+          nerve_regen_at?: string
+          new_game_plus_level?: number
+          next_xp?: number
+          personal_heat?: number
+          police_rel?: number
+          prison_reason?: string | null
+          prison_until?: string | null
+          rep?: number
+          skill_points?: number
+          stats?: Json
+          stats_casino_lost?: number
+          stats_casino_won?: number
+          stats_days_played?: number
+          stats_missions_completed?: number
+          stats_missions_failed?: number
+          stats_total_earned?: number
+          stats_total_spent?: number
+          stats_trades_completed?: number
+          travel_cooldown_until?: string | null
+          updated_at?: string
+          user_id?: string
+          wash_used_today?: number
+          xp?: number
+        }
+        Relationships: []
+      }
+      player_vehicles: {
+        Row: {
+          acquired_at: string
+          condition: number
+          id: string
+          is_active: boolean
+          rekat_cooldown: number
+          upgrades: Json
+          user_id: string
+          vehicle_heat: number
+          vehicle_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          condition?: number
+          id?: string
+          is_active?: boolean
+          rekat_cooldown?: number
+          upgrades?: Json
+          user_id: string
+          vehicle_heat?: number
+          vehicle_id: string
+        }
+        Update: {
+          acquired_at?: string
+          condition?: number
+          id?: string
+          is_active?: boolean
+          rekat_cooldown?: number
+          upgrades?: Json
+          user_id?: string
+          vehicle_heat?: number
+          vehicle_id?: string
+        }
+        Relationships: []
+      }
+      player_villa: {
+        Row: {
+          created_at: string
+          helipad_used_today: boolean
+          id: string
+          last_party_day: number
+          level: number
+          modules: Json
+          prestige_modules: Json
+          purchase_day: number
+          stored_ammo: number
+          stored_goods: Json
+          user_id: string
+          vault_money: number
+        }
+        Insert: {
+          created_at?: string
+          helipad_used_today?: boolean
+          id?: string
+          last_party_day?: number
+          level?: number
+          modules?: Json
+          prestige_modules?: Json
+          purchase_day?: number
+          stored_ammo?: number
+          stored_goods?: Json
+          user_id: string
+          vault_money?: number
+        }
+        Update: {
+          created_at?: string
+          helipad_used_today?: boolean
+          id?: string
+          last_party_day?: number
+          level?: number
+          modules?: Json
+          prestige_modules?: Json
+          purchase_day?: number
+          stored_ammo?: number
+          stored_goods?: Json
+          user_id?: string
+          vault_money?: number
         }
         Relationships: []
       }
