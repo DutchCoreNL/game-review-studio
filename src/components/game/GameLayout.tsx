@@ -101,6 +101,7 @@ const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ 
 const TravelViewLazy = React.lazy(() => import('./TravelView').then(m => ({ default: m.TravelView })));
 const ChatViewLazy = React.lazy(() => import('./ChatView').then(m => ({ default: m.ChatView })));
 const OCViewLazy = React.lazy(() => import('./OrganizedCrimesView').then(m => ({ default: m.OrganizedCrimesView })));
+const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m.WarView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -131,7 +132,7 @@ const views: Record<string, React.ComponentType> = {
   // Crew & Oorlog
   families: FamiliesPanel,
   gang: GangView,
-  war: DistrictDefensePanel,
+  war: WarViewLazy,
   corruption: CorruptionView,
   // Imperium
   empire: ImperiumView,
