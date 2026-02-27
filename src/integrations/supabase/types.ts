@@ -1306,6 +1306,39 @@ export type Database = {
         }
         Relationships: []
       }
+      player_travel: {
+        Row: {
+          arrives_at: string
+          created_at: string
+          departed_at: string
+          destination: string
+          id: string
+          purchased_goods: Json
+          status: string
+          user_id: string
+        }
+        Insert: {
+          arrives_at: string
+          created_at?: string
+          departed_at?: string
+          destination: string
+          id?: string
+          purchased_goods?: Json
+          status?: string
+          user_id: string
+        }
+        Update: {
+          arrives_at?: string
+          created_at?: string
+          departed_at?: string
+          destination?: string
+          id?: string
+          purchased_goods?: Json
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       player_vehicles: {
         Row: {
           acquired_at: string

@@ -10,7 +10,7 @@ export type GameView =
   | 'ops' | 'contracts' | 'heists' | 'bounties' | 'pvp' | 'challenges' | 'hits' | 'wanted'
   | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'
   | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
-  | 'garage' | 'business' | 'districts' | 'properties'
+  | 'garage' | 'business' | 'districts' | 'properties' | 'travel'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education'
   | 'empire' | 'admin';
