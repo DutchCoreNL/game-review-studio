@@ -2661,6 +2661,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (ss.player.stats) s.player.stats = ss.player.stats;
         if (ss.player.loadout) s.player.loadout = ss.player.loadout;
       }
+      // Sync ownedDistricts from server (personal + gang territories combined)
+      if (ss.allDistricts) {
+        s.ownedDistricts = ss.allDistricts;
+      }
+      if (ss.gangDistricts) {
+        s.gangDistricts = ss.gangDistricts;
+      }
       s.serverSynced = true;
       return s;
     }

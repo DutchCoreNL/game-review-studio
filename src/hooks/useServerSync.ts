@@ -112,43 +112,49 @@ export function useServerSync(
   return { serverDispatch, syncState, fetchServerState };
 }
 
-/** Merge server player_state fields into local GameState via SET_STATE-like dispatch */
-function mergeServerState(dispatch: (action: any) => void, serverData: Record<string, any>) {
+/** Merge server get_state response into local GameState via MERGE_SERVER_STATE dispatch */
+function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>) {
+  // get_state returns { playerState, inventory, gear, vehicles, districts, businesses, crew, villa, gangDistricts, allDistricts }
+  const ps = data.playerState || data; // fallback to flat structure for backwards compat
+
   dispatch({
     type: 'MERGE_SERVER_STATE',
     serverState: {
-      money: serverData.money ?? undefined,
-      dirtyMoney: serverData.dirty_money ?? undefined,
-      debt: serverData.debt ?? undefined,
-      rep: serverData.rep ?? undefined,
-      heat: serverData.heat ?? undefined,
-      personalHeat: serverData.personal_heat ?? undefined,
-      playerHP: serverData.hp ?? undefined,
-      playerMaxHP: serverData.max_hp ?? undefined,
-      karma: serverData.karma ?? undefined,
-      loc: serverData.loc ?? undefined,
-      policeRel: serverData.police_rel ?? undefined,
-      energy: serverData.energy ?? 100,
-      maxEnergy: serverData.max_energy ?? 100,
-      nerve: serverData.nerve ?? 50,
-      maxNerve: serverData.max_nerve ?? 50,
-      energyRegenAt: serverData.energy_regen_at ?? null,
-      nerveRegenAt: serverData.nerve_regen_at ?? null,
-      travelCooldownUntil: serverData.travel_cooldown_until ?? null,
-      crimeCooldownUntil: serverData.crime_cooldown_until ?? null,
-      attackCooldownUntil: serverData.attack_cooldown_until ?? null,
-      heistCooldownUntil: serverData.heist_cooldown_until ?? null,
-      day: serverData.day ?? undefined,
-      washUsedToday: serverData.wash_used_today ?? undefined,
-      endgamePhase: serverData.endgame_phase ?? undefined,
+      money: ps.money ?? undefined,
+      dirtyMoney: ps.dirty_money ?? undefined,
+      debt: ps.debt ?? undefined,
+      rep: ps.rep ?? undefined,
+      heat: ps.heat ?? undefined,
+      personalHeat: ps.personal_heat ?? undefined,
+      playerHP: ps.hp ?? undefined,
+      playerMaxHP: ps.max_hp ?? undefined,
+      karma: ps.karma ?? undefined,
+      loc: ps.loc ?? undefined,
+      policeRel: ps.police_rel ?? undefined,
+      energy: ps.energy ?? 100,
+      maxEnergy: ps.max_energy ?? 100,
+      nerve: ps.nerve ?? 50,
+      maxNerve: ps.max_nerve ?? 50,
+      energyRegenAt: ps.energy_regen_at ?? null,
+      nerveRegenAt: ps.nerve_regen_at ?? null,
+      travelCooldownUntil: ps.travel_cooldown_until ?? null,
+      crimeCooldownUntil: ps.crime_cooldown_until ?? null,
+      attackCooldownUntil: ps.attack_cooldown_until ?? null,
+      heistCooldownUntil: ps.heist_cooldown_until ?? null,
+      day: ps.day ?? undefined,
+      washUsedToday: ps.wash_used_today ?? undefined,
+      endgamePhase: ps.endgame_phase ?? undefined,
       player: {
-        level: serverData.level ?? undefined,
-        xp: serverData.xp ?? undefined,
-        nextXp: serverData.next_xp ?? undefined,
-        skillPoints: serverData.skill_points ?? undefined,
-        stats: serverData.stats ?? undefined,
-        loadout: serverData.loadout ?? undefined,
+        level: ps.level ?? undefined,
+        xp: ps.xp ?? undefined,
+        nextXp: ps.next_xp ?? undefined,
+        skillPoints: ps.skill_points ?? undefined,
+        stats: ps.stats ?? undefined,
+        loadout: ps.loadout ?? undefined,
       },
+      // Sync districts: personal + gang territories combined
+      allDistricts: data.allDistricts ?? undefined,
+      gangDistricts: data.gangDistricts ?? undefined,
       serverSynced: true,
     },
   });
