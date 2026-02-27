@@ -210,6 +210,7 @@ export function GameHeader() {
         <CooldownTimer label="Reis" until={state.travelCooldownUntil} icon={<MapPin size={7} />} />
         <CooldownTimer label="Crime" until={state.crimeCooldownUntil} icon={<Crosshair size={7} />} />
         <CooldownTimer label="Aanval" until={state.attackCooldownUntil} icon={<Swords size={7} />} />
+        <CooldownTimer label="Heist" until={state.heistCooldownUntil} icon={<Crosshair size={7} />} />
       </div>
 
       {/* Resource detail popup */}
