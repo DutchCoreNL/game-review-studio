@@ -16,7 +16,7 @@ export interface WeekEvent {
 }
 
 export interface WeekEventEffect {
-  type: 'money_bonus' | 'trade_bonus' | 'heat_reduction' | 'rep_bonus' | 'xp_bonus' | 'casino_bonus' | 'combat_bonus' | 'crew_heal' | 'heat_surge' | 'price_crash' | 'price_surge' | 'faction_gift';
+  type: 'money_bonus' | 'trade_bonus' | 'heat_reduction' | 'rep_bonus' | 'xp_bonus' | 'casino_bonus' | 'combat_bonus' | 'crew_heal' | 'heat_surge' | 'price_crash' | 'price_surge' | 'faction_gift' | 'heat_freeze';
   value: number;
   desc: string;
 }
@@ -37,10 +37,10 @@ const WEEK_EVENTS: WeekEvent[] = [
     id: 'fight_night',
     name: 'Noxhaven Fight Night',
     icon: '🥊',
-    desc: 'Ondergrondse gevechten in Iron Borough. Dubbele combat XP en reputatie deze week.',
+    desc: 'Ondergrondse gevechten in Iron Borough. Dubbele combat beloningen deze week!',
     duration: 3,
     effects: [
-      { type: 'combat_bonus', value: 2, desc: 'Dubbele combat XP & rep' },
+      { type: 'combat_bonus', value: 2, desc: '2x combat beloningen (XP, rep, cash)' },
       { type: 'money_bonus', value: 5000, desc: '€5.000 fight purse' },
     ],
   },
@@ -48,11 +48,12 @@ const WEEK_EVENTS: WeekEvent[] = [
     id: 'black_market_festival',
     name: 'Zwarte Markt Festival',
     icon: '🏴',
-    desc: 'De zwarte markt van Noxhaven bruist! Alle handel is 20% winstgevender.',
+    desc: 'De zwarte markt van Noxhaven bruist! Dubbele handelswinst op alle goederen.',
     duration: 3,
     effects: [
-      { type: 'trade_bonus', value: 20, desc: '+20% handelswinst' },
-      { type: 'price_crash', value: 15, desc: 'Inkoopprijzen -15%' },
+      { type: 'trade_bonus', value: 100, desc: '2x handelswinst' },
+      { type: 'price_crash', value: 20, desc: 'Inkoopprijzen -20%' },
+      { type: 'money_bonus', value: 3000, desc: '€3.000 welkomstbonus' },
     ],
   },
   {
@@ -123,6 +124,40 @@ const WEEK_EVENTS: WeekEvent[] = [
     effects: [
       { type: 'price_crash', value: 25, desc: '-25% wapenprijzen' },
       { type: 'money_bonus', value: 4000, desc: '€4.000 handelsdeal' },
+    ],
+  },
+  {
+    id: 'heat_freeze',
+    name: 'Stroom Blackout',
+    icon: '❄️',
+    desc: 'Een massale stroomstoring legt alle politiesystemen plat. Geen heat gain gedurende het event!',
+    duration: 3,
+    effects: [
+      { type: 'heat_freeze', value: 1, desc: 'Geen heat gain' },
+      { type: 'heat_reduction', value: 15, desc: '-15 heat bij start' },
+      { type: 'money_bonus', value: 2000, desc: '€2.000 plunderbuit' },
+    ],
+  },
+  {
+    id: 'xp_weekend',
+    name: '2x XP Weekend',
+    icon: '⭐',
+    desc: 'De onderwereld gonst van energie. Alle XP gains zijn verdubbeld!',
+    duration: 2,
+    effects: [
+      { type: 'xp_bonus', value: 100, desc: '2x XP op alles' },
+      { type: 'rep_bonus', value: 15, desc: '+15 rep' },
+    ],
+  },
+  {
+    id: 'harbor_rush',
+    name: 'Haven Drukte',
+    icon: '🚢',
+    desc: 'Smokkelschepen overspoelen de haven. Goederenprijzen kelderen en voorraden stijgen.',
+    duration: 3,
+    effects: [
+      { type: 'price_crash', value: 30, desc: '-30% inkoopprijzen' },
+      { type: 'trade_bonus', value: 40, desc: '+40% handelswinst' },
     ],
   },
 ];
@@ -221,4 +256,27 @@ export function isHeatSurgeActive(state: GameState): boolean {
   const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
   if (!event || event.daysLeft <= 0) return false;
   return event.effects.some(e => e.type === 'heat_surge');
+}
+
+/** Check if heat freeze is active (no heat gain) */
+export function isHeatFreezeActive(state: GameState): boolean {
+  const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  if (!event || event.daysLeft <= 0) return false;
+  return event.effects.some(e => e.type === 'heat_freeze');
+}
+
+/** Get active XP multiplier from week event */
+export function getWeekEventXpMultiplier(state: GameState): number {
+  const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  if (!event || event.daysLeft <= 0) return 1;
+  const xpEffect = event.effects.find(e => e.type === 'xp_bonus');
+  return xpEffect ? 1 + xpEffect.value / 100 : 1;
+}
+
+/** Get active combat multiplier from week event */
+export function getWeekEventCombatMultiplier(state: GameState): number {
+  const event = (state as any).activeWeekEvent as ActiveWeekEvent | null;
+  if (!event || event.daysLeft <= 0) return 1;
+  const combatEffect = event.effects.find(e => e.type === 'combat_bonus');
+  return combatEffect ? combatEffect.value : 1;
 }

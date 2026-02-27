@@ -81,28 +81,37 @@ export function GameHeader() {
 
   // Week event with XP bonus detection
   const weekEvent = (state as any).activeWeekEvent as ActiveWeekEvent | null;
-  const hasXpBonus = useMemo(() => {
-    if (!weekEvent || weekEvent.daysLeft <= 0) return false;
-    return weekEvent.effects.some(e => e.type === 'xp_bonus' || e.type === 'combat_bonus');
-  }, [weekEvent]);
+  const hasActiveEvent = weekEvent && weekEvent.daysLeft > 0;
+
+  // Determine banner color based on event type
+  const eventBannerStyle = useMemo(() => {
+    if (!hasActiveEvent) return null;
+    const hasHeatFreeze = weekEvent.effects.some(e => e.type === 'heat_freeze');
+    const hasCombat = weekEvent.effects.some(e => e.type === 'combat_bonus');
+    const hasTrade = weekEvent.effects.some(e => e.type === 'trade_bonus' && e.value >= 50);
+    if (hasHeatFreeze) return { bg: 'from-ice/20 via-ice/10 to-ice/20', border: 'border-ice/30', text: 'text-ice' };
+    if (hasCombat) return { bg: 'from-blood/20 via-blood/10 to-blood/20', border: 'border-blood/30', text: 'text-blood' };
+    if (hasTrade) return { bg: 'from-emerald/20 via-emerald/10 to-emerald/20', border: 'border-emerald/30', text: 'text-emerald' };
+    return { bg: 'from-gold/20 via-gold/10 to-gold/20', border: 'border-gold/30', text: 'text-gold' };
+  }, [hasActiveEvent, weekEvent]);
 
   return (
     <header className={`flex-none border-b border-border bg-gradient-to-b from-[hsl(0,0%,6%)] to-card px-3 pt-2 pb-2 ${isGoldenHour ? 'ring-1 ring-gold/40 shadow-[0_0_15px_hsl(var(--gold)/0.15)]' : ''}`}>
       {/* Week Event XP Banner */}
-      {hasXpBonus && weekEvent && (
+      {hasActiveEvent && eventBannerStyle && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between -mx-3 -mt-2 mb-2 px-3 py-1.5 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/20 border-b border-gold/30"
+          className={`flex items-center justify-between -mx-3 -mt-2 mb-2 px-3 py-1.5 bg-gradient-to-r ${eventBannerStyle.bg} border-b ${eventBannerStyle.border}`}
         >
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm">{weekEvent.icon}</span>
-            <span className="text-[0.55rem] font-bold text-gold uppercase tracking-wider truncate">{weekEvent.name}</span>
-            <Sparkles size={10} className="text-gold flex-shrink-0" />
+            <span className="text-sm">{weekEvent!.icon}</span>
+            <span className={`text-[0.55rem] font-bold ${eventBannerStyle.text} uppercase tracking-wider truncate`}>{weekEvent!.name}</span>
+            <Sparkles size={10} className={`${eventBannerStyle.text} flex-shrink-0`} />
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <Clock size={9} className="text-gold/70" />
-            <span className="text-[0.5rem] font-bold text-gold tabular-nums">{weekEvent.daysLeft}d over</span>
+            <Clock size={9} className={`${eventBannerStyle.text} opacity-70`} />
+            <span className={`text-[0.5rem] font-bold ${eventBannerStyle.text} tabular-nums`}>{weekEvent!.daysLeft}d over</span>
           </div>
         </motion.div>
       )}
