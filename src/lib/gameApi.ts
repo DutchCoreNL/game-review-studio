@@ -14,7 +14,8 @@ export type GameAction =
   | "gang_leave" | "gang_kick" | "gang_promote"
   | "gang_claim_territory" | "gang_donate" | "gang_declare_war"
   | "gang_war_attack" | "gang_chat" | "get_gang_invites" | "list_gangs"
-  | "contribute_influence" | "get_district_info";
+  | "contribute_influence" | "get_district_info"
+  | "get_market_prices";
 
 interface GameActionResult {
   success: boolean;
@@ -84,4 +85,7 @@ export const gameApi = {
   contributeInfluence: (districtId: string, amount: number) =>
     invokeGameAction("contribute_influence", { districtId, amount }),
   getDistrictInfo: () => invokeGameAction("get_district_info"),
+
+  // Market
+  getMarketPrices: () => invokeGameAction("get_market_prices"),
 };
