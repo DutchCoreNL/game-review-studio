@@ -13,7 +13,9 @@ import { NewsTicker } from './map/NewsTicker';
 import { BreakingNewsFlash } from './map/BreakingNewsFlash';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useRef, useEffect } from 'react';
-import { Dices, Wrench, Home, Building2, Swords, Heart } from 'lucide-react';
+import { useDailyDigest } from '@/hooks/useDailyDigest';
+import { DailyDigestPopup } from './DailyDigestPopup';
+import { Dices, Wrench, Home, Building2, Swords, Heart, Moon } from 'lucide-react';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
@@ -33,6 +35,8 @@ export function MapView() {
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [showDigest, setShowDigest] = useState(false);
+  const { digest, refetchLast } = useDailyDigest();
   const districtData = useDistrictData(true);
   const worldState = useWorldState();
 
@@ -98,9 +102,32 @@ export function MapView() {
     }
   }
 
+  const handleOpenDigest = () => {
+    refetchLast();
+    setShowDigest(true);
+  };
+
   return (
     <div className="relative">
       <HidingOverlay />
+
+      {/* Digest quick-open button */}
+      <button
+        onClick={handleOpenDigest}
+        className="absolute top-2 right-2 z-20 flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors backdrop-blur-sm"
+        title="Dagelijks Digest openen"
+      >
+        <Moon size={12} />
+        <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
+        {digest && !digest.seen && (
+          <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+        )}
+      </button>
+
+      {showDigest && (
+        <DailyDigestPopup forceOpen onClose={() => setShowDigest(false)} />
+      )}
+
       <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
       <BreakingNewsFlash item={breakingItem} onDone={clearBreaking} onRead={setSelectedNews} />
       <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
