@@ -1019,6 +1019,10 @@ export interface GameState {
   lastTickAt: string | null; // ISO timestamp of last auto-tick (replaces turn-based day system)
   tickIntervalMinutes: number; // how many real minutes = 1 game day (default 30)
 
+  // ========== GANG TERRITORY STATE ==========
+  gangDistricts: string[]; // districts owned by player's gang (derived from server)
+  gangId: string | null; // player's current gang ID
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
