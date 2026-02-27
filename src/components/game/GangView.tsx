@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft } from 'lucide-react';
+import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
 import { useAuth } from '@/hooks/useAuth';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { SectionHeader } from './ui/SectionHeader';
 import { StatBar } from './ui/StatBar';
+import { Progress } from '@/components/ui/progress';
 import { InfoRow } from './ui/InfoRow';
 import { SubTabBar } from './ui/SubTabBar';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -16,6 +17,16 @@ type GangTab = 'overview' | 'members' | 'territory' | 'wars' | 'chat' | 'browse'
 
 const DISTRICT_NAMES: Record<string, string> = {
   low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights',
+};
+
+const GANG_LEVEL_XP = (level: number) => level * 500;
+const GANG_LEVEL_BONUSES: Record<number, string> = {
+  1: 'Basis: 20 leden',
+  2: '+2 leden, +5% war score',
+  3: '+2 leden, +10% war score',
+  5: '+2 leden, -10% territory kosten',
+  7: '+2 leden, +15% war score',
+  10: '+2 leden, -25% territory kosten',
 };
 
 export function GangView() {
@@ -293,6 +304,39 @@ export function GangView() {
               <InfoRow icon={<Users size={10} />} label="Leden" value={`${members.length}/${gang.max_members}`} />
               <InfoRow icon={<MapPin size={10} />} label="Gebieden" value={`${territories.length}`} valueClass="text-blood" />
               <InfoRow icon={<Swords size={10} />} label="Oorlogen" value={`${activeWars.length}`} />
+            </div>
+
+            {/* XP Progress */}
+            <div className="mt-3 pt-2 border-t border-border/30">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[0.5rem] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp size={8} /> Gang XP
+                </span>
+                <span className="text-[0.5rem] font-bold text-gold">
+                  {gang.xp || 0} / {GANG_LEVEL_XP(gang.level || 1)}
+                </span>
+              </div>
+              <Progress value={((gang.xp || 0) / GANG_LEVEL_XP(gang.level || 1)) * 100} className="h-1.5 bg-muted/30" />
+            </div>
+          </div>
+
+          {/* Level Benefits */}
+          <div className="game-card">
+            <SectionHeader title="Level Bonussen" icon={<Zap size={12} />} />
+            <div className="space-y-1">
+              {Object.entries(GANG_LEVEL_BONUSES).map(([lvl, desc]) => {
+                const level = parseInt(lvl);
+                const unlocked = (gang.level || 1) >= level;
+                return (
+                  <div key={lvl} className={`flex items-center gap-2 text-[0.5rem] ${unlocked ? 'text-gold' : 'text-muted-foreground/50'}`}>
+                    <span className={`w-5 h-5 rounded flex items-center justify-center text-[0.4rem] font-bold ${unlocked ? 'bg-gold/20 text-gold' : 'bg-muted/20'}`}>
+                      {lvl}
+                    </span>
+                    <span className={unlocked ? 'font-medium' : ''}>{desc}</span>
+                    {unlocked && <Star size={7} className="text-gold ml-auto" />}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

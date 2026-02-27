@@ -1219,10 +1219,20 @@ async function handleGangClaimTerritory(supabase: any, userId: string, payload: 
   const { data: gang } = await supabase.from("gangs").select("treasury").eq("id", mem.gang_id).maybeSingle();
   if (!gang || gang.treasury < 50000) return { success: false, message: "Gang treasury heeft €50.000 nodig. Leden kunnen doneren." };
 
-  await supabase.from("gangs").update({ treasury: gang.treasury - 50000 }).eq("id", mem.gang_id);
+  // Apply territory discount based on gang level
+  const { data: gangFull } = await supabase.from("gangs").select("level").eq("id", mem.gang_id).maybeSingle();
+  const discount = getGangTerritoryDiscount(gangFull?.level || 1);
+  const cost = Math.floor(50000 * (1 - discount));
+  if (gang.treasury < cost) return { success: false, message: `Gang treasury heeft €${cost.toLocaleString()} nodig. Leden kunnen doneren.` };
+
+  await supabase.from("gangs").update({ treasury: gang.treasury - cost }).eq("id", mem.gang_id);
   await supabase.from("gang_territories").insert({ gang_id: mem.gang_id, district_id: districtId });
 
-  return { success: true, message: `District geclaimd! Verdedig het tegen rivalen.` };
+  // Award gang XP for territory claim
+  const xpResult = await addGangXP(supabase, mem.gang_id, 200);
+  const levelMsg = xpResult.leveled ? ` 🎉 Gang is nu level ${xpResult.newLevel}!` : "";
+
+  return { success: true, message: `District geclaimd! +200 Gang XP.${levelMsg}`, data: { gangXP: 200, gangLeveled: xpResult.leveled, newGangLevel: xpResult.newLevel } };
 }
 
 async function handleGangDonate(supabase: any, userId: string, payload: any): Promise<ActionResult> {
@@ -1299,6 +1309,10 @@ async function handleGangWarAttack(supabase: any, userId: string, payload: any):
     if (winner && war.district_id && winner === war.attacker_gang_id) {
       await supabase.from("gang_territories").update({ gang_id: winner }).eq("district_id", war.district_id);
     }
+    // Award 500 XP to the winning gang
+    if (winner) {
+      await addGangXP(supabase, winner, 500);
+    }
     return { success: false, message: "Oorlog is afgelopen!" };
   }
 
@@ -1313,7 +1327,11 @@ async function handleGangWarAttack(supabase: any, userId: string, payload: any):
   if (ps.nerve < 5) return { success: false, message: "Niet genoeg nerve (5 nodig)." };
 
   const muscle = (ps.stats as any)?.muscle || 1;
-  const points = Math.floor(muscle * (1 + ps.level * 0.05) + Math.random() * 10);
+  // Apply gang level war bonus
+  const { data: myGang } = await supabase.from("gangs").select("level").eq("id", mem.gang_id).maybeSingle();
+  const warBonus = getGangWarBonus(myGang?.level || 1);
+  const basePoints = Math.floor(muscle * (1 + ps.level * 0.05) + Math.random() * 10);
+  const points = Math.floor(basePoints * (1 + warBonus));
 
   await supabase.from("player_state").update({ energy: ps.energy - 10, nerve: ps.nerve - 5 }).eq("user_id", userId);
 
@@ -1323,7 +1341,11 @@ async function handleGangWarAttack(supabase: any, userId: string, payload: any):
     await supabase.from("gang_wars").update({ defender_score: war.defender_score + points }).eq("id", warId);
   }
 
-  return { success: true, message: `+${points} punten gescoord voor je gang!`, data: { points } };
+  // Award gang XP for war participation
+  const xpResult = await addGangXP(supabase, mem.gang_id, points);
+  const levelMsg = xpResult.leveled ? ` 🎉 Gang level ${xpResult.newLevel}!` : "";
+
+  return { success: true, message: `+${points} punten gescoord! +${points} Gang XP.${levelMsg}`, data: { points, gangXP: points, gangLeveled: xpResult.leveled, newGangLevel: xpResult.newLevel } };
 }
 
 async function handleGangChat(supabase: any, userId: string, payload: any): Promise<ActionResult> {
@@ -1395,6 +1417,51 @@ async function handleListGangs(supabase: any): Promise<ActionResult> {
   }));
 
   return { success: true, message: "Gangs opgehaald.", data: { gangs: enriched } };
+}
+
+// ========== GANG XP / LEVELING ==========
+
+const GANG_LEVEL_XP = (level: number) => level * 500; // XP needed to reach next level
+const GANG_LEVEL_MAX_MEMBERS = (level: number) => 20 + (level - 1) * 2; // +2 members per level
+const GANG_LEVEL_BONUSES: Record<number, string> = {
+  2: "+2 leden, +5% war score",
+  3: "+2 leden, +10% war score",
+  5: "+2 leden, territory korting -10%",
+  7: "+2 leden, +15% war score",
+  10: "+2 leden, territory korting -25%",
+};
+
+async function addGangXP(supabase: any, gangId: string, xpAmount: number): Promise<{ leveled: boolean; newLevel: number; newXp: number }> {
+  const { data: gang } = await supabase.from("gangs").select("xp, level, max_members").eq("id", gangId).maybeSingle();
+  if (!gang) return { leveled: false, newLevel: 1, newXp: 0 };
+
+  let xp = (gang.xp || 0) + xpAmount;
+  let level = gang.level || 1;
+  let leveled = false;
+
+  // Check for level ups (multiple possible)
+  while (xp >= GANG_LEVEL_XP(level)) {
+    xp -= GANG_LEVEL_XP(level);
+    level++;
+    leveled = true;
+  }
+
+  const newMaxMembers = GANG_LEVEL_MAX_MEMBERS(level);
+  await supabase.from("gangs").update({ xp, level, max_members: newMaxMembers }).eq("id", gangId);
+  return { leveled, newLevel: level, newXp: xp };
+}
+
+function getGangWarBonus(gangLevel: number): number {
+  if (gangLevel >= 7) return 0.15;
+  if (gangLevel >= 3) return 0.10;
+  if (gangLevel >= 2) return 0.05;
+  return 0;
+}
+
+function getGangTerritoryDiscount(gangLevel: number): number {
+  if (gangLevel >= 10) return 0.25;
+  if (gangLevel >= 5) return 0.10;
+  return 0;
 }
 
 // ========== MAIN HANDLER ==========
