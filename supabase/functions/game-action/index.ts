@@ -668,8 +668,15 @@ async function handleSaveState(supabase: any, userId: string, payload: { saveDat
   delete cleanData.pendingMinigame;
   delete cleanData.screenEffect;
 
+  // Check if player_state row exists; create if not
   const { data: existing } = await supabase.from("player_state")
     .select("save_version").eq("user_id", userId).maybeSingle();
+
+  if (!existing) {
+    // Auto-init player state row so save works even if init_player wasn't called
+    const { error: initErr } = await supabase.from("player_state").insert({ user_id: userId });
+    if (initErr) return { success: false, message: `Init mislukt: ${initErr.message}` };
+  }
 
   const newVersion = (existing?.save_version || 0) + 1;
 
@@ -2061,11 +2068,12 @@ Deno.serve(async (req) => {
 
     // Get player state
     let playerState: any = null;
-    if (action !== "init_player") {
+    const skipPlayerStateActions = ["init_player", "save_state", "load_state"];
+    if (!skipPlayerStateActions.includes(action)) {
       const { data: ps } = await supabase.from("player_state").select("*").eq("user_id", user.id).maybeSingle();
       if (!ps && action !== "get_state") {
-        return new Response(JSON.stringify({ success: false, message: "Speler niet gevonden." }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ success: false, message: "Speler niet gevonden. Initialiseer je speler eerst." }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       playerState = ps;
@@ -2214,7 +2222,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify(result), {
-      status: result.success ? 200 : 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
