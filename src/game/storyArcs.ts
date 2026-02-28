@@ -547,7 +547,7 @@ export function resolveArcChoice(
   state: GameState,
   arcId: string,
   choiceId: string
-): { success: boolean; text: string; effects: StoryArcChoice['effects'] } {
+): { success: boolean; text: string; effects: StoryArcChoice['effects']; broadcastNews?: { choiceId: string; arcId: string; district: string; success: boolean } } {
   const activeArc = state.activeStoryArcs.find(a => a.arcId === arcId);
   if (!activeArc) return { success: false, text: 'Arc niet gevonden.', effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 } };
   
@@ -579,6 +579,13 @@ export function resolveArcChoice(
     activeArc.currentStep = choice.nextStepOverride;
   } else {
     activeArc.currentStep++;
+  }
+  
+  // MMO: Generate broadcast news for important arc choices
+  let broadcastNews: { choiceId: string; arcId: string; district: string; success: boolean } | undefined;
+  // Only broadcast on step 3+ (climactic moments)
+  if (activeArc.currentStep >= 3 || activeArc.currentStep >= template.steps.length) {
+    broadcastNews = { choiceId: choice.id, arcId, district: state.loc, success };
   }
   
   // Check if arc is complete
@@ -617,7 +624,7 @@ export function resolveArcChoice(
     }
   }
   
-  return { success, text, effects: success ? choice.effects : { 
+  return { success, text, broadcastNews, effects: success ? choice.effects : { 
     money: Math.min(0, choice.effects.money), 
     heat: Math.max(0, choice.effects.heat + 3), 
     rep: Math.min(0, choice.effects.rep),

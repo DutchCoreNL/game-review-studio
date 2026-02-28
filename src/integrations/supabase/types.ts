@@ -214,7 +214,10 @@ export type Database = {
           expires_at: string
           id: string
           participants: Json
+          source_type: string
           title: string
+          triggered_by: string | null
+          triggered_by_name: string | null
         }
         Insert: {
           claimed_at?: string | null
@@ -228,7 +231,10 @@ export type Database = {
           expires_at?: string
           id?: string
           participants?: Json
+          source_type?: string
           title: string
+          triggered_by?: string | null
+          triggered_by_name?: string | null
         }
         Update: {
           claimed_at?: string | null
@@ -242,7 +248,10 @@ export type Database = {
           expires_at?: string
           id?: string
           participants?: Json
+          source_type?: string
           title?: string
+          triggered_by?: string | null
+          triggered_by_name?: string | null
         }
         Relationships: []
       }
@@ -466,6 +475,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "gang_members_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gang_story_arcs: {
+        Row: {
+          arc_id: string
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          gang_id: string
+          id: string
+          member_choices: Json
+          result: Json | null
+          started_at: string
+          status: string
+          total_steps: number
+        }
+        Insert: {
+          arc_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          gang_id: string
+          id?: string
+          member_choices?: Json
+          result?: Json | null
+          started_at?: string
+          status?: string
+          total_steps?: number
+        }
+        Update: {
+          arc_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          gang_id?: string
+          id?: string
+          member_choices?: Json
+          result?: Json | null
+          started_at?: string
+          status?: string
+          total_steps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_story_arcs_gang_id_fkey"
             columns: ["gang_id"]
             isOneToOne: false
             referencedRelation: "gangs"
@@ -968,6 +1027,36 @@ export type Database = {
         }
         Relationships: []
       }
+      npc_district_mood: {
+        Row: {
+          collective_score: number
+          district_id: string
+          id: string
+          interaction_count: number
+          npc_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          collective_score?: number
+          district_id: string
+          id?: string
+          interaction_count?: number
+          npc_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          collective_score?: number
+          district_id?: string
+          id?: string
+          interaction_count?: number
+          npc_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organized_crimes: {
         Row: {
           completes_at: string | null
@@ -1246,6 +1335,42 @@ export type Database = {
           receiver_id?: string
           sender_id?: string
           subject?: string
+        }
+        Relationships: []
+      }
+      player_nemesis: {
+        Row: {
+          arc_progress: number
+          assigned_at: string
+          district_id: string
+          events_log: Json
+          id: string
+          nemesis_id: string
+          player_id: string
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          arc_progress?: number
+          assigned_at?: string
+          district_id: string
+          events_log?: Json
+          id?: string
+          nemesis_id: string
+          player_id: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          arc_progress?: number
+          assigned_at?: string
+          district_id?: string
+          events_log?: Json
+          id?: string
+          nemesis_id?: string
+          player_id?: string
+          resolved_at?: string | null
+          status?: string
         }
         Relationships: []
       }
