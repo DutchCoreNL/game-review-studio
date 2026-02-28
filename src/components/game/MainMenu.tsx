@@ -89,6 +89,38 @@ export function MainMenu({ hasSave, onNewGame, onContinue, onHardcoreStart, isLo
     onNewGame();
   };
 
+  const handleQuickHardcore = async () => {
+    if (!nickname.trim() || nickname.trim().length < 3) {
+      setNickError('Nickname moet minimaal 3 tekens zijn');
+      return;
+    }
+    if (nickname.trim().length > 20) {
+      setNickError('Nickname mag maximaal 20 tekens zijn');
+      return;
+    }
+    setNickLoading(true);
+    setNickError('');
+
+    const { data, error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError) {
+      setNickError(anonError.message);
+      setNickLoading(false);
+      return;
+    }
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({ id: data.user.id, username: nickname.trim() });
+      if (profileError) {
+        setNickError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : profileError.message);
+        setNickLoading(false);
+        return;
+      }
+    }
+    setNickLoading(false);
+    onHardcoreStart?.();
+  };
+
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-background">
       {/* Background */}
@@ -167,7 +199,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, onHardcoreStart, isLo
               )}
 
               {/* Nickname input for non-logged-in users */}
-              {!isLoggedIn && !hasSave && (
+              {!isLoggedIn && (!hasSave || confirmHardcore) && (
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
@@ -229,9 +261,9 @@ export function MainMenu({ hasSave, onNewGame, onContinue, onHardcoreStart, isLo
                   <div className="flex gap-2">
                     <MenuButton
                       icon={<Skull size={16} />}
-                      label="START HARDCORE"
+                      label={nickLoading ? 'LADEN...' : 'START HARDCORE'}
                       accent
-                      onClick={() => onHardcoreStart?.()}
+                      onClick={isLoggedIn ? () => onHardcoreStart?.() : handleQuickHardcore}
                       className="flex-1 !border-blood/50 !bg-blood/10 !text-blood"
                     />
                     <MenuButton
