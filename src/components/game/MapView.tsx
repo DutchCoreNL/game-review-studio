@@ -9,6 +9,7 @@ import { SafehouseView } from './SafehouseView';
 import { VillaView } from './villa/VillaView';
 import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
+import { NpcMoodIndicator } from './map/NpcMoodIndicator';
 import { NewsTicker } from './map/NewsTicker';
 import { BreakingNewsFlash } from './map/BreakingNewsFlash';
 import { NewsDetailPopup } from './map/NewsDetailPopup';
@@ -178,6 +179,7 @@ export function MapView() {
       </div>
 
       {state.nemesis && <NemesisInfo />}
+      <NpcMoodIndicator districtId={state.loc} />
       {selectedDistrict && !isHiding && <DistrictPopup districtData={districtData} />}
 
       {/* Contextual action bar */}
