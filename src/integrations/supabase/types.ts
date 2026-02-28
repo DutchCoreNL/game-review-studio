@@ -240,6 +240,39 @@ export type Database = {
         }
         Relationships: []
       }
+      death_legacy: {
+        Row: {
+          coffer_cash: number
+          created_at: string
+          death_count: number
+          id: string
+          last_death_at: string | null
+          legacy_xp_bonus: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coffer_cash?: number
+          created_at?: string
+          death_count?: number
+          id?: string
+          last_death_at?: string | null
+          legacy_xp_bonus?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coffer_cash?: number
+          created_at?: string
+          death_count?: number
+          id?: string
+          last_death_at?: string | null
+          legacy_xp_bonus?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       district_events: {
         Row: {
           claimed_at: string | null

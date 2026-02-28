@@ -149,7 +149,7 @@ export function VictoryScreen() {
           </GameButton>
 
           {/* Prestige Reset Button */}
-          {state.player.level >= 15 && !state.hardcoreMode && (
+          {state.player.level >= 15 && (
             <div className="space-y-1">
               <GameButton
                 variant="gold"

@@ -33,14 +33,7 @@ const Index = () => {
     setInGame(true);
   };
 
-  const handleHardcoreStart = () => {
-    deleteGame();
-    localStorage.setItem('noxhaven_start_hardcore', '1');
-    setForceNew(true);
-    setStartHardcore(true);
-    setGameKey(k => k + 1);
-    setInGame(true);
-  };
+  // Hardcore removed — all games are permadeath now
 
   const handleExitToMenu = () => {
     setHasSave(!!loadGame());
@@ -68,7 +61,6 @@ const Index = () => {
       username={user ? undefined : undefined}
       onLoginClick={() => setShowAuth(true)}
       onLogoutClick={signOut}
-      onHardcoreStart={handleHardcoreStart}
     />
   );
 };

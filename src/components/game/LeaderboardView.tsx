@@ -9,7 +9,7 @@ import { SubTabBar } from './ui/SubTabBar';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
 
 type SortField = 'rep' | 'cash' | 'day' | 'districts_owned';
-type LeaderboardTab = 'global' | 'hardcore' | 'legends';
+type LeaderboardTab = 'global' | 'legends';
 
 interface LeaderboardEntry {
   id: string;
@@ -56,11 +56,9 @@ export function LeaderboardView() {
       .order(sortBy, { ascending: false })
       .limit(TARGET_COUNT);
 
-    if (tab === 'hardcore') {
-      query = query.eq('is_hardcore', true);
-    } else if (tab === 'legends') {
-      // Hall of Legends: hardcore players who reached endgame (level >= 15 and high rep)
-      query = query.eq('is_hardcore', true).gte('level', 15).order('rep', { ascending: false });
+    if (tab === 'legends') {
+      // Hall of Legends: players who reached endgame (level >= 15 and high rep)
+      query = query.gte('level', 15).order('rep', { ascending: false });
     }
 
     const { data: realData } = await query;
@@ -123,7 +121,6 @@ export function LeaderboardView() {
       <SubTabBar
         tabs={[
           { id: 'global', label: 'Globaal', icon: <Trophy size={10} /> },
-          { id: 'hardcore', label: 'Hardcore', icon: <Skull size={10} /> },
           { id: 'legends', label: 'Hall of Legends', icon: <Flame size={10} /> },
         ]}
         active={tab}
@@ -138,15 +135,7 @@ export function LeaderboardView() {
             <h3 className="font-display text-sm font-black text-blood uppercase tracking-widest">Hall of Legends</h3>
             <Flame size={14} className="text-blood" />
           </div>
-          <p className="text-[0.5rem] text-muted-foreground">Spelers die het eindspel bereikten in Hardcore mode — één leven, geen tweede kans.</p>
-        </div>
-      ) : tab === 'hardcore' ? (
-        <div className="game-card border border-blood/30 mb-3">
-          <div className="flex items-center gap-2 text-xs">
-            <Skull size={12} className="text-blood" />
-            <span className="font-bold text-blood">Hardcore Ranking</span>
-            <span className="text-[0.45rem] text-muted-foreground ml-auto">+50% beloningen · 1 leven</span>
-          </div>
+          <p className="text-[0.5rem] text-muted-foreground">Spelers die het eindspel bereikten — één leven, geen tweede kans.</p>
         </div>
       ) : (
         <SectionHeader title="Online Ranking" icon={<Trophy size={12} />} />
@@ -160,7 +149,7 @@ export function LeaderboardView() {
             onClick={() => setSortBy(opt.id)}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-[0.55rem] font-bold uppercase tracking-wider transition-all ${
               sortBy === opt.id
-                ? tab === 'hardcore' || tab === 'legends'
+                ? tab === 'legends'
                   ? 'bg-blood/15 border border-blood text-blood'
                   : 'bg-gold/15 border border-gold text-gold'
                 : 'bg-muted border border-border text-muted-foreground'
@@ -173,10 +162,10 @@ export function LeaderboardView() {
 
       {/* My position */}
       {myEntry && myRank && (
-        <div className={`game-card border-l-[3px] mb-3 ${tab === 'hardcore' || tab === 'legends' ? 'border-l-blood' : 'border-l-gold'}`}>
+        <div className={`game-card border-l-[3px] mb-3 ${tab === 'legends' ? 'border-l-blood' : 'border-l-gold'}`}>
           <div className="flex items-center gap-2 text-xs">
-            <span className={`font-bold ${tab === 'hardcore' || tab === 'legends' ? 'text-blood' : 'text-gold'}`}>#{myRank}</span>
-            <Crown size={12} className={tab === 'hardcore' || tab === 'legends' ? 'text-blood' : 'text-gold'} />
+            <span className={`font-bold ${tab === 'legends' ? 'text-blood' : 'text-gold'}`}>#{myRank}</span>
+            <Crown size={12} className={tab === 'legends' ? 'text-blood' : 'text-gold'} />
             <span className="font-bold">{myEntry.username}</span>
             <span className="text-muted-foreground ml-auto">REP {myEntry.rep}</span>
           </div>
@@ -191,12 +180,7 @@ export function LeaderboardView() {
           {tab === 'legends' ? (
             <>
               <Flame size={24} className="mx-auto text-blood/40 mb-2" />
-              <p className="text-xs text-muted-foreground">Nog geen legendes. Wees de eerste die het eindspel haalt in Hardcore.</p>
-            </>
-          ) : tab === 'hardcore' ? (
-            <>
-              <Skull size={24} className="mx-auto text-blood/40 mb-2" />
-              <p className="text-xs text-muted-foreground">Nog geen hardcore spelers. Durf jij het aan?</p>
+              <p className="text-xs text-muted-foreground">Nog geen legendes. Wees de eerste die het eindspel haalt.</p>
             </>
           ) : (
             <p className="text-xs text-muted-foreground">Nog geen spelers op het leaderboard. Wees de eerste!</p>

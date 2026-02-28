@@ -1887,8 +1887,8 @@ export function createInitialState(): import('./types').GameState {
     prestigeLevel: 0,
     xpStreak: 0,
     _pendingXpGains: [],
-    // Prestige Reset & Hardcore Mode
-    hardcoreMode: false,
+// Prestige Reset & Hardcore Mode (always true — universal permadeath)
+    hardcoreMode: true,
     prestigeResetCount: 0,
   };
 }
@@ -1897,7 +1897,13 @@ export function createInitialState(): import('./types').GameState {
 export const HOSPITAL_STAY_DAYS = 3;
 export const HOSPITAL_ADMISSION_COST_PER_MAXHP = 10;
 export const HOSPITAL_REP_LOSS = 50;
-export const MAX_HOSPITALIZATIONS = 3;
+/** @deprecated Universal permadeath — death = game over for everyone */
+export const MAX_HOSPITALIZATIONS = 1;
+
+// ========== DEATH LEGACY CONSTANTS ==========
+export const DEATH_COFFER_PERCENT = 0.10; // 10% of money saved
+export const DEATH_LEGACY_XP_BONUS = 0.02; // +2% per death
+export const DEATH_LEGACY_XP_MAX = 0.20; // max +20%
 
 // ========== PRISON CONSTANTS ==========
 
