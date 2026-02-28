@@ -72,7 +72,9 @@ export type GameAction =
   | "get_undercover_missions"
   | "file_tribunal_case"
   | "tribunal_vote"
-  | "get_tribunal_cases";
+  | "get_tribunal_cases"
+  | "gym_train"
+  | "get_jobs" | "apply_job" | "work_job" | "quit_job";
 
 interface GameActionResult {
   success: boolean;
@@ -286,4 +288,13 @@ export const gameApi = {
     invokeGameAction("file_tribunal_case", { targetUsername, charge, evidence }),
   tribunalVote: (caseId: string, vote: string) => invokeGameAction("tribunal_vote", { caseId, vote }),
   getTribunalCases: () => invokeGameAction("get_tribunal_cases"),
+
+  // Gym Training
+  gymTrain: (stat: string, gymId: string) => invokeGameAction("gym_train", { stat, gymId }),
+
+  // Jobs
+  getJobs: () => invokeGameAction("get_jobs"),
+  applyJob: (jobId: string) => invokeGameAction("apply_job", { jobId }),
+  workJob: () => invokeGameAction("work_job"),
+  quitJob: () => invokeGameAction("quit_job"),
 };

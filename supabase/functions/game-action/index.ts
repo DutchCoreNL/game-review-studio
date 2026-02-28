@@ -60,7 +60,7 @@ const BUSINESSES = [
 ];
 
 const ENERGY_COSTS: Record<string, number> = {
-  trade: 2, travel: 5, solo_op: 10, buy_gear: 0, buy_vehicle: 0, wash_money: 3, bribe: 5, attack: 15,
+  trade: 2, travel: 5, solo_op: 10, buy_gear: 0, buy_vehicle: 0, wash_money: 3, bribe: 5, attack: 15, gym_train: 5,
 };
 const NERVE_COSTS: Record<string, number> = {
   solo_op: 5, attack: 10,
@@ -6540,6 +6540,122 @@ Deno.serve(async (req) => {
       case "get_tribunal_cases": {
         const { data: tvCases } = await supabase.from("tribunal_cases").select("*").order("created_at", { ascending: false }).limit(20);
         result = { success: true, message: "OK", data: { cases: tvCases || [] } };
+        break;
+      }
+
+      // ========== GYM TRAINING ==========
+      case "gym_train": {
+        const { stat: gymStat, gymId } = payload || {};
+        const validStats = ['strength', 'defense', 'speed', 'dexterity'];
+        if (!gymStat || !validStats.includes(gymStat)) { result = { success: false, message: "Ongeldige stat." }; break; }
+        
+        const gymDefs: Record<string, { district: string; focusStat: string; multiplier: number; reqLevel: number }> = {
+          lowrise_gym: { district: 'low', focusStat: 'strength', multiplier: 1.0, reqLevel: 1 },
+          port_gym: { district: 'port', focusStat: 'defense', multiplier: 1.1, reqLevel: 3 },
+          iron_gym: { district: 'iron', focusStat: 'speed', multiplier: 1.25, reqLevel: 5 },
+          neon_gym: { district: 'neon', focusStat: 'dexterity', multiplier: 1.5, reqLevel: 8 },
+          crown_gym: { district: 'crown', focusStat: 'all', multiplier: 2.0, reqLevel: 12 },
+        };
+        const gym = gymDefs[gymId];
+        if (!gym) { result = { success: false, message: "Onbekende gym." }; break; }
+        if (playerState.level < gym.reqLevel) { result = { success: false, message: `Level ${gym.reqLevel} vereist.` }; break; }
+        if (playerState.loc !== gym.district) { result = { success: false, message: `Reis naar ${DISTRICT_NAMES[gym.district] || gym.district}.` }; break; }
+        
+        const gymEnergyErr = checkEnergy(playerState, "gym_train");
+        if (gymEnergyErr) { result = { success: false, message: gymEnergyErr }; break; }
+        const gymBlocked = checkBlocked(playerState);
+        if (gymBlocked) { result = { success: false, message: gymBlocked }; break; }
+        
+        // Calculate gain
+        const isFocus = gym.focusStat === gymStat || gym.focusStat === 'all';
+        const baseGain = isFocus ? 2 : 1;
+        const gain = Math.max(1, Math.floor(baseGain * gym.multiplier * (0.8 + Math.random() * 0.4)));
+        
+        // Update gym stats in player_state.stats JSON
+        const currentStats = playerState.stats || {};
+        const currentValue = currentStats[gymStat] || 1;
+        const newValue = currentValue + gain;
+        const updatedStats = { ...currentStats, [gymStat]: newValue };
+        
+        const gymEnergyCost = ENERGY_COSTS.gym_train || 5;
+        const newEnergy = playerState.energy - gymEnergyCost;
+        const newRegenAt = newEnergy < playerState.max_energy 
+          ? new Date(Date.now() + 5 * 60 * 1000).toISOString() 
+          : playerState.energy_regen_at;
+        
+        await supabase.from("player_state").update({
+          stats: updatedStats,
+          energy: newEnergy,
+          energy_regen_at: newRegenAt,
+          last_action_at: new Date().toISOString(),
+        }).eq("user_id", user.id);
+        
+        const statLabels: Record<string, string> = { strength: 'Kracht', defense: 'Verdediging', speed: 'Snelheid', dexterity: 'Behendigheid' };
+        result = { 
+          success: true, 
+          message: `${statLabels[gymStat]} +${gain}! (${newValue} totaal)`, 
+          data: { stat: gymStat, gain, newValue, gymStats: updatedStats, energy: newEnergy } 
+        };
+        break;
+      }
+
+      // ========== JOBS SYSTEM ==========
+      case "get_jobs": {
+        const currentJob = playerState.stats?.current_job || null;
+        const daysWorked = playerState.stats?.job_days_worked || 0;
+        const promotion = playerState.stats?.job_promotion || 0;
+        const lastWorked = playerState.stats?.job_last_worked || null;
+        const canWork = !lastWorked || (Date.now() - new Date(lastWorked).getTime()) > 8 * 60 * 60 * 1000;
+        result = { success: true, message: "OK", data: { currentJob, daysWorked, promotion, lastWorked, canWork } };
+        break;
+      }
+      case "apply_job": {
+        const { jobId: applyJobId } = payload || {};
+        const jobDefs: Record<string, { salary: number; reqLevel: number; reqStat?: { stat: string; value: number } }> = {
+          barman: { salary: 500, reqLevel: 1 },
+          taxichauffeur: { salary: 800, reqLevel: 2 },
+          beveiliger: { salary: 1200, reqLevel: 4, reqStat: { stat: 'muscle', value: 5 } },
+          monteur: { salary: 1500, reqLevel: 5, reqStat: { stat: 'brains', value: 4 } },
+          boekhouder: { salary: 2000, reqLevel: 7, reqStat: { stat: 'brains', value: 8 } },
+          advocaat: { salary: 3000, reqLevel: 10, reqStat: { stat: 'brains', value: 12 } },
+          arts: { salary: 3500, reqLevel: 12, reqStat: { stat: 'brains', value: 15 } },
+          makelaar: { salary: 4000, reqLevel: 15, reqStat: { stat: 'charm', value: 12 } },
+        };
+        const jobDef = jobDefs[applyJobId];
+        if (!jobDef) { result = { success: false, message: "Onbekende baan." }; break; }
+        if (playerState.level < jobDef.reqLevel) { result = { success: false, message: `Level ${jobDef.reqLevel} vereist.` }; break; }
+        if (jobDef.reqStat) {
+          const sv = getPlayerStat(playerState.stats || {}, playerState.loadout || {}, jobDef.reqStat.stat);
+          if (sv < jobDef.reqStat.value) { result = { success: false, message: `${jobDef.reqStat.stat} ${jobDef.reqStat.value} vereist.` }; break; }
+        }
+        if (playerState.stats?.current_job) { result = { success: false, message: "Neem eerst ontslag." }; break; }
+        const updStats1 = { ...(playerState.stats || {}), current_job: applyJobId, job_days_worked: 0, job_promotion: 0, job_last_worked: null };
+        await supabase.from("player_state").update({ stats: updStats1 }).eq("user_id", user.id);
+        result = { success: true, message: `Je bent nu ${applyJobId}!` };
+        break;
+      }
+      case "work_job": {
+        const cJob = playerState.stats?.current_job;
+        if (!cJob) { result = { success: false, message: "Je hebt geen baan." }; break; }
+        const lastW = playerState.stats?.job_last_worked;
+        if (lastW && (Date.now() - new Date(lastW).getTime()) < 8 * 60 * 60 * 1000) { result = { success: false, message: "Je hebt al gewerkt. Kom over 8 uur terug." }; break; }
+        const blocked3 = checkBlocked(playerState); if (blocked3) { result = { success: false, message: blocked3 }; break; }
+        const promo = playerState.stats?.job_promotion || 0;
+        const salaries: Record<string, number> = { barman: 500, taxichauffeur: 800, beveiliger: 1200, monteur: 1500, boekhouder: 2000, advocaat: 3000, arts: 3500, makelaar: 4000 };
+        const sal = Math.floor((salaries[cJob] || 500) * (1 + promo * 0.2));
+        const newDays = (playerState.stats?.job_days_worked || 0) + 1;
+        const newPromo = newDays > 0 && newDays % 10 === 0 ? promo + 1 : promo;
+        const promoMsg = newDays % 10 === 0 ? ` 🎉 PROMOTIE! Level ${newPromo}!` : '';
+        const updStats2 = { ...(playerState.stats || {}), job_days_worked: newDays, job_promotion: newPromo, job_last_worked: new Date().toISOString() };
+        await supabase.from("player_state").update({ stats: updStats2, money: playerState.money + sal }).eq("user_id", user.id);
+        result = { success: true, message: `Gewerkt als ${cJob}! +€${sal.toLocaleString()}${promoMsg}`, data: { salary: sal, daysWorked: newDays, promotion: newPromo } };
+        break;
+      }
+      case "quit_job": {
+        if (!playerState.stats?.current_job) { result = { success: false, message: "Je hebt geen baan." }; break; }
+        const updStats3 = { ...(playerState.stats || {}), current_job: null, job_days_worked: 0, job_promotion: 0, job_last_worked: null };
+        await supabase.from("player_state").update({ stats: updStats3 }).eq("user_id", user.id);
+        result = { success: true, message: "Ontslag genomen." };
         break;
       }
 

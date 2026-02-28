@@ -85,6 +85,8 @@ const CATEGORIES: Category[] = [
     label: 'PROFIEL', icon: '👤',
     items: [
       { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
+      { id: 'gym', label: 'Gym', icon: Award },
+      { id: 'jobs', label: 'Banen', icon: Star },
       { id: 'education', label: 'Educatie', icon: GraduationCap },
       { id: 'loadout', label: 'Loadout', icon: Shield },
       { id: 'contacts', label: 'NPC Relaties', icon: Users },
