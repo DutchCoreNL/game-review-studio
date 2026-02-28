@@ -187,13 +187,11 @@ export function executeHit(state: GameState, hitId: string): {
   const hit = state.hitContracts?.find(h => h.id === hitId);
   if (!hit) return { success: false, message: 'Contract niet gevonden.', reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
 
-  // Check ammo (use active weapon type)
-  const ammoType = getActiveAmmoType(state);
-  if (!state.ammoStock) state.ammoStock = { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
-  const currentAmmo = state.ammoStock[ammoType] || 0;
+  // Check ammo (universal)
+  const currentAmmo = state.ammo || 0;
 
   if (currentAmmo < hit.ammoCost) {
-    return { success: false, message: `Niet genoeg ${ammoType} munitie (${hit.ammoCost} nodig, ${currentAmmo} beschikbaar).`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
+    return { success: false, message: `Niet genoeg kogels (${hit.ammoCost} nodig, ${currentAmmo} beschikbaar).`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
   }
 
   // Check district
@@ -201,9 +199,10 @@ export function executeHit(state: GameState, hitId: string): {
     return { success: false, message: `Je moet in ${DISTRICTS[hit.district].name} zijn.`, reward: 0, repGain: 0, heatGain: 0, karmaChange: 0, xpGain: 0 };
   }
 
-  // Consume ammo from specific type
-  state.ammoStock[ammoType] = Math.max(0, currentAmmo - hit.ammoCost);
-  state.ammo = (state.ammoStock['9mm'] || 0) + (state.ammoStock['7.62mm'] || 0) + (state.ammoStock['shells'] || 0);
+  // Consume ammo (universal)
+  state.ammo = Math.max(0, currentAmmo - hit.ammoCost);
+  if (!state.ammoStock) state.ammoStock = { '9mm': 0, '7.62mm': 0, 'shells': 0 };
+  state.ammoStock['9mm'] = state.ammo;
 
   const chance = calculateHitSuccessChance(state, hit);
   const roll = Math.random() * 100;

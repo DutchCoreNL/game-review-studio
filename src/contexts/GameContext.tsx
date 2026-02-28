@@ -186,6 +186,8 @@ type GameAction =
   | { type: 'VILLA_THROW_PARTY' }
   | { type: 'PRESTIGE_VILLA_MODULE'; moduleId: VillaModuleId }
   | { type: 'UPGRADE_AMMO_FACTORY' }
+  | { type: 'BUY_SPECIAL_AMMO'; specialType: import('../game/types').SpecialAmmoType; amount: number; cost: number }
+  | { type: 'SET_SPECIAL_AMMO'; specialType: import('../game/types').SpecialAmmoType | null }
   | { type: 'DISMISS_ACHIEVEMENT' }
   // Market alert actions
    | { type: 'ADD_MARKET_ALERT'; alert: import('@/game/types').MarketAlert }
@@ -1955,32 +1957,31 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BUY_AMMO': {
       const pack = AMMO_PACKS.find(p => p.id === action.packId);
       if (!pack || s.money < pack.cost) return s;
-      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
-      const aType = action.ammoType;
-      if ((s.ammoStock[aType] || 0) >= 99) return s;
+      if ((s.ammo || 0) >= 500) return s;
       s.money -= pack.cost;
       s.stats.totalSpent += pack.cost;
-      s.ammoStock[aType] = Math.min(99, (s.ammoStock[aType] || 0) + pack.amount);
-      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
+      s.ammo = Math.min(500, (s.ammo || 0) + pack.amount);
+      // Sync legacy
+      if (!s.ammoStock) s.ammoStock = { '9mm': 0, '7.62mm': 0, 'shells': 0 };
+      s.ammoStock['9mm'] = s.ammo;
       return s;
     }
 
     case 'LOAD_AMMO_FROM_INVENTORY': {
-      // Convert "weapons" goods from inventory into ammo
+      // Convert "weapons" goods from inventory into ammo (universal)
       const weaponsOwned = s.inventory.weapons || 0;
       if (weaponsOwned <= 0) return s;
       const qty = Math.min(action.quantity, weaponsOwned);
-      const ammoPerWeapon = 6; // Each weapons good = 6 ammo
-      if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
-      const aType = action.ammoType;
-      const currentAmmo = s.ammoStock[aType] || 0;
-      if (currentAmmo >= 99) return s;
-      const maxCanLoad = Math.floor((99 - currentAmmo) / ammoPerWeapon);
+      const ammoPerWeapon = 6;
+      const currentAmmo = s.ammo || 0;
+      if (currentAmmo >= 500) return s;
+      const maxCanLoad = Math.floor((500 - currentAmmo) / ammoPerWeapon);
       const actualQty = Math.min(qty, Math.max(1, maxCanLoad));
       if (actualQty <= 0) return s;
       s.inventory.weapons = weaponsOwned - actualQty;
-      s.ammoStock[aType] = Math.min(99, currentAmmo + (actualQty * ammoPerWeapon));
-      s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
+      s.ammo = Math.min(500, currentAmmo + (actualQty * ammoPerWeapon));
+      if (!s.ammoStock) s.ammoStock = { '9mm': 0, '7.62mm': 0, 'shells': 0 };
+      s.ammoStock['9mm'] = s.ammo;
       return s;
     }
 
@@ -2009,6 +2010,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= upgrade.cost;
       s.stats.totalSpent += upgrade.cost;
       s.ammoFactoryLevel = nextLevel;
+      return s;
+    }
+
+    case 'BUY_SPECIAL_AMMO': {
+      if (s.money < action.cost) return s;
+      s.money -= action.cost;
+      s.stats.totalSpent += action.cost;
+      if (!s.specialAmmo) s.specialAmmo = {};
+      s.specialAmmo[action.specialType] = (s.specialAmmo[action.specialType] || 0) + action.amount;
+      return s;
+    }
+
+    case 'SET_SPECIAL_AMMO': {
+      if (action.specialType === null) {
+        s.activeSpecialAmmo = null;
+      } else {
+        if (!s.specialAmmo || (s.specialAmmo[action.specialType] || 0) <= 0) return s;
+        s.activeSpecialAmmo = action.specialType;
+      }
       return s;
     }
 

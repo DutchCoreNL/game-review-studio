@@ -1,11 +1,51 @@
 import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack, StatId } from './types'; // HQUpgrade kept for backwards compat
 
-// ========== AMMO PACKS ==========
+// ========== AMMO PACKS (Universal) ==========
 
 export const AMMO_PACKS: AmmoPack[] = [
-  { id: 'ammo_small', name: '6 Kogels', amount: 6, cost: 500, icon: '🔫' },
-  { id: 'ammo_medium', name: '12 Kogels', amount: 12, cost: 900, icon: '🔫' },
-  { id: 'ammo_large', name: '30 Kogels', amount: 30, cost: 2000, icon: '💣' },
+  { id: 'ammo_small', name: '10 Kogels', amount: 10, cost: 500, icon: '🔫' },
+  { id: 'ammo_medium', name: '25 Kogels', amount: 25, cost: 1100, icon: '🔫' },
+  { id: 'ammo_large', name: '50 Kogels', amount: 50, cost: 2000, icon: '💣' },
+  { id: 'ammo_crate', name: '100 Kogels', amount: 100, cost: 3500, icon: '📦' },
+];
+
+export const MAX_AMMO = 500;
+
+// ========== SPECIAL AMMO ==========
+
+import { SpecialAmmoDef, SpecialAmmoType } from './types';
+
+export const SPECIAL_AMMO: SpecialAmmoDef[] = [
+  {
+    id: 'armor_piercing',
+    name: 'Armor Piercing',
+    desc: 'Negeert 50% van vijandelijke armor. +20% duurder.',
+    icon: '🔩',
+    costMult: 1.2,
+    effects: { armorIgnore: 0.5 },
+  },
+  {
+    id: 'hollowpoints',
+    name: 'Hollowpoints',
+    desc: '1.5x schade vs onbeschermde, -50% vs armor.',
+    icon: '💥',
+    costMult: 1.3,
+    effects: { damageMult: 1.5, armorDamageMult: 0.5 },
+  },
+  {
+    id: 'tracer',
+    name: 'Tracer Rounds',
+    desc: '+15% accuracy, onthult vijand locatie.',
+    icon: '✨',
+    costMult: 1.15,
+    effects: { accuracyBonus: 15, revealLocation: true },
+  },
+];
+
+export const SPECIAL_AMMO_PACKS: { id: SpecialAmmoType; amount: number; cost: number }[] = [
+  { id: 'armor_piercing', amount: 20, cost: 3000 },
+  { id: 'hollowpoints', amount: 20, cost: 3500 },
+  { id: 'tracer', amount: 20, cost: 2500 },
 ];
 
 // ========== CRUSHER AMMO REWARDS ==========
@@ -13,24 +53,25 @@ export const AMMO_PACKS: AmmoPack[] = [
 import { StolenCarRarity } from './types';
 
 export const CRUSHER_AMMO_REWARDS: Record<StolenCarRarity, [number, number]> = {
-  common: [3, 5],
-  uncommon: [5, 8],
-  rare: [8, 12],
-  exotic: [12, 18],
+  common: [5, 10],
+  uncommon: [10, 18],
+  rare: [18, 30],
+  exotic: [30, 50],
 };
 
-export const AMMO_FACTORY_DAILY_PRODUCTION = 3;
+export const AMMO_FACTORY_DAILY_PRODUCTION = 10;
 
 export const AMMO_FACTORY_UPGRADES: { level: number; production: number; cost: number; label: string }[] = [
-  { level: 1, production: 3, cost: 0, label: 'Basis' },
-  { level: 2, production: 5, cost: 25000, label: 'Lvl 2' },
-  { level: 3, production: 8, cost: 50000, label: 'Lvl 3' },
+  { level: 1, production: 10, cost: 0, label: 'Basis' },
+  { level: 2, production: 18, cost: 25000, label: 'Lvl 2' },
+  { level: 3, production: 25, cost: 50000, label: 'Lvl 3' },
 ];
 
+/** @deprecated Legacy ammo type labels — kept for migration/backwards compat */
 export const AMMO_TYPE_LABELS: Record<import('./types').AmmoType, { label: string; icon: string }> = {
-  '9mm': { label: '9mm', icon: '🔫' },
-  '7.62mm': { label: '7.62mm', icon: '🎯' },
-  'shells': { label: 'Shells', icon: '💥' },
+  '9mm': { label: 'Kogels', icon: '🔫' },
+  '7.62mm': { label: 'Kogels', icon: '🔫' },
+  'shells': { label: 'Kogels', icon: '🔫' },
 };
 
 export const DISTRICTS: Record<string, District> = {
@@ -1763,10 +1804,12 @@ export function createInitialState(): import('./types').GameState {
     pendingFlashback: null,
     keyDecisions: [],
     mmoPerkFlags: {},
-    // Hitman & Ammo state
-    ammo: 12,
-    ammoStock: { '9mm': 12, '7.62mm': 0, 'shells': 0 },
+    // Hitman & Ammo state (universal ammo system)
+    ammo: 20,
+    ammoStock: { '9mm': 20, '7.62mm': 0, 'shells': 0 }, // legacy compat
     ammoFactoryLevel: 1,
+    specialAmmo: {},
+    activeSpecialAmmo: null,
     hitContracts: [],
     // Prison state
     prison: null,

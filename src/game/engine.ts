@@ -18,34 +18,42 @@ import { getWeekEventXpMultiplier, isHeatFreezeActive } from './weekEvents';
 // localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
 
-// ========== AMMO HELPERS ==========
+// ========== AMMO HELPERS (Universal System) ==========
 
-/** Returns the ammo type of the currently equipped weapon, or '9mm' as default */
+/** @deprecated Returns '9mm' always — ammo is now universal */
 export function getActiveAmmoType(state: GameState): AmmoType {
-  const weaponId = state.player.loadout.weapon;
-  if (!weaponId) return '9mm';
-  const weapon = GEAR.find(g => g.id === weaponId);
-  if (!weapon || weapon.ammoType === null || weapon.ammoType === undefined) return '9mm';
-  return weapon.ammoType;
+  return '9mm';
 }
 
-/** Get total ammo across all types */
+/** Get total ammo (universal counter) */
 export function getTotalAmmo(state: GameState): number {
-  if (!state.ammoStock) return state.ammo || 0;
-  return (state.ammoStock['9mm'] || 0) + (state.ammoStock['7.62mm'] || 0) + (state.ammoStock['shells'] || 0);
+  return state.ammo || 0;
 }
 
-/** Sync legacy ammo field with ammoStock total */
+/** Sync legacy ammoStock with universal ammo total */
 function syncAmmoTotal(state: GameState): void {
-  state.ammo = getTotalAmmo(state);
+  // Keep legacy ammoStock in sync for backwards compat
+  if (state.ammoStock) {
+    state.ammoStock['9mm'] = state.ammo;
+    state.ammoStock['7.62mm'] = 0;
+    state.ammoStock['shells'] = 0;
+  }
 }
 
-/** Ensure ammoStock exists (migration helper) */
+/** Ensure ammo state exists (migration helper) */
 export function ensureAmmoStock(state: GameState): void {
+  // Migrate from per-type to universal
+  if (state.ammoStock && (state.ammoStock['7.62mm'] > 0 || state.ammoStock['shells'] > 0)) {
+    const total = (state.ammoStock['9mm'] || 0) + (state.ammoStock['7.62mm'] || 0) + (state.ammoStock['shells'] || 0);
+    state.ammo = Math.min(500, total);
+    state.ammoStock = { '9mm': state.ammo, '7.62mm': 0, 'shells': 0 };
+  }
   if (!state.ammoStock) {
     state.ammoStock = { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
   }
   if (state.ammoFactoryLevel === undefined) state.ammoFactoryLevel = 1;
+  if (!state.specialAmmo) state.specialAmmo = {};
+  if (state.activeSpecialAmmo === undefined) state.activeSpecialAmmo = null;
 }
 
 // ========== PLAYER HP HELPERS ==========
@@ -1287,20 +1295,18 @@ export function endTurn(state: GameState): NightReportData {
   // Process safehouse raids
   processSafehouseRaids(state, report);
 
-  // Ammo factory production
+  // Ammo factory production (universal)
   if (state.ownedBusinesses.includes('ammo_factory')) {
     ensureAmmoStock(state);
     const factoryLevel = state.ammoFactoryLevel || 1;
     const upgrade = AMMO_FACTORY_UPGRADES.find(u => u.level === factoryLevel);
     const produced = upgrade?.production || AMMO_FACTORY_DAILY_PRODUCTION;
-    const ammoType = getActiveAmmoType(state);
-    const oldVal = state.ammoStock[ammoType] || 0;
-    state.ammoStock[ammoType] = Math.min(99, oldVal + produced);
-    const actualProduced = state.ammoStock[ammoType] - oldVal;
+    const oldVal = state.ammo || 0;
+    state.ammo = Math.min(500, oldVal + produced);
+    const actualProduced = state.ammo - oldVal;
     syncAmmoTotal(state);
     if (actualProduced > 0) {
       report.ammoFactoryProduction = actualProduced;
-      report.ammoFactoryType = ammoType;
     }
   }
 

@@ -12,6 +12,7 @@ export const COMBAT_SKILLS: CombatSkill[] = [
     unlockLevel: 1,
     cooldownTurns: 0,
     energyCost: 0,
+    ammoCost: 1,
     effect: { type: 'damage', value: 8, bonus: 'flat' },
   },
   {
@@ -22,6 +23,7 @@ export const COMBAT_SKILLS: CombatSkill[] = [
     unlockLevel: 3,
     cooldownTurns: 4,
     energyCost: 0,
+    ammoCost: 0,
     effect: { type: 'buff', buffId: 'defense_boost', duration: 2 },
   },
   // Level 6-10
@@ -33,27 +35,30 @@ export const COMBAT_SKILLS: CombatSkill[] = [
     unlockLevel: 6,
     cooldownTurns: 5,
     energyCost: 0,
+    ammoCost: 0,
     effect: { type: 'heal_and_buff', healAmount: 15, buffId: 'damage_boost', duration: 2 },
   },
   {
     id: 'vuistcombo',
     name: 'Vuistcombo',
-    desc: 'Een 3-hit combo die massieve schade doet.',
+    desc: 'Een 3-hit combo die massieve schade doet. Kost 3 kogels.',
     icon: '👊',
     unlockLevel: 8,
     cooldownTurns: 4,
     energyCost: 0,
+    ammoCost: 3,
     effect: { type: 'multi_hit', hits: 3, damagePerHit: 6 },
   },
   // Level 11-15
   {
     id: 'dodelijke_precisie',
     name: 'Dodelijke Precisie',
-    desc: 'Gegarandeerde kritieke treffer.',
+    desc: 'Gegarandeerde kritieke treffer. Kost 2 kogels.',
     icon: '🎯',
     unlockLevel: 11,
     cooldownTurns: 6,
     energyCost: 0,
+    ammoCost: 2,
     effect: { type: 'crit', multiplier: 2.5 },
   },
   {
@@ -64,17 +69,19 @@ export const COMBAT_SKILLS: CombatSkill[] = [
     unlockLevel: 13,
     cooldownTurns: 5,
     energyCost: 0,
+    ammoCost: 1,
     effect: { type: 'stun', chance: 0.8, stat: 'charm' },
   },
   // Level 16+
   {
     id: 'executie',
     name: 'Executie',
-    desc: 'Bonus schade op doelwitten met weinig HP.',
+    desc: 'Bonus schade op doelwitten met weinig HP. Kost 3 kogels.',
     icon: '💀',
     unlockLevel: 16,
     cooldownTurns: 7,
     energyCost: 0,
+    ammoCost: 3,
     effect: { type: 'execute', thresholdPct: 0.3, bonusDamage: 25 },
   },
   {
@@ -85,6 +92,7 @@ export const COMBAT_SKILLS: CombatSkill[] = [
     unlockLevel: 18,
     cooldownTurns: 8,
     energyCost: 0,
+    ammoCost: 0,
     effect: { type: 'emergency_heal', thresholdPct: 0.2, healAmount: 30 },
   },
 ];
