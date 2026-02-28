@@ -12,6 +12,10 @@ const REWARD_IMAGES: Record<string, string> = {
   meds: GOOD_IMAGES.meds,
   weapons: GOOD_IMAGES.weapons,
   tech: GOOD_IMAGES.tech,
+  explosives: GOOD_IMAGES.explosives,
+  crypto: GOOD_IMAGES.crypto,
+  chemicals: GOOD_IMAGES.chemicals,
+  electronics: GOOD_IMAGES.electronics,
 };
 
 function getAuctionImage(item: { rewardType: string; rewardId?: string; rewardGoodId?: string }) {

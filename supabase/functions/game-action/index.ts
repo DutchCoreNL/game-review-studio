@@ -14,6 +14,10 @@ const GOODS = [
   { id: "tech", name: "Zwarte Data", base: 900, faction: "syndicate" },
   { id: "luxury", name: "Geroofde Kunst", base: 2400, faction: null },
   { id: "meds", name: "Medische Voorraad", base: 600, faction: null },
+  { id: "explosives", name: "Explosieven", base: 1800, faction: "bikers" },
+  { id: "crypto", name: "Crypto Wallets", base: 3200, faction: "syndicate" },
+  { id: "chemicals", name: "Precursoren", base: 450, faction: "cartel" },
+  { id: "electronics", name: "Gestolen Chips", base: 750, faction: null },
 ];
 
 const GEAR: { id: string; type: string; name: string; cost: number; stats: Record<string, number>; reqRep?: { f: string; val: number } | null }[] = [

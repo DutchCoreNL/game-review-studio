@@ -7,7 +7,7 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gavel, Clock, User, Coins, Plus, Shield, AlertTriangle, TrendingUp } from 'lucide-react';
-import { GEAR_IMAGES, GOOD_IMAGES } from '@/assets/items/index';
+import { GEAR_IMAGES, GOOD_IMAGES, VEHICLE_IMAGES } from '@/assets/items/index';
 
 interface LiveAuction {
   id: string;
@@ -45,6 +45,11 @@ const ITEM_IMAGES: Record<string, string> = {
   tech: GOOD_IMAGES.tech,
   luxury: GOOD_IMAGES.luxury,
   meds: GOOD_IMAGES.meds,
+  explosives: GOOD_IMAGES.explosives,
+  crypto: GOOD_IMAGES.crypto,
+  chemicals: GOOD_IMAGES.chemicals,
+  electronics: GOOD_IMAGES.electronics,
+  ...VEHICLE_IMAGES,
 };
 
 function useCountdown(endsAt: string) {

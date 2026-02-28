@@ -19,6 +19,10 @@ import goodWeapons from './good-weapons.jpg';
 import goodTech from './good-tech.jpg';
 import goodLuxury from './good-luxury.jpg';
 import goodMeds from './good-meds.jpg';
+import goodExplosives from './good-explosives.jpg';
+import goodCrypto from './good-crypto.jpg';
+import goodChemicals from './good-chemicals.jpg';
+import goodElectronics from './good-electronics.jpg';
 
 // Gear images
 import gearGlock from './gear-glock.jpg';
@@ -227,6 +231,10 @@ export const GOOD_IMAGES: Record<string, string> = {
   tech: goodTech,
   luxury: goodLuxury,
   meds: goodMeds,
+  explosives: goodExplosives,
+  crypto: goodCrypto,
+  chemicals: goodChemicals,
+  electronics: goodElectronics,
 };
 
 export const GEAR_IMAGES: Record<string, string> = {
