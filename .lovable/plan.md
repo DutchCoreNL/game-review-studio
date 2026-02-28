@@ -1,70 +1,91 @@
 
 
-## Plan: Verhaalsysteem MMO-Verbeteringen
+## Analyse: Wat het spel al heeft vs. wat ontbreekt
 
-### Analyse — Wat is nu puur solo?
+Na het doorlopen van de volledige codebase (1224 regels types, 45+ game-modules, 60+ componenten) heeft het spel al een indrukwekkende breedte: trading, PvP, gangs, facties, nemesis, villa, drug empire, corruptie, bounties, beurs, veilingen, racing, crafting, heists, organized crimes, skill tree, karma, backstory, gevangenis, world raids, smokkelroutes, chat, leaderboard, daily challenges, week events, en news.
 
-| Systeem | Status | Probleem |
-|---------|--------|----------|
-| Story Arcs (3 bogen) | 100% solo | Keuzes hebben geen effect op andere spelers |
-| Backstory Arcs (3 bogen) | 100% solo | Geen interactie met spelers die andere backstory kozen |
-| Street Events (~30) | 100% solo | Resultaten zijn alleen lokaal zichtbaar |
-| NPC Events (5 NPCs) | 100% solo | NPC-relaties staan los van andere spelers |
+Wat **geen enkel** vergelijkbaar spel (Torn, Mafia Wars, Crime Inc, etc.) heeft:
 
-### Verbeteringen
+---
 
-#### 1. Speler-keuzes genereren district-breed nieuws & events
-Wanneer een speler een story arc-stap voltooit, wordt het resultaat omgezet naar een **nieuwsbericht** en optioneel een **follow-up street event** voor andere spelers in hetzelfde district.
+### 1. AI-Gegenereerde Persoonlijke Verhaallijn
+Gebruik een LLM (Gemini via Lovable AI) om **unieke narratieve events** te genereren op basis van de specifieke geschiedenis van elke speler. Geen vaste templates meer, maar dynamische verhalen die verwijzen naar jouw eerdere keuzes, rivalen, en gang-geschiedenis.
 
-Voorbeeld: Speler A kiest "CHANTEER DE VRIES" → andere spelers in Iron District krijgen event: *"Er gaan geruchten over een corrupte agent die is ontmaskerd. Dit is je kans om ervan te profiteren."*
+**Voorbeeld:** *"Marco herinnert zich hoe je vorige week zijn rivaal hebt verraden in Iron District. Hij biedt je een deal aan die alleen jij kunt krijgen..."*
 
-**Wijzigingen:**
-- `storyArcs.ts`: `resolveArcChoice` stuurt resultaat naar `district_events` tabel (nieuw veld `triggered_by`)
-- `storyEvents.ts`: Nieuwe event-categorie `player_triggered` die reageert op `district_events`
-- `world-tick`: Verwerkt arc-resultaten tot server-events
+**Technisch:**
+- Edge function `generate-story` die speler-context (backstory, karma, recente acties, gang, nemesis) naar Gemini stuurt
+- Resultaat wordt opgeslagen als `personal_story_event` en getoond als popup
+- 1x per game-dag, per speler, met cooldown
 
-#### 2. Gang Story Missions — Gedeelde verhaalbogen voor gangs
-Nieuwe arc-categorie die alleen door gangs gestart kan worden. Stappen worden verdeeld over gang-leden: ieder lid kiest een andere aanpak, en het gecombineerde resultaat bepaalt de uitkomst.
+---
 
-Voorbeeld: *"De Kartel-Connectie"* — 4 stappen, elk lid kiest parallel. Meer successen = betere gang-beloning.
+### 2. Informant & Mol Systeem
+Plant een **spion** in een rivaliserende gang. Je ontvangt geheime intel over hun treasury, oorlogsplannen, en smokkelroutes. Maar er is een kans dat je mol ontdekt wordt, wat leidt tot een gang war of bounty op jouw hoofd.
 
-**Wijzigingen:**
-- Nieuw bestand `src/game/gangArcs.ts` met `GangArcTemplate` type
-- `game-action/index.ts`: Nieuwe handlers `start_gang_arc`, `resolve_gang_arc_step`
-- Database: `gang_story_arcs` tabel (gang_id, arc_id, step, member_choices JSONB)
+**Voorbeeld:** Je plant een mol bij "Los Serpientes". Na 3 dagen ontvang je: *"Je mol meldt: ze plannen een aanval op Port District morgen. Treasury: €45.000."*
 
-#### 3. Rivaal-systeem met echte spelers
-De bestaande "De Rivaal" arc wordt uitgebreid: in plaats van een NPC-rivaal wordt een **echte speler** met vergelijkbare stats automatisch toegewezen als nemesis. Arc-stappen verwijzen naar hun echte acties.
+**Technisch:**
+- Database: `gang_moles` tabel (player_id, target_gang_id, planted_at, discovered, intel_reports)
+- `game-action`: `plant_mole`, `extract_mole` handlers
+- `world-tick`: Dagelijkse detectie-check (hoger bij actievere gangs)
+- Ontdekking triggert automatisch een bounty of oorlogsverklaring
 
-**Wijzigingen:**
-- `storyArcs.ts`: Rivaal-arc detecteert echte speler via `player_state` query
-- `game-action/index.ts`: `assign_nemesis` handler die een speler koppelt op basis van level/district
-- Nemesis-acties (trades, gevechten, territory) genereren arc-events voor beide spelers
+---
 
-#### 4. NPC-loyaliteit beïnvloed door meerdere spelers
-NPCs reageren op de **collectieve** relatie van alle spelers in hun district. Als te veel spelers een NPC beledigen, wordt de NPC vijandelijk voor iedereen. Als genoeg spelers helpen, ontgrendelt de NPC district-brede bonussen.
+### 3. Ondergronds Tribunaal (Speler-gerechtshof)
+Een **speler-gerund rechtssysteem** waar de community andere spelers kan aanklagen voor "misdaden" (scamming in trades, verraad, gang-hopping). Een jury van willekeurige spelers stemt, en de uitspraak heeft echte game-gevolgen.
 
-**Wijzigingen:**
-- Database: `npc_district_mood` tabel (npc_id, district_id, collective_score)
-- `world-tick`: Berekent collectieve NPC-mood per district
-- `npcEvents.ts`: Events en dialoog variëren op basis van collectieve mood
-- Nieuwe NPC-states: `friendly` (bonus voor district), `hostile` (events blokkeren), `legendary` (unieke quest)
+**Voorbeeld:** *"Speler DarkViper wordt beschuldigd van gang-verraad. 7 juryleden stemmen: SCHULDIG. Straf: 48 uur trade-ban + 500 rep verlies."*
 
-#### 5. Backstory-kruisingen
-Spelers met verschillende backstories krijgen speciale interactie-events wanneer ze elkaar tegenkomen in hetzelfde district. De Weduwnaar en de Bankier hebben overlappende vijanden; het Straatkind kent plekken die de anderen niet kennen.
+**Technisch:**
+- Database: `tribunal_cases` (accuser, accused, charge, evidence, jury_votes, verdict, punishment)
+- Jury wordt random geselecteerd uit spelers level 5+ die niet in dezelfde gang zitten
+- Straffen: trade-ban, rep-verlies, bounty, tijdelijke stat-nerf
+- UI: Tribunaal-tab met lopende zaken, stemmen, en uitspraken
 
-**Wijzigingen:**
-- `storyEvents.ts`: Nieuwe `backstory_crossover` events die triggeren wanneer spelers met verschillende backstories in hetzelfde district zijn
-- `game-action/index.ts`: Check bij travel of er een crossover-partner aanwezig is
-- 3 crossover-events (Weduwnaar×Bankier, Bankier×Straatkind, Straatkind×Weduwnaar)
+---
 
-### Technische Stappen
+### 4. Reputatie Echo Systeem
+Jouw acties creeren een **permanente reputatie-schaduw** die door de hele stad resoneert. NPCs, handelaren, en zelfs politie reageren anders op je op basis van je volledige actiegeschiedenis, niet alleen je huidige karma.
 
-1. **Database migratie**: `gang_story_arcs`, `npc_district_mood` tabellen + `triggered_by` kolom op `district_events`
-2. **Gang Story Missions**: `gangArcs.ts` + server handlers voor parallelle gang-keuzes
-3. **Arc → Nieuws pipeline**: Arc-resultaten schrijven naar `district_events` met speler-context
-4. **Rivaal-koppeling**: Nemesis-toewijzing op basis van echte spelerdata
-5. **NPC collectieve mood**: World-tick berekent en past NPC-status aan per district
-6. **Backstory crossovers**: 3 nieuwe event-templates met multiplayer-triggers
-7. **Client UI**: Gang arc panel in WarView, nemesis-indicator op kaart, NPC mood-indicator
+**Voorbeeld:** Je hebt 3 keer dezelfde NPC geholpen → hij geeft je exclusieve kortingen. Je hebt Iron District 5x bestolen → handelaren daar verhogen hun prijzen voor jou met 15%.
+
+**Technisch:**
+- Database: `player_reputation_echo` (player_id, district_id, category, score, events_log)
+- Categorieen: `violence`, `trade_trust`, `loyalty`, `stealth`, `generosity`
+- Effecten op: prijzen, NPC-reacties, missie-opties, gang-recruitment acceptatie
+- Wordt berekend in `world-tick` op basis van recente acties
+
+---
+
+### 5. Undercover Infiltratie Missies
+Ga **undercover** in een rivaliserende factie of gang met een valse identiteit. Je krijgt toegang tot hun exclusieve missies en resources, maar moet je dekmantel bewaren door hun opdrachten uit te voeren. Eén verkeerde actie en je bent ontmaskerd.
+
+**Voorbeeld:** Je infiltreert het Kartel. Je krijgt hun missies, maar moet af en toe drugs voor hen vervoeren. Na 5 succesvolle dagen kun je hun geheime wapenvoorraad stelen en vluchten.
+
+**Technisch:**
+- GameState uitbreiding: `undercoverMission: { targetFaction, coverIntegrity (0-100), daysActive, intelGathered }`
+- Elke actie in het openbaar (chat, PvP tegen hun leden) verlaagt `coverIntegrity`
+- Bij 0% → ontmaskerd → automatische bounty + factie-relatie naar -100
+- Succesvolle extractie → grote beloning + gestolen intel
+
+---
+
+### Prioriteit & Impact
+
+| Feature | Innovatie | MMO-waarde | Complexiteit |
+|---------|-----------|------------|-------------|
+| AI Persoonlijke Verhaallijn | Zeer hoog | Hoog | Medium |
+| Informant & Mol | Hoog | Zeer hoog | Medium |
+| Ondergronds Tribunaal | Zeer hoog | Hoog | Hoog |
+| Reputatie Echo | Hoog | Medium | Medium |
+| Undercover Infiltratie | Zeer hoog | Hoog | Hoog |
+
+### Aanbevolen volgorde
+1. **Informant & Mol** — Direct multiplayer-impact, relatief eenvoudig
+2. **AI Verhaallijn** — Unieke selling point, al LLM-integratie beschikbaar
+3. **Reputatie Echo** — Verdiept bestaande systemen
+4. **Undercover Infiltratie** — Complexe maar unieke gameplay loop
+5. **Ondergronds Tribunaal** — Vereist kritische massa aan spelers
 
