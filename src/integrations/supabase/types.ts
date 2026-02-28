@@ -168,33 +168,45 @@ export type Database = {
       }
       district_events: {
         Row: {
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string
           data: Json | null
           description: string | null
           district_id: string
+          escalation_level: number
           event_type: string
           expires_at: string
           id: string
+          participants: Json
           title: string
         }
         Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           data?: Json | null
           description?: string | null
           district_id: string
+          escalation_level?: number
           event_type: string
           expires_at?: string
           id?: string
+          participants?: Json
           title: string
         }
         Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           data?: Json | null
           description?: string | null
           district_id?: string
+          escalation_level?: number
           event_type?: string
           expires_at?: string
           id?: string
+          participants?: Json
           title?: string
         }
         Relationships: []
@@ -1196,6 +1208,7 @@ export type Database = {
           attack_cooldown_until: string | null
           backstory: string | null
           casino_jackpot: number
+          combat_rating: number
           created_at: string
           crime_cooldown_until: string | null
           day: number
@@ -1261,6 +1274,7 @@ export type Database = {
           attack_cooldown_until?: string | null
           backstory?: string | null
           casino_jackpot?: number
+          combat_rating?: number
           created_at?: string
           crime_cooldown_until?: string | null
           day?: number
@@ -1326,6 +1340,7 @@ export type Database = {
           attack_cooldown_until?: string | null
           backstory?: string | null
           casino_jackpot?: number
+          combat_rating?: number
           created_at?: string
           crime_cooldown_until?: string | null
           day?: number

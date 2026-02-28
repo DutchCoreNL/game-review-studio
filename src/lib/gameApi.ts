@@ -29,6 +29,7 @@ export type GameAction =
   | "get_faction_state"
   | "attack_faction"
   | "faction_action"
+  | "claim_event"
   | "process_turn";
 
 interface GameActionResult {
@@ -148,6 +149,9 @@ export const gameApi = {
     invokeGameAction("attack_faction", { factionId, phase }),
   factionAction: (factionId: string, actionType: string) =>
     invokeGameAction("faction_action", { factionId, actionType }),
+
+  // Claim a server-driven district event
+  claimEvent: (eventId: string) => invokeGameAction("claim_event", { eventId }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })

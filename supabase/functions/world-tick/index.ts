@@ -927,7 +927,7 @@ async function resetConqueredFactions(supabase: any) {
   }
 }
 
-// ========== SERVER-DRIVEN DISTRICT EVENTS ==========
+// ========== SERVER-DRIVEN DISTRICT EVENTS (enhanced MMO) ==========
 const PHASE_DISTRICT_EVENTS: Record<string, { district: string; title: string; description: string; type: string }[]> = {
   night: [
     { district: 'neon', title: 'Nachtelijke Drugsrazzia', description: 'De narcotica-brigade doet invallen in Neon Strip. Dealers worden opgepakt.', type: 'negative' },
@@ -955,12 +955,34 @@ const PHASE_DISTRICT_EVENTS: Record<string, { district: string; title: string; d
   ],
 };
 
+// === COMPETITIVE EVENTS: first to claim wins ===
+const COMPETITIVE_EVENTS = [
+  { title: 'Wapendrop', description: 'Een onbekende heeft een kist wapens achtergelaten. Eerste claimt!', reward: { money: 5000, rep: 15, xp: 30, heat: 8 } },
+  { title: 'Verloren Koffer', description: 'Een koffer vol cash gevonden bij het station. Grijp het voor iemand anders!', reward: { money: 8000, rep: 10, xp: 25, heat: 5 } },
+  { title: 'Geheime Informant', description: 'Een tipgever wil info delen — maar alleen met de eerste die komt.', reward: { money: 2000, rep: 20, xp: 40, heat: -10 } },
+  { title: 'Gestolen Kunstwerk', description: 'Een schilderij ter waarde van duizenden is achtergelaten in een steeg.', reward: { money: 12000, rep: 25, xp: 35, heat: 12 } },
+];
+
+// === COOPERATIVE EVENTS: more participants = better outcome ===
+const COOPERATIVE_EVENTS = [
+  { title: 'Politie-Razzia Alert', description: 'De NHPD plant een grote razzia. Werk samen om de heat te verlagen!', reward: { heatReduction: 10, rep: 5 } },
+  { title: 'Buurt Bescherming', description: 'Bewoners vragen om hulp tegen afpersers. Meer helpers = minder criminaliteit.', reward: { heatReduction: 8, rep: 10 } },
+  { title: 'Brand in de Wijk', description: 'Een brand dreigt het district te verwoesten. Help blussen!', reward: { heatReduction: 15, rep: 8 } },
+  { title: 'Getuigen Beschermen', description: 'Getuigen van een misdrijf moeten beschermd worden. Samen sterker.', reward: { heatReduction: 12, rep: 12 } },
+];
+
+// === ESCALATION EVENTS: get worse if nobody responds ===
+const ESCALATION_EVENTS = [
+  { title: 'Gang Invasie', desc_stages: ['Een rivaliserende gang verkent het district.', 'De gang heeft voet aan de grond — heat stijgt!', 'VOLLEDIGE INVASIE — iedereen krijgt +20 heat!'], heat_per_stage: [5, 10, 20] },
+  { title: 'Politie Surveillance', desc_stages: ['Undercover agenten gespot in het district.', 'De surveillance wordt opgevoerd — arrestatiekans stijgt!', 'GROOTSCHALIGE RAZZIA — spelers worden gearresteerd!'], heat_per_stage: [3, 8, 15] },
+];
+
 async function generateServerDistrictEvents(supabase: any, phase: string, weather: string, worldDay: number) {
   try {
     const events = PHASE_DISTRICT_EVENTS[phase] || [];
     if (events.length === 0) return;
 
-    // Pick 1-2 random events for this phase
+    // Pick 1-2 standard events
     const shuffled = [...events].sort(() => Math.random() - 0.5);
     const picked = shuffled.slice(0, 1 + (Math.random() < 0.4 ? 1 : 0));
 
@@ -973,17 +995,103 @@ async function generateServerDistrictEvents(supabase: any, phase: string, weathe
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     }));
 
+    // === 40% chance: Add a COMPETITIVE event ===
+    if (Math.random() < 0.4) {
+      const compEvent = COMPETITIVE_EVENTS[Math.floor(Math.random() * COMPETITIVE_EVENTS.length)];
+      const district = pick(DISTRICTS);
+      rows.push({
+        district_id: district,
+        event_type: 'competitive',
+        title: `🏆 ${compEvent.title}`,
+        description: compEvent.description,
+        data: { phase, weather, world_day: worldDay, interactive: true, competitive: true, reward: compEvent.reward },
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min to claim
+      });
+    }
+
+    // === 35% chance: Add a COOPERATIVE event ===
+    if (Math.random() < 0.35) {
+      const coopEvent = COOPERATIVE_EVENTS[Math.floor(Math.random() * COOPERATIVE_EVENTS.length)];
+      const district = pick(DISTRICTS);
+      rows.push({
+        district_id: district,
+        event_type: 'cooperative',
+        title: `🤝 ${coopEvent.title}`,
+        description: coopEvent.description,
+        data: { phase, weather, world_day: worldDay, interactive: true, cooperative: true, reward: coopEvent.reward },
+        expires_at: new Date(Date.now() + 25 * 60 * 1000).toISOString(), // 25 min
+      });
+    }
+
     await supabase.from('district_events').insert(rows);
 
-    // Also broadcast as news
+    // === ESCALATION: Check existing escalation events and escalate ===
+    const { data: existingEsc } = await supabase.from('district_events')
+      .select('*')
+      .eq('event_type', 'escalation')
+      .gte('expires_at', new Date().toISOString());
+
+    for (const esc of (existingEsc || [])) {
+      const escData = esc.data || {};
+      const level = escData.escalation_level || 0;
+      const participants = esc.participants || [];
+
+      // If nobody participated, escalate
+      if (participants.length === 0 && level < 2) {
+        const newLevel = level + 1;
+        const template = ESCALATION_EVENTS.find(e => esc.title.includes(e.title));
+        if (template) {
+          await supabase.from('district_events').update({
+            description: template.desc_stages[newLevel],
+            escalation_level: newLevel,
+            data: { ...escData, escalation_level: newLevel },
+          }).eq('id', esc.id);
+
+          // Apply heat to all players in district
+          const heatPenalty = template.heat_per_stage[newLevel] || 10;
+          const { data: districtPlayers } = await supabase.from('player_state')
+            .select('user_id, heat')
+            .eq('loc', esc.district_id)
+            .eq('game_over', false);
+
+          for (const p of (districtPlayers || [])) {
+            await supabase.from('player_state').update({
+              heat: Math.min(100, (p.heat || 0) + heatPenalty),
+            }).eq('user_id', p.user_id);
+          }
+
+          await supabase.from('news_events').insert({
+            text: `⚠️ ${esc.title} ESCALEERT in ${DISTRICT_NAMES[esc.district_id]}! Alle spelers krijgen +${heatPenalty} heat!`,
+            icon: '🔥', urgency: 'high', category: 'district',
+            district_id: esc.district_id,
+            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          });
+        }
+      }
+    }
+
+    // === 15% chance: Spawn NEW escalation event ===
+    if (Math.random() < 0.15 && (existingEsc || []).length < 2) {
+      const escTemplate = ESCALATION_EVENTS[Math.floor(Math.random() * ESCALATION_EVENTS.length)];
+      const district = pick(DISTRICTS);
+      await supabase.from('district_events').insert({
+        district_id: district,
+        event_type: 'escalation',
+        title: `⚠️ ${escTemplate.title}`,
+        description: escTemplate.desc_stages[0],
+        data: { phase, weather, world_day: worldDay, interactive: true, cooperative: true, escalation_level: 0, reward: { heatReduction: escTemplate.heat_per_stage[0], rep: 5 } },
+        escalation_level: 0,
+        expires_at: new Date(Date.now() + 90 * 60 * 1000).toISOString(), // 90 min — escalates each tick
+      });
+    }
+
+    // Broadcast picked standard events as news
     for (const e of picked) {
       await supabase.from('news_events').insert({
         text: `${e.title} in ${DISTRICT_NAMES[e.district] || e.district}`,
         icon: e.type === 'positive' ? '✨' : e.type === 'negative' ? '⚠️' : '📰',
         urgency: e.type === 'negative' ? 'high' : 'low',
-        category: 'district',
-        district_id: e.district,
-        detail: e.description,
+        category: 'district', district_id: e.district, detail: e.description,
         expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
     }
