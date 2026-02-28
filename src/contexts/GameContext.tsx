@@ -94,7 +94,7 @@ type GameAction =
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
   | { type: 'ANNEX_FACTION'; familyId: FamilyId }
   | { type: 'START_MISSION'; mission: ActiveMission }
-  | { type: 'MISSION_CHOICE'; choiceId: string; forceResult?: 'success' | 'fail' }
+  | { type: 'MISSION_CHOICE'; choiceId: string; forceResult?: 'success' | 'partial' | 'fail' }
   | { type: 'END_MISSION' }
   // New feature actions
   | { type: 'CREATE_ROUTE'; route: SmuggleRoute }
@@ -123,7 +123,7 @@ type GameAction =
   | { type: 'PRESTIGE_RESET' }
   | { type: 'START_HARDCORE' }
   | { type: 'FREE_PLAY' }
-  | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'fail' }
+  | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'partial' | 'fail' }
   | { type: 'DISMISS_STREET_EVENT' }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'SET_WEEK_EVENT'; event: any }
