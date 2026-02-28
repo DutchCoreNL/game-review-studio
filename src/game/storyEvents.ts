@@ -1178,9 +1178,10 @@ export function resolveStreetChoice(
   state: GameState,
   event: StreetEvent,
   choiceId: string,
-  forceResult?: 'success' | 'fail'
+  forceResult?: 'success' | 'partial' | 'fail'
 ): {
   success: boolean;
+  partial?: boolean;
   text: string;
   effects: StreetEventChoice['effects'];
   followUpEventId?: string;
@@ -1193,13 +1194,30 @@ export function resolveStreetChoice(
   };
 
   let success: boolean;
+  let partial = false;
   if (forceResult) {
     success = forceResult === 'success';
+    partial = forceResult === 'partial';
   } else {
     const statVal = getPlayerStat(state, choice.stat);
     const roll = Math.random() * 100;
     const successChance = Math.min(95, 100 - choice.difficulty + (statVal * 5));
     success = roll < successChance;
+  }
+
+  if (partial) {
+    return {
+      success: false,
+      partial: true,
+      text: choice.failText,
+      effects: {
+        money: Math.round(choice.effects.money * 0.4),
+        heat: Math.round(choice.effects.heat * 0.6),
+        rep: Math.round(choice.effects.rep * 0.4),
+        dirtyMoney: Math.round(choice.effects.dirtyMoney * 0.3),
+        crewDamage: Math.round(choice.effects.crewDamage * 0.3),
+      },
+    };
   }
 
   return {
