@@ -165,6 +165,7 @@ export function handleSoloOp(s: GameState, opId: string): void {
   if (soloEvent) {
     s.pendingStreetEvent = soloEvent;
     s.streetEventResult = null;
+    s.lastStreetEventAt = new Date().toISOString();
   }
   if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
   syncChallenges(s);

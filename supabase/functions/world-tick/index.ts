@@ -927,6 +927,71 @@ async function resetConqueredFactions(supabase: any) {
   }
 }
 
+// ========== SERVER-DRIVEN DISTRICT EVENTS ==========
+const PHASE_DISTRICT_EVENTS: Record<string, { district: string; title: string; description: string; type: string }[]> = {
+  night: [
+    { district: 'neon', title: 'Nachtelijke Drugsrazzia', description: 'De narcotica-brigade doet invallen in Neon Strip. Dealers worden opgepakt.', type: 'negative' },
+    { district: 'port', title: 'Smokkelschip Aangekomen', description: 'Een ongeregistreerd schip is aangemeerd. Goedkope goederen beschikbaar.', type: 'positive' },
+    { district: 'low', title: 'Straatgevecht Uitgebroken', description: 'Twee bendes vechten om territorium in Lowrise. Chaos op straat.', type: 'negative' },
+    { district: 'iron', title: 'Nachtploeg Staking', description: 'Fabrieksarbeiders staken. De productie ligt stil maar chemicaliën lekken.', type: 'neutral' },
+    { district: 'crown', title: 'VIP After-Party', description: 'Een exclusief feest in Crown Heights. Perfecte netwerkmogelijkheid.', type: 'positive' },
+  ],
+  dawn: [
+    { district: 'low', title: 'Ochtendrazzia NHPD', description: 'De politie begint de dag met huiszoekingen in Lowrise.', type: 'negative' },
+    { district: 'port', title: 'Vroege Havenlading', description: 'Een container vol ongemarkeerde goederen wordt gelost bij eerste licht.', type: 'positive' },
+    { district: 'crown', title: 'Beursopening Crash', description: 'De aandelenmarkt opent met een flash crash. Paniek in Crown Heights.', type: 'negative' },
+    { district: 'iron', title: 'Fabrieksexplosie bij Dageraad', description: 'Een chemisch lab ontploft. Grondstoffen liggen verspreid.', type: 'neutral' },
+  ],
+  dusk: [
+    { district: 'neon', title: 'Casino Jackpot Alert', description: 'De jackpot in het casino is verdrievoudigd. Gokkers stromen toe.', type: 'positive' },
+    { district: 'crown', title: 'Zakelijke Afrekening', description: 'Een CEO wordt neergeschoten bij zonsondergang. De markt reageert.', type: 'negative' },
+    { district: 'port', title: 'Havenstaking Opgeheven', description: 'De staking is voorbij. Handel herstart met een golf van goederen.', type: 'positive' },
+    { district: 'iron', title: 'Wapensmokkel Ontdekt', description: 'Douane onderschept wapens in Iron Borough. Prijzen stijgen.', type: 'neutral' },
+  ],
+  day: [
+    { district: 'low', title: 'Buurtfeest in Lowrise', description: 'Een spontaan straatfeest. De sfeer is goed, de heat laag.', type: 'positive' },
+    { district: 'crown', title: 'SEC Inspectie', description: 'Financiële inspecteurs bezoeken bedrijven in Crown Heights.', type: 'negative' },
+    { district: 'neon', title: 'Celebrity Bezoek', description: 'Een internationale ster bezoekt Neon Strip. Media overal.', type: 'positive' },
+  ],
+};
+
+async function generateServerDistrictEvents(supabase: any, phase: string, weather: string, worldDay: number) {
+  try {
+    const events = PHASE_DISTRICT_EVENTS[phase] || [];
+    if (events.length === 0) return;
+
+    // Pick 1-2 random events for this phase
+    const shuffled = [...events].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, 1 + (Math.random() < 0.4 ? 1 : 0));
+
+    const rows = picked.map(e => ({
+      district_id: e.district,
+      event_type: `server_${e.type}`,
+      title: e.title,
+      description: e.description,
+      data: { phase, weather, world_day: worldDay, interactive: true },
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    }));
+
+    await supabase.from('district_events').insert(rows);
+
+    // Also broadcast as news
+    for (const e of picked) {
+      await supabase.from('news_events').insert({
+        text: `${e.title} in ${DISTRICT_NAMES[e.district] || e.district}`,
+        icon: e.type === 'positive' ? '✨' : e.type === 'negative' ? '⚠️' : '📰',
+        urgency: e.type === 'negative' ? 'high' : 'low',
+        category: 'district',
+        district_id: e.district,
+        detail: e.description,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      });
+    }
+  } catch (e) {
+    console.error('Server district events error:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -1024,6 +1089,10 @@ Deno.serve(async (req) => {
       data: { time_of_day: nextPhase, weather: update.current_weather || ws.current_weather, world_day: update.world_day || ws.world_day },
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
+
+    // ========== SERVER-DRIVEN DISTRICT EVENTS ==========
+    // Generate 1-2 interactive events per phase for random districts
+    await generateServerDistrictEvents(supabase, nextPhase, currentWeather, resolvedDay);
     // Insert 2x XP Weekend news if event just started
     if (activeEvent?.id === '2x_xp_weekend' && (!ws.active_event || ws.active_event?.id !== '2x_xp_weekend')) {
       await supabase.from('news_events').insert({

@@ -213,6 +213,13 @@ export function GameLayout() {
     }
   }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
 
+  // Sync world time of day → game state for phase-based events
+  useEffect(() => {
+    if (worldState.timeOfDay && worldState.timeOfDay !== state.worldTimeOfDay) {
+      dispatch({ type: 'SYNC_WORLD_TIME' as any, timeOfDay: worldState.timeOfDay } as any);
+    }
+  }, [worldState.timeOfDay]);
+
   // Sync world_state.active_event → local activeWeekEvent
   const prevActiveEventRef = useRef<string | null>(null);
   useEffect(() => {

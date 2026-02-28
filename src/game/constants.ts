@@ -1819,6 +1819,8 @@ export function createInitialState(): import('./types').GameState {
     serverSynced: false,
     lastTickAt: new Date().toISOString(),
     tickIntervalMinutes: 30,
+    worldTimeOfDay: 'day',
+    lastStreetEventAt: null,
     gangDistricts: [],
     gangId: null,
     // Skill Tree & Prestige
