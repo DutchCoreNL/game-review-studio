@@ -746,25 +746,57 @@ async function simulateBotSmuggleRoutes(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot smuggle routes error:', e); }
 }
 
-// ========== BOT AUCTION BIDDING ==========
+// ========== BOT AUCTION BIDDING (smart but imperfect) ==========
 async function simulateBotAuctions(supabase: any, bots: any[]) {
   try {
     const { data: auctions } = await supabase.from('live_auctions')
       .select('*').eq('status', 'active').gt('ends_at', new Date().toISOString());
     if (!auctions || auctions.length === 0) return;
 
+    // Fetch market prices for value estimation
+    const { data: prices } = await supabase.from('market_prices').select('good_id, district_id, current_price');
+    const priceMap: Record<string, number> = {};
+    if (prices) {
+      for (const p of prices) {
+        if (!priceMap[p.good_id] || p.current_price > priceMap[p.good_id]) {
+          priceMap[p.good_id] = p.current_price;
+        }
+      }
+    }
+
     const richBots = bots.filter(b => b.cash > 5000);
     if (richBots.length === 0) return;
 
     for (const auction of auctions) {
-      if (Math.random() > 0.25) continue; // 25% chance to bid per auction
-      // Don't bid on own auctions
-      const eligible = richBots.filter(b => b.id !== auction.seller_id && b.id !== auction.current_bidder_id && b.cash > auction.current_bid + auction.min_increment);
+      if (Math.random() > 0.20) continue; // 20% chance to consider per auction
+
+      const eligible = richBots.filter(b => 
+        b.id !== auction.seller_id && 
+        b.id !== auction.current_bidder_id && 
+        b.cash > auction.current_bid + auction.min_increment
+      );
       if (eligible.length === 0) continue;
 
+      // Estimate item value — bots use imprecise estimates (70-95% of real value)
+      let estimatedValue = auction.starting_price * 1.5; // fallback
+      if (auction.item_type === 'good' && priceMap[auction.item_id]) {
+        estimatedValue = priceMap[auction.item_id] * auction.quantity;
+      }
+      // Bots perceive value with ±15-30% error (usually underestimate)
+      const botPerceivedValue = Math.floor(estimatedValue * (0.65 + Math.random() * 0.30));
+
+      // Only bid if current price is below their perceived value
+      const currentPrice = auction.current_bid > 0 ? auction.current_bid : auction.starting_price;
+      if (currentPrice >= botPerceivedValue) continue; // Too expensive for this bot
+
       const bot = pick(eligible);
-      const bidAmount = auction.current_bid + auction.min_increment + Math.floor(Math.random() * auction.min_increment * 2);
-      if (bidAmount > bot.cash) continue;
+      // Bid conservatively: min increment + small random extra (not aggressive)
+      const maxBid = Math.min(botPerceivedValue, bot.cash);
+      const bidAmount = Math.min(
+        maxBid,
+        auction.current_bid + auction.min_increment + Math.floor(Math.random() * auction.min_increment * 0.8)
+      );
+      if (bidAmount <= auction.current_bid || bidAmount > bot.cash) continue;
 
       await supabase.from('auction_bids').insert({
         auction_id: auction.id,
@@ -779,9 +811,80 @@ async function simulateBotAuctions(supabase: any, bots: any[]) {
         bid_count: auction.bid_count + 1,
       }).eq('id', auction.id);
       await supabase.from('bot_players').update({ cash: bot.cash - bidAmount }).eq('id', bot.id);
-      bot.cash -= bidAmount; // Update in-memory too
+      bot.cash -= bidAmount;
     }
   } catch (e) { console.error('Bot auction bidding error:', e); }
+}
+
+// ========== BOT AUCTION CREATION ==========
+const BOT_AUCTION_ITEMS = [
+  // Goods — bots sell surplus stock at varied prices
+  { type: 'good', id: 'drugs', name: 'Synthetica', baseValue: 200 },
+  { type: 'good', id: 'weapons', name: 'Zware Wapens', baseValue: 1100 },
+  { type: 'good', id: 'tech', name: 'Zwarte Data', baseValue: 900 },
+  { type: 'good', id: 'luxury', name: 'Geroofde Kunst', baseValue: 2400 },
+  { type: 'good', id: 'meds', name: 'Medische Voorraad', baseValue: 600 },
+  { type: 'good', id: 'explosives', name: 'Explosieven', baseValue: 1800 },
+  { type: 'good', id: 'crypto', name: 'Crypto Wallets', baseValue: 3200 },
+  { type: 'good', id: 'chemicals', name: 'Precursoren', baseValue: 450 },
+  { type: 'good', id: 'electronics', name: 'Gestolen Chips', baseValue: 750 },
+  // Gear
+  { type: 'gear', id: 'glock', name: 'Glock 19', baseValue: 2000 },
+  { type: 'gear', id: 'shotgun', name: 'Sawed-Off', baseValue: 5000 },
+  { type: 'gear', id: 'vest', name: 'Kevlar Vest', baseValue: 3500 },
+  { type: 'gear', id: 'phone', name: 'Burner Phone', baseValue: 1200 },
+  { type: 'gear', id: 'laptop', name: 'Hacker Laptop', baseValue: 8000 },
+  // Vehicles
+  { type: 'vehicle', id: 'sedan', name: 'Getinte Sedan', baseValue: 8000 },
+  { type: 'vehicle', id: 'suv', name: 'Gepantserde SUV', baseValue: 25000 },
+  { type: 'vehicle', id: 'sportcar', name: 'Straatrace Bolide', baseValue: 45000 },
+];
+
+async function simulateBotCreateAuctions(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.12) return; // ~12% chance per tick
+
+    // Don't flood: max 8 active bot auctions at a time
+    const { data: activeAuctions, count } = await supabase.from('live_auctions')
+      .select('seller_id', { count: 'exact' })
+      .eq('status', 'active')
+      .in('seller_id', bots.map(b => b.id));
+    if ((count || 0) >= 8) return;
+
+    // Pick 1-2 bots to create auctions
+    const auctionCount = Math.random() > 0.6 ? 2 : 1;
+    const sellers = bots
+      .filter(b => b.cash > 2000 && b.level >= 3)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, auctionCount);
+
+    for (const bot of sellers) {
+      const item = pick(BOT_AUCTION_ITEMS);
+      
+      // Bots price items 40-85% of base value — giving players real opportunities
+      const priceFactor = 0.40 + Math.random() * 0.45;
+      const quantity = item.type === 'good' ? Math.floor(1 + Math.random() * 8) : 1;
+      const totalValue = item.baseValue * quantity;
+      const startingPrice = Math.max(500, Math.floor(totalValue * priceFactor));
+      const minIncrement = Math.max(50, Math.floor(startingPrice * 0.05));
+
+      const endsAt = new Date(Date.now() + (15 + Math.floor(Math.random() * 25)) * 60 * 1000).toISOString();
+
+      await supabase.from('live_auctions').insert({
+        seller_id: bot.id,
+        seller_name: bot.username,
+        item_type: item.type,
+        item_id: item.id,
+        item_name: item.name,
+        quantity,
+        starting_price: startingPrice,
+        min_increment: minIncrement,
+        ends_at: endsAt,
+        original_ends_at: endsAt,
+        status: 'active',
+      });
+    }
+  } catch (e) { console.error('Bot auction creation error:', e); }
 }
 
 // ========== BOT GANG ALLIANCES ==========
@@ -1665,6 +1768,7 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       simulateBotWorldRaids(supabase, bots),
       simulateBotSmuggleRoutes(supabase, bots),
       simulateBotAuctions(supabase, bots),
+      simulateBotCreateAuctions(supabase, bots),
       simulateBotGangAlliances(supabase, bots),
       simulateBotGangWars(supabase, bots),
       simulateBotPvP(supabase, bots),
