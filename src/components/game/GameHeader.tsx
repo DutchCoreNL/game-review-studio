@@ -18,6 +18,7 @@ import { CooldownTimer } from './header/CooldownTimer';
 import { motion } from 'framer-motion';
 import { Skull, Sun, CloudRain, CloudFog, Thermometer, CloudLightning, Phone, Crosshair, Sparkles, Heart, MapPin, Swords, Clock, Menu } from 'lucide-react';
 import { WifiPopup } from './header/WifiPopup';
+import { formatGameDate } from '@/lib/gameDate';
 import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
 type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
@@ -138,7 +139,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
             <span title={TIME_OF_DAY_LABELS[worldState.timeOfDay]}>
               {TIME_OF_DAY_ICONS[worldState.timeOfDay]}
             </span>
-            <span>Dag {worldState.loading ? state.day : worldState.worldDay}</span>
+            <span>📅 {formatGameDate()}</span>
             <span className="text-muted-foreground/60 tabular-nums" title={`Volgende fase: ${TIME_OF_DAY_LABELS[worldState.timeOfDay]}`}>⏱{nextPhaseCountdown}</span>
             <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[activeWeather]}`} title={weatherDef?.desc}>
               {WEATHER_ICONS[activeWeather]}

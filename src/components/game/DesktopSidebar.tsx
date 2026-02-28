@@ -146,7 +146,7 @@ export function DesktopSidebar() {
         <h1 className="font-display text-xl text-blood uppercase tracking-[4px] font-bold blood-text-glow leading-none">
           Noxhaven
         </h1>
-        <p className="text-[0.6rem] text-muted-foreground mt-1 uppercase tracking-widest">Dag {state.day}</p>
+        <p className="text-[0.6rem] text-muted-foreground mt-1 uppercase tracking-widest">📅 {new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</p>
       </div>
 
       {/* Nav items */}
