@@ -9,6 +9,7 @@ import { LaunderingPanel } from './trade/LaunderingPanel';
 import { GearPanel } from './trade/GearPanel';
 import { MarketAnalysisPanel } from './trade/MarketAnalysisPanel';
 import { AuctionPanel } from './trade/AuctionPanel';
+import { LiveAuctionPanel } from './trade/LiveAuctionPanel';
 import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
 import { GlobalMarketPanel } from './trade/GlobalMarketPanel';
@@ -18,7 +19,7 @@ import { ViewWrapper } from './ui/ViewWrapper';
 import { useMuteStatus } from '@/hooks/useMuteStatus';
 import tradeBg from '@/assets/trade-bg.jpg';
 
-type TradeSubTab = 'market' | 'p2p' | 'analysis' | 'global' | 'auction' | 'launder' | 'gear' | 'stocks' | 'log';
+type TradeSubTab = 'market' | 'p2p' | 'analysis' | 'global' | 'auction' | 'live_auction' | 'launder' | 'gear' | 'stocks' | 'log';
 
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
@@ -47,6 +48,7 @@ export function TradeView() {
     { id: 'analysis', label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
     { id: 'global', label: 'GLOBAAL', icon: <Globe size={11} /> },
     { id: 'auction', label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
+    { id: 'live_auction', label: 'LIVE', icon: <Gavel size={11} /> },
     { id: 'stocks', label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
     { id: 'launder', label: 'WITWAS', icon: <Droplets size={11} /> },
     { id: 'gear', label: 'GEAR', icon: <ShieldCheck size={11} /> },
@@ -78,6 +80,7 @@ export function TradeView() {
           {subTab === 'analysis' && <MarketAnalysisPanel />}
           {subTab === 'global' && <GlobalMarketPanel />}
           {subTab === 'auction' && <AuctionPanel />}
+          {subTab === 'live_auction' && <LiveAuctionPanel />}
           {subTab === 'stocks' && <StockMarketPanel />}
           {subTab === 'launder' && <LaunderingPanel />}
           {subTab === 'gear' && <GearPanel />}

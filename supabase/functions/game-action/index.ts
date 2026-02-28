@@ -5194,6 +5194,286 @@ async function handleSabotageLab(supabase: any, userId: string, ps: any, payload
   }
 }
 
+// ========== LIVE AUCTIONS ==========
+
+const AUCTION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const ANTI_SNIPE_MS = 2 * 60 * 1000; // 2 minutes anti-snipe extension
+const MIN_AUCTION_PRICE = 500;
+
+const AUCTIONABLE_GEAR = GEAR.map(g => ({ id: g.id, name: g.name, type: 'gear' }));
+const AUCTIONABLE_GOODS = GOODS.map(g => ({ id: g.id, name: g.name, type: 'good' }));
+
+async function handleCreateLiveAuction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { itemType, itemId, quantity, startingPrice } = payload || {};
+  if (!itemType || !itemId) return { success: false, message: "Item type en ID vereist." };
+  if (!startingPrice || startingPrice < MIN_AUCTION_PRICE) return { success: false, message: `Minimale startprijs: €${MIN_AUCTION_PRICE}` };
+
+  const qty = quantity || 1;
+  let itemName = itemId;
+
+  // Validate ownership
+  if (itemType === 'gear') {
+    const gear = GEAR.find(g => g.id === itemId);
+    if (!gear) return { success: false, message: "Onbekend gear item." };
+    itemName = gear.name;
+    const { data: owned } = await supabase.from("player_gear").select("id").eq("user_id", userId).eq("gear_id", itemId).limit(1);
+    if (!owned || owned.length === 0) return { success: false, message: "Je bezit dit item niet." };
+    // Remove from inventory
+    await supabase.from("player_gear").delete().eq("id", owned[0].id);
+    // Unequip if equipped
+    const loadout = ps.loadout || {};
+    const slot = gear.type; // weapon, armor, gadget
+    if (loadout[slot] === itemId) {
+      const newLoadout = { ...loadout, [slot]: null };
+      await supabase.from("player_state").update({ loadout: newLoadout }).eq("user_id", userId);
+    }
+  } else if (itemType === 'good') {
+    const good = GOODS.find(g => g.id === itemId);
+    if (!good) return { success: false, message: "Onbekend goed." };
+    itemName = good.name;
+    const { data: inv } = await supabase.from("player_inventory").select("*").eq("user_id", userId).eq("good_id", itemId).limit(1);
+    if (!inv || inv.length === 0 || inv[0].quantity < qty) return { success: false, message: "Niet genoeg voorraad." };
+    const newQty = inv[0].quantity - qty;
+    if (newQty <= 0) {
+      await supabase.from("player_inventory").delete().eq("id", inv[0].id);
+    } else {
+      await supabase.from("player_inventory").update({ quantity: newQty }).eq("id", inv[0].id);
+    }
+  } else if (itemType === 'vehicle') {
+    const veh = VEHICLES.find(v => v.id === itemId);
+    if (!veh) return { success: false, message: "Onbekend voertuig." };
+    itemName = veh.name;
+    const { data: owned } = await supabase.from("player_vehicles").select("id, is_active").eq("user_id", userId).eq("vehicle_id", itemId).limit(1);
+    if (!owned || owned.length === 0) return { success: false, message: "Je bezit dit voertuig niet." };
+    if (owned[0].is_active) return { success: false, message: "Wissel eerst van voertuig voordat je dit veilt." };
+    await supabase.from("player_vehicles").delete().eq("id", owned[0].id);
+  } else {
+    return { success: false, message: "Ongeldig item type." };
+  }
+
+  // Get seller name
+  const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
+  const sellerName = profile?.username || 'Onbekend';
+
+  const now = new Date();
+  const endsAt = new Date(now.getTime() + AUCTION_DURATION_MS).toISOString();
+
+  const { data: auction, error } = await supabase.from("live_auctions").insert({
+    seller_id: userId,
+    seller_name: sellerName,
+    item_type: itemType,
+    item_id: itemId,
+    item_name: itemName,
+    quantity: qty,
+    starting_price: startingPrice,
+    current_bid: 0,
+    min_increment: Math.max(100, Math.floor(startingPrice * 0.05)),
+    ends_at: endsAt,
+    original_ends_at: endsAt,
+    status: 'active',
+  }).select().single();
+
+  if (error) return { success: false, message: "Veiling aanmaken mislukt." };
+
+  await insertPlayerNews(supabase, {
+    text: `🔨 Nieuwe veiling: ${itemName} — startprijs €${startingPrice.toLocaleString()}!`,
+    icon: '🔨', urgency: 'medium', category: 'market', districtId: ps.loc,
+  });
+
+  return { success: true, message: `Veiling gestart voor ${itemName}!`, data: { auctionId: auction.id, endsAt } };
+}
+
+async function handleBidLiveAuction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { auctionId, amount } = payload || {};
+  if (!auctionId || !amount) return { success: false, message: "Veiling ID en bedrag vereist." };
+
+  // Get auction
+  const { data: auction } = await supabase.from("live_auctions").select("*").eq("id", auctionId).single();
+  if (!auction) return { success: false, message: "Veiling niet gevonden." };
+  if (auction.status !== 'active') return { success: false, message: "Veiling is niet meer actief." };
+  if (auction.seller_id === userId) return { success: false, message: "Je kunt niet op je eigen veiling bieden." };
+
+  const now = new Date();
+  if (now > new Date(auction.ends_at)) return { success: false, message: "Veiling is verlopen." };
+
+  const minBid = auction.current_bid > 0
+    ? auction.current_bid + auction.min_increment
+    : auction.starting_price;
+
+  if (amount < minBid) return { success: false, message: `Minimaal bod: €${minBid.toLocaleString()}` };
+  if (ps.money < amount) return { success: false, message: "Niet genoeg geld." };
+
+  // Refund previous bidder
+  if (auction.current_bidder_id && auction.current_bidder_id !== userId) {
+    await supabase.from("player_state").update({
+      money: supabase.rpc ? undefined : undefined, // can't use rpc, manual update
+    });
+    // Direct money add to previous bidder
+    const { data: prevBidder } = await supabase.from("player_state").select("money").eq("user_id", auction.current_bidder_id).single();
+    if (prevBidder) {
+      await supabase.from("player_state").update({
+        money: prevBidder.money + auction.current_bid,
+      }).eq("user_id", auction.current_bidder_id);
+
+      // Notify previous bidder
+      const { data: bidderProfile } = await supabase.from("profiles").select("username").eq("id", userId).single();
+      await supabase.from("player_messages").insert({
+        sender_id: userId,
+        receiver_id: auction.current_bidder_id,
+        subject: '🔨 Overboden op veiling!',
+        body: `Je bent overboden op ${auction.item_name}! Nieuw bod: €${amount.toLocaleString()} door ${bidderProfile?.username || 'iemand'}. Je €${auction.current_bid.toLocaleString()} is teruggestort.`,
+      });
+    }
+  } else if (auction.current_bidder_id === userId) {
+    // Same bidder raising — refund difference
+    const { data: myState } = await supabase.from("player_state").select("money").eq("user_id", userId).single();
+    if (myState) {
+      const refund = auction.current_bid;
+      const needed = amount;
+      if (myState.money + refund < needed) return { success: false, message: "Niet genoeg geld (verschil)." };
+      // Deduct only the difference
+      await supabase.from("player_state").update({
+        money: myState.money + refund - needed,
+        last_action_at: now.toISOString(),
+      }).eq("user_id", userId);
+    }
+  }
+
+  // Deduct money from new bidder (if not same bidder — handled above)
+  if (auction.current_bidder_id !== userId) {
+    await supabase.from("player_state").update({
+      money: ps.money - amount,
+      last_action_at: now.toISOString(),
+    }).eq("user_id", userId);
+  }
+
+  // Get bidder name
+  const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
+  const bidderName = profile?.username || 'Onbekend';
+
+  // Anti-sniping: extend if less than 2 min left
+  let newEndsAt = auction.ends_at;
+  const timeLeft = new Date(auction.ends_at).getTime() - now.getTime();
+  if (timeLeft < ANTI_SNIPE_MS) {
+    newEndsAt = new Date(now.getTime() + ANTI_SNIPE_MS).toISOString();
+  }
+
+  // Update auction
+  await supabase.from("live_auctions").update({
+    current_bid: amount,
+    current_bidder_id: userId,
+    current_bidder_name: bidderName,
+    bid_count: auction.bid_count + 1,
+    ends_at: newEndsAt,
+  }).eq("id", auctionId);
+
+  // Record bid
+  await supabase.from("auction_bids").insert({
+    auction_id: auctionId,
+    bidder_id: userId,
+    bidder_name: bidderName,
+    amount,
+  });
+
+  return {
+    success: true,
+    message: `Bod geplaatst: €${amount.toLocaleString()} op ${auction.item_name}!`,
+    data: { auctionId, amount, endsAt: newEndsAt, antiSnipe: timeLeft < ANTI_SNIPE_MS },
+  };
+}
+
+async function handleClaimLiveAuction(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { auctionId } = payload || {};
+  if (!auctionId) return { success: false, message: "Veiling ID vereist." };
+
+  const { data: auction } = await supabase.from("live_auctions").select("*").eq("id", auctionId).single();
+  if (!auction) return { success: false, message: "Veiling niet gevonden." };
+
+  const now = new Date();
+  if (now < new Date(auction.ends_at)) return { success: false, message: "Veiling is nog actief." };
+  if (auction.status !== 'active') return { success: false, message: "Veiling is al afgehandeld." };
+
+  // No bids — return item to seller
+  if (auction.bid_count === 0 || !auction.current_bidder_id) {
+    // Return item to seller
+    await returnAuctionItem(supabase, auction.seller_id, auction);
+    await supabase.from("live_auctions").update({ status: 'expired', claimed_at: now.toISOString() }).eq("id", auctionId);
+    if (userId === auction.seller_id) {
+      return { success: true, message: `Geen biedingen — ${auction.item_name} terug in je inventaris.` };
+    }
+    return { success: true, message: "Veiling verlopen zonder biedingen." };
+  }
+
+  // Winner claims
+  const isWinner = userId === auction.current_bidder_id;
+  const isSeller = userId === auction.seller_id;
+
+  if (!isWinner && !isSeller) {
+    // Anyone can trigger resolution
+  }
+
+  // Give item to winner
+  await returnAuctionItem(supabase, auction.current_bidder_id, auction);
+
+  // Pay seller
+  const { data: sellerState } = await supabase.from("player_state").select("money, stats_total_earned").eq("user_id", auction.seller_id).single();
+  if (sellerState) {
+    const fee = Math.floor(auction.current_bid * 0.05); // 5% fee
+    const payout = auction.current_bid - fee;
+    await supabase.from("player_state").update({
+      money: sellerState.money + payout,
+      stats_total_earned: (sellerState.stats_total_earned || 0) + payout,
+    }).eq("user_id", auction.seller_id);
+  }
+
+  await supabase.from("live_auctions").update({ status: 'sold', claimed_at: now.toISOString() }).eq("id", auctionId);
+
+  // Notify
+  await supabase.from("player_messages").insert({
+    sender_id: auction.current_bidder_id,
+    receiver_id: auction.seller_id,
+    subject: '💰 Veiling verkocht!',
+    body: `Je ${auction.item_name} is verkocht voor €${auction.current_bid.toLocaleString()} (5% fee). Geld is bijgeschreven.`,
+  });
+
+  await insertPlayerNews(supabase, {
+    text: `🔨 ${auction.item_name} verkocht op de zwarte markt voor €${auction.current_bid.toLocaleString()}!`,
+    icon: '🔨', urgency: 'medium', category: 'market',
+  });
+
+  return {
+    success: true,
+    message: isWinner ? `${auction.item_name} gewonnen voor €${auction.current_bid.toLocaleString()}!` : `Veiling afgerond.`,
+    data: { winner: auction.current_bidder_name, amount: auction.current_bid },
+  };
+}
+
+async function returnAuctionItem(supabase: any, toUserId: string, auction: any) {
+  if (auction.item_type === 'gear') {
+    await supabase.from("player_gear").insert({ user_id: toUserId, gear_id: auction.item_id });
+  } else if (auction.item_type === 'good') {
+    const { data: existing } = await supabase.from("player_inventory").select("*").eq("user_id", toUserId).eq("good_id", auction.item_id).limit(1);
+    if (existing && existing.length > 0) {
+      await supabase.from("player_inventory").update({ quantity: existing[0].quantity + auction.quantity }).eq("id", existing[0].id);
+    } else {
+      await supabase.from("player_inventory").insert({ user_id: toUserId, good_id: auction.item_id, quantity: auction.quantity });
+    }
+  } else if (auction.item_type === 'vehicle') {
+    await supabase.from("player_vehicles").insert({ user_id: toUserId, vehicle_id: auction.item_id, is_active: false });
+  }
+}
+
+async function handleGetLiveAuctions(supabase: any): Promise<ActionResult> {
+  const { data: auctions } = await supabase
+    .from("live_auctions")
+    .select("*")
+    .eq("status", "active")
+    .order("ends_at", { ascending: true })
+    .limit(50);
+
+  return { success: true, message: "OK", data: { auctions: auctions || [] } };
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -5458,12 +5738,24 @@ Deno.serve(async (req) => {
       case "sabotage_lab":
         result = await handleSabotageLab(supabase, user.id, playerState, payload);
         break;
+      case "create_live_auction":
+        result = await handleCreateLiveAuction(supabase, user.id, playerState, payload);
+        break;
+      case "bid_live_auction":
+        result = await handleBidLiveAuction(supabase, user.id, playerState, payload);
+        break;
+      case "claim_live_auction":
+        result = await handleClaimLiveAuction(supabase, user.id, playerState, payload);
+        break;
+      case "get_live_auctions":
+        result = await handleGetLiveAuctions(supabase);
+        break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
     }
 
     // Log action (skip get_state for performance)
-    if (action !== "get_state" && action !== "save_state" && action !== "load_state" && action !== "get_district_data" && action !== "get_faction_state") {
+    if (action !== "get_state" && action !== "save_state" && action !== "load_state" && action !== "get_district_data" && action !== "get_faction_state" && action !== "get_live_auctions") {
       await supabase.from("game_action_log").insert({
         user_id: user.id, action_type: action,
         action_data: payload || {},
