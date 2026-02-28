@@ -336,8 +336,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!loaded.tradeLog) loaded.tradeLog = [];
       // Migrate: craft log
       if (!loaded.craftLog) loaded.craftLog = [];
-      // Migrate: hardcore & prestige reset
-      if (loaded.hardcoreMode === undefined) loaded.hardcoreMode = false;
+      // Migrate: force hardcoreMode true (universal permadeath)
+      loaded.hardcoreMode = true;
       if (loaded.prestigeResetCount === undefined) loaded.prestigeResetCount = 0;
       return loaded;
     }
@@ -1058,40 +1058,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           // Won: keep remaining HP (min 1)
           s.playerHP = Math.max(1, s.activeCombat.playerHP);
         } else {
-          // Last Stand: 15% chance to survive with 1 HP (disabled in hardcore mode)
-          const lastStandRoll = Math.random();
-          if (!s.hardcoreMode && lastStandRoll < 0.15) {
-            s.playerHP = 1;
-            addPhoneMessage(s, '⚡ Last Stand', 'Je weigerde te vallen. Met pure wilskracht overleef je het gevecht met 1 HP!', 'warning');
-          } else if (s.hardcoreMode) {
-            // Hardcore: instant game over on first hospitalization
-            s.hospitalizations = 1;
-            s.gameOver = true;
-            s.playerHP = 0;
-          } else {
-          // Lost: hospitalization system
-          const maxHP = s.playerMaxHP;
-          const hospitalCost = maxHP * HOSPITAL_ADMISSION_COST_PER_MAXHP;
+          // Universal permadeath: death = game over, no Last Stand, no hospital
+          s.gameOver = true;
+          s.playerHP = 0;
           s.hospitalizations = (s.hospitalizations || 0) + 1;
-
-          if (s.hospitalizations >= MAX_HOSPITALIZATIONS) {
-            // Game Over
-            s.gameOver = true;
-            s.playerHP = 0;
-          } else {
-            // Admit to hospital
-            s.hospital = {
-              daysRemaining: HOSPITAL_STAY_DAYS,
-              totalDays: HOSPITAL_STAY_DAYS,
-              cost: hospitalCost,
-            };
-            s.money = Math.max(0, s.money - hospitalCost);
-            s.stats.totalSpent += Math.min(s.money + hospitalCost, hospitalCost);
-            s.rep = Math.max(0, s.rep - HOSPITAL_REP_LOSS);
-            s.playerHP = 1; // barely alive during hospital stay
-            addPhoneMessage(s, 'Crown Heights Ziekenhuis', `Je bent opgenomen na een verloren gevecht. Kosten: €${hospitalCost.toLocaleString()}. Hersteltijd: ${HOSPITAL_STAY_DAYS} dagen. (Opname ${s.hospitalizations}/${MAX_HOSPITALIZATIONS})`, 'warning');
-          }
-          } // end else (not last stand)
         }
         // Check nemesis wounded revenge (player lost nemesis combat)
         if (s.activeCombat?.isNemesis && !s.activeCombat.won && s.nemesis?.alive) {
@@ -1411,8 +1381,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'START_HARDCORE': {
+      // Legacy action — just creates a new game (all games are permadeath now)
       const fresh = createInitialState();
-      fresh.hardcoreMode = true;
       Engine.generatePrices(fresh);
       fresh.dailyNews = generateDailyNews(fresh);
       return fresh;

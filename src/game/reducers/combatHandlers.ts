@@ -218,26 +218,10 @@ export function handleEndCombat(s: GameState): void {
     if (s.activeCombat.won) {
       s.playerHP = Math.max(1, s.activeCombat.playerHP);
     } else {
-      const lastStandRoll = Math.random();
-      if (lastStandRoll < 0.15) {
-        s.playerHP = 1;
-        addPhoneMessage(s, '⚡ Last Stand', 'Je weigerde te vallen. Met pure wilskracht overleef je het gevecht met 1 HP!', 'warning');
-      } else {
-        const maxHP = s.playerMaxHP;
-        const hospitalCost = maxHP * HOSPITAL_ADMISSION_COST_PER_MAXHP;
-        s.hospitalizations = (s.hospitalizations || 0) + 1;
-        if (s.hospitalizations >= MAX_HOSPITALIZATIONS) {
-          s.gameOver = true;
-          s.playerHP = 0;
-        } else {
-          s.hospital = { daysRemaining: HOSPITAL_STAY_DAYS, totalDays: HOSPITAL_STAY_DAYS, cost: hospitalCost };
-          s.money = Math.max(0, s.money - hospitalCost);
-          s.stats.totalSpent += Math.min(s.money + hospitalCost, hospitalCost);
-          s.rep = Math.max(0, s.rep - HOSPITAL_REP_LOSS);
-          s.playerHP = 1;
-          addPhoneMessage(s, 'Crown Heights Ziekenhuis', `Je bent opgenomen na een verloren gevecht. Kosten: €${hospitalCost.toLocaleString()}. Hersteltijd: ${HOSPITAL_STAY_DAYS} dagen. (Opname ${s.hospitalizations}/${MAX_HOSPITALIZATIONS})`, 'warning');
-        }
-      }
+      // Universal permadeath: death = game over
+      s.gameOver = true;
+      s.playerHP = 0;
+      s.hospitalizations = (s.hospitalizations || 0) + 1;
     }
     if (s.activeCombat?.isNemesis && !s.activeCombat.won && s.nemesis?.alive) {
       s.nemesis.hp = s.activeCombat.targetHP;
