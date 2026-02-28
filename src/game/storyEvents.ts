@@ -16,8 +16,15 @@ export interface StreetEventChoice {
     rep: number;
     dirtyMoney: number;
     crewDamage: number;
+    karma?: number;
+    factionRel?: { familyId: string; change: number };
+    npcRel?: { npcId: string; change: number };
   };
-  minigame?: 'arm_wrestle' | 'dice'; // triggers a mini-game instead of stat roll
+  minigame?: 'arm_wrestle' | 'dice';
+  /** If set, a follow-up event ID is queued for the next day */
+  followUpEventId?: string;
+  /** News broadcast text (shown to all players in district) — only on success */
+  newsBroadcast?: string;
 }
 
 export interface StreetEvent {
@@ -28,11 +35,29 @@ export interface StreetEvent {
   minDay?: number;
   minRep?: number;
   districts?: DistrictId[];
+  /** Only show if player owns this district */
+  reqOwnsDistrict?: boolean;
+  /** Only show if player does NOT own this district */
+  reqNotOwnsDistrict?: boolean;
+  /** Minimum karma to trigger (positive = good, negative = evil) */
+  minKarma?: number;
+  maxKarma?: number;
+  /** Only during an active market event */
+  reqMarketEvent?: boolean;
+  /** Only when a specific faction relation is below/above threshold */
+  reqFactionRel?: { familyId: string; min?: number; max?: number };
+  /** Only when the player has a specific NPC relation tier */
+  reqNpcRel?: { npcId: string; minValue: number };
+  /** This is a follow-up event (not randomly triggered) */
+  isFollowUp?: boolean;
+  /** Tags for categorization */
+  tags?: ('turf' | 'faction' | 'market' | 'npc' | 'chain' | 'coop' | 'karma')[];
 }
 
-// ========== EVENT DATABASE (20+ events) ==========
+// ========== EVENT DATABASE ==========
 
 export const STREET_EVENTS: StreetEvent[] = [
+  // ===== ORIGINAL EVENTS (preserved) =====
   {
     id: 'wounded_man',
     text: 'Een verwonde man strompelt naar je toe. Bloed druppelt op het plaveisel. "Help me... ik heb een koffer vol cash. Breng me naar Port Nero en hij is van jou."',
@@ -40,18 +65,19 @@ export const STREET_EVENTS: StreetEvent[] = [
       crown: 'Een man in een duur pak strompelt uit een steeg in Crown Heights. "Ze willen me dood... breng me naar de haven."',
       low: 'Een bloedende jongen grijpt je arm in Lowrise. "Alsjeblieft... ik heb geld. Help me."',
     },
+    tags: ['karma'],
     choices: [
       {
         id: 'wm_help', label: 'HELP HEM', stat: 'charm', difficulty: 30,
         successText: 'Je brengt hem veilig weg. Hij overhandigt de koffer — €2.000 in biljetten. "Je bent een goed mens," fluistert hij.',
         failText: 'Halverwege trekt hij een mes. Het was een val. Je ontsnapt maar draagt de blauwe plekken.',
-        effects: { money: 2000, heat: 5, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+        effects: { money: 2000, heat: 5, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: 5 },
       },
       {
         id: 'wm_rob', label: 'PAK DE KOFFER', stat: 'muscle', difficulty: 25,
         successText: 'Je rukt de koffer uit zijn handen en rent. €3.000 — geen vragen gesteld.',
         failText: 'Hij is sterker dan hij lijkt. Je eindigt zonder koffer én met een snee in je arm.',
-        effects: { money: 0, heat: 10, rep: -10, dirtyMoney: 3000, crewDamage: 0 },
+        effects: { money: 0, heat: 10, rep: -10, dirtyMoney: 3000, crewDamage: 0, karma: -8 },
       },
       {
         id: 'wm_ignore', label: 'LOOP DOOR', stat: 'brains', difficulty: 10,
@@ -113,7 +139,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'pk_recruit', label: 'BIED HEM EEN BAAN', stat: 'charm', difficulty: 35,
         successText: '"Je hebt talent, jochie." Het kind wordt een informant. Hij kent elke steeg in de stad.',
         failText: 'Het kind spuugt op de grond en rent weg. "Ik werk voor niemand."',
-        effects: { money: -200, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+        effects: { money: -200, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: 3 },
       },
     ],
   },
@@ -132,7 +158,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'cc_threaten', label: 'DREIG', stat: 'muscle', difficulty: 40,
         successText: '"Ik weet waar je vrouw werkt." De kleur trekt uit zijn gezicht. Hij loopt weg.',
         failText: 'Hij lacht. "Denk je dat ik bang ben?" Hij belt versterking.',
-        effects: { money: 0, heat: 15, rep: 20, dirtyMoney: 0, crewDamage: 5 },
+        effects: { money: 0, heat: 15, rep: 20, dirtyMoney: 0, crewDamage: 5, karma: -5 },
       },
       {
         id: 'cc_info', label: 'VRAAG INFO', stat: 'brains', difficulty: 35,
@@ -152,6 +178,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         successText: 'Je slaat de eerste neer. De rest vlucht. Dit territorium is nu betwist.',
         failText: 'Ze zijn met te veel. Je trekt je terug met blauwe plekken.',
         effects: { money: 0, heat: 12, rep: 25, dirtyMoney: 0, crewDamage: 15 },
+        newsBroadcast: 'Een straatgevecht brak uit — een onbekende krijger versloeg een hele bende!',
       },
       {
         id: 're_talk', label: 'ONDERHANDEL', stat: 'charm', difficulty: 35,
@@ -225,7 +252,8 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'sd_steal', label: 'STEEL DE LADING', stat: 'muscle', difficulty: 50,
         successText: 'Je overmeestert de smokkelaar en neemt alles mee. Gratis goederen.',
         failText: 'De smokkelaar heeft vrienden. Je trekt je terug met lege handen.',
-        effects: { money: 0, heat: 15, rep: -10, dirtyMoney: 7000, crewDamage: 10 },
+        effects: { money: 0, heat: 15, rep: -10, dirtyMoney: 7000, crewDamage: 10, karma: -5 },
+        newsBroadcast: 'Een brutale overval op een smokkelaar bij de haven — de dader is ontsnapt!',
       },
     ],
   },
@@ -258,6 +286,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         successText: 'Door rook en vuur bereik je de kluis. Hij staat open — vol cash. Je bent een held... en rijker.',
         failText: 'De hitte is ondragelijk. Je trekt je terug met brandwonden.',
         effects: { money: 4000, heat: 0, rep: 20, dirtyMoney: 0, crewDamage: 15 },
+        newsBroadcast: 'Mysterieuze held redt cash uit brandende loods!',
       },
       {
         id: 'wf_wait', label: 'WACHT OP BRANDWEER', stat: 'brains', difficulty: 20,
@@ -282,7 +311,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'dle_help', label: 'HELP GEWONDEN', stat: 'charm', difficulty: 20,
         successText: 'Je helpt mensen naar buiten. Een dankbare man geeft je een dikke fooi. "Je bent een goeie."',
         failText: 'Je helpt, maar niemand bedankt je. Tenminste geen heat.',
-        effects: { money: 1000, heat: -5, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+        effects: { money: 1000, heat: -5, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: 5 },
       },
     ],
   },
@@ -296,6 +325,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         successText: 'Drie rondes. Bloed. Zweet. Maar je staat als laatste overeind. €5.000 verdiend.',
         failText: 'Je tegenstander is een monster. Je gaat neer in ronde twee.',
         effects: { money: 5000, heat: 5, rep: 30, dirtyMoney: 0, crewDamage: 20 },
+        newsBroadcast: 'Onbekende vechter domineert underground fight — de stad praat erover!',
       },
       {
         id: 'uf_bet', label: 'WED OP EEN VECHTER', stat: 'brains', difficulty: 35,
@@ -326,7 +356,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'ce_blackmail', label: 'CHANTEER', stat: 'brains', difficulty: 45,
         successText: '"Stel je voor dat dit uitlekt..." Hij betaalt. Veel. Stille afspraak.',
         failText: 'Zijn bodyguard verschijnt. "Probeer dat nog eens en je bent er geweest."',
-        effects: { money: 8000, heat: 10, rep: -15, dirtyMoney: 0, crewDamage: 10 },
+        effects: { money: 8000, heat: 10, rep: -15, dirtyMoney: 0, crewDamage: 10, karma: -10 },
       },
     ],
   },
@@ -363,7 +393,8 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'dd_help', label: 'BEL EEN AMBULANCE', stat: 'charm', difficulty: 15,
         successText: 'Je belt hulp. Hij overleeft het net. Eeuwig dankbaar. Een nieuwe bondgenoot.',
         failText: 'Te laat. Maar je geweten is schoon.',
-        effects: { money: 0, heat: -5, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+        effects: { money: 0, heat: -5, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: 8 },
+        followUpEventId: 'dealer_gratitude',
       },
     ],
   },
@@ -378,6 +409,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         successText: 'Je helpt hem ontsnappen. Als dank geeft hij je een deel van de wapens. Zwaar geschut.',
         failText: 'Je raakt verwikkeld in het vuurgevecht. Niet slim.',
         effects: { money: 0, heat: 15, rep: 20, dirtyMoney: 5000, crewDamage: 15 },
+        newsBroadcast: 'Schietpartij bij parkeergarage — minstens één gewonde!',
       },
       {
         id: 'adgw_loot', label: 'PLUNDER DE ROMMEL', stat: 'brains', difficulty: 35,
@@ -397,6 +429,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         successText: 'Een onbekende machtige figuur biedt je een alliantie aan. Het begin van iets groots.',
         failText: 'Ze willen je intimideren. Je stapt snel weer uit — maar de boodschap is duidelijk.',
         effects: { money: 5000, heat: 5, rep: 30, dirtyMoney: 0, crewDamage: 0 },
+        followUpEventId: 'ghost_car_alliance',
       },
       {
         id: 'gc_refuse', label: 'WEIGER', stat: 'muscle', difficulty: 15,
@@ -439,7 +472,7 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'srace_fix', label: 'FIX DE RACE', stat: 'brains', difficulty: 45,
         successText: 'Je saboteert de favoriete auto en zet op de underdog. Slim geld verdiend.',
         failText: 'Ze ontdekken je sabotage. De racers zijn niet blij.',
-        effects: { money: 6000, heat: 5, rep: -5, dirtyMoney: 0, crewDamage: 10 },
+        effects: { money: 6000, heat: 5, rep: -5, dirtyMoney: 0, crewDamage: 10, karma: -3 },
       },
     ],
   },
@@ -470,13 +503,13 @@ export const STREET_EVENTS: StreetEvent[] = [
         id: 'pr_protect', label: 'BESCHERM HEM', stat: 'muscle', difficulty: 35,
         successText: 'Je confronteert de afpersers. Ze trekken zich terug. De winkelier betaalt je dankbaar.',
         failText: 'De Skulls sturen versterkingen. Niet je beste dag.',
-        effects: { money: 2000, heat: 8, rep: 20, dirtyMoney: 0, crewDamage: 10 },
+        effects: { money: 2000, heat: 8, rep: 20, dirtyMoney: 0, crewDamage: 10, karma: 5 },
       },
       {
         id: 'pr_takeover', label: 'NEEM HET OVER', stat: 'charm', difficulty: 30,
         successText: '"Ik bescherm je voortaan. €500 per week." Een nieuwe inkomstenbron.',
         failText: 'De winkelier vertrouwt je niet. "Jij bent net als zij."',
-        effects: { money: 500, heat: 5, rep: -5, dirtyMoney: 0, crewDamage: 0 },
+        effects: { money: 500, heat: 5, rep: -5, dirtyMoney: 0, crewDamage: 0, karma: -5 },
       },
       {
         id: 'pr_ignore', label: 'NIET JOUW PROBLEEM', stat: 'brains', difficulty: 10,
@@ -495,14 +528,14 @@ export const STREET_EVENTS: StreetEvent[] = [
     choices: [
       {
         id: 'iaw_accept', label: '💪 NEEM DE UITDAGING AAN', stat: 'muscle', difficulty: 35,
-        successText: 'Je drukt zijn arm tegen de tafel! De bar barst los in gejuich. De verliezer schuift mompelend €500 over de tafel. Je reputatie stijgt.',
-        failText: 'Hij is sterker dan je dacht. Je arm knalt tegen het hout. €500 lichter, maar je hebt lef getoond.',
+        successText: 'Je drukt zijn arm tegen de tafel! De bar barst los in gejuich.',
+        failText: 'Hij is sterker dan je dacht. Je arm knalt tegen het hout.',
         effects: { money: 500, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
         minigame: 'arm_wrestle',
       },
       {
         id: 'iaw_bet_big', label: '💰 VERHOOG NAAR €2.000', stat: 'charm', difficulty: 45,
-        successText: 'Je gooit €2.000 op tafel. De spanning stijgt. Na een epische strijd win je! De menigte scandeert je naam.',
+        successText: 'Na een epische strijd win je! De menigte scandeert je naam.',
         failText: 'De hogere inzet maakt je nerveus. Je verliest €2.000 en je trots.',
         effects: { money: 2000, heat: 2, rep: 20, dirtyMoney: 0, crewDamage: 0 },
         minigame: 'arm_wrestle',
@@ -517,21 +550,21 @@ export const STREET_EVENTS: StreetEvent[] = [
   },
   {
     id: 'port_dice_game',
-    text: 'Bij de dokken van Port Nero zit een groep havenarbeiders rond een krat te dobbelen. Een oudere man met een litteken kijkt op. "Kom erbij, vriend. €300 buy-in. We spelen eerlijk... meestal."',
+    text: 'Bij de dokken van Port Nero zit een groep havenarbeiders rond een krat te dobbelen. "Kom erbij, vriend. €300 buy-in."',
     districts: ['port'],
     minDay: 2,
     choices: [
       {
         id: 'pdg_play', label: '🎲 GOOI DE DOBBELSTENEN', stat: 'brains', difficulty: 30,
-        successText: 'Je gooit een perfecte 7! De groep gromt, maar betaalt uit. €600 winst en respect bij de dokwerkers.',
-        failText: 'Snake eyes. De groep grijnst terwijl ze je geld oppakken. Beter geluk volgende keer.',
+        successText: 'Je gooit een perfecte 7! €600 winst en respect bij de dokwerkers.',
+        failText: 'Snake eyes. De groep grijnst terwijl ze je geld oppakken.',
         effects: { money: 600, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
         minigame: 'dice',
       },
       {
         id: 'pdg_high_stakes', label: '💎 HIGH STAKES (€1.500)', stat: 'charm', difficulty: 50,
-        successText: 'Je gooit voor het grote geld en wint! €3.000 — de dokwerkers noemen je "Lucky." Nieuwe connecties op de kade.',
-        failText: 'De dobbelstenen zijn je niet gunstig gezind. €1.500 armer. De oudere man knipoogt — "Komt goed, jongen."',
+        successText: 'Je gooit voor het grote geld en wint! €3.000 — ze noemen je "Lucky."',
+        failText: 'De dobbelstenen zijn je niet gunstig gezind. €1.500 armer.',
         effects: { money: 3000, heat: 3, rep: 15, dirtyMoney: 0, crewDamage: 0 },
         minigame: 'dice',
       },
@@ -543,26 +576,391 @@ export const STREET_EVENTS: StreetEvent[] = [
       },
     ],
   },
+
+  // ===== NEW: DISTRICT-STATE DRIVEN EVENTS =====
+  {
+    id: 'turf_defense',
+    text: 'Bewoners van je district kloppen aan. "Baas, er zijn indringers gezien. Ze verkennen onze straten." Je territorium wordt bedreigd.',
+    tags: ['turf'],
+    reqOwnsDistrict: true,
+    minDay: 8,
+    choices: [
+      {
+        id: 'td_patrol', label: 'STUUR CREW OP PATROUILLE', stat: 'muscle', difficulty: 30,
+        successText: 'Je crew onderschept de verkenners. Boodschap is duidelijk: dit is jouw terrein.',
+        failText: 'De verkenners ontsnappen. Ze weten nu meer over je verdediging.',
+        effects: { money: 0, heat: 5, rep: 20, dirtyMoney: 0, crewDamage: 5 },
+        newsBroadcast: 'Bewapende patrouilles gezien — een district wordt zwaar bewaakt!',
+      },
+      {
+        id: 'td_trap', label: 'ZET EEN VAL', stat: 'brains', difficulty: 40,
+        successText: 'De val werkt perfect. Je vangt een spion — en leert wie hem heeft gestuurd.',
+        failText: 'De val mislukt. De spion ontsnapt met waardevolle informatie.',
+        effects: { money: 0, heat: 3, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'rival_territory_opportunity',
+    text: 'De heerser van dit district is verzwakt. Bewoners fluisteren dat het tijd is voor een machtswissel.',
+    tags: ['turf'],
+    reqNotOwnsDistrict: true,
+    minDay: 10,
+    minRep: 100,
+    choices: [
+      {
+        id: 'rto_intimidate', label: 'INTIMIDEER DE BEVOLKING', stat: 'muscle', difficulty: 35,
+        successText: 'De straat buigt. Jouw naam wordt gefluisterd met ontzag.',
+        failText: 'De huidige heerser stuurt zijn mannen. Je wordt verjaagd.',
+        effects: { money: 0, heat: 12, rep: 30, dirtyMoney: 0, crewDamage: 10, karma: -5 },
+        newsBroadcast: 'Machtsstrijd ontbrandt — een nieuweling claimt invloed in het district!',
+      },
+      {
+        id: 'rto_bribe', label: 'KOOP LOYALITEIT', stat: 'charm', difficulty: 30,
+        successText: 'Geld praat. De sleutelfiguren zweren je trouw.',
+        failText: 'Ze nemen je geld aan en lachen je uit. Niets verandert.',
+        effects: { money: -3000, heat: 0, rep: 20, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+
+  // ===== NEW: FACTION RELATION EVENTS =====
+  {
+    id: 'cartel_warning',
+    text: 'Een zwarte SUV blokkeert de straat. Een Kartel-luitenant stapt uit. "Het Kartel vergeet niet. Je hebt onze geduld getest."',
+    tags: ['faction'],
+    reqFactionRel: { familyId: 'cartel', max: -20 },
+    minDay: 5,
+    choices: [
+      {
+        id: 'cw_apologize', label: 'EXCUSES AANBIEDEN', stat: 'charm', difficulty: 25,
+        successText: '"We geven je nog één kans." Het Kartel trekt zich terug — voor nu.',
+        failText: 'Hij spuugt op je schoenen. "Excuses zijn niks waard." Je crew raakt gewond.',
+        effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0, factionRel: { familyId: 'cartel', change: 10 } },
+      },
+      {
+        id: 'cw_defy', label: 'TROTSEER HEM', stat: 'muscle', difficulty: 45,
+        successText: 'Je staart hem neer. Hij vertrekt — maar dit is niet voorbij.',
+        failText: 'Zijn mannen grijpen je. Een les die je niet snel vergeet.',
+        effects: { money: 0, heat: 10, rep: 15, dirtyMoney: 0, crewDamage: 15, karma: -3, factionRel: { familyId: 'cartel', change: -10 } },
+        newsBroadcast: 'Confrontatie met het Kartel — een speler trotseerde hun dreigementen!',
+      },
+    ],
+  },
+  {
+    id: 'syndicate_job_offer',
+    text: 'Een strak geklede vrouw in een Tesla stopt. "Het Syndicaat heeft een klus. Goed betaald. Geïnteresseerd?"',
+    tags: ['faction'],
+    reqFactionRel: { familyId: 'syndicate', min: 10 },
+    minDay: 7,
+    choices: [
+      {
+        id: 'sjo_accept', label: 'ACCEPTEER', stat: 'brains', difficulty: 35,
+        successText: 'De klus gaat soepel. €5.000 en meer respect bij het Syndicaat.',
+        failText: 'De klus mislukt. Het Syndicaat is niet blij.',
+        effects: { money: 5000, heat: 8, rep: 15, dirtyMoney: 0, crewDamage: 0, factionRel: { familyId: 'syndicate', change: 5 } },
+      },
+      {
+        id: 'sjo_negotiate', label: 'ONDERHANDEL MEER GELD', stat: 'charm', difficulty: 45,
+        successText: '"Slim." Ze verdubbelt het aanbod. De klus levert €8.000 op.',
+        failText: '"We vragen het wel aan iemand anders." Gemiste kans.',
+        effects: { money: 8000, heat: 8, rep: 20, dirtyMoney: 0, crewDamage: 0, factionRel: { familyId: 'syndicate', change: 3 } },
+      },
+    ],
+  },
+  {
+    id: 'bikers_alliance',
+    text: 'De Bikers sturen een prospect naar je toe. "De president wil praten. Over samenwerking. Morgen bij de garage."',
+    tags: ['faction'],
+    reqFactionRel: { familyId: 'bikers', min: 15 },
+    minDay: 10,
+    choices: [
+      {
+        id: 'ba_go', label: 'GA ERHEEN', stat: 'charm', difficulty: 30,
+        successText: 'De president stelt een deal voor: bescherming in ruil voor territoriaal respect. Een sterke alliantie.',
+        failText: 'Het blijkt een test. De Bikers vertrouwen je nog niet helemaal.',
+        effects: { money: 0, heat: 0, rep: 25, dirtyMoney: 0, crewDamage: 0, factionRel: { familyId: 'bikers', change: 10 } },
+      },
+      {
+        id: 'ba_refuse', label: 'WEIGER BELEEFD', stat: 'brains', difficulty: 15,
+        successText: 'Je bedankt. De Bikers respecteren je onafhankelijkheid.',
+        failText: 'Ze zijn teleurgesteld. De kans is gemist.',
+        effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+
+  // ===== NEW: MARKET-DRIVEN EVENTS =====
+  {
+    id: 'market_chaos_opportunity',
+    text: 'De markt is in chaos! Handelaren dumpen goederen op straat. "Alles moet weg — de prijzen crashen!"',
+    tags: ['market'],
+    reqMarketEvent: true,
+    choices: [
+      {
+        id: 'mco_buy', label: 'KOOP ALLES OP', stat: 'brains', difficulty: 25,
+        successText: 'Je koopt voor een habbekrats in. Als de prijzen herstellen, word je rijk.',
+        failText: 'Te langzaam. Andere handelaren waren sneller.',
+        effects: { money: -2000, heat: 0, rep: 10, dirtyMoney: 5000, crewDamage: 0 },
+      },
+      {
+        id: 'mco_sell_info', label: 'VERKOOP INSIDER INFO', stat: 'charm', difficulty: 35,
+        successText: 'Een wanhopige handelaar betaalt je €3.000 voor informatie over de crash.',
+        failText: 'Niemand gelooft je. De info is waardeloos op straat.',
+        effects: { money: 3000, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+
+  // ===== NEW: NPC RELATION EVENTS =====
+  {
+    id: 'rosa_favor',
+    text: 'Rosa belt je. "Ik heb een klus. Discreet. Alleen voor mensen die ik vertrouw." Haar stem klinkt dringend.',
+    tags: ['npc'],
+    reqNpcRel: { npcId: 'rosa', minValue: 30 },
+    minDay: 8,
+    choices: [
+      {
+        id: 'rf_help', label: 'HELP ROSA', stat: 'charm', difficulty: 30,
+        successText: 'Rosa is dankbaar. "Ik vergeet dit niet." Ze geeft je een exclusieve tip.',
+        failText: 'De klus gaat mis. Rosa is teleurgesteld, maar begrijpend.',
+        effects: { money: 3000, heat: 3, rep: 10, dirtyMoney: 0, crewDamage: 0, npcRel: { npcId: 'rosa', change: 10 }, karma: 3 },
+      },
+      {
+        id: 'rf_price', label: 'VRAAG BETALING', stat: 'brains', difficulty: 20,
+        successText: 'Ze betaalt. Zaken zijn zaken, ook met vrienden.',
+        failText: '"Ik dacht dat je anders was." De relatie lijdt eronder.',
+        effects: { money: 5000, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0, npcRel: { npcId: 'rosa', change: -5 } },
+      },
+    ],
+  },
+  {
+    id: 'krow_test',
+    text: 'Viktor Krow staat plotseling voor je. "Ik test mijn bondgenoten graag. Eén keer. Eén kans." Hij gooit een envelop naar je.',
+    tags: ['npc'],
+    reqNpcRel: { npcId: 'krow', minValue: 20 },
+    minDay: 12,
+    choices: [
+      {
+        id: 'kt_open', label: 'OPEN DE ENVELOP', stat: 'brains', difficulty: 35,
+        successText: 'Coördinaten. Een onbewaakt wapendepot. Krow kijkt tevreden. "Je hebt lef."',
+        failText: 'Het is een test — de locatie is een val. Krow grijpt in voordat het fout gaat.',
+        effects: { money: 0, heat: 5, rep: 20, dirtyMoney: 4000, crewDamage: 0, npcRel: { npcId: 'krow', change: 8 } },
+      },
+      {
+        id: 'kt_refuse', label: 'GOOI HET TERUG', stat: 'muscle', difficulty: 20,
+        successText: '"Ik dans niet voor jou, Krow." Hij grijnst. "Goed antwoord."',
+        failText: 'Hij kijkt teleurgesteld. "Jammer. Ik had meer verwacht."',
+        effects: { money: 0, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0, npcRel: { npcId: 'krow', change: -3 } },
+      },
+    ],
+  },
+
+  // ===== NEW: KARMA-GATED EVENTS =====
+  {
+    id: 'homeless_man',
+    text: 'Een dakloze man zit op de hoek. "Ik heb alles verloren door het Kartel. Alsjeblieft... help me."',
+    tags: ['karma'],
+    maxKarma: 20, // mostly for neutral or evil players
+    choices: [
+      {
+        id: 'hm_help', label: 'GEEF HEM €500', stat: 'charm', difficulty: 10,
+        successText: 'Hij huilt. "God zegene je." Je voelt je menselijk. Even.',
+        failText: 'Hij pakt het geld en rent. Misschien niet zo hulpeloos als hij leek.',
+        effects: { money: -500, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0, karma: 10 },
+      },
+      {
+        id: 'hm_recruit', label: 'GEEF HEM EEN BAAN', stat: 'charm', difficulty: 25,
+        successText: '"Ik doe alles." Hij wordt een loyale informant. Een tweede kans.',
+        failText: 'Hij verdwijnt de volgende dag. Sommige mensen zijn niet te redden.',
+        effects: { money: -200, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: 15 },
+      },
+      {
+        id: 'hm_rob', label: 'DOORZOEK ZIJN SPULLEN', stat: 'muscle', difficulty: 15,
+        successText: 'Verborgen onder zijn deken: een portemonnee met €300. Niet jouw schuld.',
+        failText: 'Hij heeft niks. Je voelt je rot.',
+        effects: { money: 300, heat: 0, rep: -10, dirtyMoney: 0, crewDamage: 0, karma: -15 },
+      },
+    ],
+  },
+  {
+    id: 'vigilante_choice',
+    text: 'Je ziet een dealer een tiener onder druk zetten. "Koop of ik maak je af." De tiener trilt van angst.',
+    tags: ['karma'],
+    minKarma: 10,
+    minDay: 5,
+    choices: [
+      {
+        id: 'vc_intervene', label: 'GRIJP IN', stat: 'muscle', difficulty: 30,
+        successText: 'Je slaat de dealer neer. De tiener rent weg. "Dank je..." fluistert hij.',
+        failText: 'De dealer heeft een mes. Je raakt gewond maar de tiener ontsnapt.',
+        effects: { money: 0, heat: 5, rep: 20, dirtyMoney: 0, crewDamage: 10, karma: 10 },
+        newsBroadcast: 'Mysterieuze beschermer redt tiener van drugdealer op straat!',
+      },
+      {
+        id: 'vc_report', label: 'BEL DE POLITIE', stat: 'brains', difficulty: 15,
+        successText: 'De politie arriveert snel. De dealer wordt gearresteerd. Anoniem — slim.',
+        failText: 'De politie komt te laat. De dealer is al weg.',
+        effects: { money: 0, heat: -5, rep: 5, dirtyMoney: 0, crewDamage: 0, karma: 8 },
+      },
+    ],
+  },
+
+  // ===== NEW: CONSEQUENCE CHAIN FOLLOW-UPS =====
+  {
+    id: 'dealer_gratitude',
+    text: 'De dealer die je redde staat bij je deur. "Ik beloof het — ik sta bij je in het krijt. Hier, mijn contactenlijst."',
+    isFollowUp: true,
+    tags: ['chain'],
+    choices: [
+      {
+        id: 'dg_accept', label: 'ACCEPTEER', stat: 'charm', difficulty: 10,
+        successText: 'Zijn netwerk is nu jouw netwerk. Nieuwe connecties in de onderwereld.',
+        failText: 'De contacten zijn verouderd. Maar de intentie telt.',
+        effects: { money: 0, heat: 0, rep: 20, dirtyMoney: 3000, crewDamage: 0 },
+      },
+      {
+        id: 'dg_favor', label: 'VRAAG EEN WEDERDIENST', stat: 'brains', difficulty: 20,
+        successText: '"Alles wat je wilt." Hij regelt een veilige smokkelroute voor je.',
+        failText: 'Hij kan niet leveren wat hij belooft. Maar hij probeert het.',
+        effects: { money: 2000, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'ghost_car_alliance',
+    text: 'De mysterieuze figuur uit de zwarte auto belt. "Onze alliantie begint nu. Eerste opdracht: elimineer een concurrent in Crown Heights."',
+    isFollowUp: true,
+    tags: ['chain'],
+    choices: [
+      {
+        id: 'gca_obey', label: 'VOER UIT', stat: 'muscle', difficulty: 40,
+        successText: 'De concurrent verdwijnt. Je ontvangt €8.000 en een nieuwe positie in het netwerk.',
+        failText: 'De concurrent is beter beveiligd dan verwacht. Je trekt je terug.',
+        effects: { money: 8000, heat: 15, rep: 25, dirtyMoney: 0, crewDamage: 10, karma: -10 },
+        newsBroadcast: 'Prominente zakenman verdwijnt spoorloos uit Crown Heights!',
+      },
+      {
+        id: 'gca_betray', label: 'WAARSCHUW DE CONCURRENT', stat: 'charm', difficulty: 30,
+        successText: 'De concurrent is je dankbaar. Een nieuwe bondgenoot — en je hebt je onafhankelijkheid bewezen.',
+        failText: 'De concurrent vertrouwt je niet. En nu heb je twee vijanden.',
+        effects: { money: 3000, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+      },
+    ],
+  },
+
+  // ===== NEW: COOPERATIVE / MMO-VISIBLE EVENTS =====
+  {
+    id: 'district_blackout',
+    text: 'De stroom valt uit in het hele district! In de duisternis hoor je schoten en brekend glas. Chaos — en kansen.',
+    tags: ['coop'],
+    minDay: 6,
+    choices: [
+      {
+        id: 'db_loot', label: 'PLUNDER IN HET DONKER', stat: 'muscle', difficulty: 25,
+        successText: 'In de chaos scoor je groot. Winkels staan wagenwijd open.',
+        failText: 'Je botst tegen een andere plunderaar. Gevecht in het pikkedonker.',
+        effects: { money: 0, heat: 10, rep: 5, dirtyMoney: 5000, crewDamage: 5, karma: -5 },
+        newsBroadcast: 'STROOMUITVAL — plunderingen gemeld in meerdere districten!',
+      },
+      {
+        id: 'db_protect', label: 'BESCHERM DE BUURT', stat: 'charm', difficulty: 30,
+        successText: 'Je organiseert de bewoners. Samen houden jullie de plunderaars tegen. Heldenstatus.',
+        failText: 'Te veel plunderaars. Je wordt overrompeld.',
+        effects: { money: 1000, heat: -10, rep: 30, dirtyMoney: 0, crewDamage: 10, karma: 10 },
+        newsBroadcast: 'Buurtbeschermer organiseert verdediging tijdens blackout — een held!',
+      },
+      {
+        id: 'db_hack', label: 'HACK DE SYSTEMEN', stat: 'brains', difficulty: 45,
+        successText: 'Je hackt het elektriciteitsnetwerk. Wie de stroom beheert, beheert het district.',
+        failText: 'Het systeem is beter beveiligd dan je dacht. Niks bereikt.',
+        effects: { money: 0, heat: 5, rep: 20, dirtyMoney: 3000, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'mass_arrest',
+    text: 'Politie-eenheden sluiten het district af! Massale arrestatiegolf. Iedereen is een verdachte.',
+    tags: ['coop'],
+    minDay: 8,
+    choices: [
+      {
+        id: 'ma_hide', label: 'DUIK ONDER', stat: 'brains', difficulty: 30,
+        successText: 'Je verdwijnt in de menigte. De politie grijpt anderen, niet jou.',
+        failText: 'Een agent herkent je. "Jij daar! Staan blijven!"',
+        effects: { money: 0, heat: -15, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+      },
+      {
+        id: 'ma_bribe_cop', label: 'KOOP JE VRIJHEID', stat: 'charm', difficulty: 35,
+        successText: 'Een corrupte agent laat je door. "Loop. Snel."',
+        failText: 'De agent pakt je geld én arresteert je bijna.',
+        effects: { money: -2000, heat: -20, rep: 0, dirtyMoney: 0, crewDamage: 0 },
+      },
+      {
+        id: 'ma_help_others', label: 'HELP ANDEREN ONTSNAPPEN', stat: 'muscle', difficulty: 40,
+        successText: 'Je helpt drie mensen ontsnappen. De straat onthoudt dat.',
+        failText: 'Te opvallend. De politie focust nu op jou.',
+        effects: { money: 0, heat: 10, rep: 25, dirtyMoney: 0, crewDamage: 5, karma: 5 },
+        newsBroadcast: 'Onbekende helpt verdachten ontsnappen tijdens massale politie-actie!',
+      },
+    ],
+  },
 ];
 
 // ========== EVENT LOGIC ==========
 
-const EVENT_CHANCE_ON_TRAVEL = 0.20;
+const EVENT_CHANCE_ON_TRAVEL = 0.22;
 const EVENT_CHANCE_ON_END_TURN = 0.15;
 const EVENT_CHANCE_ON_SOLO_OP = 0.12;
+
+/**
+ * Check advanced filters for an event against current game state
+ */
+function matchesAdvancedFilters(event: StreetEvent, state: GameState): boolean {
+  // Follow-up events are never randomly triggered
+  if (event.isFollowUp) return false;
+
+  // District ownership checks
+  if (event.reqOwnsDistrict && !state.ownedDistricts.includes(state.loc)) return false;
+  if (event.reqNotOwnsDistrict && state.ownedDistricts.includes(state.loc)) return false;
+
+  // Karma checks
+  if (event.minKarma !== undefined && state.karma < event.minKarma) return false;
+  if (event.maxKarma !== undefined && state.karma > event.maxKarma) return false;
+
+  // Active market event check
+  if (event.reqMarketEvent && !state.activeMarketEvent) return false;
+
+  // Faction relation check
+  if (event.reqFactionRel) {
+    const rel = state.familyRel[event.reqFactionRel.familyId] || 0;
+    if (event.reqFactionRel.min !== undefined && rel < event.reqFactionRel.min) return false;
+    if (event.reqFactionRel.max !== undefined && rel > event.reqFactionRel.max) return false;
+  }
+
+  // NPC relation check
+  if (event.reqNpcRel) {
+    const npcRel = state.npcRelations?.[event.reqNpcRel.npcId];
+    if (!npcRel || npcRel.value < event.reqNpcRel.minValue) return false;
+  }
+
+  return true;
+}
 
 export function rollStreetEvent(
   state: GameState,
   trigger: 'travel' | 'end_turn' | 'solo_op'
 ): StreetEvent | null {
-  // Already have a pending event
   if (state.pendingStreetEvent) return null;
-
-  // Don't trigger street events in the first few days so the player can learn the basics
   if (state.day < 3) return null;
-
-  // Don't trigger during prison, hospital or hiding
   if (state.prison || state.hospital || state.hidingDays > 0) return null;
+
+  // Check for queued follow-up events first
+  const followUpId = (state as any)._pendingFollowUpEventId;
+  if (followUpId) {
+    const followUp = STREET_EVENTS.find(e => e.id === followUpId);
+    if (followUp) return followUp;
+  }
 
   const chance =
     trigger === 'travel' ? EVENT_CHANCE_ON_TRAVEL :
@@ -571,17 +969,32 @@ export function rollStreetEvent(
 
   if (Math.random() > chance) return null;
 
-  // Filter eligible events
+  // Filter eligible events with advanced filters
   const eligible = STREET_EVENTS.filter(e => {
     if (e.minDay && state.day < e.minDay) return false;
     if (e.minRep && state.rep < e.minRep) return false;
     if (e.districts && !e.districts.includes(state.loc)) return false;
+    if (!matchesAdvancedFilters(e, state)) return false;
     return true;
   });
 
   if (eligible.length === 0) return null;
 
+  // Weighted selection: prioritize context-specific events (tagged) over generic
+  const tagged = eligible.filter(e => e.tags && e.tags.length > 0);
+  const generic = eligible.filter(e => !e.tags || e.tags.length === 0);
+
+  // 60% chance to pick a tagged event if available
+  if (tagged.length > 0 && (generic.length === 0 || Math.random() < 0.6)) {
+    return tagged[Math.floor(Math.random() * tagged.length)];
+  }
+
   return eligible[Math.floor(Math.random() * eligible.length)];
+}
+
+/** Get a follow-up event by ID (for consequence chains) */
+export function getFollowUpEvent(eventId: string): StreetEvent | null {
+  return STREET_EVENTS.find(e => e.id === eventId) || null;
 }
 
 export function getEventText(event: StreetEvent, district: DistrictId): string {
@@ -593,9 +1006,18 @@ export function resolveStreetChoice(
   event: StreetEvent,
   choiceId: string,
   forceResult?: 'success' | 'fail'
-): { success: boolean; text: string; effects: StreetEventChoice['effects'] } {
+): {
+  success: boolean;
+  text: string;
+  effects: StreetEventChoice['effects'];
+  followUpEventId?: string;
+  newsBroadcast?: string;
+} {
   const choice = event.choices.find(c => c.id === choiceId);
-  if (!choice) return { success: false, text: 'Onbekende keuze.', effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 } };
+  if (!choice) return {
+    success: false, text: 'Onbekende keuze.',
+    effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0 },
+  };
 
   let success: boolean;
   if (forceResult) {
@@ -611,11 +1033,13 @@ export function resolveStreetChoice(
     success,
     text: success ? choice.successText : choice.failText,
     effects: success ? choice.effects : {
-      money: Math.min(0, choice.effects.money), // Only negative money on fail
-      heat: Math.max(0, choice.effects.heat + 3), // Extra heat on fail
-      rep: Math.min(0, choice.effects.rep), // Only negative rep on fail
+      money: Math.min(0, choice.effects.money),
+      heat: Math.max(0, choice.effects.heat + 3),
+      rep: Math.min(0, choice.effects.rep),
       dirtyMoney: 0,
-      crewDamage: Math.max(0, choice.effects.crewDamage + 5), // Extra damage on fail
+      crewDamage: Math.max(0, choice.effects.crewDamage + 5),
     },
+    followUpEventId: success ? choice.followUpEventId : undefined,
+    newsBroadcast: success ? choice.newsBroadcast : undefined,
   };
 }

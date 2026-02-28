@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useServerSync } from '@/hooks/useServerSync';
 import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
@@ -1455,11 +1456,55 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.screenEffect = 'blood-flash';
         }
       }
+
+      // === NEW: Apply karma effect ===
+      if (result.effects.karma) {
+        s.karma = Math.max(-100, Math.min(100, s.karma + result.effects.karma));
+      }
+
+      // === NEW: Apply faction relation effect ===
+      if (result.effects.factionRel) {
+        const { familyId, change } = result.effects.factionRel;
+        s.familyRel[familyId] = (s.familyRel[familyId] || 0) + change;
+      }
+
+      // === NEW: Apply NPC relation effect ===
+      if (result.effects.npcRel && s.npcRelations) {
+        const { npcId, change } = result.effects.npcRel;
+        if (s.npcRelations[npcId]) {
+          s.npcRelations[npcId].value += change;
+          s.npcRelations[npcId].lastInteractionDay = s.day;
+        }
+      }
+
+      // === NEW: Queue follow-up event for next day ===
+      if (result.followUpEventId) {
+        (s as any)._pendingFollowUpEventId = result.followUpEventId;
+      }
+
+      // === NEW: Broadcast news to all players (async, fire-and-forget) ===
+      if (result.newsBroadcast) {
+        try {
+          supabase.from('news_events').insert({
+            text: result.newsBroadcast,
+            icon: '🔥',
+            urgency: 'medium',
+            category: 'player_action',
+            district_id: s.loc,
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          }).then(() => {});
+        } catch (_) { /* silent */ }
+      }
+
       s.streetEventResult = { success: result.success, text: result.text };
       return s;
     }
 
     case 'DISMISS_STREET_EVENT': {
+      // Clear consumed follow-up if this was the follow-up event
+      if ((s as any)._pendingFollowUpEventId && s.pendingStreetEvent?.id === (s as any)._pendingFollowUpEventId) {
+        (s as any)._pendingFollowUpEventId = null;
+      }
       s.pendingStreetEvent = null;
       s.streetEventResult = null;
       return s;
