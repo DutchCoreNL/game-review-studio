@@ -126,7 +126,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           <SheetTitle className="font-display text-lg text-blood uppercase tracking-[4px] font-bold blood-text-glow leading-none">
             Noxhaven
           </SheetTitle>
-          <p className="text-[0.6rem] text-muted-foreground uppercase tracking-widest">Dag {state.day}</p>
+          <p className="text-[0.6rem] text-muted-foreground uppercase tracking-widest">📅 {new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</p>
         </SheetHeader>
 
         <nav className="py-2">
