@@ -1,108 +1,76 @@
 
 
-## Plan: Prestige Reset + Hardcore Mode
+## Plan: Gevechts- en Event-systeem MMO Verbeteringen
 
-### 1. Database Migration
+### Huidige Situatie
 
-Add columns to `leaderboard_entries` and `player_state`:
-- `leaderboard_entries`: add `is_hardcore boolean DEFAULT false`
-- `player_state`: add `is_hardcore boolean DEFAULT false`, `prestige_level` already exists as `prestige_level`
+**Gevechtsysteem:**
+- PvP combat draait deels client-side (via `combatSkills.ts`) en deels server-side (`game-action/index.ts`)
+- De server-side AI is simplistisch: random keuze tussen attack/heavy/defend op basis van HP%
+- Geen gear-effecten voor de verdediger, geen skill-gebruik door AI
+- Beloningen zijn vast (50 XP, 15 heat) — geen schaling naar level/moeilijkheid
+- Geen ELO/ranking of matchmaking
+- Max 20 beurten, daarna HP%-vergelijking
 
-Note: `prestigeLevel` already exists in GameState and `prestige_level` in leaderboard. We need a separate `is_hardcore` flag.
+**Event-systeem:**
+- ~30 statische events met geavanceerde filters (district, fase, karma, NPC)
+- Cooldown van 10 minuten tussen events
+- Follow-up ketens en nieuws-broadcasts bestaan al
+- Geen interactie tussen spelers bij events (geen coöp)
+- Events zijn puur client-side getriggerd, server-driven events bestaan alleen als district_events
 
-### 2. Types (`src/game/types.ts`)
+---
 
-- Add `hardcoreMode: boolean` to `GameState`
-- Add `prestigeResetCount: number` to `GameState` (tracks voluntary resets, separate from `newGamePlusLevel`)
+### Verbeteringen
 
-### 3. Prestige Reset Logic (`src/game/endgame.ts`)
+#### 1. Slimmere PvP AI (server-side)
+De verdediger-AI in `handlePvPCombatAction` wordt uitgebreid:
+- **Skill-gebruik door AI**: verdediger gebruikt ook combat skills (gebaseerd op level) met cooldown-tracking
+- **Gear-bonus**: verdediger's loadout beïnvloedt stats (nu genegeerd)
+- **Adaptieve strategie**: AI reageert op speler-patronen (bijv. als speler 3x aanvalt → AI verdedigt; als speler verdedigt → AI gebruikt heavy)
+- **Level-schaling beloningen**: XP/geld-beloning schaalt met het level-verschil
 
-New function `createPrestigeReset(state)`:
-- Requires Level 15+ and not hardcore
-- Increments `prestigeLevel` (already exists in state)
-- Full reset to `createInitialState()` but keeps: achievements, runHistory, prestigeLevel, backstory choice
-- Permanent bonuses per prestige level:
-  - +5% XP gain (applied in engine)
-  - +€2000 starting cash per level
-  - +1 base stat point per level
-  - Prestige badges (already implemented via `PrestigeBadge` component)
-- Saves run to `runHistory`
+**Bestanden:** `supabase/functions/game-action/index.ts`
 
-### 4. Hardcore Mode Logic (`src/game/endgame.ts`)
+#### 2. Server-validated Combat met Gear-synergy
+- Defender's gear stats worden meegenomen in damage-berekening (armor reduceert schade, gadgets verhogen dodge-kans)
+- Wapen-specifieke effecten: shotgun heeft kans op AoE-bleed, sniper heeft hogere crit-chance
+- Combat-resultaat genereert context-specifiek nieuws voor het district
 
-New function `createHardcoreStart()`:
-- Sets `hardcoreMode: true`
-- Sets `MAX_HOSPITALIZATIONS` to 0 effectively (1 death = game over)
-- +50% money rewards (stored as multiplier)
-- Remove "Last Stand" mechanic if exists
+**Bestanden:** `supabase/functions/game-action/index.ts`
 
-Modify game over check in `GameContext.tsx`:
-- If `hardcoreMode` and `hospitalizations >= 1` → game over
+#### 3. Server-driven Dynamische Events
+De `world-tick` genereert nu district-brede interactieve events die meerdere spelers kunnen beïnvloeden:
+- **Coöperatieve events**: "Politie-razzia in Port Nero — spelers die samenwerken krijgen minder heat" (meerdere spelers in district = betere uitkomst)
+- **Competitieve events**: "Wapendrop in Iron Borough — eerste speler die claimt wint" (via `district_events` tabel met `claimed_by`)
+- **Escalatie-events**: events die erger worden als niemand reageert (bijv. gang-oorlog escaleert → hogere heat voor heel district)
 
-### 5. Initial State (`src/game/constants.ts`)
+**Bestanden:** `supabase/functions/world-tick/index.ts`, `src/game/storyEvents.ts`
 
-- Add `hardcoreMode: false` and `prestigeResetCount: 0` to `createInitialState()`
+#### 4. Speler-interactie Events
+Nieuwe event-types die spelers met elkaar verbinden:
+- **Getuige-events**: "Je zag [speler X] een deal sluiten — verraad of negeer?" → stuurt bericht naar die speler
+- **Alliantie-events**: events met betere beloningen als je gang-leden in hetzelfde district hebt
+- **Bounty-trigger events**: specifieke events alleen voor spelers met een actieve bounty
 
-### 6. Reducer Actions (`src/contexts/GameContext.tsx`)
+**Bestanden:** `src/game/storyEvents.ts`, `src/contexts/GameContext.tsx`
 
-New actions:
-- `PRESTIGE_RESET`: calls `createPrestigeReset()`, resets game
-- `START_HARDCORE`: creates new game with hardcore flag
+#### 5. Combat Rating & Matchmaking
+- Nieuw `combat_rating` veld in `player_state` (Elo-achtig systeem)
+- Na elke PvP-winst/verlies wordt rating aangepast
+- Spelerlijst toont rating en moeilijkheidsgraad-indicator
+- Betere beloningen voor gevechten tegen hoger-gerankten
 
-Modify `NEW_GAME_PLUS` handler to also pass through `hardcoreMode` if active.
+**Bestanden:** `supabase/functions/game-action/index.ts`, database migratie voor `combat_rating` kolom
 
-Modify hospitalization handler: if `hardcoreMode`, first hospitalization = game over.
+---
 
-### 7. XP Bonus Application (`src/game/engine.ts`)
+### Technische Stappen
 
-In `gainXp()`: multiply XP by `1 + (prestigeLevel * 0.05)`.
-
-Modify reward calculations: if `hardcoreMode`, multiply cash rewards by 1.5.
-
-### 8. Sync Leaderboard Integration
-
-Update `syncLeaderboard` call in GameContext to include `is_hardcore: state.hardcoreMode`.
-
-Update edge function `sync-leaderboard/index.ts`:
-- Accept and validate `is_hardcore` boolean
-- Store in leaderboard entry
-
-### 9. UI: Prestige Reset Button (`src/components/game/VictoryScreen.tsx`)
-
-Add "PRESTIGE RESET" button alongside NG+ button:
-- Only visible when `player.level >= 15` or victory achieved
-- Shows prestige level preview and bonus summary
-- Gold styling with star icon
-
-### 10. UI: Hardcore Mode Option (`src/components/game/MainMenu.tsx`)
-
-Add "HARDCORE MODE" button on main menu / new game screen:
-- Skull icon, red/blood styling
-- Confirm dialog warning about permadeath
-- Shows +50% rewards info
-
-### 11. UI: Leaderboard Tabs (`src/components/game/LeaderboardView.tsx`)
-
-Add tab filter: "ALLE" | "HARDCORE"
-- Filter entries by `is_hardcore` flag
-- Hardcore entries get skull icon badge
-
-### 12. Game Over Screen Update (`src/components/game/GameOverScreen.tsx`)
-
-- Show "HARDCORE" label if died in hardcore mode
-- Different flavor text for hardcore death
-- Option to start new hardcore run
-
-### 13. Profile View Updates
-
-- Show prestige level and bonuses in `StatsOverviewPanel`
-- Show hardcore badge if active
-
-### Technical Details
-
-- `hardcoreMode` persists through NG+ if started as hardcore
-- Prestige resets are independent of NG+ (voluntary reset at Level 15+ anytime, not just at victory)
-- Prestige bonuses stack with NG+ bonuses
-- Hardcore + Prestige can combine: a hardcore player at P3 gets both bonuses
-- Leaderboard `is_hardcore` column enables separate ranking views
+1. **Database migratie**: `combat_rating INTEGER DEFAULT 1000` toevoegen aan `player_state`; `claimed_by UUID` en `claimed_at TIMESTAMP` toevoegen aan `district_events`
+2. **Server AI verbeteren**: skill-gebruik, gear-synergy en adaptieve patronen in `handlePvPCombatAction`
+3. **Combat rating berekening**: Elo-update na elk gevecht in `handlePvPCombatAction` en `handleAttack`
+4. **World-tick coöp/competitieve events**: nieuwe event-generatoren met claim-mechanisme
+5. **Client-side integratie**: event-claim UI, rating-display in leaderboard/spelerlijst
+6. **Speler-interactie events**: nieuwe event-definities met multiplayer-effecten
 
