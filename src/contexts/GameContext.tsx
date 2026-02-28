@@ -446,6 +446,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (travelEvent) {
         s.pendingStreetEvent = travelEvent;
         s.streetEventResult = null;
+        s.lastStreetEventAt = new Date().toISOString();
       }
       // Roll for car theft encounter (15% base chance, only if no street event)
       if (!s.pendingStreetEvent && !s.pendingCarTheft && s.stolenCars.length < 8) {
@@ -548,7 +549,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Roll for street event
       const autoTickEvent = rollStreetEvent(s, 'end_turn');
-      if (autoTickEvent) { s.pendingStreetEvent = autoTickEvent; s.streetEventResult = null; }
+      if (autoTickEvent) { s.pendingStreetEvent = autoTickEvent; s.streetEventResult = null; s.lastStreetEventAt = new Date().toISOString(); }
 
       // Endgame events
       if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
@@ -884,6 +885,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (soloEvent) {
         s.pendingStreetEvent = soloEvent;
         s.streetEventResult = null;
+        s.lastStreetEventAt = new Date().toISOString();
       }
       if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
       syncChallenges(s);
@@ -1517,6 +1519,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_WEEK_EVENT': {
       (s as any).activeWeekEvent = action.event;
+      return s;
+    }
+
+    case 'SYNC_WORLD_TIME' as any: {
+      s.worldTimeOfDay = (action as any).timeOfDay || 'day';
       return s;
     }
 

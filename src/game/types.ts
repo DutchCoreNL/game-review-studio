@@ -1127,6 +1127,8 @@ export interface GameState {
   serverSynced: boolean; // whether state is synced with server
   lastTickAt: string | null; // ISO timestamp of last auto-tick (replaces turn-based day system)
   tickIntervalMinutes: number; // how many real minutes = 1 game day (default 30)
+  worldTimeOfDay: 'dawn' | 'day' | 'dusk' | 'night'; // synced from world_state
+  lastStreetEventAt: string | null; // ISO timestamp — cooldown for street events
 
   // ========== GANG TERRITORY STATE ==========
   gangDistricts: string[]; // districts owned by player's gang (derived from server)

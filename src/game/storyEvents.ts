@@ -52,6 +52,10 @@ export interface StreetEvent {
   isFollowUp?: boolean;
   /** Tags for categorization */
   tags?: ('turf' | 'faction' | 'market' | 'npc' | 'chain' | 'coop' | 'karma')[];
+  /** Only trigger during specific world phases (dawn/day/dusk/night) */
+  reqPhase?: ('dawn' | 'day' | 'dusk' | 'night')[];
+  /** Server-driven: event originated from a server district event */
+  serverEventId?: string;
 }
 
 // ========== EVENT DATABASE ==========
@@ -905,6 +909,159 @@ export const STREET_EVENTS: StreetEvent[] = [
       },
     ],
   },
+  // ===== PHASE-SPECIFIC EVENTS (night/dawn/dusk only) =====
+  {
+    id: 'night_smuggle_run',
+    text: 'De nacht is perfect voor een smokkelrun. Een bekende van je staat klaar bij de kade met een boot vol goederen. "Nu of nooit."',
+    districts: ['port'],
+    reqPhase: ['night'],
+    minDay: 5,
+    tags: ['market'],
+    choices: [
+      {
+        id: 'nsr_join', label: 'STAP IN DE BOOT', stat: 'brains', difficulty: 35,
+        successText: 'De run verloopt vlekkeloos. Onder dekking van de nacht laad je de goederen uit. Flinke winst.',
+        failText: 'De kustwacht patrouilleert onverwacht. Je moet de lading dumpen.',
+        effects: { money: 0, heat: 5, rep: 15, dirtyMoney: 6000, crewDamage: 0 },
+        newsBroadcast: 'Mysterieuze bootactiviteit bij Port Nero vannacht — kustwacht onderzoekt.',
+      },
+      {
+        id: 'nsr_decline', label: 'TE RISKANT IN HET DONKER', stat: 'charm', difficulty: 10,
+        successText: 'Je vertrouwt het niet. Slim — later hoor je dat de kustwacht die nacht extra patrouilleerde.',
+        failText: 'Je loopt weg, maar de smokkelaar onthoudt je lafheid.',
+        effects: { money: 0, heat: 0, rep: -5, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'night_alley_ambush',
+    text: 'In de schaduwen van een steegje hoor je voetstappen achter je. Iemand volgt je.',
+    reqPhase: ['night'],
+    minDay: 4,
+    tags: ['karma'],
+    choices: [
+      {
+        id: 'naa_confront', label: 'CONFRONTEER', stat: 'muscle', difficulty: 40,
+        successText: 'Je draait je om en slaat toe. De belager valt neer. In zijn jaszak: €3.000 en een mes.',
+        failText: 'Hij is sneller. Een mes flitst. Je ontsnapt, maar niet ongeschonden.',
+        effects: { money: 3000, heat: 8, rep: 15, dirtyMoney: 0, crewDamage: 10 },
+      },
+      {
+        id: 'naa_run', label: 'REN', stat: 'brains', difficulty: 20,
+        successText: 'Je kent de stegen beter dan hij. Na twee bochten ben je hem kwijt.',
+        failText: 'Je struikelt in het donker. Hij haalt je in.',
+        effects: { money: -500, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 5 },
+      },
+    ],
+  },
+  {
+    id: 'night_underground_market',
+    text: 'Een fluisterbericht leidt je naar een nachtelijke zwarte markt in een verlaten metro-station. Alles is te koop — voor de juiste prijs.',
+    reqPhase: ['night'],
+    districts: ['neon', 'iron'],
+    minDay: 8,
+    tags: ['market'],
+    choices: [
+      {
+        id: 'num_trade', label: 'HANDELEN', stat: 'charm', difficulty: 30,
+        successText: 'Je vindt zeldzame goederen tegen bodemprijzen. De nachtmarkt levert goud op.',
+        failText: 'De prijzen zijn belachelijk. En iemand heeft je gezicht gezien.',
+        effects: { money: 0, heat: 5, rep: 10, dirtyMoney: 4000, crewDamage: 0 },
+      },
+      {
+        id: 'num_intel', label: 'VERZAMEL INTEL', stat: 'brains', difficulty: 25,
+        successText: 'Je luistert meer dan je koopt. Waardevolle informatie over aankomende politieacties.',
+        failText: 'Niemand vertrouwt een nieuweling. Je gaat met lege handen weg.',
+        effects: { money: 0, heat: -10, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
+  {
+    id: 'dawn_police_sweep',
+    text: 'Bij het eerste ochtendlicht begint een grote politie-operatie. Sirenes overal. Wegversperringen verschijnen.',
+    reqPhase: ['dawn'],
+    minDay: 6,
+    tags: ['turf'],
+    choices: [
+      {
+        id: 'dps_hide_stash', label: 'VERBERG JE VOORRAAD', stat: 'brains', difficulty: 30,
+        successText: 'Net op tijd. Alles is verborgen voordat ze je blok bereiken.',
+        failText: 'Te langzaam. Ze vinden een deel van je goederen.',
+        effects: { money: -1500, heat: -15, rep: 0, dirtyMoney: 0, crewDamage: 0 },
+      },
+      {
+        id: 'dps_warn_allies', label: 'WAARSCHUW BONDGENOTEN', stat: 'charm', difficulty: 25,
+        successText: 'Je belt iedereen. De hele buurt is gewaarschuwd. Je reputatie stijgt enorm.',
+        failText: 'Eén van je "bondgenoten" is een informant. Je heat stijgt.',
+        effects: { money: 0, heat: 10, rep: 25, dirtyMoney: 0, crewDamage: 0, karma: 3 },
+        newsBroadcast: 'Anonieme tipgever waarschuwt halve wijk — politie-actie mislukt grotendeels!',
+      },
+    ],
+  },
+  {
+    id: 'dawn_early_delivery',
+    text: 'Een koerier klopt om 5 uur \'s ochtends op je deur. "Pakket. Geen naam. Geen vragen." Hij overhandigt een zware doos.',
+    reqPhase: ['dawn'],
+    minDay: 3,
+    choices: [
+      {
+        id: 'ded_open', label: 'OPEN DE DOOS', stat: 'brains', difficulty: 20,
+        successText: 'Wapens. Hoogwaardige wapens. Iemand wil je bewapenen — of in je schuld.',
+        failText: 'Een GPS-tracker zit erin verstopt. Je heat stijgt.',
+        effects: { money: 0, heat: 8, rep: 10, dirtyMoney: 3000, crewDamage: 0 },
+      },
+      {
+        id: 'ded_refuse', label: 'WEIGER HET PAKKET', stat: 'charm', difficulty: 15,
+        successText: '"Verkeerd adres." De koerier haalt zijn schouders op en vertrekt.',
+        failText: 'De koerier dringt aan. "Je wilt dit ECHT niet weigeren." Onheilspellend.',
+        effects: { money: 0, heat: 0, rep: 0, dirtyMoney: 0, crewDamage: 0, karma: 2 },
+      },
+    ],
+  },
+  {
+    id: 'dusk_golden_hour_deal',
+    text: 'Het gouden avondlicht valt over de stad. Een zakenman in pak benadert je op het terras. "Ik heb een voorstel. Eenmalig. Vanavond nog."',
+    reqPhase: ['dusk'],
+    districts: ['crown', 'neon'],
+    minDay: 7,
+    tags: ['market'],
+    choices: [
+      {
+        id: 'ghd_accept', label: 'LUISTER NAAR HET VOORSTEL', stat: 'charm', difficulty: 35,
+        successText: 'Een witwas-deal via zijn bedrijf. Lucratief en relatief veilig.',
+        failText: 'Het is een investeerder die al je geld wil. Bijna ingetrapt.',
+        effects: { money: 5000, heat: 3, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+      },
+      {
+        id: 'ghd_counter', label: 'STEL EEN TEGENBOD', stat: 'brains', difficulty: 45,
+        successText: 'Je draait de deal om. Híj betaalt jou. Meesterlijk onderhandeld.',
+        failText: 'Te agressief. Hij staat op en loopt weg. "Jammer. Veel jammer."',
+        effects: { money: 8000, heat: 5, rep: 20, dirtyMoney: 0, crewDamage: 0 },
+        newsBroadcast: 'Mysterieuze deal gesloten bij zonsondergang in Crown Heights — miljoenen betrokken.',
+      },
+    ],
+  },
+  {
+    id: 'dusk_street_race',
+    text: 'Bij schemering verzamelen zich auto\'s bij een verlaten parkeerplaats. Een illegale straatrace staat op het punt te beginnen. "Doe je mee?"',
+    reqPhase: ['dusk'],
+    minDay: 5,
+    choices: [
+      {
+        id: 'dsr_race', label: 'RACE MEE', stat: 'muscle', difficulty: 40,
+        successText: 'Je wint! De pot is €4.000 en de bewondering van de hele strip.',
+        failText: 'Je crasht bijna. Geen winst, wel een deuk in je ego en auto.',
+        effects: { money: 4000, heat: 8, rep: 20, dirtyMoney: 0, crewDamage: 0 },
+        newsBroadcast: 'Illegale straatrace bij schemering — onbekende bestuurder wint spectaculair!',
+      },
+      {
+        id: 'dsr_bet', label: 'ZET GELD IN', stat: 'brains', difficulty: 30,
+        successText: 'Je kiest de juiste favoriet. Dubbele inzet terug.',
+        failText: 'De favoriet crasht. Daar gaat je geld.',
+        effects: { money: 2500, heat: 2, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+      },
+    ],
+  },
 ];
 
 // ========== EVENT LOGIC ==========
@@ -913,12 +1070,21 @@ const EVENT_CHANCE_ON_TRAVEL = 0.22;
 const EVENT_CHANCE_ON_END_TURN = 0.15;
 const EVENT_CHANCE_ON_SOLO_OP = 0.12;
 
+/** Minimum cooldown between street events in milliseconds (10 minutes) */
+const EVENT_COOLDOWN_MS = 10 * 60 * 1000;
+
 /**
  * Check advanced filters for an event against current game state
  */
 function matchesAdvancedFilters(event: StreetEvent, state: GameState): boolean {
   // Follow-up events are never randomly triggered
   if (event.isFollowUp) return false;
+
+  // Phase filter: check world time of day
+  if (event.reqPhase && event.reqPhase.length > 0) {
+    const currentPhase = (state as any).worldTimeOfDay || 'day';
+    if (!event.reqPhase.includes(currentPhase)) return false;
+  }
 
   // District ownership checks
   if (event.reqOwnsDistrict && !state.ownedDistricts.includes(state.loc)) return false;
@@ -954,6 +1120,13 @@ export function rollStreetEvent(
   if (state.pendingStreetEvent) return null;
   if (state.day < 3) return null;
   if (state.prison || state.hospital || state.hidingDays > 0) return null;
+
+  // Cooldown check: don't trigger events too frequently (10 min minimum)
+  const lastEventAt = (state as any).lastStreetEventAt;
+  if (lastEventAt) {
+    const elapsed = Date.now() - new Date(lastEventAt).getTime();
+    if (elapsed < EVENT_COOLDOWN_MS) return null;
+  }
 
   // Check for queued follow-up events first
   const followUpId = (state as any)._pendingFollowUpEventId;
