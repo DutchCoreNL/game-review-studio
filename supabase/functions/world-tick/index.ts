@@ -196,6 +196,28 @@ const BOT_CHAT_TRADE = [
   (name: string) => `Bulk deal: 100x drugs voor €15k. Serieuze kopers only.`,
 ];
 
+const BOT_CHAT_GYM = [
+  (name: string) => `Net m'n strength PR gebroken in de gym 💪 gains!`,
+  (name: string) => `Die Crown Heights Academy is echt next level qua training`,
+  (name: string) => `Wie traint er ook in Iron Borough? Die gym is goed voor speed`,
+  (name: string) => `Na 50 trainingssessies merk je echt verschil in gevechten`,
+  (name: string) => `Gym tip: train defense als je veel PvP doet, scheelt enorm`,
+  (name: string) => `Rusty Iron Gym is gratis en prima voor beginners 🏋️`,
+  (name: string) => `Vandaag 3x getraind, m'n dexterity gaat omhoog 🎯`,
+  (name: string) => `Is het de moeite waard om Crown gym membership te kopen?`,
+];
+
+const BOT_CHAT_JOB = [
+  (name: string) => `Net promotie gekregen als beveiliger, salaris +20% 🎉`,
+  (name: string) => `Advocaat zijn is echt de beste baan, -25% jail time is OP`,
+  (name: string) => `Verdien €3000/shift als arts. Plus je kunt spelers reviven`,
+  (name: string) => `Taxichauffeur is underrated — die reistijd bonus is nice`,
+  (name: string) => `Heeft iemand tips voor de boekhouder baan? Net gestart`,
+  (name: string) => `Mijn salaris + crime income = dikke winst elke dag`,
+  (name: string) => `Vastgoedmakelaar zijn naast je illegale business is perfecte dekmantel 🏠`,
+  (name: string) => `Werk shift gedaan, nu even de gym in en dan crimes 😈`,
+];
+
 function pickWeighted(items: { action: string; weight: number }[]): string {
   const total = items.reduce((s, i) => s + i.weight, 0);
   let r = Math.random() * total;
@@ -209,15 +231,24 @@ function pickWeighted(items: { action: string; weight: number }[]): string {
 // ========== BOT CHAT SIMULATION ==========
 async function simulateBotChat(supabase: any, bots: any[], phase: string) {
   try {
-    // 2-4 bots chat per tick
-    const chatters = bots.sort(() => Math.random() - 0.5).slice(0, 2 + Math.floor(Math.random() * 3));
+    // 3-6 bots chat per tick for more activity
+    const chatters = bots.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 4));
     const rows: any[] = [];
 
     for (const bot of chatters) {
-      // 70% global, 30% trade
-      const isTradeChat = Math.random() < 0.3;
-      const channel = isTradeChat ? 'trade' : 'global';
-      const templates = isTradeChat ? BOT_CHAT_TRADE : BOT_CHAT_GLOBAL;
+      // 50% global, 20% trade, 15% gym, 15% job
+      const roll = Math.random();
+      let channel: string;
+      let templates: Array<(name: string) => string>;
+      if (roll < 0.5) {
+        channel = 'global'; templates = BOT_CHAT_GLOBAL;
+      } else if (roll < 0.7) {
+        channel = 'trade'; templates = BOT_CHAT_TRADE;
+      } else if (roll < 0.85) {
+        channel = 'global'; templates = BOT_CHAT_GYM;
+      } else {
+        channel = 'global'; templates = BOT_CHAT_JOB;
+      }
       const template = templates[Math.floor(Math.random() * templates.length)];
       const message = template(bot.username);
 
@@ -613,7 +644,9 @@ async function simulateBotGangActivity(supabase: any) {
 // ========== BOT ONLINE STATUS ==========
 async function simulateBotOnlineStatus(supabase: any, bots: any[]) {
   try {
-    const onlineBots = bots.sort(() => Math.random() - 0.5).slice(0, Math.floor(bots.length * 0.6));
+    // 70-90% of bots online at any time to make the world feel alive
+    const onlineFraction = 0.7 + Math.random() * 0.2;
+    const onlineBots = bots.sort(() => Math.random() - 0.5).slice(0, Math.floor(bots.length * onlineFraction));
     const rows = onlineBots.map(b => ({
       user_id: b.id,
       username: b.username,
@@ -640,12 +673,19 @@ const BOT_ACTIVITY_TEMPLATES: Array<(bot: any) => { action_type: string; descrip
   (b) => ({ action_type: 'faction', description: `valt een factie aan`, icon: '🐉' }),
   (b) => ({ action_type: 'heist', description: `plant een overval met de gang`, icon: '🏦' }),
   (b) => ({ action_type: 'casino', description: `gokt in het casino van ${DISTRICT_NAMES[b.loc]}`, icon: '🎰' }),
+  (b) => ({ action_type: 'gym', description: `traint kracht in de gym van ${DISTRICT_NAMES[b.loc]}`, icon: '🏋️' }),
+  (b) => ({ action_type: 'gym', description: `traint snelheid in ${DISTRICT_NAMES[b.loc]}`, icon: '⚡' }),
+  (b) => ({ action_type: 'gym', description: `traint verdediging in de gym`, icon: '🛡️' }),
+  (b) => ({ action_type: 'gym', description: `heeft een intense trainingssessie achter de rug`, icon: '💪' }),
+  (b) => ({ action_type: 'work', description: `heeft een shift gedraaid als ${pick(['barman', 'beveiliger', 'monteur', 'boekhouder', 'advocaat'])}`, icon: '💼' }),
+  (b) => ({ action_type: 'work', description: `heeft salaris ontvangen van zijn baan`, icon: '💰' }),
+  (b) => ({ action_type: 'work', description: `is gepromoveerd op het werk!`, icon: '⭐' }),
 ];
 
 async function simulateBotActivityFeed(supabase: any, bots: any[]) {
   try {
-    // 3-6 activity feed entries per tick
-    const count = 3 + Math.floor(Math.random() * 4);
+    // 5-10 activity feed entries per tick for a lively world
+    const count = 5 + Math.floor(Math.random() * 6);
     const selected = bots.sort(() => Math.random() - 0.5).slice(0, count);
     const rows = selected.map(bot => {
       const template = pick(BOT_ACTIVITY_TEMPLATES);
@@ -1649,6 +1689,145 @@ async function simulateBotStoryEvents(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot story events error:', e); }
 }
 
+// ========== BOT GYM TRAINING ==========
+const BOT_GYM_STATS = ['strength', 'defense', 'speed', 'dexterity'];
+const BOT_GYM_NAMES: Record<string, string> = {
+  low: 'Rusty Iron Gym', port: 'Dockside Fitness', iron: 'Iron Borough Athletics',
+  neon: 'Neon Elite Training', crown: 'Crown Heights Academy',
+};
+
+async function simulateBotGymTraining(supabase: any, bots: any[]) {
+  try {
+    // 30% of bots train each tick — gym is a core daily loop
+    const trainers = bots.sort(() => Math.random() - 0.5).slice(0, Math.ceil(bots.length * 0.3));
+    const feedRows: any[] = [];
+    const newsRows: any[] = [];
+    const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
+
+    for (const bot of trainers) {
+      const stat = pick(BOT_GYM_STATS);
+      const gymName = BOT_GYM_NAMES[bot.loc] || 'Rusty Iron Gym';
+      const gain = Math.floor(Math.random() * 3) + 1;
+      
+      // Increase bot rep slightly (proxy for gym gains)
+      await supabase.from('bot_players').update({
+        rep: bot.rep + gain,
+        max_hp: Math.min(300, bot.max_hp + (Math.random() < 0.2 ? 1 : 0)),
+      }).eq('id', bot.id);
+
+      // Activity feed
+      const descriptions = [
+        `traint ${stat} in ${gymName}`,
+        `heeft een intense ${stat}-sessie achter de rug 💪`,
+        `breekt een PR in ${stat} training!`,
+        `zweet het uit in de gym van ${DISTRICT_NAMES[bot.loc]}`,
+        `traint ${stat} — wordt elke dag sterker`,
+      ];
+      feedRows.push({
+        user_id: bot.id,
+        username: bot.username,
+        action_type: 'gym',
+        description: pick(descriptions),
+        icon: pick(['🏋️', '💪', '⚡', '🛡️', '🎯']),
+        district_id: bot.loc,
+      });
+
+      // 5% chance: gym milestone news
+      if (Math.random() < 0.05) {
+        const milestoneRep = Math.floor(bot.rep / 100) * 100;
+        newsRows.push({
+          text: `${bot.username} bereikt ${stat} milestone in ${gymName}!`,
+          icon: '💪', urgency: 'low', category: 'player', expires_at: expiresAt,
+        });
+      }
+    }
+
+    if (feedRows.length > 0) await supabase.from('activity_feed').insert(feedRows);
+    if (newsRows.length > 0) await supabase.from('news_events').insert(newsRows);
+  } catch (e) { console.error('Bot gym training error:', e); }
+}
+
+// ========== BOT JOBS SIMULATION ==========
+const BOT_JOBS = [
+  { id: 'barman', name: 'Barman', salary: 500 },
+  { id: 'taxichauffeur', name: 'Taxichauffeur', salary: 800 },
+  { id: 'beveiliger', name: 'Beveiliger', salary: 1200 },
+  { id: 'monteur', name: 'Automonteur', salary: 1500 },
+  { id: 'boekhouder', name: 'Boekhouder', salary: 2000 },
+  { id: 'advocaat', name: 'Advocaat', salary: 3000 },
+  { id: 'arts', name: 'Arts', salary: 3500 },
+  { id: 'makelaar', name: 'Vastgoedmakelaar', salary: 4000 },
+];
+
+async function simulateBotJobs(supabase: any, bots: any[]) {
+  try {
+    // 25% of bots work their job each tick
+    const workers = bots.sort(() => Math.random() - 0.5).slice(0, Math.ceil(bots.length * 0.25));
+    const feedRows: any[] = [];
+    const newsRows: any[] = [];
+    const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
+
+    for (const bot of workers) {
+      // Assign a job based on level
+      const eligibleJobs = BOT_JOBS.filter((_, i) => bot.level >= (i * 2 + 1));
+      if (eligibleJobs.length === 0) continue;
+      const job = eligibleJobs[Math.floor(Math.random() * eligibleJobs.length)];
+      
+      // Calculate salary with promotion bonus (based on bot.day as proxy for tenure)
+      const promotion = Math.min(5, Math.floor(bot.day / 30));
+      const salary = Math.floor(job.salary * (1 + promotion * 0.2));
+      
+      // Pay the bot
+      await supabase.from('bot_players').update({
+        cash: bot.cash + salary,
+      }).eq('id', bot.id);
+      bot.cash += salary;
+
+      // Activity feed
+      const descriptions = [
+        `heeft een shift gedraaid als ${job.name}`,
+        `heeft €${salary.toLocaleString()} salaris ontvangen als ${job.name}`,
+        `werkt hard als ${job.name} in ${DISTRICT_NAMES[bot.loc]}`,
+        `is klaar met werken als ${job.name} — tijd voor de straat`,
+      ];
+      feedRows.push({
+        user_id: bot.id,
+        username: bot.username,
+        action_type: 'work',
+        description: pick(descriptions),
+        icon: pick(['💼', '💰', '⭐', '📋']),
+        district_id: bot.loc,
+      });
+
+      // 3% chance: promotion news
+      if (Math.random() < 0.03 && promotion > 0) {
+        newsRows.push({
+          text: `${bot.username} is gepromoveerd tot senior ${job.name}! Salaris: €${salary.toLocaleString()}/shift`,
+          icon: '⭐', urgency: 'low', category: 'player', expires_at: expiresAt,
+        });
+      }
+    }
+
+    if (feedRows.length > 0) await supabase.from('activity_feed').insert(feedRows);
+    if (newsRows.length > 0) await supabase.from('news_events').insert(newsRows);
+  } catch (e) { console.error('Bot jobs error:', e); }
+}
+
+// ========== BOT REALISTIC STAGGERED ONLINE (varied last_seen_at times) ==========
+async function simulateBotStaggeredPresence(supabase: any, bots: any[]) {
+  try {
+    // Some bots have slightly staggered last_seen_at to look more natural
+    const staggerBots = bots.sort(() => Math.random() - 0.5).slice(0, Math.ceil(bots.length * 0.3));
+    for (const bot of staggerBots) {
+      // Randomly offset last_seen_at by 0-4 minutes to look like real polling
+      const offset = Math.floor(Math.random() * 4 * 60 * 1000);
+      await supabase.from('player_online_status').update({
+        last_seen_at: new Date(Date.now() - offset).toISOString(),
+      }).eq('user_id', bot.id);
+    }
+  } catch (e) { console.error('Bot stagger error:', e); }
+}
+
 async function simulateBots(supabase: any, phase: string, worldDay: number) {
   try {
     const { data: bots } = await supabase
@@ -1664,8 +1843,8 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
     const newsToInsert: any[] = [];
     const expiresAt = new Date(Date.now() + 35 * 60 * 1000).toISOString();
 
-    // Simulate 40-70% of bots per tick
-    const activeFraction = 0.4 + Math.random() * 0.3;
+    // Simulate 55-80% of bots per tick (increased for more life)
+    const activeFraction = 0.55 + Math.random() * 0.25;
     const shuffled = bots.sort(() => Math.random() - 0.5);
     const activeCount = Math.max(1, Math.floor(shuffled.length * activeFraction));
 
@@ -1794,6 +1973,11 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       simulateBotSkills(supabase, bots),
       simulateBotPrestige(supabase, bots),
       simulateBotStoryEvents(supabase, bots),
+      // Gym & Jobs — core daily loops
+      simulateBotGymTraining(supabase, bots),
+      simulateBotJobs(supabase, bots),
+      // Realistic presence staggering
+      simulateBotStaggeredPresence(supabase, bots),
     ]);
   } catch (e) {
     console.error('Bot simulation error:', e);
