@@ -16,6 +16,10 @@ export interface DistrictEvent {
   data?: Record<string, any>;
   created_at: string;
   expires_at: string;
+  claimed_by?: string | null;
+  claimed_at?: string | null;
+  escalation_level?: number;
+  participants?: string[];
 }
 
 export interface GangTerritoryInfo {

@@ -1104,35 +1104,88 @@ async function handlePvPCombatAction(supabase: any, userId: string, payload: { s
   const turn = (session.turn || 0) + 1;
   const logs: string[] = [];
 
+  // === GEAR SYNERGY: Apply gear-specific effects ===
+  const attackerWeapon = attacker.loadout?.weapon;
+  const defenderArmor = defender.loadout?.armor;
+  const defenderGadget = defender.loadout?.gadget;
+
+  // Armor damage reduction for defender
+  const armorReduction = defenderArmor === 'skull_armor' ? 0.20 : defenderArmor === 'suit' ? 0.12 : defenderArmor === 'vest' ? 0.08 : 0;
+  // Gadget dodge chance for defender
+  const dodgeChance = defenderGadget === 'implant' ? 0.15 : defenderGadget === 'laptop' ? 0.08 : defenderGadget === 'phone' ? 0.05 : 0;
+
+  // Weapon-specific effects for attacker
+  let weaponBleedChance = 0;
+  let weaponCritBonus = 0;
+  if (attackerWeapon === 'shotgun') weaponBleedChance = 0.20;
+  else if (attackerWeapon === 'sniper') weaponCritBonus = 0.15;
+  else if (attackerWeapon === 'cartel_blade') weaponBleedChance = 0.12;
+  else if (attackerWeapon === 'ak47') weaponCritBonus = 0.08;
+
+  // Player action
   if (action === "skill" && skillId) {
     const skill = PVP_COMBAT_SKILLS.find(s => s.id === skillId);
     if (!skill) return { success: false, message: "Onbekende skill." };
     if (attacker.skillCooldowns[skillId] > 0) return { success: false, message: "Skill op cooldown." };
     attacker.skillCooldowns[skillId] = skill.cooldownTurns;
     const result = pvpApplySkill(attacker, defender, skillId);
-    defender.hp = Math.max(0, defender.hp - result.damage);
+    let dmg = result.damage;
+    // Apply dodge
+    if (dmg > 0 && Math.random() < dodgeChance) {
+      logs.push(`💨 Tegenstander ontwijkt! (gadget bonus)`);
+      dmg = 0;
+    }
+    // Apply armor reduction
+    if (dmg > 0) dmg = Math.max(1, Math.floor(dmg * (1 - armorReduction)));
+    // Weapon crit bonus
+    if (dmg > 0 && Math.random() < weaponCritBonus) {
+      dmg = Math.floor(dmg * 1.5);
+      logs.push(`🎯 Kritieke treffer! (wapen bonus)`);
+    }
+    defender.hp = Math.max(0, defender.hp - dmg);
     if (result.stunApplied) defender.stunned = true;
-    if (result.damage > 0) attacker.comboCounter++;
+    if (dmg > 0) attacker.comboCounter++;
+    // Weapon bleed effect
+    if (dmg > 0 && Math.random() < weaponBleedChance) {
+      defender.activeBuffs.push({ id: 'bleed', duration: 2 });
+      logs.push(`🩸 Bloeding toegebracht! (wapen effect)`);
+    }
     logs.push(result.log);
   } else if (action === "combo_finisher") {
     if (attacker.comboCounter < COMBO_THRESHOLD) return { success: false, message: "Combo meter niet vol." };
     let damage = COMBO_FINISHER_DAMAGE + Math.floor(attacker.muscle * 2);
     if (attacker.activeBuffs.some(b => b.id === "damage_boost")) damage = Math.floor(damage * 1.3);
     if (defender.activeBuffs.some(b => b.id === "defense_boost")) damage = Math.floor(damage * 0.5);
+    damage = Math.max(1, Math.floor(damage * (1 - armorReduction)));
     defender.hp = Math.max(0, defender.hp - damage);
     if (Math.random() < 0.4) { defender.stunned = true; logs.push("💫 STUNNED!"); }
     attacker.comboCounter = 0;
     logs.push(`🔥 COMBO FINISHER! ${damage} schade!`);
   } else {
-    // Basic action: attack/heavy/defend
     const basicAction = (["attack", "heavy", "defend"].includes(action) ? action : "attack") as "attack" | "heavy" | "defend";
     const result = pvpBasicAttack(attacker, defender, basicAction);
-    defender.hp = Math.max(0, defender.hp - result.damage);
+    let dmg = result.damage;
+    // Apply dodge & armor
+    if (dmg > 0 && Math.random() < dodgeChance) { dmg = 0; logs.push(`💨 Ontwijkt!`); }
+    if (dmg > 0) dmg = Math.max(1, Math.floor(dmg * (1 - armorReduction)));
+    if (dmg > 0 && Math.random() < weaponCritBonus) { dmg = Math.floor(dmg * 1.5); logs.push(`🎯 Kritiek!`); }
+    defender.hp = Math.max(0, defender.hp - dmg);
     attacker.hp = Math.max(0, attacker.hp - result.counterDamage);
-    if (basicAction !== "defend" && result.damage > 0) attacker.comboCounter++;
+    if (basicAction !== "defend" && dmg > 0) attacker.comboCounter++;
     else if (basicAction === "defend") attacker.comboCounter = 0;
+    // Weapon bleed on basic attack
+    if (dmg > 0 && Math.random() < weaponBleedChance) {
+      defender.activeBuffs.push({ id: 'bleed', duration: 2 });
+      logs.push(`🩸 Bloeding!`);
+    }
     logs.push(result.log);
     if (defender.hp > 0 && attacker.hp > 0) logs.push(result.counterLog);
+  }
+
+  // Apply bleed damage on defender
+  if (defender.activeBuffs.some(b => b.id === 'bleed')) {
+    defender.hp = Math.max(0, defender.hp - 5);
+    logs.push(`🩸 Bloedingsschade: ${defender.activeBuffs.filter(b => b.id === 'bleed').length * 5} HP`);
   }
 
   // Check if combat ended
@@ -1140,15 +1193,12 @@ async function handlePvPCombatAction(supabase: any, userId: string, payload: { s
   let winnerId: string | null = null;
 
   if (defender.hp <= 0) {
-    status = "finished";
-    winnerId = userId;
+    status = "finished"; winnerId = userId;
     logs.push("🏆 Je hebt gewonnen!");
   } else if (attacker.hp <= 0) {
-    status = "finished";
-    winnerId = session.defender_id;
+    status = "finished"; winnerId = session.defender_id;
     logs.push("💀 Je bent verslagen...");
   } else if (turn >= 20) {
-    // Max turns reached — whoever has more HP% wins
     status = "finished";
     const attackerPct = attacker.hp / attacker.maxHp;
     const defenderPct = defender.hp / defender.maxHp;
@@ -1156,26 +1206,48 @@ async function handlePvPCombatAction(supabase: any, userId: string, payload: { s
     logs.push(winnerId === userId ? "⏰ Tijd op! Je wint op punten!" : "⏰ Tijd op! Je verliest op punten...");
   }
 
-  // Enemy AI turn (if combat still active and defender not stunned)
-  if (status === "active" && !defender.stunned && action !== "combo_finisher") {
-    // Simple AI: random actions weighted by HP
+  // === ADAPTIVE AI: Defender uses skills and adapts to player patterns ===
+  if (status === "active" && !defender.stunned) {
     const defHpPct = defender.hp / defender.maxHp;
-    let aiAction: "attack" | "heavy" | "defend";
-    const roll = Math.random();
-    if (defHpPct < 0.3) aiAction = roll < 0.5 ? "heavy" : "defend";
-    else if (defHpPct < 0.6) aiAction = roll < 0.4 ? "heavy" : roll < 0.7 ? "attack" : "defend";
-    else aiAction = roll < 0.5 ? "attack" : "heavy";
+    // Track player action history in combat log for pattern detection
+    const recentPlayerActions = combatLog.slice(-6).map(l => l.text);
+    const attackCount = recentPlayerActions.filter(t => t.includes('Aanval') || t.includes('ZWARE')).length;
+    const defendCount = recentPlayerActions.filter(t => t.includes('Verdedig')).length;
 
-    // (Counter-attack already handled in basic attacks; for skill/combo, do a separate AI turn)
-    if (action === "skill" || action === "combo_finisher") {
-      const aiResult = pvpBasicAttack(defender, attacker, aiAction);
+    // Adaptive strategy
+    let aiAction: "attack" | "heavy" | "defend" | "skill" = "attack";
+    if (attackCount >= 3) aiAction = "defend"; // player spams attack → defend
+    else if (defendCount >= 2) aiAction = "heavy"; // player defends → heavy
+    else if (defHpPct < 0.3) aiAction = Math.random() < 0.5 ? "defend" : "heavy";
+    else if (defHpPct < 0.6) aiAction = Math.random() < 0.4 ? "heavy" : "attack";
+    else aiAction = Math.random() < 0.5 ? "attack" : "heavy";
+
+    // AI skill usage based on defender level
+    const defLevel = defender.level || 1;
+    const availableAiSkills = PVP_COMBAT_SKILLS.filter(s => defLevel >= s.unlockLevel && !(defender.skillCooldowns[s.id] > 0));
+
+    // 30% chance to use a skill if available
+    if (availableAiSkills.length > 0 && Math.random() < 0.30) {
+      const aiSkill = availableAiSkills[Math.floor(Math.random() * availableAiSkills.length)];
+      defender.skillCooldowns[aiSkill.id] = aiSkill.cooldownTurns;
+      const result = pvpApplySkill(defender, attacker, aiSkill.id);
+      // Apply attacker's armor/dodge in reverse
+      const atkArmor = attacker.loadout?.armor;
+      const atkArmorRed = atkArmor === 'skull_armor' ? 0.20 : atkArmor === 'suit' ? 0.12 : atkArmor === 'vest' ? 0.08 : 0;
+      let aiDmg = Math.max(1, Math.floor(result.damage * (1 - atkArmorRed)));
+      attacker.hp = Math.max(0, attacker.hp - aiDmg);
+      if (result.stunApplied) attacker.stunned = true;
+      logs.push(`🤖 ${result.log}`);
+    } else if (action === "skill" || action === "combo_finisher") {
+      // AI basic counter-attack
+      const aiResult = pvpBasicAttack(defender, attacker, aiAction as "attack" | "heavy" | "defend");
       attacker.hp = Math.max(0, attacker.hp - aiResult.damage);
       logs.push(`Tegenstander: ${aiResult.log}`);
-      if (attacker.hp <= 0) {
-        status = "finished";
-        winnerId = session.defender_id;
-        logs.push("💀 Je bent verslagen...");
-      }
+    }
+
+    if (attacker.hp <= 0) {
+      status = "finished"; winnerId = session.defender_id;
+      logs.push("💀 Je bent verslagen...");
     }
   } else if (defender.stunned && (action === "skill" || action === "combo_finisher")) {
     logs.push("Tegenstander is verdoofd en kan niet aanvallen!");
@@ -1186,48 +1258,88 @@ async function handlePvPCombatAction(supabase: any, userId: string, payload: { s
   pvpTickBuffsAndCooldowns(attacker);
   pvpTickBuffsAndCooldowns(defender);
 
-  // Add logs to combat log
   for (const l of logs) combatLog.push({ turn, text: l });
 
-  // Apply rewards if finished
+  // === APPLY REWARDS WITH ELO RATING & LEVEL SCALING ===
   if (status === "finished") {
     const attackerWon = winnerId === userId;
+    const isBot = session.defender_id.startsWith("bot_");
+
+    // Fetch current ratings
+    const { data: atkState } = await supabase.from("player_state").select("xp, personal_heat, combat_rating, level").eq("user_id", userId).single();
+    const atkRating = atkState?.combat_rating || 1000;
+    let defRating = 1000;
+    if (!isBot) {
+      const { data: defState } = await supabase.from("player_state").select("combat_rating").eq("user_id", session.defender_id).single();
+      defRating = defState?.combat_rating || 1000;
+    } else {
+      defRating = 800 + (defender.level || 1) * 20; // Estimated bot rating
+    }
+
+    // Elo calculation
+    const expectedScore = 1 / (1 + Math.pow(10, (defRating - atkRating) / 400));
+    const kFactor = 32;
+    const actualScore = attackerWon ? 1 : 0;
+    const ratingChange = Math.round(kFactor * (actualScore - expectedScore));
+
+    // Level-scaled rewards
+    const levelDiff = (defender.level || 1) - (atkState?.level || 1);
+    const levelMultiplier = Math.max(0.5, 1 + levelDiff * 0.15); // +15% per level difference
+    const baseXP = 50;
+    const scaledXP = Math.floor(baseXP * levelMultiplier);
+    const bonusCash = attackerWon ? Math.floor(Math.max(0, levelDiff) * 500) : 0;
+
     if (attackerWon) {
       await supabase.from("player_state").update({
-        xp: (await supabase.from("player_state").select("xp").eq("user_id", userId).single()).data?.xp + 50,
-        personal_heat: Math.min(100, (await supabase.from("player_state").select("personal_heat").eq("user_id", userId).single()).data?.personal_heat + 15),
+        xp: (atkState?.xp || 0) + scaledXP,
+        personal_heat: Math.min(100, (atkState?.personal_heat || 0) + 15),
+        combat_rating: atkRating + ratingChange,
+        money: bonusCash > 0 ? (await supabase.from("player_state").select("money").eq("user_id", userId).single()).data?.money + bonusCash : undefined,
       }).eq("user_id", userId);
 
-      const isBot = session.defender_id.startsWith("bot_");
       if (!isBot) {
+        await supabase.from("player_state").update({
+          combat_rating: Math.max(100, defRating - ratingChange),
+        }).eq("user_id", session.defender_id);
         await upsertRivalry(supabase, userId, session.defender_id, 10, "pvp");
       }
+
+      // Generate combat news
+      const { data: atkProf } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+      const atkName = atkProf?.username || "Onbekend";
+      const { data: ps } = await supabase.from("player_state").select("loc").eq("user_id", userId).single();
+      const distName = DISTRICT_NAMES[ps?.loc || 'low'] || 'Noxhaven';
+      insertPlayerNews(supabase, {
+        text: `${atkName} verslaat een rivaal in ${distName}! Rating stijgt naar ${atkRating + ratingChange}`,
+        icon: '⚔️', urgency: ratingChange > 20 ? 'high' : 'medium', districtId: ps?.loc,
+      });
+    } else {
+      await supabase.from("player_state").update({
+        combat_rating: Math.max(100, atkRating + ratingChange),
+      }).eq("user_id", userId);
+      if (!isBot) {
+        await supabase.from("player_state").update({
+          combat_rating: defRating - ratingChange,
+        }).eq("user_id", session.defender_id);
+      }
     }
+
+    // Add rating info to last log
+    combatLog.push({ turn, text: `📊 Rating: ${ratingChange > 0 ? '+' : ''}${ratingChange} (${atkRating} → ${atkRating + ratingChange})` });
+    if (scaledXP !== baseXP) combatLog.push({ turn, text: `⭐ Level-bonus: ${scaledXP} XP (${levelDiff > 0 ? '+' : ''}${levelDiff} level verschil)` });
+    if (bonusCash > 0) combatLog.push({ turn, text: `💰 Bonus: €${bonusCash.toLocaleString()} (hoger level tegenstander)` });
   }
 
   // Update session
   await supabase.from("pvp_combat_sessions").update({
-    attacker_state: attacker,
-    defender_state: defender,
-    combat_log: combatLog,
-    turn,
-    status,
-    winner_id: winnerId,
+    attacker_state: attacker, defender_state: defender,
+    combat_log: combatLog, turn, status, winner_id: winnerId,
     updated_at: new Date().toISOString(),
   }).eq("id", sessionId);
 
   return {
-    success: true,
-    message: logs.join(" "),
-    data: {
-      sessionId,
-      turn,
-      attackerState: attacker,
-      defenderState: defender,
-      logs,
-      status,
-      winnerId,
-    },
+    success: true, message: logs.join(" "),
+    data: { sessionId, turn, attackerState: attacker, defenderState: defender, logs, status, winnerId },
   };
 }
 
@@ -1404,18 +1516,16 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
 // ========== LIST PLAYERS (for PvP targeting) ==========
 
 async function handleListPlayers(supabase: any, userId: string, ps: any): Promise<ActionResult> {
-  const TARGET_PLAYER_COUNT = 10; // target per district for PvP list
+  const TARGET_PLAYER_COUNT = 10;
 
-  // Get real players in the same district, excluding self, hospital, prison
   const { data: players } = await supabase
     .from("player_state")
-    .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until, stats, loadout, backstory, rep")
+    .select("user_id, level, hp, max_hp, loc, hospital_until, prison_until, stats, loadout, backstory, rep, combat_rating")
     .eq("loc", ps.loc)
     .neq("user_id", userId)
     .eq("game_over", false)
     .limit(20);
 
-  // Get profiles for usernames
   const realPlayers = players || [];
   const userIds = realPlayers.map((p: any) => p.user_id);
   const { data: profiles } = userIds.length > 0
@@ -1442,6 +1552,7 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
       backstory: p.backstory || null,
       rep: p.rep || 0,
       isBot: false,
+      combatRating: p.combat_rating || 1000,
     }));
 
   // Fill up with bots if needed
@@ -1467,12 +1578,101 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
           backstory: bot.backstory || null,
           rep: bot.rep || 0,
           isBot: true,
+          combatRating: 800 + bot.level * 20,
         });
       }
     }
   }
 
   return { success: true, message: `${result.length} spelers gevonden.`, data: { players: result } };
+}
+
+// ========== CLAIM DISTRICT EVENT ==========
+
+async function handleClaimEvent(supabase: any, userId: string, ps: any, payload: { eventId: string }): Promise<ActionResult> {
+  const { eventId } = payload;
+  if (!eventId) return { success: false, message: "Geen event opgegeven." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Fetch the event
+  const { data: evt } = await supabase.from("district_events").select("*").eq("id", eventId).maybeSingle();
+  if (!evt) return { success: false, message: "Event niet gevonden." };
+  if (new Date(evt.expires_at) < new Date()) return { success: false, message: "Event verlopen." };
+  if (evt.district_id !== ps.loc) return { success: false, message: "Je bent niet in het juiste district." };
+
+  const eventData = evt.data || {};
+
+  // === COMPETITIVE EVENT: first to claim wins ===
+  if (eventData.competitive) {
+    if (evt.claimed_by) return { success: false, message: "Al geclaimd door een andere speler!" };
+
+    await supabase.from("district_events").update({
+      claimed_by: userId,
+      claimed_at: new Date().toISOString(),
+    }).eq("id", eventId);
+
+    // Apply rewards
+    const reward = eventData.reward || {};
+    const moneyGain = reward.money || 0;
+    const repGain = reward.rep || 0;
+    const heatChange = reward.heat || 0;
+
+    await supabase.from("player_state").update({
+      money: ps.money + moneyGain,
+      rep: (ps.rep || 0) + repGain,
+      heat: Math.max(0, Math.min(100, (ps.heat || 0) + heatChange)),
+      xp: (ps.xp || 0) + (reward.xp || 25),
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    const { data: prof } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+    insertPlayerNews(supabase, {
+      text: `${prof?.username || 'Een speler'} claimt ${evt.title} in ${DISTRICT_NAMES[evt.district_id] || evt.district_id}!`,
+      icon: '🏆', urgency: 'high', districtId: evt.district_id,
+    });
+
+    return {
+      success: true,
+      message: `${evt.title} geclaimd! +€${moneyGain.toLocaleString()}, +${repGain} rep.`,
+      data: { money: moneyGain, rep: repGain, heat: heatChange, xp: reward.xp || 25 },
+    };
+  }
+
+  // === COOPERATIVE EVENT: join participants ===
+  if (eventData.cooperative) {
+    const participants: string[] = evt.participants || [];
+    if (participants.includes(userId)) return { success: false, message: "Je doet al mee aan dit event." };
+
+    participants.push(userId);
+    const participantCount = participants.length;
+    const scaleFactor = Math.min(3, 1 + (participantCount - 1) * 0.25); // 25% bonus per extra participant, max 3x
+
+    await supabase.from("district_events").update({
+      participants,
+      data: { ...eventData, participantCount },
+    }).eq("id", eventId);
+
+    // Apply scaled reward
+    const baseReward = eventData.reward || {};
+    const heatReduction = Math.floor((baseReward.heatReduction || 5) * scaleFactor);
+
+    await supabase.from("player_state").update({
+      heat: Math.max(0, (ps.heat || 0) - heatReduction),
+      rep: (ps.rep || 0) + Math.floor((baseReward.rep || 5) * scaleFactor),
+      xp: (ps.xp || 0) + 20,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    return {
+      success: true,
+      message: `Deelgenomen aan ${evt.title}! ${participantCount} spelers — heat -${heatReduction} (${Math.round(scaleFactor * 100)}% bonus).`,
+      data: { participantCount, heatReduction, scaleFactor },
+    };
+  }
+
+  return { success: false, message: "Dit event kan niet geclaimd worden." };
 }
 
 // ========== PUBLIC PROFILE ==========
@@ -4617,6 +4817,9 @@ Deno.serve(async (req) => {
         break;
       case "faction_action":
         result = await handleFactionAction(supabase, user.id, playerState, payload);
+        break;
+      case "claim_event":
+        result = await handleClaimEvent(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

@@ -656,6 +656,7 @@ export interface PvPPlayerInfo {
   backstory?: string;
   rep?: number;
   isBot?: boolean;
+  combatRating?: number;
 }
 
 export interface Achievement {
