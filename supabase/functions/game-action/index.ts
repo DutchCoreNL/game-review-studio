@@ -1587,6 +1587,154 @@ async function handleListPlayers(supabase: any, userId: string, ps: any): Promis
   return { success: true, message: `${result.length} spelers gevonden.`, data: { players: result } };
 }
 
+// ========== JAIL BUSTING ==========
+
+async function handleBustPrison(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId) return { success: false, message: "Geen doelwit opgegeven." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt jezelf niet bevrijden." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  if (ps.energy < 20) return { success: false, message: "Niet genoeg energy (20 nodig)." };
+  if (ps.nerve < 15) return { success: false, message: "Niet genoeg nerve (15 nodig)." };
+
+  // Check target is actually in prison
+  const { data: target } = await supabase.from("player_state").select("prison_until, prison_reason, level, user_id").eq("user_id", targetUserId).maybeSingle();
+  if (!target) return { success: false, message: "Speler niet gevonden." };
+  if (!target.prison_until || new Date(target.prison_until) <= new Date()) return { success: false, message: "Speler zit niet in de gevangenis." };
+
+  // Success chance: base 40% + brains*3% + hacker crew bonus
+  const brains = getPlayerStat(ps.stats || {}, ps.loadout || {}, "brains");
+  const baseChance = 0.40 + brains * 0.03;
+  const successChance = Math.min(0.85, baseChance);
+  const roll = Math.random();
+  const success = roll < successChance;
+
+  const { data: targetProf } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+  const targetName = targetProf?.username || "Onbekend";
+  const { data: myProf } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+  const myName = myProf?.username || "Onbekend";
+
+  // Cost energy/nerve regardless
+  await supabase.from("player_state").update({
+    energy: ps.energy - 20,
+    nerve: ps.nerve - 15,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  if (success) {
+    // Free the prisoner
+    await supabase.from("player_state").update({
+      prison_until: null,
+      prison_reason: null,
+    }).eq("user_id", targetUserId);
+
+    // Rewards for buster
+    await supabase.from("player_state").update({
+      rep: (ps.rep || 0) + 25,
+      xp: (ps.xp || 0) + 40,
+      heat: Math.min(100, (ps.heat || 0) + 10),
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + 8),
+    }).eq("user_id", userId);
+
+    // Send message to freed player
+    await supabase.from("player_messages").insert({
+      sender_id: userId,
+      receiver_id: targetUserId,
+      subject: "🔓 Je bent bevrijd!",
+      body: `${myName} heeft je uit de gevangenis gebroken! Je bent weer vrij.`,
+    });
+
+    // News
+    insertPlayerNews(supabase, {
+      text: `${myName} breekt ${targetName} uit de gevangenis!`,
+      icon: '🔓', urgency: 'high', districtId: ps.loc,
+    });
+
+    return {
+      success: true,
+      message: `${targetName} bevrijd! +25 rep, +40 XP.`,
+      data: { targetName, rep: 25, xp: 40, heat: 10 },
+    };
+  } else {
+    // Failed: buster gets prison time
+    const prisonHours = 1;
+    const prisonUntil = new Date(Date.now() + prisonHours * 3600000).toISOString();
+    await supabase.from("player_state").update({
+      prison_until: prisonUntil,
+      prison_reason: `Gearresteerd bij poging om ${targetName} te bevrijden.`,
+      heat: Math.min(100, (ps.heat || 0) + 15),
+    }).eq("user_id", userId);
+
+    return {
+      success: false,
+      message: `Bevrijdingspoging mislukt! Je bent zelf gearresteerd (${prisonHours}u).`,
+      data: { targetName, imprisoned: true, prisonHours },
+    };
+  }
+}
+
+// ========== HOSPITAL REVIVE ==========
+
+async function handleRevivePlayer(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId) return { success: false, message: "Geen doelwit opgegeven." };
+  if (targetUserId === userId) return { success: false, message: "Je kunt jezelf niet reviven." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  if (ps.energy < 15) return { success: false, message: "Niet genoeg energy (15 nodig)." };
+
+  // Check target is in hospital
+  const { data: target } = await supabase.from("player_state").select("hospital_until, max_hp, user_id").eq("user_id", targetUserId).maybeSingle();
+  if (!target) return { success: false, message: "Speler niet gevonden." };
+  if (!target.hospital_until || new Date(target.hospital_until) <= new Date()) return { success: false, message: "Speler ligt niet in het ziekenhuis." };
+
+  // Costs money (medical supplies)
+  const cost = 2000 + ps.level * 500;
+  if (ps.money < cost) return { success: false, message: `Te weinig geld (nodig: €${cost.toLocaleString()}).` };
+
+  const { data: targetProf } = await supabase.from("profiles").select("username").eq("id", targetUserId).maybeSingle();
+  const targetName = targetProf?.username || "Onbekend";
+  const { data: myProf } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+  const myName = myProf?.username || "Onbekend";
+
+  // Revive the target (release from hospital, restore 75% HP)
+  await supabase.from("player_state").update({
+    hospital_until: null,
+    hp: Math.floor(target.max_hp * 0.75),
+  }).eq("user_id", targetUserId);
+
+  // Deduct cost, gain rep/xp
+  await supabase.from("player_state").update({
+    money: ps.money - cost,
+    energy: ps.energy - 15,
+    rep: (ps.rep || 0) + 15,
+    xp: (ps.xp || 0) + 30,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Message
+  await supabase.from("player_messages").insert({
+    sender_id: userId,
+    receiver_id: targetUserId,
+    subject: "💉 Je bent gerevived!",
+    body: `${myName} heeft je gerevived en uit het ziekenhuis gehaald! Je bent hersteld tot 75% HP.`,
+  });
+
+  insertPlayerNews(supabase, {
+    text: `${myName} revived ${targetName} in het ziekenhuis`,
+    icon: '💉', urgency: 'medium', districtId: ps.loc,
+  });
+
+  return {
+    success: true,
+    message: `${targetName} gerevived! -€${cost.toLocaleString()}, +15 rep, +30 XP.`,
+    data: { targetName, cost, rep: 15, xp: 30 },
+  };
+}
+
 // ========== CLAIM DISTRICT EVENT ==========
 
 async function handleClaimEvent(supabase: any, userId: string, ps: any, payload: { eventId: string }): Promise<ActionResult> {
@@ -2199,21 +2347,44 @@ async function handleGangWarAttack(supabase: any, userId: string, payload: any):
   const { data: myGang } = await supabase.from("gangs").select("level").eq("id", mem.gang_id).maybeSingle();
   const warBonus = getGangWarBonus(myGang?.level || 1);
   const basePoints = Math.floor(muscle * (1 + ps.level * 0.05) + Math.random() * 10);
-  const points = Math.floor(basePoints * (1 + warBonus));
+
+  // === WAR CHAINS: consecutive hits within 5 minutes multiply points ===
+  const CHAIN_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const now = new Date();
+  const side = isAttacker ? 'attacker' : 'defender';
+  const chainField = `${side}_chain`;
+  const lastHitField = `${side}_last_hit_at`;
+  const currentChain = war[chainField] || 0;
+  const lastHitAt = war[lastHitField] ? new Date(war[lastHitField]).getTime() : 0;
+  const timeSinceLastHit = now.getTime() - lastHitAt;
+
+  let newChain: number;
+  if (timeSinceLastHit < CHAIN_TIMEOUT_MS && currentChain > 0) {
+    newChain = currentChain + 1; // Continue chain
+  } else {
+    newChain = 1; // Reset chain
+  }
+
+  // Chain bonus: 10% per chain level, max 100% (at chain 10)
+  const chainBonus = Math.min(1.0, (newChain - 1) * 0.10);
+  const points = Math.floor(basePoints * (1 + warBonus) * (1 + chainBonus));
 
   await supabase.from("player_state").update({ energy: ps.energy - 10, nerve: ps.nerve - 5 }).eq("user_id", userId);
 
+  const warUpdate: any = { [chainField]: newChain, [lastHitField]: now.toISOString() };
   if (isAttacker) {
-    await supabase.from("gang_wars").update({ attacker_score: war.attacker_score + points }).eq("id", warId);
+    warUpdate.attacker_score = war.attacker_score + points;
   } else {
-    await supabase.from("gang_wars").update({ defender_score: war.defender_score + points }).eq("id", warId);
+    warUpdate.defender_score = war.defender_score + points;
   }
+  await supabase.from("gang_wars").update(warUpdate).eq("id", warId);
 
   // Award gang XP for war participation
   const xpResult = await addGangXP(supabase, mem.gang_id, points);
   const levelMsg = xpResult.leveled ? ` 🎉 Gang level ${xpResult.newLevel}!` : "";
+  const chainMsg = newChain >= 3 ? ` 🔥 Chain x${newChain}! (+${Math.round(chainBonus * 100)}% bonus)` : newChain === 2 ? ` ⚡ Chain x2!` : "";
 
-  return { success: true, message: `+${points} punten gescoord! +${points} Gang XP.${levelMsg}`, data: { points, gangXP: points, gangLeveled: xpResult.leveled, newGangLevel: xpResult.newLevel } };
+  return { success: true, message: `+${points} punten gescoord!${chainMsg}${levelMsg}`, data: { points, chain: newChain, chainBonus: Math.round(chainBonus * 100), gangXP: points, gangLeveled: xpResult.leveled, newGangLevel: xpResult.newLevel } };
 }
 
 async function handleGangChat(supabase: any, userId: string, payload: any): Promise<ActionResult> {
@@ -4820,6 +4991,12 @@ Deno.serve(async (req) => {
         break;
       case "claim_event":
         result = await handleClaimEvent(supabase, user.id, playerState, payload);
+        break;
+      case "bust_prison":
+        result = await handleBustPrison(supabase, user.id, playerState, payload);
+        break;
+      case "revive_player":
+        result = await handleRevivePlayer(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

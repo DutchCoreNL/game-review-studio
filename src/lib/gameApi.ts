@@ -30,6 +30,8 @@ export type GameAction =
   | "attack_faction"
   | "faction_action"
   | "claim_event"
+  | "bust_prison"
+  | "revive_player"
   | "process_turn";
 
 interface GameActionResult {
@@ -152,6 +154,10 @@ export const gameApi = {
 
   // Claim a server-driven district event
   claimEvent: (eventId: string) => invokeGameAction("claim_event", { eventId }),
+
+  // Jail busting & hospital revive
+  bustPrison: (targetUserId: string) => invokeGameAction("bust_prison", { targetUserId }),
+  revivePlayer: (targetUserId: string) => invokeGameAction("revive_player", { targetUserId }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })

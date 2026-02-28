@@ -22,6 +22,10 @@ interface GangWarRow {
   defender_gang_id: string;
   attacker_score: number;
   defender_score: number;
+  attacker_chain: number;
+  defender_chain: number;
+  attacker_last_hit_at: string | null;
+  defender_last_hit_at: string | null;
   district_id: string | null;
   status: string;
   started_at: string;
@@ -184,10 +188,16 @@ function OverviewTab({ activeWars, gangName, gangTag, pendingWar, loading, state
                   <div className="flex-1 bg-blood/10 rounded p-1.5 text-center">
                     <p className="text-[0.4rem] text-muted-foreground">Aanvaller</p>
                     <p className="text-sm font-black text-blood">{war.attacker_score}</p>
+                    {(war.attacker_chain || 0) >= 2 && (
+                      <p className="text-[0.4rem] text-gold font-bold">🔥 Chain x{war.attacker_chain}</p>
+                    )}
                   </div>
                   <div className="flex-1 bg-ice/10 rounded p-1.5 text-center">
                     <p className="text-[0.4rem] text-muted-foreground">Verdediger</p>
                     <p className="text-sm font-black text-ice">{war.defender_score}</p>
+                    {(war.defender_chain || 0) >= 2 && (
+                      <p className="text-[0.4rem] text-gold font-bold">🔥 Chain x{war.defender_chain}</p>
+                    )}
                   </div>
                 </div>
               </div>
