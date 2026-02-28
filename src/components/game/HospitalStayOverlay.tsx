@@ -6,6 +6,7 @@ import { GameButton } from './ui/GameButton';
 import { HOSPITAL_STAY_DAYS, MAX_HOSPITALIZATIONS } from '@/game/constants';
 import { playNegativeSound } from '@/game/sounds';
 import { useEffect, useRef } from 'react';
+import { PlayerHelpPanel } from './social/PlayerHelpPanel';
 
 export function HospitalStayOverlay() {
   const { state } = useGame();
@@ -156,6 +157,14 @@ function HospitalInner() {
             >
               WACHT DE DAG AF
             </GameButton>
+
+            {/* Revive panel for other hospitalized players */}
+            <PlayerHelpPanel
+              type="hospital"
+              onResult={(msg, isError) => {
+                // Show toast - we need to use dispatch or some notification
+              }}
+            />
           </div>
         </div>
       </motion.div>

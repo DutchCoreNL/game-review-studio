@@ -5,6 +5,7 @@ import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { motion } from 'framer-motion';
 import { Heart, Syringe, Stethoscope, BadgeDollarSign } from 'lucide-react';
+import { PlayerHelpPanel } from './social/PlayerHelpPanel';
 
 const HEAL_OPTIONS = [
   { id: 'small', label: 'Eerste Hulp', amount: 20, icon: '🩹', desc: 'Wonden verzorgen' },
@@ -128,6 +129,13 @@ export function HospitalView() {
           <span>Natuurlijk herstel: 10 HP/nacht (20 met Villa Crew Kwartieren)</span>
         </div>
       </div>
+
+      {/* Revive other players */}
+      <SectionHeader title="Spelers Helpen" icon={<Syringe size={12} />} />
+      <PlayerHelpPanel
+        type="hospital"
+        onResult={(msg, isError) => showToast(msg, isError)}
+      />
     </div>
   );
 }

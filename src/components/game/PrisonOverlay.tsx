@@ -9,6 +9,7 @@ import * as Engine from '@/game/engine';
 import prisonBg from '@/assets/items/overlay-prison.jpg';
 import { playCoinSound, playAlarmSound, playVictorySound, playNegativeSound, playDramaticReveal } from '@/game/sounds';
 import { DiceGame } from './minigames/DiceGame';
+import { PlayerHelpPanel } from './social/PlayerHelpPanel';
 
 export function PrisonOverlay() {
   const { state } = useGame();
@@ -307,6 +308,17 @@ function PrisonOverlayInner() {
               >
                 WACHT DE DAG AF
               </GameButton>
+
+              {/* Jail busting panel for other prisoners */}
+              <PlayerHelpPanel
+                type="prison"
+                onResult={(msg, isError) => {
+                  showToast(msg, isError);
+                  if (!isError) {
+                    // Refresh if we got arrested ourselves
+                  }
+                }}
+              />
             </div>
           </div>
         </div>

@@ -475,9 +475,13 @@ export type Database = {
       }
       gang_wars: {
         Row: {
+          attacker_chain: number
           attacker_gang_id: string
+          attacker_last_hit_at: string | null
           attacker_score: number
+          defender_chain: number
           defender_gang_id: string
+          defender_last_hit_at: string | null
           defender_score: number
           district_id: string | null
           ended_at: string | null
@@ -488,9 +492,13 @@ export type Database = {
           winner_gang_id: string | null
         }
         Insert: {
+          attacker_chain?: number
           attacker_gang_id: string
+          attacker_last_hit_at?: string | null
           attacker_score?: number
+          defender_chain?: number
           defender_gang_id: string
+          defender_last_hit_at?: string | null
           defender_score?: number
           district_id?: string | null
           ended_at?: string | null
@@ -501,9 +509,13 @@ export type Database = {
           winner_gang_id?: string | null
         }
         Update: {
+          attacker_chain?: number
           attacker_gang_id?: string
+          attacker_last_hit_at?: string | null
           attacker_score?: number
+          defender_chain?: number
           defender_gang_id?: string
+          defender_last_hit_at?: string | null
           defender_score?: number
           district_id?: string | null
           ended_at?: string | null
