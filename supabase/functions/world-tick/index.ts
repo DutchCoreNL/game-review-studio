@@ -1095,6 +1095,457 @@ async function simulateBotGangChat(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot gang chat error:', e); }
 }
 
+// ========== BOT CASINO ==========
+async function simulateBotCasino(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.2) return;
+    const gamblers = bots.filter(b => b.cash > 5000).sort(() => Math.random() - 0.5).slice(0, 3);
+    for (const bot of gamblers) {
+      const bet = Math.floor(Math.random() * Math.min(bot.cash * 0.1, 10000)) + 500;
+      const won = Math.random() > 0.55;
+      const delta = won ? bet : -bet;
+      await supabase.from('bot_players').update({ cash: Math.max(0, bot.cash + delta) }).eq('id', bot.id);
+      bot.cash = Math.max(0, bot.cash + delta);
+    }
+  } catch (e) { console.error('Bot casino error:', e); }
+}
+
+// ========== BOT GEAR & VEHICLES ==========
+async function simulateBotGearVehicles(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.1) return;
+    // Simulate bots buying gear by boosting combat_rating equivalent (rep)
+    const rich = bots.filter(b => b.cash > 20000).sort(() => Math.random() - 0.5).slice(0, 2);
+    for (const bot of rich) {
+      const cost = Math.floor(Math.random() * 15000) + 5000;
+      await supabase.from('bot_players').update({ cash: bot.cash - cost }).eq('id', bot.id);
+      bot.cash -= cost;
+    }
+  } catch (e) { console.error('Bot gear error:', e); }
+}
+
+// ========== BOT BUSINESSES ==========
+async function simulateBotBusinesses(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.08) return;
+    const eligible = bots.filter(b => b.cash > 50000 && b.level >= 10);
+    if (eligible.length === 0) return;
+    const bot = pick(eligible);
+    const businessIds = ['bar', 'club', 'restaurant', 'garage', 'laundromat', 'pawnshop'];
+    const biz = pick(businessIds);
+    // Business gives passive income via rep/cash growth already simulated
+    const cost = 30000 + Math.floor(Math.random() * 50000);
+    await supabase.from('bot_players').update({ cash: Math.max(0, bot.cash - cost) }).eq('id', bot.id);
+  } catch (e) { console.error('Bot business error:', e); }
+}
+
+// ========== BOT MONEY WASHING ==========
+async function simulateBotMoneyWashing(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.12) return;
+    const rich = bots.filter(b => b.cash > 30000).sort(() => Math.random() - 0.5).slice(0, 2);
+    for (const bot of rich) {
+      const washAmount = Math.floor(bot.cash * 0.1);
+      // Washing costs ~20% fee
+      const fee = Math.floor(washAmount * 0.2);
+      await supabase.from('bot_players').update({ cash: bot.cash - fee }).eq('id', bot.id);
+      bot.cash -= fee;
+    }
+  } catch (e) { console.error('Bot money washing error:', e); }
+}
+
+// ========== BOT HEISTS ==========
+async function simulateBotHeists(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.08) return;
+    // Check for open heist sessions, bots join them
+    const { data: openHeists } = await supabase.from('heist_sessions')
+      .select('*')
+      .eq('status', 'recruiting')
+      .limit(3);
+    if (!openHeists || openHeists.length === 0) return;
+    for (const heist of openHeists) {
+      const slots = heist.crew_slots || {};
+      const roles = ['lookout', 'driver', 'hacker', 'muscle'];
+      const emptyRoles = roles.filter(r => !slots[r]);
+      if (emptyRoles.length === 0) continue;
+      const gangBots = bots.filter(b => b.gang_id === heist.gang_id);
+      if (gangBots.length === 0) continue;
+      const bot = pick(gangBots);
+      const role = pick(emptyRoles);
+      slots[role] = { userId: bot.id, username: bot.username };
+      await supabase.from('heist_sessions').update({ crew_slots: slots }).eq('id', heist.id);
+    }
+  } catch (e) { console.error('Bot heist error:', e); }
+}
+
+// ========== BOT SAFEHOUSE RAIDS ==========
+async function simulateBotSafehouseRaids(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.05) return;
+    const { data: safehouses } = await supabase.from('player_safehouses')
+      .select('*')
+      .limit(10);
+    if (!safehouses || safehouses.length === 0) return;
+    const target = pick(safehouses);
+    const attacker = pick(bots.filter(b => b.level >= 15 && b.id !== target.user_id));
+    if (!attacker) return;
+    const won = Math.random() > 0.5;
+    const loot = won ? Math.floor(Math.random() * 5000) + 1000 : 0;
+    await supabase.from('safehouse_raids').insert({
+      attacker_id: attacker.id,
+      defender_id: target.user_id,
+      district_id: target.district_id,
+      attacker_won: won,
+      loot_stolen: loot,
+      attacker_damage: Math.floor(Math.random() * 30),
+      defender_damage: Math.floor(Math.random() * 30),
+    });
+    if (won) {
+      await supabase.from('bot_players').update({ cash: attacker.cash + loot }).eq('id', attacker.id);
+    }
+  } catch (e) { console.error('Bot safehouse raid error:', e); }
+}
+
+// ========== BOT SABOTAGE LAB ==========
+async function simulateBotSabotageLab(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.05) return;
+    // Simulate via activity feed only (no dedicated table)
+    const attacker = pick(bots.filter(b => b.level >= 12));
+    if (!attacker) return;
+    await supabase.from('activity_feed').insert({
+      user_id: attacker.id,
+      username: attacker.username,
+      action_type: 'sabotage',
+      description: `heeft een rivaal-lab gesaboteerd in ${DISTRICT_NAMES[attacker.loc]}`,
+      icon: '💣',
+      district_id: attacker.loc,
+    });
+  } catch (e) { console.error('Bot sabotage error:', e); }
+}
+
+// ========== BOT GANG STORY ARCS ==========
+async function simulateBotGangArcs(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.06) return;
+    // Progress existing bot gang arcs
+    const botGangIds = [...new Set(bots.filter(b => b.gang_id).map(b => b.gang_id))];
+    if (botGangIds.length === 0) return;
+    const { data: arcs } = await supabase.from('gang_story_arcs')
+      .select('*')
+      .in('gang_id', botGangIds)
+      .eq('status', 'active')
+      .limit(5);
+    if (!arcs || arcs.length === 0) return;
+    for (const arc of arcs) {
+      const newStep = arc.current_step + 1;
+      if (newStep >= arc.total_steps) {
+        await supabase.from('gang_story_arcs').update({
+          current_step: newStep,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          result: { outcome: 'success', reward: { cash: 10000, rep: 50 } },
+        }).eq('id', arc.id);
+      } else {
+        await supabase.from('gang_story_arcs').update({ current_step: newStep }).eq('id', arc.id);
+      }
+    }
+  } catch (e) { console.error('Bot gang arc error:', e); }
+}
+
+// ========== BOT NEMESIS ==========
+async function simulateBotNemesis(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.04) return;
+    // Progress existing nemesis arcs
+    const botIds = bots.map(b => b.id);
+    const { data: nemeses } = await supabase.from('player_nemesis')
+      .select('*')
+      .in('player_id', botIds)
+      .eq('status', 'active')
+      .limit(5);
+    if (!nemeses || nemeses.length === 0) return;
+    for (const nem of nemeses) {
+      const newProgress = Math.min(100, nem.arc_progress + Math.floor(Math.random() * 20) + 10);
+      const eventsLog = nem.events_log || [];
+      eventsLog.push({ event: 'confrontation', timestamp: new Date().toISOString() });
+      if (newProgress >= 100) {
+        const actions = ['execute', 'banish', 'recruit'];
+        await supabase.from('player_nemesis').update({
+          arc_progress: 100,
+          status: 'resolved',
+          resolved_at: new Date().toISOString(),
+          events_log: eventsLog,
+        }).eq('id', nem.id);
+      } else {
+        await supabase.from('player_nemesis').update({
+          arc_progress: newProgress,
+          events_log: eventsLog,
+        }).eq('id', nem.id);
+      }
+    }
+  } catch (e) { console.error('Bot nemesis error:', e); }
+}
+
+// ========== BOT UNDERCOVER MISSIONS ==========
+async function simulateBotUndercover(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.06) return;
+    const botIds = bots.map(b => b.id);
+    const { data: missions } = await supabase.from('undercover_missions')
+      .select('*')
+      .in('user_id', botIds)
+      .eq('status', 'active')
+      .limit(3);
+    if (!missions || missions.length === 0) {
+      // Maybe start a new one
+      if (Math.random() > 0.5) return;
+      const eligible = bots.filter(b => b.level >= 15 && b.cash > 10000);
+      if (eligible.length === 0) return;
+      const bot = pick(eligible);
+      const factions = ['syndicate', 'cartel', 'yakuza', 'bratva', 'triad'];
+      const covers = ['Marco Verdi', 'Elena Rossi', 'Viktor Petrov', 'Carlos Mendez', 'Yuki Tanaka'];
+      await supabase.from('undercover_missions').insert({
+        user_id: bot.id,
+        target_faction: pick(factions),
+        cover_identity: pick(covers),
+      });
+      await supabase.from('bot_players').update({ cash: bot.cash - 10000 }).eq('id', bot.id);
+      return;
+    }
+    // Progress existing missions
+    for (const m of missions) {
+      const coverLoss = Math.floor(Math.random() * 15) + 5;
+      const newCover = Math.max(0, m.cover_integrity - coverLoss);
+      const success = Math.random() > 0.3;
+      const intel = m.intel_gathered || [];
+      if (success) intel.push({ text: 'intel verzameld', day: new Date().toISOString() });
+      if (newCover <= 0) {
+        await supabase.from('undercover_missions').update({
+          cover_integrity: 0, status: 'blown', completed_at: new Date().toISOString(),
+          intel_gathered: intel,
+        }).eq('id', m.id);
+      } else {
+        await supabase.from('undercover_missions').update({
+          cover_integrity: newCover,
+          missions_completed: m.missions_completed + (success ? 1 : 0),
+          days_active: m.days_active + 1,
+          intel_gathered: intel,
+        }).eq('id', m.id);
+      }
+    }
+  } catch (e) { console.error('Bot undercover error:', e); }
+}
+
+// ========== BOT TRIBUNAL ==========
+async function simulateBotTribunal(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.04) return;
+    // Vote on existing cases
+    const { data: cases } = await supabase.from('tribunal_cases')
+      .select('*')
+      .eq('status', 'voting')
+      .limit(5);
+    if (!cases || cases.length === 0) {
+      // Maybe file a new case
+      if (Math.random() > 0.7 || bots.length < 2) return;
+      const accuser = pick(bots);
+      // Get a human player target from leaderboard
+      const { data: targets } = await supabase.from('leaderboard_entries')
+        .select('user_id, username')
+        .neq('user_id', accuser.id)
+        .limit(20);
+      if (!targets || targets.length === 0) return;
+      const target = pick(targets);
+      const charges = ['marktmanipulatie', 'territoriumdiefstal', 'verraderij', 'buitensporig geweld', 'oplichting'];
+      const evidences = ['Meerdere getuigen bevestigen dit', 'Transactiegeschiedenis toont fraude', 'Screenshot bewijs beschikbaar'];
+      await supabase.from('tribunal_cases').insert({
+        accuser_id: accuser.id,
+        accuser_name: accuser.username,
+        target_id: target.user_id,
+        target_name: target.username,
+        charge: pick(charges),
+        evidence: pick(evidences),
+        status: 'voting',
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+      return;
+    }
+    // Vote on cases
+    for (const tc of cases) {
+      const voters = bots.sort(() => Math.random() - 0.5).slice(0, Math.floor(Math.random() * 3) + 1);
+      for (const voter of voters) {
+        if (voter.id === tc.accuser_id || voter.id === tc.target_id) continue;
+        const { data: existing } = await supabase.from('tribunal_votes')
+          .select('id').eq('case_id', tc.id).eq('juror_id', voter.id).maybeSingle();
+        if (existing) continue;
+        const vote = Math.random() > 0.5 ? 'guilty' : 'innocent';
+        await supabase.from('tribunal_votes').insert({
+          case_id: tc.id,
+          juror_id: voter.id,
+          juror_name: voter.username,
+          vote,
+        });
+      }
+    }
+  } catch (e) { console.error('Bot tribunal error:', e); }
+}
+
+// ========== BOT MOLE OPERATIONS ==========
+async function simulateBotMoles(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.05) return;
+    // Progress existing moles
+    const botIds = bots.map(b => b.id);
+    const { data: moles } = await supabase.from('gang_moles')
+      .select('*')
+      .in('player_id', botIds)
+      .eq('status', 'active')
+      .limit(5);
+    if (moles && moles.length > 0) {
+      for (const mole of moles) {
+        const coverLoss = Math.floor(Math.random() * 10) + 2;
+        const newCover = Math.max(0, mole.cover_strength - coverLoss);
+        const intel = mole.intel_reports || [];
+        if (Math.random() > 0.4) {
+          intel.push({ type: 'treasury', value: Math.floor(Math.random() * 50000), timestamp: new Date().toISOString() });
+        }
+        if (newCover <= 0) {
+          await supabase.from('gang_moles').update({
+            cover_strength: 0, status: 'discovered',
+            discovered_at: new Date().toISOString(),
+            intel_reports: intel,
+          }).eq('id', mole.id);
+        } else {
+          await supabase.from('gang_moles').update({
+            cover_strength: newCover, intel_reports: intel,
+            last_intel_at: new Date().toISOString(),
+          }).eq('id', mole.id);
+        }
+      }
+    }
+    // Maybe plant a new mole
+    if (Math.random() > 0.7) return;
+    const gangBots = bots.filter(b => b.gang_id);
+    if (gangBots.length === 0) return;
+    const bot = pick(gangBots);
+    const otherGangIds = [...new Set(gangBots.filter(b => b.gang_id !== bot.gang_id).map(b => b.gang_id))];
+    if (otherGangIds.length === 0) return;
+    const targetGang = pick(otherGangIds);
+    await supabase.from('gang_moles').insert({
+      player_id: bot.id,
+      player_gang_id: bot.gang_id,
+      target_gang_id: targetGang,
+    });
+  } catch (e) { console.error('Bot mole error:', e); }
+}
+
+// ========== BOT CONTRACTS ==========
+async function simulateBotContracts(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.15) return;
+    // Bots simulate completing contracts by earning cash/rep/xp
+    const active = bots.filter(b => b.level >= 5).sort(() => Math.random() - 0.5).slice(0, 3);
+    for (const bot of active) {
+      const cashReward = Math.floor(Math.random() * 8000) + 2000;
+      const repReward = Math.floor(Math.random() * 15) + 5;
+      await supabase.from('bot_players').update({
+        cash: bot.cash + cashReward,
+        rep: bot.rep + repReward,
+      }).eq('id', bot.id);
+      bot.cash += cashReward;
+      bot.rep += repReward;
+      // Activity feed
+      await supabase.from('activity_feed').insert({
+        user_id: bot.id,
+        username: bot.username,
+        action_type: 'contract',
+        description: `heeft een contract voltooid in ${DISTRICT_NAMES[bot.loc]}`,
+        icon: '📋',
+        district_id: bot.loc,
+      });
+    }
+  } catch (e) { console.error('Bot contracts error:', e); }
+}
+
+// ========== BOT POLICE BRIBING ==========
+async function simulateBotPoliceBribe(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.1) return;
+    // Simulate bots bribing police (reduce heat via activity feed)
+    const hotBots = bots.filter(b => b.cash > 10000).sort(() => Math.random() - 0.5).slice(0, 2);
+    for (const bot of hotBots) {
+      const cost = Math.floor(Math.random() * 5000) + 2000;
+      await supabase.from('bot_players').update({ cash: Math.max(0, bot.cash - cost) }).eq('id', bot.id);
+      bot.cash -= cost;
+    }
+  } catch (e) { console.error('Bot bribe error:', e); }
+}
+
+// ========== BOT SKILL PROGRESSION ==========
+async function simulateBotSkills(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.08) return;
+    // Bots that level up get skill points reflected in higher stats
+    const eligible = bots.filter(b => b.level >= 8);
+    if (eligible.length === 0) return;
+    const bot = pick(eligible);
+    // Increase max_hp or rep as proxy for skill unlocks
+    await supabase.from('bot_players').update({
+      max_hp: bot.max_hp + 5,
+    }).eq('id', bot.id);
+  } catch (e) { console.error('Bot skills error:', e); }
+}
+
+// ========== BOT PRESTIGE ==========
+async function simulateBotPrestige(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.02) return;
+    const eligible = bots.filter(b => b.level >= 50 && b.prestige_level < 5);
+    if (eligible.length === 0) return;
+    const bot = pick(eligible);
+    await supabase.from('bot_players').update({
+      prestige_level: bot.prestige_level + 1,
+      level: 1,
+      rep: 0,
+      cash: 10000,
+    }).eq('id', bot.id);
+    await supabase.from('news_events').insert({
+      text: `${bot.username} heeft Prestige ${bot.prestige_level + 1} bereikt! 🌟`,
+      icon: '🌟',
+      urgency: 'high',
+      category: 'player',
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+  } catch (e) { console.error('Bot prestige error:', e); }
+}
+
+// ========== BOT STORY EVENTS ==========
+async function simulateBotStoryEvents(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.06) return;
+    // Resolve pending bot story events
+    const botIds = bots.map(b => b.id);
+    const { data: pending } = await supabase.from('personal_story_events')
+      .select('*')
+      .in('user_id', botIds)
+      .eq('status', 'pending')
+      .limit(5);
+    if (!pending || pending.length === 0) return;
+    for (const story of pending) {
+      const choices = story.choices || [];
+      if (choices.length === 0) continue;
+      const chosen = pick(choices);
+      await supabase.from('personal_story_events').update({
+        status: 'resolved',
+        chosen_option: chosen.id,
+        reward_data: chosen.reward || {},
+      }).eq('id', story.id);
+    }
+  } catch (e) { console.error('Bot story events error:', e); }
+}
+
 async function simulateBots(supabase: any, phase: string, worldDay: number) {
   try {
     const { data: bots } = await supabase
@@ -1221,6 +1672,24 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       simulateBotDistrictEvents(supabase, bots),
       simulateBotNpcMood(supabase, bots),
       simulateBotGangChat(supabase, bots),
+      // New bot activities
+      simulateBotCasino(supabase, bots),
+      simulateBotGearVehicles(supabase, bots),
+      simulateBotBusinesses(supabase, bots),
+      simulateBotMoneyWashing(supabase, bots),
+      simulateBotHeists(supabase, bots),
+      simulateBotSafehouseRaids(supabase, bots),
+      simulateBotSabotageLab(supabase, bots),
+      simulateBotGangArcs(supabase, bots),
+      simulateBotNemesis(supabase, bots),
+      simulateBotUndercover(supabase, bots),
+      simulateBotTribunal(supabase, bots),
+      simulateBotMoles(supabase, bots),
+      simulateBotContracts(supabase, bots),
+      simulateBotPoliceBribe(supabase, bots),
+      simulateBotSkills(supabase, bots),
+      simulateBotPrestige(supabase, bots),
+      simulateBotStoryEvents(supabase, bots),
     ]);
   } catch (e) {
     console.error('Bot simulation error:', e);
