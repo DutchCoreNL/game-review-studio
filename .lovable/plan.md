@@ -1,68 +1,59 @@
 
 
-## Analyse: Huidig Kogelsysteem vs. MMO Mafia Games
+## Plan: Permadeath voor Iedereen
 
-### Hoe het werkt in klassieke text-based mafia MMOs (Torn City, MafiaMatrix, TheMafiaLife):
+### Huidige situatie
+Het spel heeft twee modi:
+- **Normaal**: 3 ziekenhuisopnames → game over, met 15% "Last Stand" overlevingskans
+- **Hardcore**: Aparte modus, 1 dood = game over, apart leaderboard
 
-1. **Ammo is niet per type** — je koopt simpelweg "bullets" of "rounds" als universele munitie
-2. **Elke aanval kost energie (niet ammo)** — ammo is gebonden aan het *wapen*, niet aan de actie
-3. **Wapens hebben durability/uses** — een wapen gaat kapot na X aanvallen, niet de munitie
-4. **Ammo is schaars en waardevol** — het is een serieuze economische sink, verhandelbaar op de markt
-5. **Speciale munitie** geeft bonuseffecten (armor piercing, hollowpoints, tracer rounds)
+### Wat verandert
+Iedereen speelt nu effectief "hardcore" — dood = opnieuw beginnen. De aparte hardcore toggle verdwijnt. Dit maakt het spel eerlijker als MMO.
 
-### Problemen met het huidige systeem:
+### Aanpassingen
 
-- **3 ammo types (9mm, 7.62mm, shells)** is onnodig complex voor een text-based game — spelers moeten steeds de juiste type bijhouden
-- **Flat kogelverbruik** (1 per aanval, 2 per heavy) is te simpel en maakt ammo onbelangrijk
-- **Max 99 per type** is te laag voor MMO-schaal
-- **Ammo factory** produceert maar 3-5/dag — te weinig om relevant te zijn
-- **Geen speciale munitie** — geen strategische keuze
-- **PvP combat (`combatSkills.ts`)** gebruikt helemaal GEEN ammo — skills kosten 0 energy/ammo
-- **Villa wapenkamer** beschermt ammo maar het systeem is te simpel
+**1. Constants & Types**
+- `MAX_HOSPITALIZATIONS` verwijderen of op 1 zetten
+- `hardcoreMode` veld behouden maar altijd `true` forceren (backwards compat)
+- "Last Stand" 15% overlevingskans verwijderen — dood is dood
+- Hospital systeem omzetten: geen ziekenhuisopname meer, direct game over bij 0 HP
 
-### Plan: MMO-Waardig Kogelsysteem
+**2. Combat Handlers (combatHandlers.ts + GameContext.tsx)**
+- Bij verloren gevecht (HP ≤ 0): direct `gameOver = true`
+- Verwijder Last Stand logica
+- Verwijder hospitalization counter/checks
+- Hospital state (`hospital`, `hospitalizations`) niet meer gebruiken in combat
 
-#### 1. Vereenvoudig naar één universeel ammo type + speciale rounds
-- Verwijder 9mm/7.62mm/shells onderscheid
-- Eén "Kogels" counter (max 500)
-- **3 speciale ammo types** als consumables: 
-  - **Armor Piercing** (negeert 50% armor, +20% kosten)
-  - **Hollowpoints** (1.5x schade vs onbeschermde, -50% vs armor)
-  - **Tracer Rounds** (+15% accuracy, onthult vijand locatie)
+**3. Doodsmechaniek verfijnen voor MMO-balans**
+Omdat permadeath hard is, voegen we **verzachtende mechanismen** toe:
+- **Doodskist**: Bij game over bewaar 10% van je geld voor je volgende run (opgeslagen server-side per user)
+- **Legacy bonus**: Elk gestorven karakter geeft +2% XP bonus op je volgende run (max +20%, 10 runs)
+- **Waarschuwing bij laag HP**: Onder 20% HP krijg je een rode waarschuwing "VLUCHT OF STERF"
 
-#### 2. Wapen-gebonden clip/magazine systeem
-- Elk wapen heeft een `clipSize` (al aanwezig in data)
-- Tijdens gevecht: wapen verbruikt uit geladen clip
-- **Reload-actie** in combat (kost 1 beurt, laadt clip vol uit ammo voorraad)
-- Lege clip = gedwongen melee (50% damage penalty, al geïmplementeerd)
+**4. UI Aanpassingen**
+- **MainMenu**: Verwijder aparte "Hardcore Mode" knop — standaard spel is nu permadeath
+- **GameOverScreen**: Verwijder hardcore-specifieke tekst, toon altijd permadeath bericht + doodskist info
+- **VictoryScreen**: Verwijder `!state.hardcoreMode` conditie op Prestige Reset
+- **LeaderboardView**: Verwijder "Hardcore" tab — er is maar één modus. "Hall of Legends" blijft voor high-level spelers
+- **HUD/StatusBar**: Voeg permanent ☠️ indicator toe bij laag HP
 
-#### 3. Ammo als echte economische sink
-- Verhoog max naar 500
-- Ammo factory: 10-25/dag afhankelijk van level
-- **Ammo verhandelbaar** op P2P markt (al deels in constants)
-- Combat skills kosten ammo (niet 0 zoals nu)
+**5. Server-side (Edge Functions)**
+- `game-action`: Verwijder hardcore-specifieke checks
+- Leaderboard: `is_hardcore` kolom altijd `true` voor nieuwe entries
+- **Nieuw**: `death_legacy` tabel of veld op profiel voor doodskist + legacy XP bonus
 
-#### 4. PvP ammo integratie
-- `pvpCombatTurn()` in `combatSkills.ts` moet ammo verbruiken
-- Skills met `type: 'damage'` kosten 1-3 ammo
-- Skills met `type: 'multi_hit'` kosten ammo per hit
-- Combo finisher kost 3 ammo
-
-### Bestanden die aangepast worden:
+**6. Bestanden die aangepast worden**
 
 | Bestand | Wijziging |
 |---|---|
-| `src/game/types.ts` | Vereenvoudig `AmmoType`, voeg `SpecialAmmoType` toe, voeg `clipLoaded` aan combat state |
-| `src/game/constants.ts` | Universeel ammo, speciale munitie definitie, hogere caps, skill ammo costs |
-| `src/game/combatSkills.ts` | `energyCost` → ammo cost per skill, reload action, clip systeem |
-| `src/game/engine.ts` | Clip/reload in PvE combat, vereenvoudigde ammo checks |
-| `src/game/villa.ts` | Hogere ammo opslag caps |
-| `src/components/game/trade/GearPanel.tsx` | Vereenvoudigde ammo UI, speciale munitie selector |
-| `src/components/game/CombatView.tsx` | Clip indicator, reload knop, speciale ammo indicator |
-| `supabase/functions/game-action/index.ts` | Server-side ammo validatie vereenvoudigen |
-
-### Migratieplan:
-- `ammoStock` → enkele `ammo: number` (backwards compatible, veld bestaat al)
-- Legacy `ammoStock` waarden optellen naar één totaal
-- Database: `ammo_stock` kolom behouden maar niet meer per-type gebruiken
+| `src/game/constants.ts` | `MAX_HOSPITALIZATIONS = 1`, `hardcoreMode: true` in initial state |
+| `src/game/types.ts` | Voeg `deathLegacy` veld toe aan GameState |
+| `src/game/reducers/combatHandlers.ts` | Verwijder Last Stand + hospital, direct game over |
+| `src/contexts/GameContext.tsx` | Verwijder Last Stand + hospital logica, forceer hardcoreMode, laad death legacy |
+| `src/components/game/MainMenu.tsx` | Verwijder hardcore knop/bevestiging |
+| `src/components/game/GameOverScreen.tsx` | Universeel permadeath scherm + doodskist info |
+| `src/components/game/VictoryScreen.tsx` | Verwijder hardcoreMode conditie |
+| `src/components/game/LeaderboardView.tsx` | Verwijder hardcore tab, houd Hall of Legends |
+| `src/pages/Index.tsx` | Verwijder `handleHardcoreStart` |
+| `supabase/functions/game-action/index.ts` | Verwijder hardcore checks |
 
