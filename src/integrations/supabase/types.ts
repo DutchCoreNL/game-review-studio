@@ -1257,6 +1257,48 @@ export type Database = {
           },
         ]
       }
+      personal_story_events: {
+        Row: {
+          choices: Json
+          chosen_option: string | null
+          context_snapshot: Json
+          created_at: string
+          expires_at: string
+          id: string
+          reward_data: Json | null
+          status: string
+          story_text: string
+          story_title: string
+          user_id: string
+        }
+        Insert: {
+          choices?: Json
+          chosen_option?: string | null
+          context_snapshot?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          reward_data?: Json | null
+          status?: string
+          story_text: string
+          story_title?: string
+          user_id: string
+        }
+        Update: {
+          choices?: Json
+          chosen_option?: string | null
+          context_snapshot?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          reward_data?: Json | null
+          status?: string
+          story_text?: string
+          story_title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       player_bounties: {
         Row: {
           amount: number
@@ -1551,6 +1593,48 @@ export type Database = {
           level?: number
           user_id?: string
           username?: string
+        }
+        Relationships: []
+      }
+      player_reputation_echo: {
+        Row: {
+          district_id: string
+          generosity: number
+          id: string
+          loyalty: number
+          price_modifier: number
+          stealth: number
+          total_interactions: number
+          trade_trust: number
+          updated_at: string
+          user_id: string
+          violence: number
+        }
+        Insert: {
+          district_id: string
+          generosity?: number
+          id?: string
+          loyalty?: number
+          price_modifier?: number
+          stealth?: number
+          total_interactions?: number
+          trade_trust?: number
+          updated_at?: string
+          user_id: string
+          violence?: number
+        }
+        Update: {
+          district_id?: string
+          generosity?: number
+          id?: string
+          loyalty?: number
+          price_modifier?: number
+          stealth?: number
+          total_interactions?: number
+          trade_trust?: number
+          updated_at?: string
+          user_id?: string
+          violence?: number
         }
         Relationships: []
       }
@@ -2213,6 +2297,149 @@ export type Database = {
           sender_id?: string
           sender_name?: string
           status?: string
+        }
+        Relationships: []
+      }
+      tribunal_cases: {
+        Row: {
+          accused_id: string
+          accused_name: string
+          accuser_id: string
+          accuser_name: string
+          charge: string
+          created_at: string
+          evidence: string
+          expires_at: string
+          id: string
+          jury_size: number
+          punishment: Json | null
+          resolved_at: string | null
+          status: string
+          verdict: string | null
+          votes_guilty: number
+          votes_innocent: number
+        }
+        Insert: {
+          accused_id: string
+          accused_name?: string
+          accuser_id: string
+          accuser_name?: string
+          charge: string
+          created_at?: string
+          evidence?: string
+          expires_at?: string
+          id?: string
+          jury_size?: number
+          punishment?: Json | null
+          resolved_at?: string | null
+          status?: string
+          verdict?: string | null
+          votes_guilty?: number
+          votes_innocent?: number
+        }
+        Update: {
+          accused_id?: string
+          accused_name?: string
+          accuser_id?: string
+          accuser_name?: string
+          charge?: string
+          created_at?: string
+          evidence?: string
+          expires_at?: string
+          id?: string
+          jury_size?: number
+          punishment?: Json | null
+          resolved_at?: string | null
+          status?: string
+          verdict?: string | null
+          votes_guilty?: number
+          votes_innocent?: number
+        }
+        Relationships: []
+      }
+      tribunal_votes: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          juror_id: string
+          juror_name: string
+          reasoning: string | null
+          vote: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          juror_id: string
+          juror_name?: string
+          reasoning?: string | null
+          vote: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          juror_id?: string
+          juror_name?: string
+          reasoning?: string | null
+          vote?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tribunal_votes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "tribunal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      undercover_missions: {
+        Row: {
+          completed_at: string | null
+          cover_identity: string
+          cover_integrity: number
+          created_at: string
+          days_active: number
+          id: string
+          intel_gathered: Json
+          missions_completed: number
+          reward_data: Json | null
+          started_at: string
+          status: string
+          target_faction: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cover_identity?: string
+          cover_integrity?: number
+          created_at?: string
+          days_active?: number
+          id?: string
+          intel_gathered?: Json
+          missions_completed?: number
+          reward_data?: Json | null
+          started_at?: string
+          status?: string
+          target_faction: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          cover_identity?: string
+          cover_integrity?: number
+          created_at?: string
+          days_active?: number
+          id?: string
+          intel_gathered?: Json
+          missions_completed?: number
+          reward_data?: Json | null
+          started_at?: string
+          status?: string
+          target_faction?: string
+          user_id?: string
         }
         Relationships: []
       }

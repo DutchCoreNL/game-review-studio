@@ -63,7 +63,16 @@ export type GameAction =
   | "get_player_titles"
   | "plant_mole"
   | "extract_mole"
-  | "get_moles";
+  | "get_moles"
+  | "resolve_story"
+  | "get_reputation_echo"
+  | "update_reputation"
+  | "start_undercover"
+  | "undercover_action"
+  | "get_undercover_missions"
+  | "file_tribunal_case"
+  | "tribunal_vote"
+  | "get_tribunal_cases";
 
 interface GameActionResult {
   success: boolean;
@@ -260,4 +269,21 @@ export const gameApi = {
   plantMole: (targetGangId: string) => invokeGameAction("plant_mole", { targetGangId }),
   extractMole: (moleId: string) => invokeGameAction("extract_mole", { moleId }),
   getMoles: () => invokeGameAction("get_moles"),
+
+  // AI Story
+  resolveStory: (storyId: string, choiceId: string) => invokeGameAction("resolve_story", { storyId, choiceId }),
+
+  // Reputation Echo
+  getReputationEcho: () => invokeGameAction("get_reputation_echo"),
+
+  // Undercover Infiltratie
+  startUndercover: (factionId: string) => invokeGameAction("start_undercover", { factionId }),
+  undercoverAction: (missionId: string, actionType: string) => invokeGameAction("undercover_action", { missionId, actionType }),
+  getUndercoverMissions: () => invokeGameAction("get_undercover_missions"),
+
+  // Ondergronds Tribunaal
+  fileTribunalCase: (targetUsername: string, charge: string, evidence: string) =>
+    invokeGameAction("file_tribunal_case", { targetUsername, charge, evidence }),
+  tribunalVote: (caseId: string, vote: string) => invokeGameAction("tribunal_vote", { caseId, vote }),
+  getTribunalCases: () => invokeGameAction("get_tribunal_cases"),
 };
