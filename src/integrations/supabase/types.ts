@@ -1800,6 +1800,7 @@ export type Database = {
           prison_reason: string | null
           prison_until: string | null
           rep: number
+          rested_xp: number
           save_data: Json | null
           save_version: number | null
           skill_points: number
@@ -1866,6 +1867,7 @@ export type Database = {
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
+          rested_xp?: number
           save_data?: Json | null
           save_version?: number | null
           skill_points?: number
@@ -1932,6 +1934,7 @@ export type Database = {
           prison_reason?: string | null
           prison_until?: string | null
           rep?: number
+          rested_xp?: number
           save_data?: Json | null
           save_version?: number | null
           skill_points?: number

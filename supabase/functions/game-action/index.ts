@@ -3245,6 +3245,37 @@ const SP_PER_LEVEL = 2;
 const PRESTIGE_REQ_LEVEL = 50;
 const PRESTIGE_MAX = 10;
 
+// ========== EXPONENTIAL XP CURVE ==========
+function xpForLevel(level: number): number {
+  // Exponential: 100 * 1.15^(level-1) — much steeper at higher levels
+  return Math.floor(100 * Math.pow(1.15, level - 1));
+}
+
+// ========== MILESTONE REWARDS (every 5 levels) ==========
+interface MilestoneReward {
+  level: number;
+  title?: string;
+  titleIcon?: string;
+  cash?: number;
+  rep?: number;
+  sp_bonus?: number;
+  gear?: string;
+  desc: string;
+}
+
+const LEVEL_MILESTONES: MilestoneReward[] = [
+  { level: 5, title: "Straatrat", titleIcon: "🐀", cash: 2000, sp_bonus: 1, desc: "Eerste stappen in de onderwereld" },
+  { level: 10, title: "Enforcer", titleIcon: "👊", cash: 5000, rep: 25, sp_bonus: 2, desc: "Je naam wordt gefluisterd" },
+  { level: 15, title: "Connected", titleIcon: "🔗", cash: 10000, rep: 50, sp_bonus: 2, desc: "Je netwerk groeit" },
+  { level: 20, title: "Shotcaller", titleIcon: "📞", cash: 20000, rep: 100, sp_bonus: 3, desc: "Mensen luisteren als jij praat" },
+  { level: 25, title: "Onderbaas", titleIcon: "🎩", cash: 35000, rep: 150, sp_bonus: 3, gear: "prestige_vest", desc: "Je runt een imperium" },
+  { level: 30, title: "Capo", titleIcon: "💎", cash: 50000, rep: 200, sp_bonus: 4, desc: "De straat is van jou" },
+  { level: 35, title: "Don", titleIcon: "🏛️", cash: 75000, rep: 300, sp_bonus: 4, desc: "Niemand durft je te kruisen" },
+  { level: 40, title: "Schaduwkoning", titleIcon: "🌑", cash: 100000, rep: 500, sp_bonus: 5, desc: "De stad buigt voor je" },
+  { level: 45, title: "Onsterfelijk", titleIcon: "⚡", cash: 150000, rep: 750, sp_bonus: 5, desc: "Legendarische status bereikt" },
+  { level: 50, title: "Godfather", titleIcon: "👑", cash: 250000, rep: 1000, sp_bonus: 8, desc: "De ultieme misdaadkoning" },
+];
+
 // ========== UNLOCK SKILL ==========
 
 async function handleUnlockSkill(supabase: any, userId: string, ps: any, payload: { skillId: string }): Promise<ActionResult> {
@@ -3347,7 +3378,7 @@ async function handlePrestige(supabase: any, userId: string, ps: any): Promise<A
   const cashBonus = perk?.cash_bonus || 0;
 
   await supabase.from("player_state").update({
-    level: 1, xp: 0, next_xp: 100,
+    level: 1, xp: 0, next_xp: xpForLevel(1),
     skill_points: carryOverSP,
     prestige_level: newPrestige,
     xp_streak: 0,
@@ -3467,46 +3498,93 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
     bonuses.push({ key: "world_event", label: activeEvent.name || "World Event", value: eventBonus });
   }
 
-  const totalXp = Math.floor(amount * multiplier);
+  // 9. Rested XP bonus (consume stored rested XP for +50% on that portion)
+  const restedXp = ps.rested_xp || 0;
+  let restedBonus = 0;
+  let restedConsumed = 0;
+  if (restedXp > 0) {
+    restedConsumed = Math.min(restedXp, amount); // consume up to base amount
+    restedBonus = Math.floor(restedConsumed * 0.5); // +50% bonus on rested portion
+    bonuses.push({ key: "rested", label: "Rested XP", value: restedConsumed });
+  }
+
+  // 10. Season/week event XP booster (already handled in #8 via world_event)
+
+  const totalXp = Math.floor(amount * multiplier) + restedBonus;
   let newXp = ps.xp + totalXp;
   let newLevel = ps.level;
   let newNextXp = ps.next_xp;
   let newSP = ps.skill_points;
   let levelUps = 0;
+  const milestoneRewards: MilestoneReward[] = [];
 
-  // Process level ups
+  // Process level ups with exponential curve
   while (newXp >= newNextXp) {
     newXp -= newNextXp;
     newLevel++;
     levelUps++;
     newSP += SP_PER_LEVEL;
-    newNextXp = Math.floor(newNextXp * XP_SCALE);
+    // Exponential XP curve instead of flat multiplier
+    newNextXp = xpForLevel(newLevel);
+
+    // Check for milestone rewards
+    const milestone = LEVEL_MILESTONES.find(m => m.level === newLevel);
+    if (milestone) {
+      newSP += milestone.sp_bonus || 0;
+      milestoneRewards.push(milestone);
+    }
   }
 
   // Increment streak (reset if first-of-day)
   const newStreak = isFirstOfDay ? 1 : (ps.xp_streak || 0) + 1;
 
-  await supabase.from("player_state").update({
+  const stateUpdate: any = {
     xp: newXp, level: newLevel, next_xp: newNextXp,
     skill_points: newSP, xp_streak: newStreak,
     last_action_at: new Date().toISOString(),
-  }).eq("user_id", userId);
+  };
+
+  // Consume rested XP
+  if (restedConsumed > 0) {
+    stateUpdate.rested_xp = Math.max(0, restedXp - restedConsumed);
+  }
+
+  // Apply milestone cash/rep rewards
+  for (const ms of milestoneRewards) {
+    if (ms.cash) stateUpdate.money = (stateUpdate.money || ps.money || 0) + ms.cash;
+    if (ms.rep) stateUpdate.rep = (stateUpdate.rep || ps.rep || 0) + ms.rep;
+  }
+
+  await supabase.from("player_state").update(stateUpdate).eq("user_id", userId);
+
+  // Grant milestone titles
+  for (const ms of milestoneRewards) {
+    if (ms.title) {
+      await supabase.from("player_titles").upsert({
+        user_id: userId, title_id: `milestone_${ms.level}`,
+        title_name: ms.title, title_icon: ms.titleIcon || "🏆",
+      }, { onConflict: "user_id,title_id" }).select();
+    }
+  }
 
   // Log XP gain for analytics
   await supabase.from("game_action_log").insert({
     user_id: userId,
     action_type: "gain_xp",
     action_data: { source, baseAmount: amount },
-    result_data: { totalXp, multiplier, bonuses, levelUps, newLevel },
+    result_data: { totalXp, multiplier, bonuses, levelUps, newLevel, milestoneRewards: milestoneRewards.map(m => m.desc), restedConsumed },
   });
 
   const bonusSummary = bonuses.map(b => `${b.label} +${Math.round(b.value * 100)}%`).join(", ");
+  const milestoneMsg = milestoneRewards.length > 0
+    ? ` 🏆 ${milestoneRewards.map(m => `${m.titleIcon} ${m.title}!`).join(", ")}`
+    : "";
   return {
     success: true,
     message: levelUps > 0
-      ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP`
+      ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP${milestoneMsg}`
       : `+${totalXp} XP (×${multiplier.toFixed(2)})${bonusSummary ? ` [${bonusSummary}]` : ""}`,
-    data: { xpGained: totalXp, baseAmount: amount, multiplier, bonuses, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak, isFirstOfDay },
+    data: { xpGained: totalXp, baseAmount: amount, multiplier, bonuses, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak, isFirstOfDay, milestoneRewards, restedConsumed, restedBonus },
   };
 }
 
