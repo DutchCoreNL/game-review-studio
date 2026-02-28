@@ -32,6 +32,11 @@ export type GameAction =
   | "claim_event"
   | "bust_prison"
   | "revive_player"
+  | "create_heist"
+  | "join_heist"
+  | "start_coop_heist"
+  | "raid_safehouse"
+  | "sabotage_lab"
   | "process_turn";
 
 interface GameActionResult {
@@ -158,6 +163,17 @@ export const gameApi = {
   // Jail busting & hospital revive
   bustPrison: (targetUserId: string) => invokeGameAction("bust_prison", { targetUserId }),
   revivePlayer: (targetUserId: string) => invokeGameAction("revive_player", { targetUserId }),
+
+  // Co-op Heists
+  createHeist: (heistId: string) => invokeGameAction("create_heist", { heistId }),
+  joinHeist: (sessionId: string, role: string) => invokeGameAction("join_heist", { sessionId, role }),
+  startCoopHeist: (sessionId: string) => invokeGameAction("start_coop_heist", { sessionId }),
+
+  // Safehouse Raids PvP
+  raidSafehouse: (targetUserId: string) => invokeGameAction("raid_safehouse", { targetUserId }),
+
+  // Drug Empire PvP
+  sabotageLab: (targetUserId: string) => invokeGameAction("sabotage_lab", { targetUserId }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })

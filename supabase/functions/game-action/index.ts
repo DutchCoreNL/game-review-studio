@@ -4749,6 +4749,451 @@ async function handleFactionAction(supabase: any, userId: string, ps: any, paylo
   };
 }
 
+// ========== CO-OP HEISTS ==========
+
+const HEIST_DEFS: Record<string, { name: string; minLevel: number; minRep: number; basePayout: number; baseHeat: number; district: string; tier: number; roles: string[] }> = {
+  warehouse_raid: { name: 'Havenpakhuis Overval', minLevel: 3, minRep: 50, basePayout: 15000, baseHeat: 20, district: 'port', tier: 1, roles: ['infiltrant', 'techman', 'muscle'] },
+  casino_heist: { name: 'Casino Kluis Kraak', minLevel: 5, minRep: 150, basePayout: 40000, baseHeat: 35, district: 'neon', tier: 2, roles: ['infiltrant', 'techman', 'muscle'] },
+  data_center: { name: 'Crown Datacenter Hack', minLevel: 6, minRep: 200, basePayout: 55000, baseHeat: 25, district: 'crown', tier: 2, roles: ['infiltrant', 'techman', 'muscle'] },
+  arms_convoy: { name: 'Wapenkonvooi Kaping', minLevel: 8, minRep: 350, basePayout: 85000, baseHeat: 45, district: 'iron', tier: 3, roles: ['infiltrant', 'techman', 'muscle'] },
+  bank_job: { name: 'De Grote Bankroof', minLevel: 10, minRep: 500, basePayout: 150000, baseHeat: 60, district: 'crown', tier: 3, roles: ['infiltrant', 'techman', 'muscle'] },
+};
+
+async function handleCreateHeist(supabase: any, userId: string, ps: any, payload: { heistId: string }): Promise<ActionResult> {
+  const { heistId } = payload;
+  const def = HEIST_DEFS[heistId];
+  if (!def) return { success: false, message: "Onbekende heist." };
+  if (ps.level < def.minLevel) return { success: false, message: `Level ${def.minLevel} vereist.` };
+
+  // Must be in a gang
+  const { data: membership } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!membership) return { success: false, message: "Je moet in een gang zitten voor co-op heists." };
+
+  // Check no active heist for this gang
+  const { data: activeHeist } = await supabase.from("heist_sessions")
+    .select("id").eq("gang_id", membership.gang_id).in("status", ["recruiting", "in_progress"]).maybeSingle();
+  if (activeHeist) return { success: false, message: "Je gang heeft al een actieve heist." };
+
+  // Check heist cooldown (simplified: no same heist within 1 hour)
+  const { data: recent } = await supabase.from("heist_sessions")
+    .select("id").eq("gang_id", membership.gang_id).eq("heist_id", heistId)
+    .gte("completed_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()).maybeSingle();
+  if (recent) return { success: false, message: "Deze heist heeft nog cooldown (1 uur)." };
+
+  const crewSlots: Record<string, any> = {};
+  crewSlots['infiltrant'] = { user_id: userId, role: 'infiltrant', ready: true };
+
+  const { data: session, error } = await supabase.from("heist_sessions").insert({
+    gang_id: membership.gang_id,
+    heist_id: heistId,
+    initiator_id: userId,
+    status: 'recruiting',
+    crew_slots: crewSlots,
+  }).select("id").single();
+
+  if (error) return { success: false, message: "Kon heist niet aanmaken." };
+
+  return { success: true, message: `${def.name} heist aangemaakt! Wacht op gangleden.`, data: { sessionId: session.id, heistId } };
+}
+
+async function handleJoinHeist(supabase: any, userId: string, ps: any, payload: { sessionId: string; role: string }): Promise<ActionResult> {
+  const { sessionId, role } = payload;
+  if (!['infiltrant', 'techman', 'muscle'].includes(role)) return { success: false, message: "Ongeldige rol." };
+
+  const { data: session } = await supabase.from("heist_sessions").select("*").eq("id", sessionId).single();
+  if (!session) return { success: false, message: "Heist niet gevonden." };
+  if (session.status !== 'recruiting') return { success: false, message: "Heist is niet meer open." };
+
+  // Must be in same gang
+  const { data: membership } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!membership || membership.gang_id !== session.gang_id) return { success: false, message: "Je zit niet in deze gang." };
+
+  const slots = session.crew_slots || {};
+  // Check if role is taken
+  if (slots[role]?.user_id) return { success: false, message: "Deze rol is al bezet." };
+  // Check if player already has a slot
+  if (Object.values(slots).some((s: any) => s?.user_id === userId)) return { success: false, message: "Je hebt al een rol." };
+
+  slots[role] = { user_id: userId, role, ready: true };
+
+  await supabase.from("heist_sessions").update({ crew_slots: slots }).eq("id", sessionId);
+
+  return { success: true, message: `Rol ${role} gekozen!`, data: { sessionId, role, slots } };
+}
+
+async function handleStartCoopHeist(supabase: any, userId: string, ps: any, payload: { sessionId: string }): Promise<ActionResult> {
+  const { sessionId } = payload;
+  const { data: session } = await supabase.from("heist_sessions").select("*").eq("id", sessionId).single();
+  if (!session) return { success: false, message: "Heist niet gevonden." };
+  if (session.status !== 'recruiting') return { success: false, message: "Heist is niet meer open." };
+  if (session.initiator_id !== userId) return { success: false, message: "Alleen de initiator kan starten." };
+
+  const def = HEIST_DEFS[session.heist_id];
+  if (!def) return { success: false, message: "Onbekende heist." };
+
+  const slots = session.crew_slots || {};
+  const filledRoles = Object.keys(slots).filter(r => slots[r]?.user_id);
+  if (filledRoles.length < 2) return { success: false, message: "Minimaal 2 spelers nodig." };
+
+  // Execute heist server-side
+  const participants = filledRoles.map(r => slots[r].user_id);
+  const timeMods = await getTimeModifiers(supabase);
+
+  // Calculate success per phase based on participant stats
+  let totalSuccess = 0;
+  let totalHeat = 0;
+  const log: string[] = [`🎯 Co-op Heist: ${def.name}`];
+  const phases = ['Infiltratie', 'Uitvoering', 'Extractie'];
+
+  for (const phase of phases) {
+    let phaseSuccess = true;
+    const difficulty = 30 + def.tier * 15;
+
+    for (const role of filledRoles) {
+      const pid = slots[role].user_id;
+      const { data: pState } = await supabase.from("player_state").select("stats, loadout, level").eq("user_id", pid).single();
+      if (!pState) continue;
+
+      const statMap: Record<string, string> = { infiltrant: 'charm', techman: 'brains', muscle: 'muscle' };
+      const stat = statMap[role] || 'muscle';
+      const statVal = getPlayerStat(pState.stats || {}, pState.loadout || {}, stat);
+      const chance = Math.min(95, 60 + statVal * 3 + pState.level * 2 - difficulty + timeMods.crimeSuccessBonus);
+      const roll = Math.random() * 100;
+
+      if (roll > chance) {
+        phaseSuccess = false;
+        log.push(`   ✗ ${phase}: ${role} faalde (${Math.round(chance)}%)`);
+      } else {
+        log.push(`   ✓ ${phase}: ${role} slaagde (${Math.round(chance)}%)`);
+      }
+    }
+
+    if (phaseSuccess) totalSuccess++;
+    totalHeat += Math.floor(def.baseHeat / 3);
+  }
+
+  const heistSuccess = totalSuccess >= 2; // 2 of 3 fasen moeten slagen
+  const coopBonus = filledRoles.length === 3 ? 1.5 : 1.2; // bonus voor volledige crew
+  const payout = heistSuccess ? Math.floor(def.basePayout * coopBonus * (totalSuccess / 3)) : 0;
+  const perPlayer = Math.floor(payout / participants.length);
+  const heatPerPlayer = Math.floor(totalHeat * timeMods.heatMultiplier);
+  const xpPerPlayer = heistSuccess ? Math.floor(80 * timeMods.xpMultiplier) : 20;
+
+  // Distribute rewards/penalties
+  for (const pid of participants) {
+    if (heistSuccess) {
+      await supabase.from("player_state").update({
+        money: supabase.rpc ? undefined : undefined, // use raw update
+      }).eq("user_id", pid);
+
+      // Simple update - add money, heat, xp
+      const { data: pps } = await supabase.from("player_state").select("money, heat, xp, rep, stats_total_earned").eq("user_id", pid).single();
+      if (pps) {
+        await supabase.from("player_state").update({
+          money: pps.money + perPlayer,
+          heat: Math.min(100, pps.heat + heatPerPlayer),
+          xp: pps.xp + xpPerPlayer,
+          rep: pps.rep + 15,
+          stats_total_earned: (pps.stats_total_earned || 0) + perPlayer,
+          last_action_at: new Date().toISOString(),
+        }).eq("user_id", pid);
+      }
+    } else {
+      const { data: pps } = await supabase.from("player_state").select("heat, xp").eq("user_id", pid).single();
+      if (pps) {
+        await supabase.from("player_state").update({
+          heat: Math.min(100, pps.heat + heatPerPlayer + 10),
+          xp: pps.xp + xpPerPlayer,
+          last_action_at: new Date().toISOString(),
+        }).eq("user_id", pid);
+      }
+    }
+  }
+
+  // Update session
+  await supabase.from("heist_sessions").update({
+    status: heistSuccess ? 'completed' : 'failed',
+    started_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    result: { success: heistSuccess, payout, perPlayer, totalHeat, log, phases: totalSuccess },
+  }).eq("id", sessionId);
+
+  // News
+  if (heistSuccess) {
+    const { data: prof } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+    const name = prof?.username || 'Onbekend';
+    await insertPlayerNews(supabase, {
+      text: `Co-op Heist geslaagd! ${name} en crew stelen €${payout.toLocaleString()} bij ${def.name}`,
+      icon: '🎯', urgency: 'high', category: 'player', districtId: def.district,
+    });
+  }
+
+  return {
+    success: heistSuccess,
+    message: heistSuccess
+      ? `${def.name} geslaagd! €${perPlayer.toLocaleString()} per speler.`
+      : `${def.name} mislukt! Te veel complicaties.`,
+    data: { payout, perPlayer, heatPerPlayer, xpPerPlayer, log, success: heistSuccess, phases: totalSuccess },
+  };
+}
+
+// ========== SAFEHOUSE RAIDS PvP ==========
+
+async function handleRaidSafehouse(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId || targetUserId === userId) return { success: false, message: "Ongeldig doelwit." };
+
+  let blocked = checkBlocked(ps); if (blocked) return { success: false, message: blocked };
+  let energyErr = checkEnergy(ps, "attack"); if (energyErr) return { success: false, message: energyErr };
+  let nerveErr = checkNerve(ps, "attack"); if (nerveErr) return { success: false, message: nerveErr };
+
+  // Attack cooldown
+  if (ps.attack_cooldown_until && new Date(ps.attack_cooldown_until) > new Date()) {
+    return { success: false, message: "Attack cooldown actief." };
+  }
+
+  // Find target's safehouse in attacker's current district
+  const { data: targetSafehouse } = await supabase.from("player_safehouses")
+    .select("*").eq("user_id", targetUserId).eq("district_id", ps.loc).maybeSingle();
+  if (!targetSafehouse) return { success: false, message: "Doelwit heeft geen safehouse in dit district." };
+
+  // Get target player state
+  const { data: targetPs } = await supabase.from("player_state")
+    .select("level, hp, heat, loadout, stats, money, rep").eq("user_id", targetUserId).single();
+  if (!targetPs) return { success: false, message: "Doelwit niet gevonden." };
+
+  // Calculate attack strength
+  const muscle = getPlayerStat(ps.stats || {}, ps.loadout || {}, 'muscle');
+  const brains = getPlayerStat(ps.stats || {}, ps.loadout || {}, 'brains');
+  const attackPower = 20 + muscle * 4 + brains * 2 + ps.level * 2 + Math.floor(Math.random() * 20);
+
+  // Calculate defense
+  let defense = 15 + targetSafehouse.level * 15;
+  const upgrades = targetSafehouse.upgrades || [];
+  if (upgrades.includes('reinforced')) defense += 25;
+  if (upgrades.includes('vault')) defense += 10;
+  if (upgrades.includes('camera')) defense += 8;
+  defense += targetPs.level * 2;
+  const defMuscle = getPlayerStat(targetPs.stats || {}, targetPs.loadout || {}, 'muscle');
+  defense += defMuscle * 2;
+
+  const attackerWon = attackPower > defense;
+  const energyCost = ENERGY_COSTS.attack || 15;
+  const nerveCost = NERVE_COSTS.attack || 10;
+  const cooldownUntil = new Date(Date.now() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+
+  let lootStolen = 0;
+  let upgradeDestroyed: string | null = null;
+  let attackerDamage = 0;
+  let defenderDamage = 0;
+
+  if (attackerWon) {
+    // Steal 5-10% of target's money
+    lootStolen = Math.floor(targetPs.money * (0.05 + Math.random() * 0.05));
+    lootStolen = Math.min(lootStolen, 50000); // cap
+
+    // 20% chance to destroy an upgrade
+    if (upgrades.length > 0 && Math.random() < 0.2) {
+      upgradeDestroyed = upgrades[Math.floor(Math.random() * upgrades.length)];
+      const newUpgrades = upgrades.filter((u: string) => u !== upgradeDestroyed);
+      await supabase.from("player_safehouses").update({ upgrades: newUpgrades }).eq("id", targetSafehouse.id);
+    }
+
+    // Transfer money
+    await supabase.from("player_state").update({
+      money: ps.money + lootStolen - 0, // attacker gains
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      heat: Math.min(100, ps.heat + 20),
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + 10),
+      attack_cooldown_until: cooldownUntil,
+      rep: ps.rep + 10,
+      stats_total_earned: (ps.stats_total_earned || 0) + lootStolen,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    await supabase.from("player_state").update({
+      money: Math.max(0, targetPs.money - lootStolen),
+    }).eq("user_id", targetUserId);
+
+    defenderDamage = Math.floor(Math.random() * 15) + 5;
+
+  } else {
+    // Failed raid — attacker takes damage
+    attackerDamage = Math.floor(Math.random() * 20) + 10;
+    const newHp = Math.max(1, ps.hp - attackerDamage);
+
+    await supabase.from("player_state").update({
+      hp: newHp,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      heat: Math.min(100, ps.heat + 15),
+      attack_cooldown_until: cooldownUntil,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+  }
+
+  // Log the raid
+  await supabase.from("safehouse_raids").insert({
+    attacker_id: userId,
+    defender_id: targetUserId,
+    district_id: ps.loc,
+    attacker_won: attackerWon,
+    loot_stolen: lootStolen,
+    upgrade_destroyed: upgradeDestroyed,
+    attacker_damage: attackerDamage,
+    defender_damage: defenderDamage,
+  });
+
+  // Notify defender
+  const { data: atkProf } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+  const atkName = atkProf?.username || 'Onbekend';
+  const distName = DISTRICT_NAMES[ps.loc] || ps.loc;
+
+  await supabase.from("player_messages").insert({
+    sender_id: userId,
+    receiver_id: targetUserId,
+    subject: attackerWon ? '🔥 Je safehouse is aangevallen!' : '🛡️ Aanval afgeslagen!',
+    body: attackerWon
+      ? `${atkName} heeft je safehouse in ${distName} bestormd en €${lootStolen.toLocaleString()} gestolen.${upgradeDestroyed ? ` ${upgradeDestroyed} upgrade vernietigd!` : ''}`
+      : `${atkName} probeerde je safehouse in ${distName} aan te vallen, maar je verdediging hield stand!`,
+  });
+
+  // News
+  await insertPlayerNews(supabase, {
+    text: attackerWon
+      ? `${atkName} overviel een safehouse in ${distName} — €${lootStolen.toLocaleString()} buit!`
+      : `Mislukte safehouse-aanval door ${atkName} in ${distName}`,
+    icon: attackerWon ? '🔥' : '🛡️', urgency: 'high', category: 'player', districtId: ps.loc,
+  });
+
+  return {
+    success: attackerWon,
+    message: attackerWon
+      ? `Safehouse bestormd! €${lootStolen.toLocaleString()} gestolen.${upgradeDestroyed ? ` ${upgradeDestroyed} vernietigd!` : ''}`
+      : `Aanval mislukt! Verdediging te sterk (${defense} vs ${attackPower}). Je verloor ${attackerDamage} HP.`,
+    data: { attackerWon, lootStolen, upgradeDestroyed, attackPower, defense, attackerDamage, defenderDamage },
+  };
+}
+
+// ========== DRUG EMPIRE PvP: SABOTAGE ==========
+
+async function handleSabotageLab(supabase: any, userId: string, ps: any, payload: { targetUserId: string }): Promise<ActionResult> {
+  const { targetUserId } = payload;
+  if (!targetUserId || targetUserId === userId) return { success: false, message: "Ongeldig doelwit." };
+
+  let blocked = checkBlocked(ps); if (blocked) return { success: false, message: blocked };
+  const energyCost = 20;
+  const nerveCost = 15;
+  if (ps.energy < energyCost) return { success: false, message: `Niet genoeg energy (nodig: ${energyCost}).` };
+  if (ps.nerve < nerveCost) return { success: false, message: `Niet genoeg nerve (nodig: ${nerveCost}).` };
+
+  // Attack cooldown
+  if (ps.attack_cooldown_until && new Date(ps.attack_cooldown_until) > new Date()) {
+    return { success: false, message: "Attack cooldown actief." };
+  }
+
+  // Target must have a villa with labs
+  const { data: targetVilla } = await supabase.from("player_villa")
+    .select("*").eq("user_id", targetUserId).maybeSingle();
+  if (!targetVilla) return { success: false, message: "Doelwit heeft geen villa." };
+  
+  const modules = targetVilla.modules || [];
+  const labs = ['wietplantage', 'coke_lab', 'synthetica_lab'].filter(l => modules.includes(l));
+  if (labs.length === 0) return { success: false, message: "Doelwit heeft geen labs." };
+
+  // Must be in same district as target
+  const { data: targetPs } = await supabase.from("player_state")
+    .select("loc, level, stats, loadout").eq("user_id", targetUserId).single();
+  if (!targetPs) return { success: false, message: "Doelwit niet gevonden." };
+  if (targetPs.loc !== ps.loc) return { success: false, message: "Doelwit is niet in hetzelfde district." };
+
+  // Success chance based on brains vs target's brains
+  const atkBrains = getPlayerStat(ps.stats || {}, ps.loadout || {}, 'brains');
+  const defBrains = getPlayerStat(targetPs.stats || {}, targetPs.loadout || {}, 'brains');
+  const chance = Math.min(85, 50 + (atkBrains - defBrains) * 3 + ps.level * 1);
+  const roll = Math.random() * 100;
+  const success = roll < chance;
+
+  const cooldownUntil = new Date(Date.now() + ATTACK_COOLDOWN_SECONDS * 1000).toISOString();
+
+  // Get names
+  const { data: atkProf } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+  const atkName = atkProf?.username || 'Onbekend';
+  const distName = DISTRICT_NAMES[ps.loc] || ps.loc;
+
+  if (success) {
+    // Pick a random lab to sabotage — set it offline for 2 days (via save_data or player_villa)
+    const targetLab = labs[Math.floor(Math.random() * labs.length)];
+
+    // Steal vault money (10-20%)
+    const stolenVault = Math.floor(targetVilla.vault_money * (0.1 + Math.random() * 0.1));
+    const stolenGoods = Math.floor(Math.random() * 3) + 1;
+
+    await supabase.from("player_villa").update({
+      vault_money: Math.max(0, targetVilla.vault_money - stolenVault),
+    }).eq("user_id", targetUserId);
+
+    await supabase.from("player_state").update({
+      money: ps.money + stolenVault,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      heat: Math.min(100, ps.heat + 15),
+      personal_heat: Math.min(100, (ps.personal_heat || 0) + 8),
+      attack_cooldown_until: cooldownUntil,
+      rep: ps.rep + 8,
+      stats_total_earned: (ps.stats_total_earned || 0) + stolenVault,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    // Notify
+    await supabase.from("player_messages").insert({
+      sender_id: userId,
+      receiver_id: targetUserId,
+      subject: '☠️ Je lab is gesaboteerd!',
+      body: `${atkName} heeft je ${targetLab === 'wietplantage' ? 'Wietplantage' : targetLab === 'coke_lab' ? 'Coke Lab' : 'Synthetica Lab'} gesaboteerd in ${distName}! €${stolenVault.toLocaleString()} uit je kluis gestolen.`,
+    });
+
+    await insertPlayerNews(supabase, {
+      text: `${atkName} saboteert een drugslab in ${distName} — miljoenen aan schade!`,
+      icon: '☠️', urgency: 'high', category: 'player', districtId: ps.loc,
+    });
+
+    return {
+      success: true,
+      message: `Lab gesaboteerd! €${stolenVault.toLocaleString()} gestolen uit de kluis.`,
+      data: { targetLab, stolenVault, stolenGoods, chance: Math.round(chance) },
+    };
+  } else {
+    // Failed — attacker takes consequences
+    const hpLoss = Math.floor(Math.random() * 15) + 10;
+    const newHp = Math.max(1, ps.hp - hpLoss);
+
+    await supabase.from("player_state").update({
+      hp: newHp,
+      energy: ps.energy - energyCost,
+      nerve: ps.nerve - nerveCost,
+      heat: Math.min(100, ps.heat + 10),
+      attack_cooldown_until: cooldownUntil,
+      last_action_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+
+    // Notify target of attempt
+    await supabase.from("player_messages").insert({
+      sender_id: userId,
+      receiver_id: targetUserId,
+      subject: '🛡️ Sabotagepoging afgeslagen!',
+      body: `${atkName} probeerde je lab te saboteren in ${distName}, maar je beveiliging hield stand!`,
+    });
+
+    return {
+      success: false,
+      message: `Sabotage mislukt! Beveiliging te sterk. -${hpLoss} HP.`,
+      data: { hpLoss, chance: Math.round(chance) },
+    };
+  }
+}
+
 // ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
@@ -4997,6 +5442,21 @@ Deno.serve(async (req) => {
         break;
       case "revive_player":
         result = await handleRevivePlayer(supabase, user.id, playerState, payload);
+        break;
+      case "create_heist":
+        result = await handleCreateHeist(supabase, user.id, playerState, payload);
+        break;
+      case "join_heist":
+        result = await handleJoinHeist(supabase, user.id, playerState, payload);
+        break;
+      case "start_coop_heist":
+        result = await handleStartCoopHeist(supabase, user.id, playerState, payload);
+        break;
+      case "raid_safehouse":
+        result = await handleRaidSafehouse(supabase, user.id, playerState, payload);
+        break;
+      case "sabotage_lab":
+        result = await handleSabotageLab(supabase, user.id, playerState, payload);
         break;
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };

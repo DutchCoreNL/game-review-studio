@@ -584,6 +584,59 @@ export type Database = {
         }
         Relationships: []
       }
+      heist_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          crew_slots: Json
+          equipment: Json
+          gang_id: string
+          heist_id: string
+          id: string
+          initiator_id: string
+          recon_done: boolean
+          result: Json | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          crew_slots?: Json
+          equipment?: Json
+          gang_id: string
+          heist_id: string
+          id?: string
+          initiator_id: string
+          recon_done?: boolean
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          crew_slots?: Json
+          equipment?: Json
+          gang_id?: string
+          heist_id?: string
+          id?: string
+          initiator_id?: string
+          recon_done?: boolean
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "heist_sessions_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leaderboard_entries: {
         Row: {
           backstory: string | null
@@ -1584,6 +1637,45 @@ export type Database = {
           turn?: number
           updated_at?: string
           winner_id?: string | null
+        }
+        Relationships: []
+      }
+      safehouse_raids: {
+        Row: {
+          attacker_damage: number
+          attacker_id: string
+          attacker_won: boolean
+          created_at: string
+          defender_damage: number
+          defender_id: string
+          district_id: string
+          id: string
+          loot_stolen: number
+          upgrade_destroyed: string | null
+        }
+        Insert: {
+          attacker_damage?: number
+          attacker_id: string
+          attacker_won: boolean
+          created_at?: string
+          defender_damage?: number
+          defender_id: string
+          district_id: string
+          id?: string
+          loot_stolen?: number
+          upgrade_destroyed?: string | null
+        }
+        Update: {
+          attacker_damage?: number
+          attacker_id?: string
+          attacker_won?: boolean
+          created_at?: string
+          defender_damage?: number
+          defender_id?: string
+          district_id?: string
+          id?: string
+          loot_stolen?: number
+          upgrade_destroyed?: string | null
         }
         Relationships: []
       }
