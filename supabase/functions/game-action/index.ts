@@ -6338,6 +6338,129 @@ Deno.serve(async (req) => {
         result = await handleGetMoles(supabase, user.id);
         break;
 
+      // ========== AI STORY ==========
+      case "resolve_story": {
+        const { storyId, choiceId } = payload || {};
+        if (!storyId || !choiceId) { result = { success: false, message: "Ongeldige parameters." }; break; }
+        const { data: story } = await supabase.from("personal_story_events").select("*").eq("id", storyId).eq("user_id", user.id).eq("status", "pending").maybeSingle();
+        if (!story) { result = { success: false, message: "Verhaal niet gevonden." }; break; }
+        const chosen = (story.choices as any[]).find((c: any) => c.id === choiceId);
+        if (!chosen) { result = { success: false, message: "Ongeldige keuze." }; break; }
+        const r = chosen.reward || {};
+        const upd: any = { last_action_at: new Date().toISOString() };
+        if (r.money) upd.money = (playerState.money || 0) + r.money;
+        if (r.rep) upd.rep = (playerState.rep || 0) + r.rep;
+        if (r.karma) upd.karma = (playerState.karma || 0) + r.karma;
+        if (r.heat) upd.heat = Math.min(100, (playerState.heat || 0) + r.heat);
+        if (r.xp) upd.xp = (playerState.xp || 0) + r.xp;
+        await supabase.from("player_state").update(upd).eq("user_id", user.id);
+        await supabase.from("personal_story_events").update({ status: "resolved", chosen_option: choiceId, reward_data: r }).eq("id", storyId);
+        result = { success: true, message: `${chosen.label}: ${chosen.desc}`, data: { reward: r } };
+        break;
+      }
+
+      // ========== REPUTATION ECHO ==========
+      case "get_reputation_echo": {
+        const { data: echoes } = await supabase.from("player_reputation_echo").select("*").eq("user_id", user.id);
+        result = { success: true, message: "Reputatie opgehaald.", data: { echoes: echoes || [] } };
+        break;
+      }
+
+      // ========== UNDERCOVER INFILTRATIE ==========
+      case "start_undercover": {
+        const { factionId } = payload || {};
+        if (!factionId) { result = { success: false, message: "Geen factie." }; break; }
+        if (playerState.level < 15) { result = { success: false, message: "Level 15 vereist." }; break; }
+        if (playerState.money < 10000) { result = { success: false, message: "€10.000 nodig." }; break; }
+        if (playerState.energy < 30) { result = { success: false, message: "30 energy nodig." }; break; }
+        const { data: existUc } = await supabase.from("undercover_missions").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
+        if (existUc) { result = { success: false, message: "Al een actieve missie." }; break; }
+        const cNames = ["Marco Verdi", "Elena Rossi", "Viktor Petrov", "Carlos Mendez", "Yuki Tanaka"];
+        const cName = cNames[Math.floor(Math.random() * cNames.length)];
+        await supabase.from("player_state").update({ money: playerState.money - 10000, energy: playerState.energy - 30 }).eq("user_id", user.id);
+        await supabase.from("undercover_missions").insert({ user_id: user.id, target_faction: factionId, cover_identity: cName });
+        result = { success: true, message: `Undercover als "${cName}". Voer missies uit en extraheer op tijd!` };
+        break;
+      }
+      case "undercover_action": {
+        const { missionId: ucId, actionType: ucAction } = payload || {};
+        if (!ucId || !ucAction) { result = { success: false, message: "Ongeldige parameters." }; break; }
+        const { data: ucMission } = await supabase.from("undercover_missions").select("*").eq("id", ucId).eq("user_id", user.id).eq("status", "active").maybeSingle();
+        if (!ucMission) { result = { success: false, message: "Missie niet gevonden." }; break; }
+        if (ucAction === 'mission') {
+          if (playerState.energy < 15) { result = { success: false, message: "15 energy nodig." }; break; }
+          const ucSuccess = Math.random() < 0.75;
+          const coverLoss = ucSuccess ? Math.floor(Math.random() * 8) + 2 : Math.floor(Math.random() * 15) + 10;
+          const newCover = Math.max(0, ucMission.cover_integrity - coverLoss);
+          const intelTexts = ['wapentransport gepland', 'treasury geschat op €' + (Math.floor(Math.random() * 50000) + 10000), 'zwakke plek ontdekt', 'deal met corrupte agent'];
+          const newIntel = ucSuccess ? [...(ucMission.intel_gathered || []), { text: intelTexts[Math.floor(Math.random() * intelTexts.length)], day: playerState.day }] : ucMission.intel_gathered;
+          await supabase.from("undercover_missions").update({ cover_integrity: newCover, missions_completed: ucMission.missions_completed + (ucSuccess ? 1 : 0), intel_gathered: newIntel, days_active: ucMission.days_active + 1 }).eq("id", ucId);
+          await supabase.from("player_state").update({ energy: playerState.energy - 15 }).eq("user_id", user.id);
+          if (newCover <= 0) {
+            await supabase.from("undercover_missions").update({ status: "blown", completed_at: new Date().toISOString() }).eq("id", ucId);
+            await supabase.from("player_state").update({ heat: Math.min(100, playerState.heat + 30) }).eq("user_id", user.id);
+            result = { success: false, message: "ONTMASKERD! +30 heat." };
+          } else {
+            result = { success: true, message: ucSuccess ? `Missie geslaagd! Dekmantel: ${newCover}%` : `Mislukt. Dekmantel: ${newCover}%`, data: { cover: newCover } };
+          }
+        } else if (ucAction === 'extract') {
+          const bonus = ucMission.missions_completed >= 3;
+          const cashR = bonus ? 15000 + ucMission.missions_completed * 3000 : 5000;
+          const repR = bonus ? 50 + ucMission.missions_completed * 10 : 20;
+          await supabase.from("undercover_missions").update({ status: "extracted", completed_at: new Date().toISOString(), reward_data: { cash: cashR, rep: repR } }).eq("id", ucId);
+          await supabase.from("player_state").update({ money: playerState.money + cashR, rep: playerState.rep + repR }).eq("user_id", user.id);
+          result = { success: true, message: `Extractie! +€${cashR.toLocaleString()}, +${repR} rep` };
+        } else { result = { success: false, message: "Onbekende actie." }; }
+        break;
+      }
+      case "get_undercover_missions": {
+        const { data: ucMissions } = await supabase.from("undercover_missions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
+        result = { success: true, message: "OK", data: { missions: ucMissions || [] } };
+        break;
+      }
+
+      // ========== ONDERGRONDS TRIBUNAAL ==========
+      case "file_tribunal_case": {
+        const { targetUsername: tUser, charge: tCharge, evidence: tEvidence } = payload || {};
+        if (!tUser || !tCharge || !tEvidence) { result = { success: false, message: "Vul alle velden in." }; break; }
+        if (playerState.money < 5000) { result = { success: false, message: "€5.000 nodig." }; break; }
+        const { data: tTarget } = await supabase.from("profiles").select("id, username").eq("username", tUser).maybeSingle();
+        if (!tTarget) { result = { success: false, message: "Speler niet gevonden." }; break; }
+        if (tTarget.id === user.id) { result = { success: false, message: "Kan jezelf niet aanklagen." }; break; }
+        await supabase.from("player_state").update({ money: playerState.money - 5000 }).eq("user_id", user.id);
+        await supabase.from("tribunal_cases").insert({ accuser_id: user.id, accuser_name: playerUsername, accused_id: tTarget.id, accused_name: tTarget.username, charge: tCharge, evidence: tEvidence, jury_size: 7 });
+        result = { success: true, message: `Zaak ingediend tegen ${tTarget.username}.` };
+        break;
+      }
+      case "tribunal_vote": {
+        const { caseId: tvCaseId, vote: tvVote } = payload || {};
+        if (!tvCaseId || !tvVote) { result = { success: false, message: "Ongeldige parameters." }; break; }
+        const { data: tvCase } = await supabase.from("tribunal_cases").select("*").eq("id", tvCaseId).eq("status", "voting").maybeSingle();
+        if (!tvCase) { result = { success: false, message: "Zaak niet gevonden." }; break; }
+        if (tvCase.accuser_id === user.id || tvCase.accused_id === user.id) { result = { success: false, message: "Kan niet stemmen in eigen zaak." }; break; }
+        const { error: tvErr } = await supabase.from("tribunal_votes").insert({ case_id: tvCaseId, juror_id: user.id, juror_name: playerUsername, vote: tvVote });
+        if (tvErr) { result = { success: false, message: "Al gestemd." }; break; }
+        const tvCol = tvVote === 'guilty' ? 'votes_guilty' : 'votes_innocent';
+        const tvNew = (tvCase[tvCol] || 0) + 1;
+        const tvUpdate: any = { [tvCol]: tvNew };
+        const tvTotal = tvCase.votes_guilty + tvCase.votes_innocent + 1;
+        if (tvTotal >= tvCase.jury_size) {
+          const g = tvCol === 'votes_guilty' ? tvNew : tvCase.votes_guilty;
+          const i = tvCol === 'votes_innocent' ? tvNew : tvCase.votes_innocent;
+          tvUpdate.status = 'resolved'; tvUpdate.resolved_at = new Date().toISOString();
+          tvUpdate.verdict = g > i ? 'guilty' : 'innocent';
+          if (g > i) { tvUpdate.punishment = { trade_ban_hours: 48, rep_loss: 500 }; }
+        }
+        await supabase.from("tribunal_cases").update(tvUpdate).eq("id", tvCaseId);
+        result = { success: true, message: `Stem: ${tvVote === 'guilty' ? 'Schuldig' : 'Onschuldig'}` };
+        break;
+      }
+      case "get_tribunal_cases": {
+        const { data: tvCases } = await supabase.from("tribunal_cases").select("*").order("created_at", { ascending: false }).limit(20);
+        result = { success: true, message: "OK", data: { cases: tvCases || [] } };
+        break;
+      }
+
       // ========== HEARTBEAT ==========
       case "heartbeat":
         result = { success: true, message: "ok" };
