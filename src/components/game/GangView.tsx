@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap, Eye, DoorOpen, BookOpen } from 'lucide-react';
+import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap, Eye, DoorOpen, BookOpen, Handshake } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
 import { useAuth } from '@/hooks/useAuth';
 import { GameButton } from './ui/GameButton';
@@ -13,8 +13,9 @@ import { SubTabBar } from './ui/SubTabBar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { GangArcPanel } from './gang/GangArcPanel';
+import { GangAlliancePanel } from './mmo/GangAlliancePanel';
 
-type GangTab = 'overview' | 'members' | 'territory' | 'wars' | 'chat' | 'browse' | 'arcs';
+type GangTab = 'overview' | 'members' | 'territory' | 'wars' | 'chat' | 'browse' | 'arcs' | 'alliances';
 
 const DISTRICT_NAMES: Record<string, string> = {
   low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights',
@@ -392,6 +393,7 @@ export function GangView() {
     { id: 'territory' as GangTab, label: 'GEBIED', icon: <MapPin size={10} />, badge: territories.length },
     { id: 'wars' as GangTab, label: 'OORLOG', icon: <Swords size={10} />, badge: activeWars.length || undefined },
     { id: 'arcs' as GangTab, label: 'MISSIES', icon: <BookOpen size={10} /> },
+    { id: 'alliances' as GangTab, label: 'ALLIANTIES', icon: <Handshake size={10} /> },
     { id: 'chat' as GangTab, label: 'CHAT', icon: <MessageSquare size={10} /> },
   ];
 
@@ -641,6 +643,11 @@ export function GangView() {
       {/* GANG ARCS / MISSIES */}
       {tab === 'arcs' && gang && (
         <GangArcPanel gangLevel={gang.level || 1} />
+      )}
+
+      {/* ALLIANTIES */}
+      {tab === 'alliances' && gang && (
+        <GangAlliancePanel gangId={gang.id} />
       )}
 
       {/* CHAT */}

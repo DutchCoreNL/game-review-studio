@@ -25,6 +25,10 @@ import { canTriggerFinalBoss } from '@/game/endgame';
 import { useDistrictData } from '@/hooks/useDistrictData';
 import { useWorldState } from '@/hooks/useWorldState';
 import { useRealtimeNews } from '@/hooks/useRealtimeNews';
+import { ActivityFeedPanel } from './mmo/ActivityFeedPanel';
+import { OnlinePlayersIndicator } from './mmo/OnlinePlayersIndicator';
+import { WorldRaidPanel } from './mmo/WorldRaidPanel';
+import { SmuggleRoutesPanel } from './mmo/SmuggleRoutesPanel';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -180,7 +184,28 @@ export function MapView() {
 
       {state.nemesis && <NemesisInfo />}
       <NpcMoodIndicator districtId={state.loc} />
+      
+      {/* Online Players */}
+      <div className="mb-2">
+        <OnlinePlayersIndicator currentDistrict={state.loc} compact />
+      </div>
+      
       {selectedDistrict && !isHiding && <DistrictPopup districtData={districtData} />}
+
+      {/* World Raids */}
+      <div className="mb-2">
+        <WorldRaidPanel />
+      </div>
+
+      {/* Smuggle Routes */}
+      <div className="mb-2">
+        <SmuggleRoutesPanel currentDistrict={state.loc} />
+      </div>
+
+      {/* Activity Feed */}
+      <div className="mb-2">
+        <ActivityFeedPanel districtFilter={state.loc} maxItems={10} />
+      </div>
 
       {/* Contextual action bar */}
       {contextActions.length > 0 && (
