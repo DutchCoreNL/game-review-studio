@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      auction_bids: {
+        Row: {
+          amount: number
+          auction_id: string
+          bidder_id: string
+          bidder_name: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          amount: number
+          auction_id: string
+          bidder_id: string
+          bidder_name?: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          amount?: number
+          auction_id?: string
+          bidder_id?: string
+          bidder_name?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_bids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "live_auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_players: {
         Row: {
           backstory: string | null
@@ -695,6 +730,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      live_auctions: {
+        Row: {
+          bid_count: number
+          claimed_at: string | null
+          created_at: string
+          current_bid: number
+          current_bidder_id: string | null
+          current_bidder_name: string | null
+          ends_at: string
+          id: string
+          item_id: string
+          item_name: string
+          item_type: string
+          min_increment: number
+          original_ends_at: string
+          quantity: number
+          seller_id: string
+          seller_name: string
+          starting_price: number
+          status: string
+        }
+        Insert: {
+          bid_count?: number
+          claimed_at?: string | null
+          created_at?: string
+          current_bid?: number
+          current_bidder_id?: string | null
+          current_bidder_name?: string | null
+          ends_at: string
+          id?: string
+          item_id: string
+          item_name: string
+          item_type: string
+          min_increment?: number
+          original_ends_at: string
+          quantity?: number
+          seller_id: string
+          seller_name?: string
+          starting_price: number
+          status?: string
+        }
+        Update: {
+          bid_count?: number
+          claimed_at?: string | null
+          created_at?: string
+          current_bid?: number
+          current_bidder_id?: string | null
+          current_bidder_name?: string | null
+          ends_at?: string
+          id?: string
+          item_id?: string
+          item_name?: string
+          item_type?: string
+          min_increment?: number
+          original_ends_at?: string
+          quantity?: number
+          seller_id?: string
+          seller_name?: string
+          starting_price?: number
+          status?: string
+        }
+        Relationships: []
       }
       market_listings: {
         Row: {

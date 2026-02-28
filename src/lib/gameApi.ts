@@ -37,6 +37,10 @@ export type GameAction =
   | "start_coop_heist"
   | "raid_safehouse"
   | "sabotage_lab"
+  | "create_live_auction"
+  | "bid_live_auction"
+  | "claim_live_auction"
+  | "get_live_auctions"
   | "process_turn";
 
 interface GameActionResult {
@@ -174,6 +178,15 @@ export const gameApi = {
 
   // Drug Empire PvP
   sabotageLab: (targetUserId: string) => invokeGameAction("sabotage_lab", { targetUserId }),
+
+  // Live Auctions
+  createLiveAuction: (itemType: string, itemId: string, startingPrice: number, quantity?: number) =>
+    invokeGameAction("create_live_auction", { itemType, itemId, startingPrice, quantity: quantity || 1 }),
+  bidLiveAuction: (auctionId: string, amount: number) =>
+    invokeGameAction("bid_live_auction", { auctionId, amount }),
+  claimLiveAuction: (auctionId: string) =>
+    invokeGameAction("claim_live_auction", { auctionId }),
+  getLiveAuctions: () => invokeGameAction("get_live_auctions"),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
