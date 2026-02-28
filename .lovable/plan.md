@@ -1,76 +1,70 @@
 
 
-## Plan: Gevechts- en Event-systeem MMO Verbeteringen
+## Plan: Verhaalsysteem MMO-Verbeteringen
 
-### Huidige Situatie
+### Analyse — Wat is nu puur solo?
 
-**Gevechtsysteem:**
-- PvP combat draait deels client-side (via `combatSkills.ts`) en deels server-side (`game-action/index.ts`)
-- De server-side AI is simplistisch: random keuze tussen attack/heavy/defend op basis van HP%
-- Geen gear-effecten voor de verdediger, geen skill-gebruik door AI
-- Beloningen zijn vast (50 XP, 15 heat) — geen schaling naar level/moeilijkheid
-- Geen ELO/ranking of matchmaking
-- Max 20 beurten, daarna HP%-vergelijking
-
-**Event-systeem:**
-- ~30 statische events met geavanceerde filters (district, fase, karma, NPC)
-- Cooldown van 10 minuten tussen events
-- Follow-up ketens en nieuws-broadcasts bestaan al
-- Geen interactie tussen spelers bij events (geen coöp)
-- Events zijn puur client-side getriggerd, server-driven events bestaan alleen als district_events
-
----
+| Systeem | Status | Probleem |
+|---------|--------|----------|
+| Story Arcs (3 bogen) | 100% solo | Keuzes hebben geen effect op andere spelers |
+| Backstory Arcs (3 bogen) | 100% solo | Geen interactie met spelers die andere backstory kozen |
+| Street Events (~30) | 100% solo | Resultaten zijn alleen lokaal zichtbaar |
+| NPC Events (5 NPCs) | 100% solo | NPC-relaties staan los van andere spelers |
 
 ### Verbeteringen
 
-#### 1. Slimmere PvP AI (server-side)
-De verdediger-AI in `handlePvPCombatAction` wordt uitgebreid:
-- **Skill-gebruik door AI**: verdediger gebruikt ook combat skills (gebaseerd op level) met cooldown-tracking
-- **Gear-bonus**: verdediger's loadout beïnvloedt stats (nu genegeerd)
-- **Adaptieve strategie**: AI reageert op speler-patronen (bijv. als speler 3x aanvalt → AI verdedigt; als speler verdedigt → AI gebruikt heavy)
-- **Level-schaling beloningen**: XP/geld-beloning schaalt met het level-verschil
+#### 1. Speler-keuzes genereren district-breed nieuws & events
+Wanneer een speler een story arc-stap voltooit, wordt het resultaat omgezet naar een **nieuwsbericht** en optioneel een **follow-up street event** voor andere spelers in hetzelfde district.
 
-**Bestanden:** `supabase/functions/game-action/index.ts`
+Voorbeeld: Speler A kiest "CHANTEER DE VRIES" → andere spelers in Iron District krijgen event: *"Er gaan geruchten over een corrupte agent die is ontmaskerd. Dit is je kans om ervan te profiteren."*
 
-#### 2. Server-validated Combat met Gear-synergy
-- Defender's gear stats worden meegenomen in damage-berekening (armor reduceert schade, gadgets verhogen dodge-kans)
-- Wapen-specifieke effecten: shotgun heeft kans op AoE-bleed, sniper heeft hogere crit-chance
-- Combat-resultaat genereert context-specifiek nieuws voor het district
+**Wijzigingen:**
+- `storyArcs.ts`: `resolveArcChoice` stuurt resultaat naar `district_events` tabel (nieuw veld `triggered_by`)
+- `storyEvents.ts`: Nieuwe event-categorie `player_triggered` die reageert op `district_events`
+- `world-tick`: Verwerkt arc-resultaten tot server-events
 
-**Bestanden:** `supabase/functions/game-action/index.ts`
+#### 2. Gang Story Missions — Gedeelde verhaalbogen voor gangs
+Nieuwe arc-categorie die alleen door gangs gestart kan worden. Stappen worden verdeeld over gang-leden: ieder lid kiest een andere aanpak, en het gecombineerde resultaat bepaalt de uitkomst.
 
-#### 3. Server-driven Dynamische Events
-De `world-tick` genereert nu district-brede interactieve events die meerdere spelers kunnen beïnvloeden:
-- **Coöperatieve events**: "Politie-razzia in Port Nero — spelers die samenwerken krijgen minder heat" (meerdere spelers in district = betere uitkomst)
-- **Competitieve events**: "Wapendrop in Iron Borough — eerste speler die claimt wint" (via `district_events` tabel met `claimed_by`)
-- **Escalatie-events**: events die erger worden als niemand reageert (bijv. gang-oorlog escaleert → hogere heat voor heel district)
+Voorbeeld: *"De Kartel-Connectie"* — 4 stappen, elk lid kiest parallel. Meer successen = betere gang-beloning.
 
-**Bestanden:** `supabase/functions/world-tick/index.ts`, `src/game/storyEvents.ts`
+**Wijzigingen:**
+- Nieuw bestand `src/game/gangArcs.ts` met `GangArcTemplate` type
+- `game-action/index.ts`: Nieuwe handlers `start_gang_arc`, `resolve_gang_arc_step`
+- Database: `gang_story_arcs` tabel (gang_id, arc_id, step, member_choices JSONB)
 
-#### 4. Speler-interactie Events
-Nieuwe event-types die spelers met elkaar verbinden:
-- **Getuige-events**: "Je zag [speler X] een deal sluiten — verraad of negeer?" → stuurt bericht naar die speler
-- **Alliantie-events**: events met betere beloningen als je gang-leden in hetzelfde district hebt
-- **Bounty-trigger events**: specifieke events alleen voor spelers met een actieve bounty
+#### 3. Rivaal-systeem met echte spelers
+De bestaande "De Rivaal" arc wordt uitgebreid: in plaats van een NPC-rivaal wordt een **echte speler** met vergelijkbare stats automatisch toegewezen als nemesis. Arc-stappen verwijzen naar hun echte acties.
 
-**Bestanden:** `src/game/storyEvents.ts`, `src/contexts/GameContext.tsx`
+**Wijzigingen:**
+- `storyArcs.ts`: Rivaal-arc detecteert echte speler via `player_state` query
+- `game-action/index.ts`: `assign_nemesis` handler die een speler koppelt op basis van level/district
+- Nemesis-acties (trades, gevechten, territory) genereren arc-events voor beide spelers
 
-#### 5. Combat Rating & Matchmaking
-- Nieuw `combat_rating` veld in `player_state` (Elo-achtig systeem)
-- Na elke PvP-winst/verlies wordt rating aangepast
-- Spelerlijst toont rating en moeilijkheidsgraad-indicator
-- Betere beloningen voor gevechten tegen hoger-gerankten
+#### 4. NPC-loyaliteit beïnvloed door meerdere spelers
+NPCs reageren op de **collectieve** relatie van alle spelers in hun district. Als te veel spelers een NPC beledigen, wordt de NPC vijandelijk voor iedereen. Als genoeg spelers helpen, ontgrendelt de NPC district-brede bonussen.
 
-**Bestanden:** `supabase/functions/game-action/index.ts`, database migratie voor `combat_rating` kolom
+**Wijzigingen:**
+- Database: `npc_district_mood` tabel (npc_id, district_id, collective_score)
+- `world-tick`: Berekent collectieve NPC-mood per district
+- `npcEvents.ts`: Events en dialoog variëren op basis van collectieve mood
+- Nieuwe NPC-states: `friendly` (bonus voor district), `hostile` (events blokkeren), `legendary` (unieke quest)
 
----
+#### 5. Backstory-kruisingen
+Spelers met verschillende backstories krijgen speciale interactie-events wanneer ze elkaar tegenkomen in hetzelfde district. De Weduwnaar en de Bankier hebben overlappende vijanden; het Straatkind kent plekken die de anderen niet kennen.
+
+**Wijzigingen:**
+- `storyEvents.ts`: Nieuwe `backstory_crossover` events die triggeren wanneer spelers met verschillende backstories in hetzelfde district zijn
+- `game-action/index.ts`: Check bij travel of er een crossover-partner aanwezig is
+- 3 crossover-events (Weduwnaar×Bankier, Bankier×Straatkind, Straatkind×Weduwnaar)
 
 ### Technische Stappen
 
-1. **Database migratie**: `combat_rating INTEGER DEFAULT 1000` toevoegen aan `player_state`; `claimed_by UUID` en `claimed_at TIMESTAMP` toevoegen aan `district_events`
-2. **Server AI verbeteren**: skill-gebruik, gear-synergy en adaptieve patronen in `handlePvPCombatAction`
-3. **Combat rating berekening**: Elo-update na elk gevecht in `handlePvPCombatAction` en `handleAttack`
-4. **World-tick coöp/competitieve events**: nieuwe event-generatoren met claim-mechanisme
-5. **Client-side integratie**: event-claim UI, rating-display in leaderboard/spelerlijst
-6. **Speler-interactie events**: nieuwe event-definities met multiplayer-effecten
+1. **Database migratie**: `gang_story_arcs`, `npc_district_mood` tabellen + `triggered_by` kolom op `district_events`
+2. **Gang Story Missions**: `gangArcs.ts` + server handlers voor parallelle gang-keuzes
+3. **Arc → Nieuws pipeline**: Arc-resultaten schrijven naar `district_events` met speler-context
+4. **Rivaal-koppeling**: Nemesis-toewijzing op basis van echte spelerdata
+5. **NPC collectieve mood**: World-tick berekent en past NPC-status aan per district
+6. **Backstory crossovers**: 3 nieuwe event-templates met multiplayer-triggers
+7. **Client UI**: Gang arc panel in WarView, nemesis-indicator op kaart, NPC mood-indicator
 
