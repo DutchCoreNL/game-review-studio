@@ -63,7 +63,25 @@ export interface HitContract {
   xpReward: number;
 }
 
+/** @deprecated Legacy ammo types — system now uses universal "Kogels" */
 export type AmmoType = '9mm' | '7.62mm' | 'shells';
+
+export type SpecialAmmoType = 'armor_piercing' | 'hollowpoints' | 'tracer';
+
+export interface SpecialAmmoDef {
+  id: SpecialAmmoType;
+  name: string;
+  desc: string;
+  icon: string;
+  costMult: number; // price multiplier vs normal ammo
+  effects: {
+    armorIgnore?: number; // 0-1, fraction of armor ignored
+    damageMult?: number; // multiplier vs unarmored
+    armorDamageMult?: number; // multiplier vs armored (overrides damageMult)
+    accuracyBonus?: number; // flat accuracy bonus %
+    revealLocation?: boolean;
+  };
+}
 
 export interface AmmoPack {
   id: string;
@@ -585,6 +603,7 @@ export interface CombatSkill {
   unlockLevel: number;
   cooldownTurns: number;
   energyCost: number;
+  ammoCost: number; // ammo consumed per use (0 = no ammo needed)
   effect: CombatSkillEffect;
 }
 
@@ -1007,9 +1026,11 @@ export interface GameState {
   };
 
   // ========== HITMAN & AMMO STATE ==========
-  ammo: number; // legacy — kept for backward compat, equals total of ammoStock
-  ammoStock: Record<AmmoType, number>; // per-type ammo stock
+  ammo: number; // universal ammo counter (max 500)
+  ammoStock: Record<AmmoType, number>; // @deprecated legacy per-type — kept for migration compat
   ammoFactoryLevel: number; // 1-3
+  specialAmmo: Partial<Record<SpecialAmmoType, number>>; // special ammo consumables
+  activeSpecialAmmo: SpecialAmmoType | null; // currently loaded special ammo type
   hitContracts: HitContract[];
 
   // ========== PRISON STATE ==========

@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
-import { GEAR, FAMILIES, AMMO_PACKS, AMMO_TYPE_LABELS } from '@/game/constants';
-import { GearSlot, AmmoType } from '@/game/types';
-import { getDailyDeal, getActiveAmmoType } from '@/game/engine';
+import { GEAR, FAMILIES, AMMO_PACKS, SPECIAL_AMMO, SPECIAL_AMMO_PACKS, MAX_AMMO } from '@/game/constants';
+import { GearSlot } from '@/game/types';
+import { getDailyDeal } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -38,16 +38,13 @@ const STAT_LABELS: Record<string, string> = {
   charm: 'Charisma',
 };
 
-const AMMO_TYPES: AmmoType[] = ['9mm', '7.62mm', 'shells'];
-
 export function GearPanel() {
   const { state, dispatch, showToast } = useGame();
   const [filter, setFilter] = useState<GearFilter>('all');
-  const [selectedAmmoType, setSelectedAmmoType] = useState<AmmoType>(getActiveAmmoType(state));
   const dailyDeal = getDailyDeal(state);
 
   const filteredGear = GEAR.filter(g => filter === 'all' || g.type === filter);
-  const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
+  const currentAmmo = state.ammo || 0;
 
   const getEquippedStat = (slot: GearSlot, statKey: string): number => {
     const equippedId = state.player.loadout[slot];
@@ -58,51 +55,41 @@ export function GearPanel() {
 
   return (
     <div>
-      {/* Ammo Purchase Section */}
+      {/* Universal Ammo Section */}
       <SectionHeader title="Munitie" icon={<Crosshair size={12} />} />
 
-      {/* Ammo Stock Overview */}
-      <div className="flex gap-2 mb-3">
-        {AMMO_TYPES.map(type => {
-          const info = AMMO_TYPE_LABELS[type];
-          const stock = ammoStock[type] || 0;
-          const isActive = type === selectedAmmoType;
-          return (
-            <button
-              key={type}
-              onClick={() => setSelectedAmmoType(type)}
-              className={`flex-1 py-2 px-2 rounded text-center transition-all ${
-                isActive
-                  ? 'bg-gold/15 border border-gold text-gold'
-                  : 'bg-muted border border-border text-muted-foreground'
-              }`}
-            >
-              <div className="text-sm mb-0.5">{info.icon}</div>
-              <div className="text-[0.5rem] font-bold uppercase">{info.label}</div>
-              <div className={`text-xs font-bold ${stock <= 3 ? 'text-blood' : ''}`}>{stock}/99</div>
-            </button>
-          );
-        })}
+      {/* Ammo Counter */}
+      <div className="game-card p-3 mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold">🔫 Kogels</span>
+          <span className={`text-sm font-bold ${currentAmmo <= 10 ? 'text-blood' : currentAmmo <= 50 ? 'text-gold' : 'text-foreground'}`}>
+            {currentAmmo}/{MAX_AMMO}
+          </span>
+        </div>
+        <StatBar value={currentAmmo} max={MAX_AMMO} color={currentAmmo <= 10 ? 'blood' : currentAmmo <= 50 ? 'gold' : 'emerald'} height="sm" />
+        {currentAmmo <= 10 && (
+          <p className="text-[0.5rem] text-blood mt-1 animate-pulse">⚠️ Bijna geen munitie! Koop bij.</p>
+        )}
       </div>
 
-      {/* Buy packs for selected type */}
-      <div className="flex gap-2 mb-4">
+      {/* Buy ammo packs */}
+      <div className="flex gap-2 mb-3">
         {AMMO_PACKS.map(pack => (
           <motion.button
             key={pack.id}
             onClick={() => {
-              if (state.money >= pack.cost && (ammoStock[selectedAmmoType] || 0) < 99) {
-                dispatch({ type: 'BUY_AMMO', packId: pack.id, ammoType: selectedAmmoType });
-                showToast(`+${pack.amount} ${AMMO_TYPE_LABELS[selectedAmmoType].label} gekocht!`);
-              } else if ((ammoStock[selectedAmmoType] || 0) >= 99) {
-                showToast(`${AMMO_TYPE_LABELS[selectedAmmoType].label} is vol (max 99)`, true);
+              if (state.money >= pack.cost && currentAmmo < MAX_AMMO) {
+                dispatch({ type: 'BUY_AMMO', packId: pack.id, ammoType: '9mm' });
+                showToast(`+${pack.amount} kogels gekocht!`);
+              } else if (currentAmmo >= MAX_AMMO) {
+                showToast(`Ammo is vol (max ${MAX_AMMO})`, true);
               } else {
                 showToast('Niet genoeg geld', true);
               }
             }}
-            disabled={state.money < pack.cost || (ammoStock[selectedAmmoType] || 0) >= 99}
+            disabled={state.money < pack.cost || currentAmmo >= MAX_AMMO}
             className={`flex-1 game-card p-2.5 text-center transition-all ${
-              state.money >= pack.cost && (ammoStock[selectedAmmoType] || 0) < 99
+              state.money >= pack.cost && currentAmmo < MAX_AMMO
                 ? 'border-gold/30 hover:border-gold cursor-pointer'
                 : 'opacity-50 cursor-not-allowed'
             }`}
@@ -114,8 +101,63 @@ export function GearPanel() {
           </motion.button>
         ))}
       </div>
+
+      {/* Special Ammo */}
+      {SPECIAL_AMMO.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Zap size={10} className="text-game-purple" />
+            <span className="text-[0.5rem] font-bold text-game-purple uppercase tracking-wider">Speciale Munitie</span>
+          </div>
+          <div className="flex gap-2">
+            {SPECIAL_AMMO.map(sa => {
+              const owned = state.specialAmmo?.[sa.id] || 0;
+              const isActive = state.activeSpecialAmmo === sa.id;
+              const pack = SPECIAL_AMMO_PACKS.find(p => p.id === sa.id);
+              return (
+                <div key={sa.id} className={`flex-1 game-card p-2 text-center ${isActive ? 'border-game-purple' : ''}`}>
+                  <div className="text-sm mb-0.5">{sa.icon}</div>
+                  <div className="text-[0.5rem] font-bold">{sa.name}</div>
+                  <div className="text-[0.45rem] text-muted-foreground mb-1">{owned}x</div>
+                  <div className="flex gap-1">
+                    {pack && (
+                      <button
+                        onClick={() => {
+                          if (state.money >= pack.cost) {
+                            dispatch({ type: 'BUY_SPECIAL_AMMO', specialType: sa.id, amount: pack.amount, cost: pack.cost });
+                            showToast(`+${pack.amount} ${sa.name} gekocht!`);
+                          } else {
+                            showToast('Niet genoeg geld', true);
+                          }
+                        }}
+                        disabled={state.money < pack.cost}
+                        className="flex-1 text-[0.4rem] py-1 rounded bg-gold/10 border border-gold/30 text-gold font-bold disabled:opacity-30"
+                      >
+                        €{pack.cost.toLocaleString()}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        dispatch({ type: 'SET_SPECIAL_AMMO', specialType: isActive ? null : sa.id });
+                        showToast(isActive ? 'Speciale munitie uitgeschakeld' : `${sa.name} geladen!`);
+                      }}
+                      disabled={owned <= 0 && !isActive}
+                      className={`flex-1 text-[0.4rem] py-1 rounded font-bold ${
+                        isActive ? 'bg-game-purple/20 border border-game-purple text-game-purple' : 'bg-muted border border-border text-muted-foreground disabled:opacity-30'
+                      }`}
+                    >
+                      {isActive ? 'ACTIEF' : 'LAAD'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="text-[0.5rem] text-muted-foreground text-center mb-4">
-        🔫 Koop {AMMO_TYPE_LABELS[selectedAmmoType].label} munitie — Nodig voor gevechten en huurmoorden
+        🔫 Universele kogels — Nodig voor gevechten, huurmoorden en PvP
       </div>
 
       <SectionHeader title="Zwarte Markt" icon={<ShieldCheck size={12} />} />

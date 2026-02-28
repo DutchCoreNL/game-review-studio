@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUEST_COMBAT_OVERRIDES, GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
+import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUEST_COMBAT_OVERRIDES, GEAR } from '@/game/constants';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
@@ -308,13 +308,10 @@ function ActiveCombat() {
                 </div>
               );
             }
-            const ammoType = equippedWeapon?.ammoType || '9mm';
-            const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
-            const typeAmmo = ammoStock[ammoType] || 0;
-            const typeLabel = AMMO_TYPE_LABELS[ammoType]?.label || ammoType;
+            const totalAmmo = state.ammo || 0;
             return (
-              <div className={`text-center mb-2 text-[0.55rem] font-bold ${typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
-                🔫 {typeLabel}: {typeAmmo} {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {typeAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
+              <div className={`text-center mb-2 text-[0.55rem] font-bold ${totalAmmo <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
+                🔫 Kogels: {totalAmmo}/500 {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {state.activeSpecialAmmo ? `| ${state.activeSpecialAmmo === 'armor_piercing' ? '🔩 AP' : state.activeSpecialAmmo === 'hollowpoints' ? '💥 HP' : '✨ Tracer'}` : ''} {totalAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
               </div>
             );
           })()}

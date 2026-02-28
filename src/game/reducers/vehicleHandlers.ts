@@ -177,12 +177,11 @@ export function handleCrushCar(s: GameState, carId: string): void {
   let ammoGain = minAmmo + Math.floor(Math.random() * (maxAmmo - minAmmo + 1));
   if (car.condition >= 80) ammoGain += 2;
   ammoGain += car.upgrades.length;
-  if (!s.ammoStock) s.ammoStock = { '9mm': s.ammo || 0, '7.62mm': 0, 'shells': 0 };
-  const crushType = Engine.getActiveAmmoType(s);
-  const oldCrushAmmo = s.ammoStock[crushType] || 0;
-  s.ammoStock[crushType] = Math.min(99, oldCrushAmmo + ammoGain);
-  const actualGain = s.ammoStock[crushType] - oldCrushAmmo;
-  s.ammo = (s.ammoStock['9mm'] || 0) + (s.ammoStock['7.62mm'] || 0) + (s.ammoStock['shells'] || 0);
+  const oldAmmo = s.ammo || 0;
+  s.ammo = Math.min(500, oldAmmo + ammoGain);
+  const actualGain = s.ammo - oldAmmo;
+  if (!s.ammoStock) s.ammoStock = { '9mm': 0, '7.62mm': 0, 'shells': 0 };
+  s.ammoStock['9mm'] = s.ammo;
   s.stolenCars = s.stolenCars.filter(c => c.id !== carId);
   Engine.gainXp(s, 10);
   s.screenEffect = 'gold-flash';
