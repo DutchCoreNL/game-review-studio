@@ -5876,8 +5876,111 @@ async function handleGetPlayerTitles(supabase: any, userId: string, payload: any
   return { success: true, message: "Titels opgehaald.", data: { titles: data || [] } };
 }
 
-// ========== MAIN HANDLER ==========
+// ========== INFORMANT & MOL SYSTEEM ==========
 
+async function handlePlantMole(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { targetGangId } = payload || {};
+  if (!targetGangId) return { success: false, message: "Geen doelgang opgegeven." };
+
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+
+  // Must be in a gang
+  const { data: gm } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!gm) return { success: false, message: "Je moet in een gang zitten om een mol te planten." };
+  if (gm.gang_id === targetGangId) return { success: false, message: "Je kunt geen mol in je eigen gang planten." };
+
+  // Level check
+  if (ps.level < 5) return { success: false, message: "Je moet minimaal level 5 zijn." };
+
+  // Cost: €5000 + 20 energy
+  const cost = 5000;
+  if (ps.money < cost) return { success: false, message: `Niet genoeg geld (nodig: €${cost}).` };
+  if (ps.energy < 20) return { success: false, message: "Niet genoeg energy (nodig: 20)." };
+
+  // Check if already has active mole in this gang
+  const { data: existing } = await supabase.from("gang_moles")
+    .select("id").eq("player_id", userId).eq("target_gang_id", targetGangId).eq("status", "active").maybeSingle();
+  if (existing) return { success: false, message: "Je hebt al een actieve mol in deze gang." };
+
+  // Max 2 active moles
+  const { data: allMoles } = await supabase.from("gang_moles")
+    .select("id").eq("player_id", userId).eq("status", "active");
+  if ((allMoles || []).length >= 2) return { success: false, message: "Je kunt maximaal 2 mollen tegelijk hebben." };
+
+  // Get target gang name
+  const { data: targetGang } = await supabase.from("gangs").select("name").eq("id", targetGangId).maybeSingle();
+  if (!targetGang) return { success: false, message: "Gang niet gevonden." };
+
+  // Deduct costs
+  await supabase.from("player_state").update({
+    money: ps.money - cost,
+    energy: ps.energy - 20,
+    last_action_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+
+  // Insert mole
+  await supabase.from("gang_moles").insert({
+    player_id: userId,
+    player_gang_id: gm.gang_id,
+    target_gang_id: targetGangId,
+    cover_strength: 100,
+  });
+
+  return {
+    success: true,
+    message: `Mol geïnfiltreerd bij ${targetGang.name}! Eerste intel over 24 uur.`,
+    data: { targetGangName: targetGang.name, cost },
+  };
+}
+
+async function handleExtractMole(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { moleId } = payload || {};
+  if (!moleId) return { success: false, message: "Geen mol ID opgegeven." };
+
+  const { data: mole } = await supabase.from("gang_moles")
+    .select("*").eq("id", moleId).eq("player_id", userId).eq("status", "active").maybeSingle();
+  if (!mole) return { success: false, message: "Mol niet gevonden of al inactief." };
+
+  // Extract = safely remove mole, keep gathered intel
+  await supabase.from("gang_moles").update({
+    status: "extracted",
+    updated_at: new Date().toISOString(),
+  }).eq("id", moleId);
+
+  const intelCount = (mole.intel_reports || []).length;
+
+  return {
+    success: true,
+    message: `Mol veilig geëxtraheerd. ${intelCount} intel-rapporten verzameld.`,
+    data: { intelCount, intelReports: mole.intel_reports },
+  };
+}
+
+async function handleGetMoles(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: moles } = await supabase.from("gang_moles")
+    .select("*").eq("player_id", userId).order("created_at", { ascending: false });
+
+  // Enrich with gang names
+  const gangIds = [...new Set((moles || []).map((m: any) => m.target_gang_id))];
+  const { data: gangs } = await supabase.from("gangs").select("id, name, tag, treasury, level").in("id", gangIds.length > 0 ? gangIds : ['none']);
+  const gangMap: Record<string, any> = {};
+  (gangs || []).forEach((g: any) => { gangMap[g.id] = g; });
+
+  const enriched = (moles || []).map((m: any) => ({
+    ...m,
+    target_gang_name: gangMap[m.target_gang_id]?.name || "Onbekend",
+    target_gang_tag: gangMap[m.target_gang_id]?.tag || "??",
+  }));
+
+  return {
+    success: true,
+    message: "Mollen opgehaald.",
+    data: { moles: enriched },
+  };
+}
+
+// ========== MAIN HANDLER ==========
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -6222,6 +6325,17 @@ Deno.serve(async (req) => {
       // ========== PLAYER TITLES ==========
       case "get_player_titles":
         result = await handleGetPlayerTitles(supabase, user.id, payload);
+        break;
+
+      // ========== INFORMANT & MOL SYSTEEM ==========
+      case "plant_mole":
+        result = await handlePlantMole(supabase, user.id, playerState, payload);
+        break;
+      case "extract_mole":
+        result = await handleExtractMole(supabase, user.id, payload);
+        break;
+      case "get_moles":
+        result = await handleGetMoles(supabase, user.id);
         break;
 
       // ========== HEARTBEAT ==========

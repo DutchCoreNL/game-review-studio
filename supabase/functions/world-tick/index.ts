@@ -1592,6 +1592,135 @@ async function generateServerDistrictEvents(supabase: any, phase: string, weathe
   }
 }
 
+// ========== MOL DETECTIE & INTEL ==========
+
+async function processMoles(supabase: any) {
+  try {
+    // Get all active moles
+    const { data: moles } = await supabase.from('gang_moles')
+      .select('*').eq('status', 'active');
+
+    if (!moles || moles.length === 0) return;
+
+    for (const mole of moles) {
+      // Calculate hours since planted
+      const hoursSincePlanted = (Date.now() - new Date(mole.planted_at).getTime()) / (1000 * 60 * 60);
+      
+      // Generate intel every ~24 hours (check if last_intel_at is >20h ago or null)
+      const hoursSinceLastIntel = mole.last_intel_at
+        ? (Date.now() - new Date(mole.last_intel_at).getTime()) / (1000 * 60 * 60)
+        : 999;
+
+      if (hoursSinceLastIntel >= 20) {
+        // Gather intel about target gang
+        const { data: targetGang } = await supabase.from('gangs')
+          .select('name, treasury, level, xp').eq('id', mole.target_gang_id).maybeSingle();
+        
+        const { data: wars } = await supabase.from('gang_wars')
+          .select('attacker_gang_id, defender_gang_id, status, district_id')
+          .or(`attacker_gang_id.eq.${mole.target_gang_id},defender_gang_id.eq.${mole.target_gang_id}`)
+          .eq('status', 'active');
+
+        const { data: territories } = await supabase.from('gang_territories')
+          .select('district_id, defense_level').eq('gang_id', mole.target_gang_id);
+
+        const { data: memberCount } = await supabase.from('gang_members')
+          .select('id').eq('gang_id', mole.target_gang_id);
+
+        const intelReport = {
+          timestamp: new Date().toISOString(),
+          treasury: targetGang?.treasury || 0,
+          level: targetGang?.level || 1,
+          memberCount: (memberCount || []).length,
+          activeWars: (wars || []).length,
+          warTargets: (wars || []).map((w: any) => w.district_id).filter(Boolean),
+          territories: (territories || []).map((t: any) => ({ district: t.district_id, defense: t.defense_level })),
+        };
+
+        const existingReports = mole.intel_reports || [];
+        existingReports.push(intelReport);
+
+        // Keep last 10 reports
+        const trimmedReports = existingReports.slice(-10);
+
+        await supabase.from('gang_moles').update({
+          intel_reports: trimmedReports,
+          last_intel_at: new Date().toISOString(),
+        }).eq('id', mole.id);
+      }
+
+      // Detection check: base 5% per tick, +2% per day active, +5% if target gang is at war
+      let detectionChance = 5;
+      const daysActive = hoursSincePlanted / 24;
+      detectionChance += Math.floor(daysActive * 2);
+
+      // Lower cover = higher detection
+      detectionChance += Math.floor((100 - mole.cover_strength) / 10);
+
+      // Target gang activity increases detection
+      const { data: activeWars } = await supabase.from('gang_wars')
+        .select('id')
+        .or(`attacker_gang_id.eq.${mole.target_gang_id},defender_gang_id.eq.${mole.target_gang_id}`)
+        .eq('status', 'active');
+      if ((activeWars || []).length > 0) detectionChance += 5;
+
+      // Cap at 40%
+      detectionChance = Math.min(40, detectionChance);
+
+      // Roll for detection
+      if (Math.random() * 100 < detectionChance) {
+        // MOL ONTDEKT!
+        const { data: targetGang } = await supabase.from('gangs')
+          .select('name, leader_id').eq('id', mole.target_gang_id).maybeSingle();
+        const { data: playerProfile } = await supabase.from('profiles')
+          .select('username').eq('id', mole.player_id).maybeSingle();
+
+        await supabase.from('gang_moles').update({
+          status: 'discovered',
+          discovered_at: new Date().toISOString(),
+          discovery_consequence: 'bounty',
+          cover_strength: 0,
+        }).eq('id', mole.id);
+
+        // Place automatic bounty
+        await supabase.from('player_bounties').insert({
+          placer_id: targetGang?.leader_id || mole.target_gang_id,
+          target_id: mole.player_id,
+          amount: 5000,
+          reason: 'Ontmaskerde mol/spion',
+          status: 'active',
+        });
+
+        // News event
+        await supabase.from('news_events').insert({
+          text: `SPIONAGE ONTDEKT: ${targetGang?.name || 'Een gang'} heeft een mol ontmaskerd!`,
+          icon: '🕵️',
+          urgency: 'high',
+          category: 'gang',
+          detail: `Een infiltrant van een rivaliserende gang is betrapt. Er is een bounty geplaatst.`,
+          expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        });
+
+        // Send message to the mole player
+        await supabase.from('player_messages').insert({
+          sender_id: targetGang?.leader_id || mole.player_id,
+          receiver_id: mole.player_id,
+          subject: '⚠️ Je mol is ontdekt!',
+          body: `Je mol bij ${targetGang?.name || 'een gang'} is ontmaskerd! Er is een bounty van €5.000 op je hoofd geplaatst. Pas op!`,
+        });
+      } else {
+        // Gradually lower cover strength
+        const newCover = Math.max(10, mole.cover_strength - Math.floor(Math.random() * 3 + 1));
+        if (newCover !== mole.cover_strength) {
+          await supabase.from('gang_moles').update({ cover_strength: newCover }).eq('id', mole.id);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Mole processing error:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -1709,6 +1838,9 @@ Deno.serve(async (req) => {
     const currentWeather = update.current_weather || ws.current_weather;
     const resolvedDay = update.world_day || ws.world_day;
     await generateAndInsertNews(supabase, nextPhase, currentWeather, resolvedDay);
+
+    // ========== PROCESS MOLES (INTEL & DETECTION) ==========
+    await processMoles(supabase);
 
     // ========== SIMULATE BOT ACTIVITY ==========
     await simulateBots(supabase, nextPhase, resolvedDay);

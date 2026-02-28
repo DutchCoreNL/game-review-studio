@@ -14,8 +14,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { GangArcPanel } from './gang/GangArcPanel';
 import { GangAlliancePanel } from './mmo/GangAlliancePanel';
+import { MolePanel } from './gang/MolePanel';
 
-type GangTab = 'overview' | 'members' | 'territory' | 'wars' | 'chat' | 'browse' | 'arcs' | 'alliances';
+type GangTab = 'overview' | 'members' | 'territory' | 'wars' | 'chat' | 'browse' | 'arcs' | 'alliances' | 'moles';
 
 const DISTRICT_NAMES: Record<string, string> = {
   low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights',
@@ -394,6 +395,7 @@ export function GangView() {
     { id: 'wars' as GangTab, label: 'OORLOG', icon: <Swords size={10} />, badge: activeWars.length || undefined },
     { id: 'arcs' as GangTab, label: 'MISSIES', icon: <BookOpen size={10} /> },
     { id: 'alliances' as GangTab, label: 'ALLIANTIES', icon: <Handshake size={10} /> },
+    { id: 'moles' as GangTab, label: 'MOLLEN', icon: <Eye size={10} /> },
     { id: 'chat' as GangTab, label: 'CHAT', icon: <MessageSquare size={10} /> },
   ];
 
@@ -648,6 +650,14 @@ export function GangView() {
       {/* ALLIANTIES */}
       {tab === 'alliances' && gang && (
         <GangAlliancePanel gangId={gang.id} />
+      )}
+
+      {/* MOLLEN */}
+      {tab === 'moles' && gang && (
+        <MolePanel
+          gangs={gangsList}
+          playerGangId={gang.id}
+        />
       )}
 
       {/* CHAT */}

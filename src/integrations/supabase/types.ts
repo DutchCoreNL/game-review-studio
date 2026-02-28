@@ -572,6 +572,69 @@ export type Database = {
           },
         ]
       }
+      gang_moles: {
+        Row: {
+          cover_strength: number
+          created_at: string
+          discovered_at: string | null
+          discovery_consequence: string | null
+          id: string
+          intel_reports: Json
+          last_intel_at: string | null
+          planted_at: string
+          player_gang_id: string
+          player_id: string
+          status: string
+          target_gang_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_strength?: number
+          created_at?: string
+          discovered_at?: string | null
+          discovery_consequence?: string | null
+          id?: string
+          intel_reports?: Json
+          last_intel_at?: string | null
+          planted_at?: string
+          player_gang_id: string
+          player_id: string
+          status?: string
+          target_gang_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_strength?: number
+          created_at?: string
+          discovered_at?: string | null
+          discovery_consequence?: string | null
+          id?: string
+          intel_reports?: Json
+          last_intel_at?: string | null
+          planted_at?: string
+          player_gang_id?: string
+          player_id?: string
+          status?: string
+          target_gang_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_moles_player_gang_id_fkey"
+            columns: ["player_gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gang_moles_target_gang_id_fkey"
+            columns: ["target_gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gang_story_arcs: {
         Row: {
           arc_id: string
