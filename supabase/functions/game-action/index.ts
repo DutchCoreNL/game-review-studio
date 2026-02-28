@@ -5474,7 +5474,276 @@ async function handleGetLiveAuctions(supabase: any): Promise<ActionResult> {
   return { success: true, message: "OK", data: { auctions: auctions || [] } };
 }
 
+// ========== GANG STORY ARCS (MMO) ==========
+
+const GANG_ARC_TEMPLATES: Record<string, { name: string; steps: number; requiredLevel: number; requiredMembers: number; cooldownHours: number; rewards: any; failRewards: any; stepDifficulty: number[] }> = {
+  kartel_connectie: { name: 'De Kartel-Connectie', steps: 4, requiredLevel: 3, requiredMembers: 3, cooldownHours: 48, rewards: { treasury: 50000, xp: 500, repPerMember: 100, moneyPerMember: 15000 }, failRewards: { treasury: 10000, xp: 100, repPerMember: 20, moneyPerMember: 3000 }, stepDifficulty: [35, 40, 45, 45] },
+  haven_hegemonie: { name: 'Haven Hegemonie', steps: 3, requiredLevel: 5, requiredMembers: 4, cooldownHours: 72, rewards: { treasury: 80000, xp: 800, repPerMember: 150, moneyPerMember: 20000 }, failRewards: { treasury: 15000, xp: 150, repPerMember: 30, moneyPerMember: 5000 }, stepDifficulty: [35, 45, 50] },
+  schaduw_oorlog: { name: 'De Schaduwoorlog', steps: 3, requiredLevel: 7, requiredMembers: 4, cooldownHours: 96, rewards: { treasury: 120000, xp: 1200, repPerMember: 200, moneyPerMember: 30000 }, failRewards: { treasury: 20000, xp: 200, repPerMember: 40, moneyPerMember: 7000 }, stepDifficulty: [40, 50, 55] },
+};
+
+async function handleStartGangArc(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { arcId } = payload || {};
+  const template = GANG_ARC_TEMPLATES[arcId];
+  if (!template) return { success: false, message: "Onbekende gang arc." };
+
+  const { data: membership } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!membership) return { success: false, message: "Je zit niet in een gang." };
+  if (!['leader', 'officer'].includes(membership.role)) return { success: false, message: "Alleen leiders/officers kunnen arcs starten." };
+
+  const { data: gang } = await supabase.from("gangs").select("*").eq("id", membership.gang_id).single();
+  if (gang.level < template.requiredLevel) return { success: false, message: `Gang level ${template.requiredLevel} vereist.` };
+
+  const { data: members } = await supabase.from("gang_members").select("user_id").eq("gang_id", membership.gang_id);
+  if ((members?.length || 0) < template.requiredMembers) return { success: false, message: `Minimaal ${template.requiredMembers} leden nodig.` };
+
+  // Check cooldown
+  const { data: recent } = await supabase.from("gang_story_arcs").select("completed_at").eq("gang_id", membership.gang_id).eq("arc_id", arcId).order("completed_at", { ascending: false }).limit(1).maybeSingle();
+  if (recent?.completed_at) {
+    const cooldownEnd = new Date(recent.completed_at).getTime() + template.cooldownHours * 3600000;
+    if (Date.now() < cooldownEnd) return { success: false, message: `Cooldown actief. Probeer later.` };
+  }
+
+  // Check no active arc of same type
+  const { data: active } = await supabase.from("gang_story_arcs").select("id").eq("gang_id", membership.gang_id).eq("status", "active").maybeSingle();
+  if (active) return { success: false, message: "Er is al een actieve gang arc." };
+
+  const { data: newArc } = await supabase.from("gang_story_arcs").insert({
+    gang_id: membership.gang_id, arc_id: arcId, total_steps: template.steps, member_choices: {}, status: 'active',
+  }).select().single();
+
+  await insertPlayerNews(supabase, { text: `Gang "${gang.name}" start missie: ${template.name}!`, icon: '📜', urgency: 'medium', category: 'gang' });
+
+  return { success: true, message: `Gang arc "${template.name}" gestart!`, data: { arcId: newArc.id } };
+}
+
+async function handleResolveGangArcStep(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { gangArcId, choiceId } = payload || {};
+  if (!gangArcId || !choiceId) return { success: false, message: "Ongeldige parameters." };
+
+  const { data: arc } = await supabase.from("gang_story_arcs").select("*").eq("id", gangArcId).single();
+  if (!arc || arc.status !== 'active') return { success: false, message: "Arc niet gevonden of al voltooid." };
+
+  const { data: membership } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).eq("gang_id", arc.gang_id).maybeSingle();
+  if (!membership) return { success: false, message: "Je zit niet in deze gang." };
+
+  const choices = arc.member_choices || {};
+  const stepKey = `step_${arc.current_step}`;
+  if (!choices[stepKey]) choices[stepKey] = {};
+  if (choices[stepKey][userId]) return { success: false, message: "Je hebt al gekozen voor deze stap." };
+
+  // Resolve choice based on player stats
+  const template = GANG_ARC_TEMPLATES[arc.arc_id];
+  if (!template) return { success: false, message: "Arc template niet gevonden." };
+
+  const difficulty = template.stepDifficulty[arc.current_step] || 40;
+  const statVal = Math.max(ps.stats?.muscle || 1, ps.stats?.brains || 1, ps.stats?.charm || 1);
+  const chance = Math.min(90, 100 - difficulty + statVal * 4);
+  const success = Math.random() * 100 < chance;
+
+  choices[stepKey][userId] = { choiceId, success, resolvedAt: new Date().toISOString() };
+
+  // Check if enough members have chosen for this step
+  const { data: members } = await supabase.from("gang_members").select("user_id").eq("gang_id", arc.gang_id);
+  const memberCount = members?.length || 0;
+  const choiceCount = Object.keys(choices[stepKey]).length;
+  const minRequired = Math.min(memberCount, template.requiredMembers);
+
+  if (choiceCount >= minRequired) {
+    // Step complete — count successes
+    const successes = Object.values(choices[stepKey] as Record<string, any>).filter((c: any) => c.success).length;
+    const stepSuccess = successes >= Math.ceil(minRequired / 2);
+
+    // Advance or complete
+    const nextStep = arc.current_step + 1;
+    if (nextStep >= template.steps) {
+      // Arc complete
+      const totalSuccesses = Object.keys(choices).reduce((sum, key) => {
+        const stepChoices = choices[key] as Record<string, any>;
+        return sum + Object.values(stepChoices).filter((c: any) => c.success).length;
+      }, 0);
+      const totalChoices = Object.keys(choices).reduce((sum, key) => sum + Object.keys(choices[key] as any).length, 0);
+      const overallSuccess = totalSuccesses >= totalChoices / 2;
+      const rewards = overallSuccess ? template.rewards : template.failRewards;
+
+      await supabase.from("gang_story_arcs").update({ current_step: nextStep, member_choices: choices, status: 'completed', completed_at: new Date().toISOString(), result: { overallSuccess, totalSuccesses, totalChoices } }).eq("id", gangArcId);
+      await supabase.from("gangs").update({ treasury: (await supabase.from("gangs").select("treasury").eq("id", arc.gang_id).single()).data.treasury + rewards.treasury, xp: (await supabase.from("gangs").select("xp").eq("id", arc.gang_id).single()).data.xp + rewards.xp }).eq("id", arc.gang_id);
+
+      // Reward each participant
+      for (const member of members || []) {
+        await supabase.from("player_state").update({ money: ps.money + rewards.moneyPerMember, rep: (ps.rep || 0) + rewards.repPerMember }).eq("user_id", member.user_id);
+      }
+
+      const { data: gang } = await supabase.from("gangs").select("name").eq("id", arc.gang_id).single();
+      await insertPlayerNews(supabase, { text: `${gang?.name || 'Gang'} voltooit "${template.name}" — ${overallSuccess ? 'SUCCES' : 'gedeeltelijk mislukt'}!`, icon: overallSuccess ? '🏆' : '📋', urgency: 'high', category: 'gang' });
+
+      return { success: true, message: overallSuccess ? `Arc "${template.name}" succesvol voltooid! Beloning ontvangen.` : `Arc "${template.name}" voltooid met beperkt succes.`, data: { completed: true, overallSuccess, rewards } };
+    } else {
+      await supabase.from("gang_story_arcs").update({ current_step: nextStep, member_choices: choices }).eq("id", gangArcId);
+    }
+  } else {
+    await supabase.from("gang_story_arcs").update({ member_choices: choices }).eq("id", gangArcId);
+  }
+
+  return { success: true, message: success ? "Je keuze is geslaagd! Wacht op andere gangleden." : "Je keuze is mislukt. Hopelijk doen anderen het beter.", data: { yourSuccess: success, choicesSubmitted: choiceCount, required: minRequired } };
+}
+
+async function handleGetGangArcs(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: membership } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!membership) return { success: false, message: "Je zit niet in een gang." };
+
+  const { data: arcs } = await supabase.from("gang_story_arcs").select("*").eq("gang_id", membership.gang_id).order("created_at", { ascending: false }).limit(10);
+  return { success: true, message: "OK", data: { arcs: arcs || [], templates: Object.entries(GANG_ARC_TEMPLATES).map(([id, t]) => ({ id, ...t })) } };
+}
+
+// ========== NEMESIS SYSTEM (MMO) ==========
+
+async function handleAssignNemesis(supabase: any, userId: string, ps: any): Promise<ActionResult> {
+  // Check if already has active nemesis
+  const { data: existing } = await supabase.from("player_nemesis").select("*").eq("player_id", userId).eq("status", "active").maybeSingle();
+  if (existing) return { success: false, message: "Je hebt al een actieve rivaal.", data: { nemesis: existing } };
+
+  // Find a player with similar level in the same or adjacent district
+  const { data: candidates } = await supabase.from("player_state")
+    .select("user_id, level, loc, rep")
+    .neq("user_id", userId)
+    .gte("level", Math.max(1, ps.level - 5))
+    .lte("level", ps.level + 5)
+    .eq("game_over", false)
+    .limit(20);
+
+  if (!candidates || candidates.length === 0) return { success: false, message: "Geen geschikte rivalen gevonden." };
+
+  // Prefer same district
+  const sameDistrict = candidates.filter((c: any) => c.loc === ps.loc);
+  const pool = sameDistrict.length > 0 ? sameDistrict : candidates;
+  const nemesis = pool[Math.floor(Math.random() * pool.length)];
+
+  const { data: profile } = await supabase.from("leaderboard_entries").select("username").eq("user_id", nemesis.user_id).maybeSingle();
+
+  await supabase.from("player_nemesis").insert({
+    player_id: userId, nemesis_id: nemesis.user_id, district_id: ps.loc, status: 'active',
+  });
+
+  await insertPlayerNews(supabase, { text: `Een nieuwe rivaliteit is geboren in ${DISTRICT_NAMES[ps.loc] || ps.loc}!`, icon: '⚔️', urgency: 'medium', category: 'player', districtId: ps.loc });
+
+  return { success: true, message: `Nieuwe rivaal toegewezen: ${profile?.username || 'Onbekend'}`, data: { nemesisUserId: nemesis.user_id, nemesisName: profile?.username, nemesisLevel: nemesis.level } };
+}
+
+async function handleGetNemesis(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: nemesis } = await supabase.from("player_nemesis").select("*").eq("player_id", userId).order("assigned_at", { ascending: false }).limit(5);
+  if (!nemesis || nemesis.length === 0) return { success: true, message: "Geen rivaal.", data: { nemesis: null } };
+
+  // Enrich with names
+  for (const n of nemesis) {
+    const { data: profile } = await supabase.from("leaderboard_entries").select("username, level, rep").eq("user_id", n.nemesis_id).maybeSingle();
+    n.nemesis_name = profile?.username || 'Onbekend';
+    n.nemesis_level = profile?.level || 1;
+    n.nemesis_rep = profile?.rep || 0;
+  }
+
+  return { success: true, message: "OK", data: { nemesis } };
+}
+
+async function handleResolveNemesis(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { nemesisId, action } = payload || {};
+  if (!nemesisId || !action) return { success: false, message: "Ongeldige parameters." };
+
+  const { data: nem } = await supabase.from("player_nemesis").select("*").eq("id", nemesisId).eq("player_id", userId).eq("status", "active").maybeSingle();
+  if (!nem) return { success: false, message: "Rivaal niet gevonden." };
+
+  let repChange = 0, heatChange = 0, moneyChange = 0;
+  if (action === 'execute') { repChange = 50; heatChange = 15; }
+  else if (action === 'banish') { repChange = 20; heatChange = 0; }
+  else if (action === 'recruit') { repChange = -10; heatChange = -5; moneyChange = 5000; }
+
+  await supabase.from("player_nemesis").update({ status: 'resolved', resolved_at: new Date().toISOString(), events_log: [...(nem.events_log || []), { action, at: new Date().toISOString() }] }).eq("id", nemesisId);
+  await supabase.from("player_state").update({ rep: (ps.rep || 0) + repChange, personal_heat: Math.max(0, (ps.personal_heat || 0) + heatChange), money: ps.money + moneyChange }).eq("user_id", userId);
+
+  return { success: true, message: `Rivaal ${action === 'execute' ? 'geëxecuteerd' : action === 'banish' ? 'verbannen' : 'gerekruteerd als informant'}!`, data: { repChange, heatChange, moneyChange } };
+}
+
+// ========== BACKSTORY CROSSOVERS (MMO) ==========
+
+const CROSSOVER_PAIRS: { pair: [string, string]; title: string; moneyBoth: number; repBoth: number }[] = [
+  { pair: ['weduwnaar', 'bankier'], title: 'Gedeelde Vijanden', moneyBoth: 5000, repBoth: 30 },
+  { pair: ['bankier', 'straatkind'], title: 'Twee Werelden', moneyBoth: 8000, repBoth: 20 },
+  { pair: ['straatkind', 'weduwnaar'], title: 'Verborgen Plekken', moneyBoth: 3000, repBoth: 40 },
+];
+
+async function handleCheckBackstoryCrossover(supabase: any, userId: string, ps: any): Promise<ActionResult> {
+  if (!ps.backstory) return { success: false, message: "Geen backstory geselecteerd." };
+
+  // Find other players in the same district with different backstory
+  const { data: nearby } = await supabase.from("player_state")
+    .select("user_id, backstory, loc")
+    .eq("loc", ps.loc)
+    .neq("user_id", userId)
+    .not("backstory", "is", null)
+    .neq("backstory", ps.backstory)
+    .eq("game_over", false)
+    .limit(10);
+
+  if (!nearby || nearby.length === 0) return { success: true, message: "Geen crossover-partners in dit district.", data: { crossover: null } };
+
+  // Check if there's a matching pair
+  for (const other of nearby) {
+    const crossover = CROSSOVER_PAIRS.find(c =>
+      (c.pair[0] === ps.backstory && c.pair[1] === other.backstory) ||
+      (c.pair[1] === ps.backstory && c.pair[0] === other.backstory)
+    );
+    if (crossover) {
+      const { data: profile } = await supabase.from("leaderboard_entries").select("username").eq("user_id", other.user_id).maybeSingle();
+
+      // Apply rewards to both players
+      await supabase.from("player_state").update({ money: ps.money + crossover.moneyBoth, rep: (ps.rep || 0) + crossover.repBoth }).eq("user_id", userId);
+      const { data: otherPs } = await supabase.from("player_state").select("money, rep").eq("user_id", other.user_id).single();
+      await supabase.from("player_state").update({ money: (otherPs?.money || 0) + crossover.moneyBoth, rep: (otherPs?.rep || 0) + crossover.repBoth }).eq("user_id", other.user_id);
+
+      await insertPlayerNews(supabase, { text: `Backstory-kruising: "${crossover.title}" — twee spelers ontmoeten elkaar in ${DISTRICT_NAMES[ps.loc]}!`, icon: '🤝', urgency: 'high', category: 'player', districtId: ps.loc });
+
+      return { success: true, message: `Backstory crossover: ${crossover.title}!`, data: { crossover: { ...crossover, partnerName: profile?.username || 'Onbekend', partnerBackstory: other.backstory } } };
+    }
+  }
+
+  return { success: true, message: "Geen matchende crossover gevonden.", data: { crossover: null } };
+}
+
+// ========== NPC COLLECTIVE MOOD (MMO) ==========
+
+async function handleGetNpcMood(supabase: any, payload: any): Promise<ActionResult> {
+  const districtId = payload?.districtId;
+  let query = supabase.from("npc_district_mood").select("*");
+  if (districtId) query = query.eq("district_id", districtId);
+  const { data } = await query;
+  return { success: true, message: "OK", data: { moods: data || [] } };
+}
+
+async function handleContributeNpcMood(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { npcId, change } = payload || {};
+  if (!npcId || change === undefined) return { success: false, message: "Ongeldige parameters." };
+
+  const clampedChange = Math.max(-10, Math.min(10, change));
+  const { data: mood } = await supabase.from("npc_district_mood").select("*").eq("npc_id", npcId).eq("district_id", ps.loc).maybeSingle();
+
+  if (!mood) return { success: false, message: "NPC mood niet gevonden voor dit district." };
+
+  const newScore = Math.max(-100, Math.min(100, mood.collective_score + clampedChange));
+  const newStatus = newScore >= 80 ? 'legendary' : newScore >= 30 ? 'friendly' : newScore >= -10 ? 'neutral' : newScore >= -30 ? 'wary' : 'hostile';
+
+  await supabase.from("npc_district_mood").update({ collective_score: newScore, interaction_count: mood.interaction_count + 1, status: newStatus, updated_at: new Date().toISOString() }).eq("id", mood.id);
+
+  // Generate news on status change
+  if (newStatus !== mood.status) {
+    const NPC_NAMES: Record<string, string> = { rosa: 'Rosa', marco: 'Marco', yilmaz: 'Yilmaz', luna: 'Luna', krow: 'Krow' };
+    await insertPlayerNews(supabase, { text: `${NPC_NAMES[npcId] || npcId} is nu ${newStatus} in ${DISTRICT_NAMES[ps.loc]}!`, icon: newStatus === 'friendly' ? '😊' : newStatus === 'hostile' ? '😠' : '🌟', urgency: 'medium', category: 'npc', districtId: ps.loc });
+  }
+
+  return { success: true, message: `NPC mood bijgewerkt: ${newStatus}`, data: { newScore, newStatus } };
+}
+
 // ========== MAIN HANDLER ==========
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -5750,6 +6019,42 @@ Deno.serve(async (req) => {
       case "get_live_auctions":
         result = await handleGetLiveAuctions(supabase);
         break;
+
+      // ========== GANG STORY ARCS (MMO) ==========
+      case "start_gang_arc":
+        result = await handleStartGangArc(supabase, user.id, playerState, payload);
+        break;
+      case "resolve_gang_arc_step":
+        result = await handleResolveGangArcStep(supabase, user.id, playerState, payload);
+        break;
+      case "get_gang_arcs":
+        result = await handleGetGangArcs(supabase, user.id);
+        break;
+
+      // ========== NEMESIS SYSTEM (MMO) ==========
+      case "assign_nemesis":
+        result = await handleAssignNemesis(supabase, user.id, playerState);
+        break;
+      case "get_nemesis":
+        result = await handleGetNemesis(supabase, user.id);
+        break;
+      case "resolve_nemesis":
+        result = await handleResolveNemesis(supabase, user.id, playerState, payload);
+        break;
+
+      // ========== BACKSTORY CROSSOVERS (MMO) ==========
+      case "check_backstory_crossover":
+        result = await handleCheckBackstoryCrossover(supabase, user.id, playerState);
+        break;
+
+      // ========== NPC COLLECTIVE MOOD (MMO) ==========
+      case "get_npc_mood":
+        result = await handleGetNpcMood(supabase, payload);
+        break;
+      case "contribute_npc_mood":
+        result = await handleContributeNpcMood(supabase, user.id, playerState, payload);
+        break;
+
       default:
         result = { success: false, message: `Onbekende actie: ${action}` };
     }

@@ -41,6 +41,15 @@ export type GameAction =
   | "bid_live_auction"
   | "claim_live_auction"
   | "get_live_auctions"
+  | "start_gang_arc"
+  | "resolve_gang_arc_step"
+  | "get_gang_arcs"
+  | "assign_nemesis"
+  | "get_nemesis"
+  | "resolve_nemesis"
+  | "check_backstory_crossover"
+  | "get_npc_mood"
+  | "contribute_npc_mood"
   | "process_turn";
 
 interface GameActionResult {
@@ -187,6 +196,26 @@ export const gameApi = {
   claimLiveAuction: (auctionId: string) =>
     invokeGameAction("claim_live_auction", { auctionId }),
   getLiveAuctions: () => invokeGameAction("get_live_auctions"),
+
+  // Gang Story Arcs (MMO)
+  startGangArc: (arcId: string) => invokeGameAction("start_gang_arc", { arcId }),
+  resolveGangArcStep: (gangArcId: string, choiceId: string) =>
+    invokeGameAction("resolve_gang_arc_step", { gangArcId, choiceId }),
+  getGangArcs: () => invokeGameAction("get_gang_arcs"),
+
+  // Nemesis System (MMO)
+  assignNemesis: () => invokeGameAction("assign_nemesis"),
+  getNemesis: () => invokeGameAction("get_nemesis"),
+  resolveNemesis: (nemesisId: string, action: 'execute' | 'banish' | 'recruit') =>
+    invokeGameAction("resolve_nemesis", { nemesisId, action }),
+
+  // Backstory Crossovers (MMO)
+  checkBackstoryCrossover: () => invokeGameAction("check_backstory_crossover"),
+
+  // NPC Collective Mood (MMO)
+  getNpcMood: (districtId?: string) => invokeGameAction("get_npc_mood", { districtId }),
+  contributeNpcMood: (npcId: string, change: number) =>
+    invokeGameAction("contribute_npc_mood", { npcId, change }),
 
   // Server-side turn processing (MMO)
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
