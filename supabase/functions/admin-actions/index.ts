@@ -517,8 +517,237 @@ serve(async (req) => {
       const validDistricts = ['low', 'neon', 'iron', 'port', 'crown'];
       if (!validDistricts.includes(district)) return bad('Invalid district');
       await adminClient.from('player_state').update({ loc: district }).eq('user_id', userId);
-      await logAction('teleport_player', { userId, username: tpUser, district }, tpUser);
+      await logAction('teleport_player', { userId, username: tpUser, district });
       return ok({ ok: true, message: `${tpUser || userId} geteleporteerd naar ${district}` });
+    }
+
+    // ============ GANG MANAGEMENT ============
+
+    if (action === 'get_gangs_full') {
+      const { data: gangs } = await adminClient.from('gangs').select('*').order('name');
+      const { data: members } = await adminClient.from('gang_members').select('gang_id');
+      const counts: Record<string, number> = {};
+      for (const m of (members || [])) counts[m.gang_id] = (counts[m.gang_id] || 0) + 1;
+      return ok({ ok: true, gangs: (gangs || []).map(g => ({ ...g, member_count: counts[g.id] || 0 })) });
+    }
+
+    if (action === 'get_gang_members') {
+      const { gangId } = body;
+      if (!gangId) return bad('gangId required');
+      const { data: members } = await adminClient.from('gang_members').select('*').eq('gang_id', gangId);
+      // Get usernames
+      const userIds = (members || []).map(m => m.user_id);
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', userIds);
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, members: (members || []).map(m => ({ ...m, username: nameMap[m.user_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'edit_gang') {
+      const { gangId } = body;
+      if (!gangId || !stats) return bad('gangId and stats required');
+      const allowed = ['name', 'tag', 'level', 'xp', 'treasury', 'max_members', 'description'];
+      const updates: Record<string, unknown> = {};
+      for (const key of allowed) { if (stats[key] !== undefined) updates[key] = stats[key]; }
+      if (Object.keys(updates).length === 0) return bad('No valid fields');
+      await adminClient.from('gangs').update(updates).eq('id', gangId);
+      await logAction('edit_gang', { gangId, changes: updates });
+      return ok({ ok: true, message: 'Gang updated' });
+    }
+
+    if (action === 'delete_gang') {
+      const { gangId } = body;
+      if (!gangId) return bad('gangId required');
+      // Delete related data first
+      await adminClient.from('gang_members').delete().eq('gang_id', gangId);
+      await adminClient.from('gang_chat').delete().eq('gang_id', gangId);
+      await adminClient.from('gang_invites').delete().eq('gang_id', gangId);
+      await adminClient.from('gang_territories').delete().eq('gang_id', gangId);
+      await adminClient.from('gang_wars').delete().or(`attacker_gang_id.eq.${gangId},defender_gang_id.eq.${gangId}`);
+      await adminClient.from('gang_alliances').delete().or(`gang_a_id.eq.${gangId},gang_b_id.eq.${gangId}`);
+      await adminClient.from('gang_story_arcs').delete().eq('gang_id', gangId);
+      await adminClient.from('heist_sessions').delete().eq('gang_id', gangId);
+      await adminClient.from('organized_crimes').delete().eq('gang_id', gangId);
+      await adminClient.from('gangs').delete().eq('id', gangId);
+      await logAction('delete_gang', { gangId });
+      return ok({ ok: true, message: 'Gang and all related data deleted' });
+    }
+
+    if (action === 'kick_gang_member') {
+      const { gangId, userId: kickUserId } = body;
+      if (!gangId || !kickUserId) return bad('gangId and userId required');
+      await adminClient.from('gang_members').delete().eq('gang_id', gangId).eq('user_id', kickUserId);
+      await logAction('kick_gang_member', { gangId, userId: kickUserId });
+      return ok({ ok: true, message: 'Member kicked' });
+    }
+
+    if (action === 'promote_gang_member') {
+      const { gangId, userId: promoteUserId, newRole } = body;
+      if (!gangId || !promoteUserId || !newRole) return bad('gangId, userId and newRole required');
+      await adminClient.from('gang_members').update({ role: newRole }).eq('gang_id', gangId).eq('user_id', promoteUserId);
+      await logAction('promote_gang_member', { gangId, userId: promoteUserId, newRole });
+      return ok({ ok: true, message: `Promoted to ${newRole}` });
+    }
+
+    if (action === 'get_gang_wars') {
+      const { data: wars } = await adminClient.from('gang_wars').select('*').order('started_at', { ascending: false }).limit(50);
+      const gangIds = new Set<string>();
+      for (const w of (wars || [])) { gangIds.add(w.attacker_gang_id); gangIds.add(w.defender_gang_id); }
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const g of (gangs || [])) nameMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, wars: (wars || []).map(w => ({ ...w, attacker_name: nameMap[w.attacker_gang_id], defender_name: nameMap[w.defender_gang_id] })) });
+    }
+
+    if (action === 'end_gang_war') {
+      const { warId } = body;
+      if (!warId) return bad('warId required');
+      await adminClient.from('gang_wars').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', warId);
+      await logAction('end_gang_war', { warId });
+      return ok({ ok: true, message: 'War ended' });
+    }
+
+    if (action === 'get_alliances') {
+      const { data: alliances } = await adminClient.from('gang_alliances').select('*').order('created_at', { ascending: false }).limit(50);
+      const gangIds = new Set<string>();
+      for (const a of (alliances || [])) { gangIds.add(a.gang_a_id); gangIds.add(a.gang_b_id); }
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const g of (gangs || [])) nameMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, alliances: (alliances || []).map(a => ({ ...a, gang_a_name: nameMap[a.gang_a_id], gang_b_name: nameMap[a.gang_b_id] })) });
+    }
+
+    if (action === 'delete_alliance') {
+      const { allianceId } = body;
+      if (!allianceId) return bad('allianceId required');
+      await adminClient.from('gang_alliances').delete().eq('id', allianceId);
+      await logAction('delete_alliance', { allianceId });
+      return ok({ ok: true, message: 'Alliance deleted' });
+    }
+
+    // ============ FACTION MANAGEMENT ============
+
+    if (action === 'get_factions') {
+      const { data } = await adminClient.from('faction_relations').select('*').order('faction_id');
+      return ok({ ok: true, factions: data || [] });
+    }
+
+    if (action === 'edit_faction') {
+      const { factionId } = body;
+      if (!factionId || !stats) return bad('factionId and stats required');
+      const allowed = ['global_relation', 'boss_hp', 'boss_max_hp', 'conquest_progress', 'conquest_phase', 'status'];
+      const updates: Record<string, unknown> = {};
+      for (const key of allowed) { if (stats[key] !== undefined) updates[key] = stats[key]; }
+      if (Object.keys(updates).length === 0) return bad('No valid fields');
+      await adminClient.from('faction_relations').update(updates).eq('id', factionId);
+      await logAction('edit_faction', { factionId, changes: updates });
+      return ok({ ok: true, message: 'Faction updated' });
+    }
+
+    if (action === 'reset_all_faction_bosses') {
+      await adminClient.from('faction_relations').update({
+        boss_hp: 100, boss_max_hp: 100, conquest_progress: 0, conquest_phase: 'none', status: 'active',
+        conquered_by: null, conquered_at: null, vassal_owner_id: null,
+      }).neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('reset_all_faction_bosses');
+      return ok({ ok: true, message: 'All faction bosses reset' });
+    }
+
+    // ============ CONTENT MANAGEMENT ============
+
+    if (action === 'get_bounties') {
+      const { data: bounties } = await adminClient.from('player_bounties').select('*').order('created_at', { ascending: false }).limit(50);
+      // Get usernames for placers and targets
+      const userIds = new Set<string>();
+      for (const b of (bounties || [])) { userIds.add(b.placer_id); userIds.add(b.target_id); }
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, bounties: (bounties || []).map(b => ({ ...b, placer_name: nameMap[b.placer_id], target_name: nameMap[b.target_id] })) });
+    }
+
+    if (action === 'delete_bounty') {
+      const { bountyId } = body;
+      if (!bountyId) return bad('bountyId required');
+      await adminClient.from('player_bounties').delete().eq('id', bountyId);
+      await logAction('delete_bounty', { bountyId });
+      return ok({ ok: true, message: 'Bounty deleted' });
+    }
+
+    if (action === 'get_auctions') {
+      const { data } = await adminClient.from('live_auctions').select('*').order('created_at', { ascending: false }).limit(50);
+      return ok({ ok: true, auctions: data || [] });
+    }
+
+    if (action === 'cancel_auction') {
+      const { auctionId } = body;
+      if (!auctionId) return bad('auctionId required');
+      await adminClient.from('live_auctions').update({ status: 'cancelled' }).eq('id', auctionId);
+      await logAction('cancel_auction', { auctionId });
+      return ok({ ok: true, message: 'Auction cancelled' });
+    }
+
+    if (action === 'get_world_raids') {
+      const { data } = await adminClient.from('world_raids').select('*').order('created_at', { ascending: false }).limit(50);
+      return ok({ ok: true, raids: data || [] });
+    }
+
+    if (action === 'create_world_raid') {
+      const { title: raidTitle, raid_type, boss_hp: raidHp, district_id: raidDistrict, duration_hours } = body;
+      if (!raidTitle) return bad('title required');
+      const endsAt = new Date(Date.now() + (duration_hours || 4) * 60 * 60 * 1000).toISOString();
+      await adminClient.from('world_raids').insert({
+        title: raidTitle, raid_type: raid_type || 'police_raid',
+        boss_hp: raidHp || 500, boss_max_hp: raidHp || 500,
+        district_id: raidDistrict || null, ends_at: endsAt, status: 'active',
+      });
+      // Also create news
+      await adminClient.from('news_events').insert({
+        text: `🚨 ${raidTitle} - Alle spelers gevraagd!`, category: 'world', urgency: 'high', icon: '🚨',
+        district_id: raidDistrict || null, expires_at: endsAt,
+      });
+      await logAction('create_world_raid', { title: raidTitle, raid_type, boss_hp: raidHp });
+      return ok({ ok: true, message: 'World raid created' });
+    }
+
+    if (action === 'delete_world_raid') {
+      const { raidId } = body;
+      if (!raidId) return bad('raidId required');
+      await adminClient.from('world_raids').delete().eq('id', raidId);
+      await logAction('delete_world_raid', { raidId });
+      return ok({ ok: true, message: 'World raid deleted' });
+    }
+
+    if (action === 'get_smuggle_routes') {
+      const { data } = await adminClient.from('smuggle_routes').select('*').order('created_at', { ascending: false }).limit(50);
+      return ok({ ok: true, routes: data || [] });
+    }
+
+    if (action === 'delete_smuggle_route') {
+      const { routeId } = body;
+      if (!routeId) return bad('routeId required');
+      await adminClient.from('smuggle_routes').delete().eq('id', routeId);
+      await logAction('delete_smuggle_route', { routeId });
+      return ok({ ok: true, message: 'Smuggle route deleted' });
+    }
+
+    if (action === 'get_chat_messages') {
+      const { data } = await adminClient.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(100);
+      return ok({ ok: true, messages: data || [] });
+    }
+
+    if (action === 'delete_chat_message') {
+      const { messageId } = body;
+      if (!messageId) return bad('messageId required');
+      await adminClient.from('chat_messages').delete().eq('id', messageId);
+      await logAction('delete_chat_message', { messageId });
+      return ok({ ok: true, message: 'Chat message deleted' });
+    }
+
+    if (action === 'clear_chat') {
+      await adminClient.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('clear_chat');
+      return ok({ ok: true, message: 'All chat messages deleted' });
     }
 
     return bad('Unknown action');

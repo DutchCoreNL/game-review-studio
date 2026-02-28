@@ -7,10 +7,13 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar, Users, Target } from 'lucide-react';
 import { WEEK_EVENTS } from '@/game/weekEvents';
 import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { ViewWrapper } from './ui/ViewWrapper';
+import { AdminGangsTab } from './admin/AdminGangsTab';
+import { AdminFactionsTab } from './admin/AdminFactionsTab';
+import { AdminContentTab } from './admin/AdminContentTab';
 
 // ====== TYPES ======
 
@@ -24,7 +27,7 @@ interface BotPlayer { id: string; username: string; level: number; hp: number; m
 interface MarketPrice { id: string; good_id: string; district_id: string; current_price: number; price_trend: string; buy_volume: number; sell_volume: number; }
 interface WorldStats { total_players: number; active_states: number; total_cash: number; avg_level: number; district_counts: Record<string, number>; gangs: { id: string; name: string; tag: string; level: number; treasury: number; member_count: number }[]; active_wars: unknown[]; }
 
-type TabId = 'players' | 'economy' | 'bots' | 'world' | 'messages' | 'logs';
+type TabId = 'players' | 'economy' | 'bots' | 'world' | 'gangs' | 'factions' | 'content' | 'messages' | 'logs';
 type SuspicionReason = string;
 
 const DISTRICTS = ['low', 'port', 'neon', 'iron', 'crown'];
@@ -236,6 +239,9 @@ export function AdminPanel() {
           { id: 'players', label: 'SPELERS', icon: <User size={10} /> },
           { id: 'economy', label: 'ECONOMIE', icon: <TrendingUp size={10} /> },
           { id: 'bots', label: 'BOTS', icon: <Bot size={10} /> },
+          { id: 'gangs', label: 'GANGS', icon: <Users size={10} /> },
+          { id: 'factions', label: 'FACTIES', icon: <Swords size={10} /> },
+          { id: 'content', label: 'CONTENT', icon: <Target size={10} /> },
           { id: 'world', label: 'WERELD', icon: <Globe size={10} /> },
           { id: 'messages', label: 'BERICHTEN', icon: <Send size={10} /> },
           { id: 'logs', label: 'LOGBOEK', icon: <ScrollText size={10} /> },
@@ -441,6 +447,15 @@ export function AdminPanel() {
           )}
         </div>
       )}
+
+      {/* ======== GANGS TAB ======== */}
+      {tab === 'gangs' && <AdminGangsTab showToast={showToast} />}
+
+      {/* ======== FACTIES TAB ======== */}
+      {tab === 'factions' && <AdminFactionsTab showToast={showToast} />}
+
+      {/* ======== CONTENT TAB ======== */}
+      {tab === 'content' && <AdminContentTab showToast={showToast} />}
 
       {/* ======== WERELD TAB ======== */}
       {tab === 'world' && (
