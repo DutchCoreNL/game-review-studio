@@ -238,8 +238,8 @@ async function simulateBotChat(supabase: any, bots: any[], phase: string) {
 }
 
 // ========== BOT MARKET LISTINGS ==========
-const GOODS_IDS = ['drugs', 'weapons', 'tech', 'luxury', 'meds'];
-const GOODS_BASE_PRICES: Record<string, number> = { drugs: 200, weapons: 1100, tech: 900, luxury: 2400, meds: 600 };
+const GOODS_IDS = ['drugs', 'weapons', 'tech', 'luxury', 'meds', 'explosives', 'crypto', 'chemicals', 'electronics'];
+const GOODS_BASE_PRICES: Record<string, number> = { drugs: 200, weapons: 1100, tech: 900, luxury: 2400, meds: 600, explosives: 1800, crypto: 3200, chemicals: 450, electronics: 750 };
 
 async function simulateBotMarketListings(supabase: any, bots: any[]) {
   try {

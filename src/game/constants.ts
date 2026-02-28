@@ -34,11 +34,11 @@ export const AMMO_TYPE_LABELS: Record<import('./types').AmmoType, { label: strin
 };
 
 export const DISTRICTS: Record<string, District> = {
-  port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 0.7, weapons: 0.6, tech: 1.3, luxury: 1.4, meds: 0.8 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
-  crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.6, weapons: 1.4, tech: 0.6, luxury: 1.8, meds: 1.3 }, perk: "-20% Heat Daily & Hacker Efficiency" },
-  iron: { name: 'Iron Borough', cost: 25000, income: 900, cx: 215, cy: 200, mods: { drugs: 1.2, weapons: 0.5, tech: 0.8, luxury: 1.1, meds: 1.0 }, perk: "-20% Crew Healing Cost" },
-  low: { name: 'Lowrise', cost: 8000, income: 250, cx: 100, cy: 205, mods: { drugs: 0.5, weapons: 1.5, tech: 1.0, luxury: 0.7, meds: 1.4 }, perk: "Goedkopere Solo Ops" },
-  neon: { name: 'Neon Strip', cost: 45000, income: 1600, cx: 315, cy: 200, mods: { drugs: 1.4, weapons: 1.2, tech: 1.6, luxury: 0.9, meds: 0.6 }, perk: "+10% Casino Winst & Witwas Bonus" }
+  port: { name: 'Port Nero', cost: 12000, income: 450, cx: 100, cy: 90, mods: { drugs: 0.7, weapons: 0.6, tech: 1.3, luxury: 1.4, meds: 0.8, explosives: 0.5, crypto: 1.2, chemicals: 0.9, electronics: 1.1 }, perk: "+10% Bagage & Smokkelaar Efficiency" },
+  crown: { name: 'Crown Heights', cost: 85000, income: 2800, cx: 265, cy: 85, mods: { drugs: 1.6, weapons: 1.4, tech: 0.6, luxury: 1.8, meds: 1.3, explosives: 1.5, crypto: 0.7, chemicals: 1.4, electronics: 0.8 }, perk: "-20% Heat Daily & Hacker Efficiency" },
+  iron: { name: 'Iron Borough', cost: 25000, income: 900, cx: 215, cy: 200, mods: { drugs: 1.2, weapons: 0.5, tech: 0.8, luxury: 1.1, meds: 1.0, explosives: 0.6, crypto: 1.0, chemicals: 0.7, electronics: 1.3 }, perk: "-20% Crew Healing Cost" },
+  low: { name: 'Lowrise', cost: 8000, income: 250, cx: 100, cy: 205, mods: { drugs: 0.5, weapons: 1.5, tech: 1.0, luxury: 0.7, meds: 1.4, explosives: 1.3, crypto: 0.9, chemicals: 1.2, electronics: 0.6 }, perk: "Goedkopere Solo Ops" },
+  neon: { name: 'Neon Strip', cost: 45000, income: 1600, cx: 315, cy: 200, mods: { drugs: 1.4, weapons: 1.2, tech: 1.6, luxury: 0.9, meds: 0.6, explosives: 1.1, crypto: 1.5, chemicals: 0.8, electronics: 1.4 }, perk: "+10% Casino Winst & Witwas Bonus" }
 };
 
 export const VEHICLES: Vehicle[] = [
@@ -60,7 +60,11 @@ export const GOODS: Good[] = [
   { id: 'weapons', name: 'Zware Wapens', base: 1100, icon: 'Shield', faction: 'bikers' },
   { id: 'tech', name: 'Zwarte Data', base: 900, icon: 'Cpu', faction: 'syndicate' },
   { id: 'luxury', name: 'Geroofde Kunst', base: 2400, icon: 'Gem', faction: null },
-  { id: 'meds', name: 'Medische Voorraad', base: 600, icon: 'Pill', faction: null }
+  { id: 'meds', name: 'Medische Voorraad', base: 600, icon: 'Pill', faction: null },
+  { id: 'explosives', name: 'Explosieven', base: 1800, icon: 'Bomb', faction: 'bikers' },
+  { id: 'crypto', name: 'Crypto Wallets', base: 3200, icon: 'Bitcoin', faction: 'syndicate' },
+  { id: 'chemicals', name: 'Precursoren', base: 450, icon: 'FlaskConical', faction: 'cartel' },
+  { id: 'electronics', name: 'Gestolen Chips', base: 750, icon: 'CircuitBoard', faction: null },
 ];
 
 // ========== MARKET EVENTS ==========
@@ -84,7 +88,11 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: 'tech_boom', name: '📡 Tech Hausse', desc: 'Vraag naar gehackte data explodeert!', effects: { tech: 2.0 }, duration: 2 },
   { id: 'luxury_auction', name: '👑 Geheime Veiling', desc: 'Rijke verzamelaars bieden mee — kunstprijzen stijgen!', effects: { luxury: 1.8 }, duration: 1 },
   { id: 'cartel_war', name: '⚔️ Karteloorlog', desc: 'Kartels bevechten elkaar — drugs & wapens volatiel.', effects: { drugs: 1.6, weapons: 1.8 }, duration: 2 },
-  { id: 'police_sweep', name: '🚔 Grote Razzia', desc: 'Politie overal — alle zwarte markt prijzen dalen.', effects: { drugs: 0.6, weapons: 0.6, tech: 0.7, luxury: 0.6, meds: 0.8 }, duration: 1 },
+  { id: 'police_sweep', name: '🚔 Grote Razzia', desc: 'Politie overal — alle zwarte markt prijzen dalen.', effects: { drugs: 0.6, weapons: 0.6, tech: 0.7, luxury: 0.6, meds: 0.8, explosives: 0.5, crypto: 0.9, chemicals: 0.7, electronics: 0.7 }, duration: 1 },
+  { id: 'arms_deal' as MarketEventId, name: '💣 Explosievensmokkel', desc: 'Grote lading explosieven onderschept — prijzen stijgen!', effects: { explosives: 2.0 }, duration: 2 },
+  { id: 'data_leak' as MarketEventId, name: '₿ Crypto Crash', desc: 'Witwas-ring opgerold — crypto wallets waardeloos.', effects: { crypto: 0.4 }, duration: 1 },
+  { id: 'med_shortage' as MarketEventId, name: '🧪 Lab Explosie', desc: 'Groot clandestien lab ontploft — precursoren schaars!', effects: { chemicals: 2.3, drugs: 1.3 }, duration: 2 },
+  { id: 'tech_boom' as MarketEventId, name: '📱 Chipstekort', desc: 'Globaal chiptekort — gestolen chips extreem waardevol!', effects: { electronics: 2.2, tech: 1.4 }, duration: 2 },
 ];
 
 // Spoilage rates per good (fraction lost per night, 0 = no spoilage)
@@ -94,6 +102,10 @@ export const GOOD_SPOILAGE: Record<GoodId, number> = {
   tech: 0,
   luxury: 0,
   meds: 0.05,    // 5% per night
+  explosives: 0,
+  crypto: 0,
+  chemicals: 0.06, // 6% per night - unstable compounds
+  electronics: 0,
 };
 
 export const GOOD_CATEGORIES: Record<string, { color: string; bgColor: string; borderColor: string; label: string }> = {
@@ -102,6 +114,10 @@ export const GOOD_CATEGORIES: Record<string, { color: string; bgColor: string; b
   tech: { color: 'text-ice', bgColor: 'bg-ice/10', borderColor: 'border-l-ice', label: 'Tech' },
   luxury: { color: 'text-game-purple', bgColor: 'bg-game-purple/10', borderColor: 'border-l-game-purple', label: 'Luxe' },
   meds: { color: 'text-emerald', bgColor: 'bg-emerald/10', borderColor: 'border-l-emerald', label: 'Medisch' },
+  explosives: { color: 'text-orange-400', bgColor: 'bg-orange-400/10', borderColor: 'border-l-orange-400', label: 'Explosieven' },
+  crypto: { color: 'text-amber-300', bgColor: 'bg-amber-300/10', borderColor: 'border-l-amber-300', label: 'Crypto' },
+  chemicals: { color: 'text-teal-400', bgColor: 'bg-teal-400/10', borderColor: 'border-l-teal-400', label: 'Chemisch' },
+  electronics: { color: 'text-violet-400', bgColor: 'bg-violet-400/10', borderColor: 'border-l-violet-400', label: 'Elektronica' },
 };
 
 export const FAMILIES: Record<string, Family> = {

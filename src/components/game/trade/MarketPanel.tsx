@@ -11,7 +11,7 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair, Bomb, Bitcoin, FlaskConical, CircuitBoard } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
@@ -27,6 +27,10 @@ const GOOD_ICONS: Record<string, React.ReactNode> = {
   tech: <Cpu size={14} />,
   luxury: <Gem size={14} />,
   meds: <Pill size={14} />,
+  explosives: <Bomb size={14} />,
+  crypto: <Bitcoin size={14} />,
+  chemicals: <FlaskConical size={14} />,
+  electronics: <CircuitBoard size={14} />,
 };
 
 /** Calculate heat surcharge info from state */
