@@ -1,91 +1,68 @@
 
 
-## Analyse: Wat het spel al heeft vs. wat ontbreekt
+## Analyse: Huidig Kogelsysteem vs. MMO Mafia Games
 
-Na het doorlopen van de volledige codebase (1224 regels types, 45+ game-modules, 60+ componenten) heeft het spel al een indrukwekkende breedte: trading, PvP, gangs, facties, nemesis, villa, drug empire, corruptie, bounties, beurs, veilingen, racing, crafting, heists, organized crimes, skill tree, karma, backstory, gevangenis, world raids, smokkelroutes, chat, leaderboard, daily challenges, week events, en news.
+### Hoe het werkt in klassieke text-based mafia MMOs (Torn City, MafiaMatrix, TheMafiaLife):
 
-Wat **geen enkel** vergelijkbaar spel (Torn, Mafia Wars, Crime Inc, etc.) heeft:
+1. **Ammo is niet per type** — je koopt simpelweg "bullets" of "rounds" als universele munitie
+2. **Elke aanval kost energie (niet ammo)** — ammo is gebonden aan het *wapen*, niet aan de actie
+3. **Wapens hebben durability/uses** — een wapen gaat kapot na X aanvallen, niet de munitie
+4. **Ammo is schaars en waardevol** — het is een serieuze economische sink, verhandelbaar op de markt
+5. **Speciale munitie** geeft bonuseffecten (armor piercing, hollowpoints, tracer rounds)
 
----
+### Problemen met het huidige systeem:
 
-### 1. AI-Gegenereerde Persoonlijke Verhaallijn
-Gebruik een LLM (Gemini via Lovable AI) om **unieke narratieve events** te genereren op basis van de specifieke geschiedenis van elke speler. Geen vaste templates meer, maar dynamische verhalen die verwijzen naar jouw eerdere keuzes, rivalen, en gang-geschiedenis.
+- **3 ammo types (9mm, 7.62mm, shells)** is onnodig complex voor een text-based game — spelers moeten steeds de juiste type bijhouden
+- **Flat kogelverbruik** (1 per aanval, 2 per heavy) is te simpel en maakt ammo onbelangrijk
+- **Max 99 per type** is te laag voor MMO-schaal
+- **Ammo factory** produceert maar 3-5/dag — te weinig om relevant te zijn
+- **Geen speciale munitie** — geen strategische keuze
+- **PvP combat (`combatSkills.ts`)** gebruikt helemaal GEEN ammo — skills kosten 0 energy/ammo
+- **Villa wapenkamer** beschermt ammo maar het systeem is te simpel
 
-**Voorbeeld:** *"Marco herinnert zich hoe je vorige week zijn rivaal hebt verraden in Iron District. Hij biedt je een deal aan die alleen jij kunt krijgen..."*
+### Plan: MMO-Waardig Kogelsysteem
 
-**Technisch:**
-- Edge function `generate-story` die speler-context (backstory, karma, recente acties, gang, nemesis) naar Gemini stuurt
-- Resultaat wordt opgeslagen als `personal_story_event` en getoond als popup
-- 1x per game-dag, per speler, met cooldown
+#### 1. Vereenvoudig naar één universeel ammo type + speciale rounds
+- Verwijder 9mm/7.62mm/shells onderscheid
+- Eén "Kogels" counter (max 500)
+- **3 speciale ammo types** als consumables: 
+  - **Armor Piercing** (negeert 50% armor, +20% kosten)
+  - **Hollowpoints** (1.5x schade vs onbeschermde, -50% vs armor)
+  - **Tracer Rounds** (+15% accuracy, onthult vijand locatie)
 
----
+#### 2. Wapen-gebonden clip/magazine systeem
+- Elk wapen heeft een `clipSize` (al aanwezig in data)
+- Tijdens gevecht: wapen verbruikt uit geladen clip
+- **Reload-actie** in combat (kost 1 beurt, laadt clip vol uit ammo voorraad)
+- Lege clip = gedwongen melee (50% damage penalty, al geïmplementeerd)
 
-### 2. Informant & Mol Systeem
-Plant een **spion** in een rivaliserende gang. Je ontvangt geheime intel over hun treasury, oorlogsplannen, en smokkelroutes. Maar er is een kans dat je mol ontdekt wordt, wat leidt tot een gang war of bounty op jouw hoofd.
+#### 3. Ammo als echte economische sink
+- Verhoog max naar 500
+- Ammo factory: 10-25/dag afhankelijk van level
+- **Ammo verhandelbaar** op P2P markt (al deels in constants)
+- Combat skills kosten ammo (niet 0 zoals nu)
 
-**Voorbeeld:** Je plant een mol bij "Los Serpientes". Na 3 dagen ontvang je: *"Je mol meldt: ze plannen een aanval op Port District morgen. Treasury: €45.000."*
+#### 4. PvP ammo integratie
+- `pvpCombatTurn()` in `combatSkills.ts` moet ammo verbruiken
+- Skills met `type: 'damage'` kosten 1-3 ammo
+- Skills met `type: 'multi_hit'` kosten ammo per hit
+- Combo finisher kost 3 ammo
 
-**Technisch:**
-- Database: `gang_moles` tabel (player_id, target_gang_id, planted_at, discovered, intel_reports)
-- `game-action`: `plant_mole`, `extract_mole` handlers
-- `world-tick`: Dagelijkse detectie-check (hoger bij actievere gangs)
-- Ontdekking triggert automatisch een bounty of oorlogsverklaring
+### Bestanden die aangepast worden:
 
----
+| Bestand | Wijziging |
+|---|---|
+| `src/game/types.ts` | Vereenvoudig `AmmoType`, voeg `SpecialAmmoType` toe, voeg `clipLoaded` aan combat state |
+| `src/game/constants.ts` | Universeel ammo, speciale munitie definitie, hogere caps, skill ammo costs |
+| `src/game/combatSkills.ts` | `energyCost` → ammo cost per skill, reload action, clip systeem |
+| `src/game/engine.ts` | Clip/reload in PvE combat, vereenvoudigde ammo checks |
+| `src/game/villa.ts` | Hogere ammo opslag caps |
+| `src/components/game/trade/GearPanel.tsx` | Vereenvoudigde ammo UI, speciale munitie selector |
+| `src/components/game/CombatView.tsx` | Clip indicator, reload knop, speciale ammo indicator |
+| `supabase/functions/game-action/index.ts` | Server-side ammo validatie vereenvoudigen |
 
-### 3. Ondergronds Tribunaal (Speler-gerechtshof)
-Een **speler-gerund rechtssysteem** waar de community andere spelers kan aanklagen voor "misdaden" (scamming in trades, verraad, gang-hopping). Een jury van willekeurige spelers stemt, en de uitspraak heeft echte game-gevolgen.
-
-**Voorbeeld:** *"Speler DarkViper wordt beschuldigd van gang-verraad. 7 juryleden stemmen: SCHULDIG. Straf: 48 uur trade-ban + 500 rep verlies."*
-
-**Technisch:**
-- Database: `tribunal_cases` (accuser, accused, charge, evidence, jury_votes, verdict, punishment)
-- Jury wordt random geselecteerd uit spelers level 5+ die niet in dezelfde gang zitten
-- Straffen: trade-ban, rep-verlies, bounty, tijdelijke stat-nerf
-- UI: Tribunaal-tab met lopende zaken, stemmen, en uitspraken
-
----
-
-### 4. Reputatie Echo Systeem
-Jouw acties creeren een **permanente reputatie-schaduw** die door de hele stad resoneert. NPCs, handelaren, en zelfs politie reageren anders op je op basis van je volledige actiegeschiedenis, niet alleen je huidige karma.
-
-**Voorbeeld:** Je hebt 3 keer dezelfde NPC geholpen → hij geeft je exclusieve kortingen. Je hebt Iron District 5x bestolen → handelaren daar verhogen hun prijzen voor jou met 15%.
-
-**Technisch:**
-- Database: `player_reputation_echo` (player_id, district_id, category, score, events_log)
-- Categorieen: `violence`, `trade_trust`, `loyalty`, `stealth`, `generosity`
-- Effecten op: prijzen, NPC-reacties, missie-opties, gang-recruitment acceptatie
-- Wordt berekend in `world-tick` op basis van recente acties
-
----
-
-### 5. Undercover Infiltratie Missies
-Ga **undercover** in een rivaliserende factie of gang met een valse identiteit. Je krijgt toegang tot hun exclusieve missies en resources, maar moet je dekmantel bewaren door hun opdrachten uit te voeren. Eén verkeerde actie en je bent ontmaskerd.
-
-**Voorbeeld:** Je infiltreert het Kartel. Je krijgt hun missies, maar moet af en toe drugs voor hen vervoeren. Na 5 succesvolle dagen kun je hun geheime wapenvoorraad stelen en vluchten.
-
-**Technisch:**
-- GameState uitbreiding: `undercoverMission: { targetFaction, coverIntegrity (0-100), daysActive, intelGathered }`
-- Elke actie in het openbaar (chat, PvP tegen hun leden) verlaagt `coverIntegrity`
-- Bij 0% → ontmaskerd → automatische bounty + factie-relatie naar -100
-- Succesvolle extractie → grote beloning + gestolen intel
-
----
-
-### Prioriteit & Impact
-
-| Feature | Innovatie | MMO-waarde | Complexiteit |
-|---------|-----------|------------|-------------|
-| AI Persoonlijke Verhaallijn | Zeer hoog | Hoog | Medium |
-| Informant & Mol | Hoog | Zeer hoog | Medium |
-| Ondergronds Tribunaal | Zeer hoog | Hoog | Hoog |
-| Reputatie Echo | Hoog | Medium | Medium |
-| Undercover Infiltratie | Zeer hoog | Hoog | Hoog |
-
-### Aanbevolen volgorde
-1. **Informant & Mol** — Direct multiplayer-impact, relatief eenvoudig
-2. **AI Verhaallijn** — Unieke selling point, al LLM-integratie beschikbaar
-3. **Reputatie Echo** — Verdiept bestaande systemen
-4. **Undercover Infiltratie** — Complexe maar unieke gameplay loop
-5. **Ondergronds Tribunaal** — Vereist kritische massa aan spelers
+### Migratieplan:
+- `ammoStock` → enkele `ammo: number` (backwards compatible, veld bestaat al)
+- Legacy `ammoStock` waarden optellen naar één totaal
+- Database: `ammo_stock` kolom behouden maar niet meer per-type gebruiken
 
