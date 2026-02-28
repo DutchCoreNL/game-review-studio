@@ -1842,6 +1842,29 @@ Deno.serve(async (req) => {
     // ========== PROCESS MOLES (INTEL & DETECTION) ==========
     await processMoles(supabase);
 
+    // ========== RESTED XP ACCUMULATION ==========
+    // Give offline players rested XP (25 XP/hour base, max 5000)
+    try {
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      await supabase.rpc('execute_sql', {}).catch(() => {}); // no-op fallback
+      // Update all players who haven't been active in 30+ min
+      const { data: offlinePlayers } = await supabase.from('player_state')
+        .select('user_id, rested_xp, last_action_at')
+        .lt('last_action_at', thirtyMinAgo)
+        .lt('rested_xp', 5000)
+        .limit(200);
+      if (offlinePlayers && offlinePlayers.length > 0) {
+        for (const p of offlinePlayers) {
+          const hoursOffline = Math.min(24, (Date.now() - new Date(p.last_action_at).getTime()) / 3600000);
+          const gain = Math.floor(25 * Math.min(hoursOffline, 0.5)); // per tick (30 min = 0.5 hour)
+          if (gain > 0) {
+            const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
+            await supabase.from('player_state').update({ rested_xp: newRested }).eq('user_id', p.user_id);
+          }
+        }
+      }
+    } catch (e) { console.error('Rested XP error:', e); }
+
     // ========== SIMULATE BOT ACTIVITY ==========
     await simulateBots(supabase, nextPhase, resolvedDay);
 

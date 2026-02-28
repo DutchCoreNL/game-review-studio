@@ -103,7 +103,61 @@ export const SKILL_NODES: SkillNode[] = [
       { type: 'passive', key: 'intimidation', value: 20, label: '+20% intimidatie bonus per level' },
     ],
   },
+
+  // ========== PRESTIGE BRANCH (Unlocks at Prestige 1+) ==========
+  {
+    id: 'veterans_instinct', name: 'Veteranen Instinct', desc: 'Prestige-exclusief. Verbeterde overlevingskansen.',
+    icon: '🥇', branch: 'muscle', tier: 1, cost: 2, requires: null, maxLevel: 3,
+    effects: [
+      { type: 'passive', key: 'dodge_chance', value: 5, label: '+5% ontwijkkans per level' },
+      { type: 'passive', key: 'max_hp_bonus', value: 10, label: '+10 Max HP per level' },
+    ],
+  },
+  {
+    id: 'shadow_network', name: 'Schaduwnetwerk', desc: 'Prestige-exclusief. Onzichtbare operaties.',
+    icon: '🌑', branch: 'brains', tier: 1, cost: 2, requires: null, maxLevel: 3,
+    effects: [
+      { type: 'passive', key: 'heat_reduction', value: 8, label: '-8% heat per actie per level' },
+      { type: 'passive', key: 'stealth_bonus', value: 10, label: '+10% stealth per level' },
+    ],
+  },
+  {
+    id: 'iron_will', name: 'IJzeren Wil', desc: 'Prestige-exclusief. Onstuitbare wilskracht.',
+    icon: '⚡', branch: 'charm', tier: 1, cost: 2, requires: null, maxLevel: 3,
+    effects: [
+      { type: 'passive', key: 'max_energy_bonus', value: 8, label: '+8 Max Energy per level' },
+      { type: 'passive', key: 'rested_xp_rate', value: 15, label: '+15% rested XP opbouw per level' },
+    ],
+  },
+  {
+    id: 'warlord', name: 'Warlord', desc: 'Prestige T2. Dominantie op het slagveld.',
+    icon: '⚔️', branch: 'muscle', tier: 2, cost: 3, requires: 'veterans_instinct', maxLevel: 2,
+    effects: [
+      { type: 'passive', key: 'crit_damage', value: 15, label: '+15% crit schade per level' },
+      { type: 'passive', key: 'lifesteal', value: 5, label: '+5% lifesteal per level' },
+    ],
+  },
+  {
+    id: 'ghost_protocol', name: 'Ghost Protocol', desc: 'Prestige T2. Onvindbaar en onverwoestbaar.',
+    icon: '👻', branch: 'brains', tier: 2, cost: 3, requires: 'shadow_network', maxLevel: 2,
+    effects: [
+      { type: 'passive', key: 'cooldown_reduction', value: 10, label: '-10% cooldowns per level' },
+      { type: 'passive', key: 'hack_success', value: 8, label: '+8% hack slagingskans per level' },
+    ],
+  },
+  {
+    id: 'empire_builder', name: 'Empire Builder', desc: 'Prestige T2. Maximaal economisch rendement.',
+    icon: '🏰', branch: 'charm', tier: 2, cost: 3, requires: 'iron_will', maxLevel: 2,
+    effects: [
+      { type: 'passive', key: 'trade_bonus', value: 8, label: '+8% handelswinst per level' },
+      { type: 'passive', key: 'business_income', value: 20, label: '+20% business inkomen per level' },
+    ],
+  },
 ];
+
+// Helper: filter prestige-only nodes
+export const PRESTIGE_SKILL_IDS = ['veterans_instinct', 'shadow_network', 'iron_will', 'warlord', 'ghost_protocol', 'empire_builder'];
+export const isPrestigeSkill = (id: string) => PRESTIGE_SKILL_IDS.includes(id);
 
 export const BRANCH_INFO: Record<SkillBranch, { label: string; color: string; icon: string }> = {
   muscle: { label: 'Kracht', color: 'text-blood', icon: '⚔️' },
@@ -185,11 +239,17 @@ export function canUnlockSkill(
   node: SkillNode,
   unlockedSkills: { skillId: string; level: number }[],
   availableSP: number,
-  playerLevel: number
+  playerLevel: number,
+  prestigeLevel: number = 0
 ): { canUnlock: boolean; reason?: string } {
   const current = getSkillLevel(unlockedSkills, node.id);
   if (current >= node.maxLevel) return { canUnlock: false, reason: 'Max level bereikt' };
   if (availableSP < node.cost) return { canUnlock: false, reason: `${node.cost} SP nodig` };
+  
+  // Prestige skill requirement
+  if (isPrestigeSkill(node.id) && prestigeLevel < 1) {
+    return { canUnlock: false, reason: 'Prestige 1+ vereist' };
+  }
   
   // Tier requirements
   const tierLevelReq = node.tier === 2 ? 10 : node.tier === 3 ? 25 : 1;
@@ -203,6 +263,51 @@ export function canUnlockSkill(
   
   return { canUnlock: true };
 }
+
+// ========== XP CURVE & MILESTONES ==========
+
+/** Exponential XP required for a given level */
+export function xpForLevel(level: number): number {
+  return Math.floor(100 * Math.pow(1.15, level - 1));
+}
+
+/** Get milestone reward for a level (if any) */
+export interface MilestoneReward {
+  level: number;
+  title: string;
+  titleIcon: string;
+  cash: number;
+  rep: number;
+  sp_bonus: number;
+  desc: string;
+}
+
+export const LEVEL_MILESTONES: MilestoneReward[] = [
+  { level: 5, title: "Straatrat", titleIcon: "🐀", cash: 2000, rep: 0, sp_bonus: 1, desc: "Eerste stappen" },
+  { level: 10, title: "Enforcer", titleIcon: "👊", cash: 5000, rep: 25, sp_bonus: 2, desc: "Je naam klinkt" },
+  { level: 15, title: "Connected", titleIcon: "🔗", cash: 10000, rep: 50, sp_bonus: 2, desc: "Netwerk groeit" },
+  { level: 20, title: "Shotcaller", titleIcon: "📞", cash: 20000, rep: 100, sp_bonus: 3, desc: "Mensen luisteren" },
+  { level: 25, title: "Onderbaas", titleIcon: "🎩", cash: 35000, rep: 150, sp_bonus: 3, desc: "Je runt een imperium" },
+  { level: 30, title: "Capo", titleIcon: "💎", cash: 50000, rep: 200, sp_bonus: 4, desc: "De straat is van jou" },
+  { level: 35, title: "Don", titleIcon: "🏛️", cash: 75000, rep: 300, sp_bonus: 4, desc: "Onaantastbaar" },
+  { level: 40, title: "Schaduwkoning", titleIcon: "🌑", cash: 100000, rep: 500, sp_bonus: 5, desc: "De stad buigt" },
+  { level: 45, title: "Onsterfelijk", titleIcon: "⚡", cash: 150000, rep: 750, sp_bonus: 5, desc: "Legendarisch" },
+  { level: 50, title: "Godfather", titleIcon: "👑", cash: 250000, rep: 1000, sp_bonus: 8, desc: "Ultieme macht" },
+];
+
+export function getMilestone(level: number): MilestoneReward | undefined {
+  return LEVEL_MILESTONES.find(m => m.level === level);
+}
+
+// ========== RESTED XP CONFIG ==========
+export const RESTED_XP_CONFIG = {
+  /** XP per hour offline (base) */
+  perHourBase: 25,
+  /** Maximum rested XP that can be stored */
+  maxStored: 5000,
+  /** Bonus multiplier when consuming rested XP */
+  consumeMultiplier: 0.5, // +50% on rested portion
+};
 
 /** Calculate total passive bonus from skills */
 export function getSkillPassive(unlockedSkills: { skillId: string; level: number }[], key: string): number {
