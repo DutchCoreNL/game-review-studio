@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff, Swords, Home, TrendingUp, Heart, Crown, Globe, Target, UserCheck } from 'lucide-react';
+import { Map, Package, Users, Crosshair, Dices, ChevronRight, Car, Flame, EyeOff, Swords, Home, TrendingUp, Heart, Crown, Globe, Target, UserCheck, Shield, Handshake, Zap, Radio } from 'lucide-react';
 
 import tutWelcome from '@/assets/items/tut-welcome.jpg';
 import tutTrade from '@/assets/items/tut-trade.jpg';
@@ -20,7 +20,7 @@ import tutMmoPlayers from '@/assets/items/tut-mmo-players.jpg';
 const STEPS = [
   {
     title: "Welkom in Noxhaven",
-    desc: "Jij bent een straatrat met een droom: de hele stad overnemen. Handel, vecht, bouw een imperium en versla de factieleiders op weg naar de top.",
+    desc: "Jij bent een straatrat met een droom: de hele stad overnemen. Handel, vecht, bouw een imperium en versla de factieleiders op weg naar de top — samen met of tegen andere spelers.",
     icon: <Map size={32} className="text-gold" />,
     image: tutWelcome,
   },
@@ -35,6 +35,12 @@ const STEPS = [
     desc: "Prijzen worden bepaald door alle spelers. Koop je veel Synthetica? Dan stijgt de prijs voor iedereen. Verkoop slim en beïnvloed de markteconomie in jouw voordeel.",
     icon: <Globe size={32} className="text-ice" />,
     image: tutMmoMarket,
+  },
+  {
+    title: "Smokkelroutes",
+    desc: "Creëer smokkelroutes tussen districten voor extra winst. Elke route heeft een risico-niveau en capaciteit. Hoe hoger het risico, hoe groter de beloning — maar pas op voor onderschepping!",
+    icon: <Car size={32} className="text-gold" />,
+    image: tutTrade,
   },
   {
     title: "Crew & Missies",
@@ -55,16 +61,22 @@ const STEPS = [
     image: tutMmoBosses,
   },
   {
-    title: "Voertuig & Persoonlijke Heat",
-    desc: "Voertuig heat stijgt door handel en reizen — laat je auto omkatten om het te resetten. Persoonlijke heat stijgt door geweld en mislukte missies — veel lastiger weg te krijgen!",
-    icon: <Flame size={32} className="text-blood" />,
-    image: tutHeat,
+    title: "Gangs & Allianties",
+    desc: "Richt een gang op of sluit je aan bij een bestaande. Werk samen aan heists, territoriumoorlogen en georganiseerde misdaad. Sluit allianties met andere gangs voor gedeelde verdediging en handelsbonussen.",
+    icon: <Handshake size={32} className="text-ice" />,
+    image: tutMmoPlayers,
   },
   {
-    title: "Onderduiken",
-    desc: "Te heet? Duik onder voor 1-3 dagen. Je heat daalt flink, maar je verliest inkomen en vijanden kunnen aanvallen. Een Safe House verdubbelt je natuurlijke heat decay.",
-    icon: <EyeOff size={32} className="text-game-purple" />,
-    image: tutHiding,
+    title: "Realtime Activiteit",
+    desc: "Zie wat andere spelers doen in jouw district via de live activity feed. Bekijk wie er online is, volg gevechten en reageer op kansen in real-time.",
+    icon: <Radio size={32} className="text-ice" />,
+    image: tutMmoPlayers,
+  },
+  {
+    title: "Heat & Onderduiken",
+    desc: "Voertuig heat stijgt door handel en reizen — laat je auto omkatten. Persoonlijke heat stijgt door geweld en mislukte missies. Te heet? Duik onder, maar vijanden kunnen je vinden!",
+    icon: <Flame size={32} className="text-blood" />,
+    image: tutHeat,
   },
   {
     title: "Villa Noxhaven",
@@ -86,7 +98,7 @@ const STEPS = [
   },
   {
     title: "Andere Spelers",
-    desc: "Je bent niet alleen. Val rivalen aan, plaats bounties op vijanden en stuur berichten. Check het leaderboard om te zien wie de echte Kingpin van Noxhaven is.",
+    desc: "Val rivalen aan, plaats bounties, stuur berichten en handel direct met andere spelers. Verdien titels die iedereen kan zien. Check het leaderboard voor de echte Kingpin.",
     icon: <UserCheck size={32} className="text-gold" />,
     image: tutMmoPlayers,
   },
