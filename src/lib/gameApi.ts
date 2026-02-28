@@ -60,7 +60,10 @@ export type GameAction =
   | "accept_alliance"
   | "break_alliance"
   | "heartbeat"
-  | "get_player_titles";
+  | "get_player_titles"
+  | "plant_mole"
+  | "extract_mole"
+  | "get_moles";
 
 interface GameActionResult {
   success: boolean;
@@ -252,4 +255,9 @@ export const gameApi = {
 
   // Heartbeat
   heartbeat: () => invokeGameAction("heartbeat"),
+
+  // Informant & Mol Systeem
+  plantMole: (targetGangId: string) => invokeGameAction("plant_mole", { targetGangId }),
+  extractMole: (moleId: string) => invokeGameAction("extract_mole", { moleId }),
+  getMoles: () => invokeGameAction("get_moles"),
 };
