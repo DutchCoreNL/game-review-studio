@@ -50,7 +50,17 @@ export type GameAction =
   | "check_backstory_crossover"
   | "get_npc_mood"
   | "contribute_npc_mood"
-  | "process_turn";
+  | "process_turn"
+  | "attack_world_raid"
+  | "get_world_raids"
+  | "use_smuggle_route"
+  | "create_smuggle_route"
+  | "get_gang_alliances"
+  | "propose_alliance"
+  | "accept_alliance"
+  | "break_alliance"
+  | "heartbeat"
+  | "get_player_titles";
 
 interface GameActionResult {
   success: boolean;
@@ -221,4 +231,25 @@ export const gameApi = {
   processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
     .then(res => res.data ? { success: res.data.success, message: res.data.message, data: res.data.data } : { success: false, message: 'Server error' })
     .catch(err => ({ success: false, message: err.message })),
+
+  // World Raids
+  attackWorldRaid: (raidId: string) => invokeGameAction("attack_world_raid", { raidId }),
+  getWorldRaids: () => invokeGameAction("get_world_raids"),
+
+  // Smuggle Routes
+  useSmuggleRoute: (routeId: string, quantity: number) => invokeGameAction("use_smuggle_route", { routeId, quantity }),
+  createSmuggleRoute: (fromDistrict: string, toDistrict: string, goodId: string) =>
+    invokeGameAction("create_smuggle_route", { fromDistrict, toDistrict, goodId }),
+
+  // Gang Alliances
+  getGangAlliances: () => invokeGameAction("get_gang_alliances"),
+  proposeAlliance: (targetGangId: string) => invokeGameAction("propose_alliance", { targetGangId }),
+  acceptAlliance: (allianceId: string) => invokeGameAction("accept_alliance", { allianceId }),
+  breakAlliance: (allianceId: string) => invokeGameAction("break_alliance", { allianceId }),
+
+  // Player Titles
+  getPlayerTitles: (userId?: string) => invokeGameAction("get_player_titles", { userId }),
+
+  // Heartbeat
+  heartbeat: () => invokeGameAction("heartbeat"),
 };

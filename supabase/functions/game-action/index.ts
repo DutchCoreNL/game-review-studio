@@ -5742,6 +5742,140 @@ async function handleContributeNpcMood(supabase: any, userId: string, ps: any, p
   return { success: true, message: `NPC mood bijgewerkt: ${newStatus}`, data: { newScore, newStatus } };
 }
 
+// ========== WORLD RAIDS ==========
+
+async function handleAttackWorldRaid(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { raidId } = payload || {};
+  if (!raidId) return { success: false, message: "Geen raid opgegeven." };
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  if (ps.energy < 10) return { success: false, message: "Niet genoeg energy (10 nodig)." };
+  const { data: raid } = await supabase.from("world_raids").select("*").eq("id", raidId).eq("status", "active").maybeSingle();
+  if (!raid) return { success: false, message: "Raid niet gevonden of al afgelopen." };
+  if (new Date(raid.ends_at) < new Date()) {
+    await supabase.from("world_raids").update({ status: "expired" }).eq("id", raidId);
+    return { success: false, message: "Raid is verlopen." };
+  }
+  const muscle = getPlayerStat(ps.stats || {}, ps.loadout || {}, "muscle");
+  const damage = Math.floor(10 + muscle * 3 + Math.random() * 20);
+  const newHp = Math.max(0, raid.boss_hp - damage);
+  const participants = raid.participants || {};
+  participants[userId] = (participants[userId] || 0) + damage;
+  const totalParticipants = Object.keys(participants).length;
+  const updates: any = { boss_hp: newHp, participants, total_participants: totalParticipants };
+  if (newHp <= 0) { updates.status = "completed"; updates.completed_at = new Date().toISOString(); }
+  await supabase.from("world_raids").update(updates).eq("id", raidId);
+  await supabase.from("player_state").update({ energy: ps.energy - 10, last_action_at: new Date().toISOString() }).eq("user_id", userId);
+  const { data: prof } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
+  await supabase.from("activity_feed").insert({ user_id: userId, username: prof?.username || "Onbekend", action_type: "raid_attack", description: `heeft ${damage} schade aan ${raid.title}!`, icon: "⚔️", district_id: raid.district_id });
+  if (newHp <= 0) { await insertPlayerNews(supabase, { text: `RAID VOLTOOID! ${raid.title} verslagen door ${totalParticipants} spelers!`, icon: "🏆", urgency: "high", category: "raid" }); }
+  return { success: true, message: `${damage} schade toegebracht!${newHp <= 0 ? ' RAID VOLTOOID!' : ''}`, data: { damage, newHp, totalParticipants } };
+}
+
+async function handleGetWorldRaids(supabase: any): Promise<ActionResult> {
+  const { data } = await supabase.from("world_raids").select("*").in("status", ["active"]).order("created_at", { ascending: false }).limit(5);
+  return { success: true, message: "Raids opgehaald.", data: { raids: data || [] } };
+}
+
+// ========== SMUGGLE ROUTES ==========
+
+async function handleUseSmuggleRoute(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { routeId, quantity } = payload || {};
+  if (!routeId) return { success: false, message: "Geen route opgegeven." };
+  const blocked = checkBlocked(ps);
+  if (blocked) return { success: false, message: blocked };
+  if (ps.energy < 15) return { success: false, message: "Niet genoeg energy (15 nodig)." };
+  const { data: route } = await supabase.from("smuggle_routes").select("*").eq("id", routeId).eq("status", "active").maybeSingle();
+  if (!route) return { success: false, message: "Route niet gevonden." };
+  if (ps.loc !== route.from_district) return { success: false, message: `Je moet in ${DISTRICT_NAMES[route.from_district]} zijn.` };
+  if (route.used_capacity >= route.capacity) return { success: false, message: "Route is vol." };
+  if (new Date(route.expires_at) < new Date()) return { success: false, message: "Route verlopen." };
+  const { data: inv } = await supabase.from("player_inventory").select("*").eq("user_id", userId).eq("good_id", route.good_id).maybeSingle();
+  const qty = Math.min(quantity || 1, (inv?.quantity || 0), route.capacity - route.used_capacity);
+  if (qty <= 0) return { success: false, message: "Geen voorraad of geen ruimte." };
+  const success = Math.random() * 100 > route.risk_level;
+  if (!success) {
+    await supabase.from("player_inventory").update({ quantity: (inv?.quantity || 0) - qty }).eq("user_id", userId).eq("good_id", route.good_id);
+    await supabase.from("player_state").update({ heat: Math.min(100, ps.heat + 20), energy: ps.energy - 15, last_action_at: new Date().toISOString() }).eq("user_id", userId);
+    return { success: false, message: `Betrapt! ${qty} goederen verloren en +20 heat.`, data: { lost: qty } };
+  }
+  const { data: destPrice } = await supabase.from("market_prices").select("current_price").eq("good_id", route.good_id).eq("district_id", route.to_district).maybeSingle();
+  const sellPrice = Math.floor((destPrice?.current_price || 500) * route.profit_multiplier);
+  const revenue = sellPrice * qty;
+  await supabase.from("player_inventory").update({ quantity: (inv?.quantity || 0) - qty }).eq("user_id", userId).eq("good_id", route.good_id);
+  await supabase.from("player_state").update({ money: ps.money + revenue, energy: ps.energy - 15, heat: Math.min(100, ps.heat + 5), rep: (ps.rep || 0) + qty * 3, last_action_at: new Date().toISOString() }).eq("user_id", userId);
+  await supabase.from("smuggle_routes").update({ used_capacity: route.used_capacity + qty }).eq("id", routeId);
+  return { success: true, message: `${qty} goederen gesmokkeld voor €${revenue.toLocaleString()}!`, data: { revenue, qty } };
+}
+
+async function handleCreateSmuggleRoute(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { fromDistrict, toDistrict, goodId } = payload || {};
+  if (!fromDistrict || !toDistrict || !goodId) return { success: false, message: "Ongeldige parameters." };
+  if (fromDistrict === toDistrict) return { success: false, message: "Districten moeten verschillend zijn." };
+  if (ps.money < 5000) return { success: false, message: "Te weinig geld (€5.000 nodig)." };
+  if ((ps.rep || 0) < 50) return { success: false, message: "Minimaal 50 rep nodig." };
+  const { data: gm } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  const profitMult = 1.3 + Math.random() * 0.7;
+  const risk = 30 + Math.floor(Math.random() * 40);
+  await supabase.from("smuggle_routes").insert({ from_district: fromDistrict, to_district: toDistrict, good_id: goodId, profit_multiplier: Math.round(profitMult * 100) / 100, risk_level: risk, capacity: 20, created_by: userId, gang_id: gm?.gang_id || null, expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() });
+  await supabase.from("player_state").update({ money: ps.money - 5000, last_action_at: new Date().toISOString() }).eq("user_id", userId);
+  return { success: true, message: `Smokkelroute geopend! ${profitMult.toFixed(1)}x winst, ${risk}% risico.`, data: { profitMult, risk } };
+}
+
+// ========== GANG ALLIANCES ==========
+
+async function handleGetGangAlliances(supabase: any, userId: string): Promise<ActionResult> {
+  const { data: gm } = await supabase.from("gang_members").select("gang_id").eq("user_id", userId).maybeSingle();
+  if (!gm) return { success: false, message: "Je zit niet in een gang." };
+  const { data } = await supabase.from("gang_alliances").select("*").or(`gang_a_id.eq.${gm.gang_id},gang_b_id.eq.${gm.gang_id}`).in("status", ["active", "pending"]);
+  const alliances = [];
+  for (const a of (data || [])) {
+    const { data: gA } = await supabase.from("gangs").select("name").eq("id", a.gang_a_id).maybeSingle();
+    const { data: gB } = await supabase.from("gangs").select("name").eq("id", a.gang_b_id).maybeSingle();
+    alliances.push({ ...a, gang_a_name: gA?.name, gang_b_name: gB?.name });
+  }
+  return { success: true, message: "Allianties opgehaald.", data: { alliances } };
+}
+
+async function handleProposeAlliance(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
+  const { targetGangId } = payload || {};
+  if (!targetGangId) return { success: false, message: "Geen gang opgegeven." };
+  const { data: gm } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!gm || !["leader", "officer"].includes(gm.role)) return { success: false, message: "Alleen leiders/officers." };
+  if (gm.gang_id === targetGangId) return { success: false, message: "Kan niet met eigen gang." };
+  const { data: existing } = await supabase.from("gang_alliances").select("id").or(`and(gang_a_id.eq.${gm.gang_id},gang_b_id.eq.${targetGangId}),and(gang_a_id.eq.${targetGangId},gang_b_id.eq.${gm.gang_id})`).in("status", ["active", "pending"]).limit(1);
+  if (existing && existing.length > 0) return { success: false, message: "Er bestaat al een alliantie(-verzoek)." };
+  await supabase.from("gang_alliances").insert({ gang_a_id: gm.gang_id, gang_b_id: targetGangId, proposed_by: userId, status: "pending" });
+  return { success: true, message: "Alliantie voorgesteld!" };
+}
+
+async function handleAcceptAlliance(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { allianceId } = payload || {};
+  if (!allianceId) return { success: false, message: "Geen alliantie opgegeven." };
+  const { data: gm } = await supabase.from("gang_members").select("gang_id, role").eq("user_id", userId).maybeSingle();
+  if (!gm || !["leader", "officer"].includes(gm.role)) return { success: false, message: "Niet gemachtigd." };
+  const { data: alliance } = await supabase.from("gang_alliances").select("*").eq("id", allianceId).eq("status", "pending").maybeSingle();
+  if (!alliance) return { success: false, message: "Niet gevonden." };
+  if (alliance.gang_b_id !== gm.gang_id) return { success: false, message: "Niet jouw gang." };
+  await supabase.from("gang_alliances").update({ status: "active", accepted_at: new Date().toISOString(), expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() }).eq("id", allianceId);
+  return { success: true, message: "Alliantie geaccepteerd!" };
+}
+
+async function handleBreakAlliance(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const { allianceId } = payload || {};
+  if (!allianceId) return { success: false, message: "Geen alliantie opgegeven." };
+  await supabase.from("gang_alliances").update({ status: "broken" }).eq("id", allianceId);
+  return { success: true, message: "Alliantie verbroken." };
+}
+
+// ========== PLAYER TITLES ==========
+
+async function handleGetPlayerTitles(supabase: any, userId: string, payload: any): Promise<ActionResult> {
+  const targetId = payload?.userId || userId;
+  const { data } = await supabase.from("player_titles").select("*").eq("user_id", targetId).order("earned_at", { ascending: false });
+  return { success: true, message: "Titels opgehaald.", data: { titles: data || [] } };
+}
+
 // ========== MAIN HANDLER ==========
 
 
@@ -6053,6 +6187,46 @@ Deno.serve(async (req) => {
         break;
       case "contribute_npc_mood":
         result = await handleContributeNpcMood(supabase, user.id, playerState, payload);
+        break;
+
+      // ========== WORLD RAIDS ==========
+      case "attack_world_raid":
+        result = await handleAttackWorldRaid(supabase, user.id, playerState, payload);
+        break;
+      case "get_world_raids":
+        result = await handleGetWorldRaids(supabase);
+        break;
+
+      // ========== SMUGGLE ROUTES ==========
+      case "use_smuggle_route":
+        result = await handleUseSmuggleRoute(supabase, user.id, playerState, payload);
+        break;
+      case "create_smuggle_route":
+        result = await handleCreateSmuggleRoute(supabase, user.id, playerState, payload);
+        break;
+
+      // ========== GANG ALLIANCES ==========
+      case "get_gang_alliances":
+        result = await handleGetGangAlliances(supabase, user.id);
+        break;
+      case "propose_alliance":
+        result = await handleProposeAlliance(supabase, user.id, playerState, payload);
+        break;
+      case "accept_alliance":
+        result = await handleAcceptAlliance(supabase, user.id, payload);
+        break;
+      case "break_alliance":
+        result = await handleBreakAlliance(supabase, user.id, payload);
+        break;
+
+      // ========== PLAYER TITLES ==========
+      case "get_player_titles":
+        result = await handleGetPlayerTitles(supabase, user.id, payload);
+        break;
+
+      // ========== HEARTBEAT ==========
+      case "heartbeat":
+        result = { success: true, message: "ok" };
         break;
 
       default:

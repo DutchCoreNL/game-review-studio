@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_feed: {
+        Row: {
+          action_type: string
+          created_at: string
+          data: Json | null
+          description: string
+          district_id: string | null
+          icon: string
+          id: string
+          target_name: string | null
+          user_id: string
+          username: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          data?: Json | null
+          description: string
+          district_id?: string | null
+          icon?: string
+          id?: string
+          target_name?: string | null
+          user_id: string
+          username?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          data?: Json | null
+          description?: string
+          district_id?: string | null
+          icon?: string
+          id?: string
+          target_name?: string | null
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       admin_logs: {
         Row: {
           action: string
@@ -379,6 +418,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      gang_alliances: {
+        Row: {
+          accepted_at: string | null
+          benefits: Json
+          created_at: string
+          expires_at: string
+          gang_a_id: string
+          gang_b_id: string
+          id: string
+          proposed_by: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          benefits?: Json
+          created_at?: string
+          expires_at?: string
+          gang_a_id: string
+          gang_b_id: string
+          id?: string
+          proposed_by: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          benefits?: Json
+          created_at?: string
+          expires_at?: string
+          gang_a_id?: string
+          gang_b_id?: string
+          id?: string
+          proposed_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gang_alliances_gang_a_id_fkey"
+            columns: ["gang_a_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gang_alliances_gang_b_id_fkey"
+            columns: ["gang_b_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gang_chat: {
         Row: {
@@ -1374,6 +1464,33 @@ export type Database = {
         }
         Relationships: []
       }
+      player_online_status: {
+        Row: {
+          district_id: string
+          is_online: boolean
+          last_seen_at: string
+          level: number
+          user_id: string
+          username: string
+        }
+        Insert: {
+          district_id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          level?: number
+          user_id: string
+          username?: string
+        }
+        Update: {
+          district_id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          level?: number
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       player_rivalries: {
         Row: {
           created_at: string
@@ -1689,6 +1806,36 @@ export type Database = {
         }
         Relationships: []
       }
+      player_titles: {
+        Row: {
+          earned_at: string
+          id: string
+          is_active: boolean
+          title_icon: string
+          title_id: string
+          title_name: string
+          user_id: string
+        }
+        Insert: {
+          earned_at?: string
+          id?: string
+          is_active?: boolean
+          title_icon?: string
+          title_id: string
+          title_name: string
+          user_id: string
+        }
+        Update: {
+          earned_at?: string
+          id?: string
+          is_active?: boolean
+          title_icon?: string
+          title_id?: string
+          title_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       player_travel: {
         Row: {
           arrives_at: string
@@ -1902,6 +2049,62 @@ export type Database = {
         }
         Relationships: []
       }
+      smuggle_routes: {
+        Row: {
+          capacity: number
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          from_district: string
+          gang_id: string | null
+          good_id: string
+          id: string
+          profit_multiplier: number
+          risk_level: number
+          status: string
+          to_district: string
+          used_capacity: number
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          from_district: string
+          gang_id?: string | null
+          good_id: string
+          id?: string
+          profit_multiplier?: number
+          risk_level?: number
+          status?: string
+          to_district: string
+          used_capacity?: number
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          from_district?: string
+          gang_id?: string | null
+          good_id?: string
+          id?: string
+          profit_multiplier?: number
+          risk_level?: number
+          status?: string
+          to_district?: string
+          used_capacity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smuggle_routes_gang_id_fkey"
+            columns: ["gang_id"]
+            isOneToOne: false
+            referencedRelation: "gangs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trade_offers: {
         Row: {
           created_at: string
@@ -1971,14 +2174,72 @@ export type Database = {
         }
         Relationships: []
       }
+      world_raids: {
+        Row: {
+          boss_hp: number
+          boss_max_hp: number
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          district_id: string | null
+          ends_at: string
+          id: string
+          participants: Json
+          raid_type: string
+          reward_pool: Json
+          started_at: string
+          status: string
+          title: string
+          total_participants: number
+        }
+        Insert: {
+          boss_hp?: number
+          boss_max_hp?: number
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          district_id?: string | null
+          ends_at?: string
+          id?: string
+          participants?: Json
+          raid_type: string
+          reward_pool?: Json
+          started_at?: string
+          status?: string
+          title: string
+          total_participants?: number
+        }
+        Update: {
+          boss_hp?: number
+          boss_max_hp?: number
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          district_id?: string | null
+          ends_at?: string
+          id?: string
+          participants?: Json
+          raid_type?: string
+          reward_pool?: Json
+          started_at?: string
+          status?: string
+          title?: string
+          total_participants?: number
+        }
+        Relationships: []
+      }
       world_state: {
         Row: {
           active_event: Json | null
           current_weather: string
+          golden_district: string | null
+          golden_district_expires_at: string | null
           id: number
           maintenance_message: string | null
           maintenance_mode: boolean
           next_cycle_at: string
+          season_ends_at: string | null
+          season_number: number | null
           time_of_day: string
           updated_at: string
           weather_changed_at: string
@@ -1987,10 +2248,14 @@ export type Database = {
         Insert: {
           active_event?: Json | null
           current_weather?: string
+          golden_district?: string | null
+          golden_district_expires_at?: string | null
           id?: number
           maintenance_message?: string | null
           maintenance_mode?: boolean
           next_cycle_at?: string
+          season_ends_at?: string | null
+          season_number?: number | null
           time_of_day?: string
           updated_at?: string
           weather_changed_at?: string
@@ -1999,10 +2264,14 @@ export type Database = {
         Update: {
           active_event?: Json | null
           current_weather?: string
+          golden_district?: string | null
+          golden_district_expires_at?: string | null
           id?: number
           maintenance_message?: string | null
           maintenance_mode?: boolean
           next_cycle_at?: string
+          season_ends_at?: string | null
+          season_number?: number | null
           time_of_day?: string
           updated_at?: string
           weather_changed_at?: string
