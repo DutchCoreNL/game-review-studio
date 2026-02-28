@@ -1,59 +1,71 @@
 
 
-## Plan: Permadeath voor Iedereen
+## Ontbrekende Features vergeleken met Top Mafia MMOs
 
-### Huidige situatie
-Het spel heeft twee modi:
-- **Normaal**: 3 ziekenhuisopnames → game over, met 15% "Last Stand" overlevingskans
-- **Hardcore**: Aparte modus, 1 dood = game over, apart leaderboard
+Na analyse van Torn City, MafiaMatrix, Made Man Mafia, MafiaMMO en vergelijkbare spellen, en vergelijking met wat Noxhaven al heeft, zijn dit de belangrijkste ontbrekende systemen:
 
-### Wat verandert
-Iedereen speelt nu effectief "hardcore" — dood = opnieuw beginnen. De aparte hardcore toggle verdwijnt. Dit maakt het spel eerlijker als MMO.
+### Wat Noxhaven AL heeft (goed afgedekt):
+- Combat / PvP, Gangs, Bounties, Heists, Casino
+- Handelssysteem, Veilingen, Stocks, Smokkelroutes
+- Properties, Villa, Safehouses, Voertuigen/Racing
+- Educatie (cursussen), Gevangenis, Corruptie
+- Reissysteem (internationale bestemmingen)
+- Facties, NPC-relaties, Story Arcs
+- Drug Empire, Crafting, Chop Shop
 
-### Aanpassingen
+---
 
-**1. Constants & Types**
-- `MAX_HOSPITALIZATIONS` verwijderen of op 1 zetten
-- `hardcoreMode` veld behouden maar altijd `true` forceren (backwards compat)
-- "Last Stand" 15% overlevingskans verwijderen — dood is dood
-- Hospital systeem omzetten: geen ziekenhuisopname meer, direct game over bij 0 HP
+### Wat ONTBREEKT (gerangschikt op impact):
 
-**2. Combat Handlers (combatHandlers.ts + GameContext.tsx)**
-- Bij verloren gevecht (HP ≤ 0): direct `gameOver = true`
-- Verwijder Last Stand logica
-- Verwijder hospitalization counter/checks
-- Hospital state (`hospital`, `hospitalizations`) niet meer gebruiken in combat
+**1. Gym / Stat Training Systeem**
+Elke mafia MMO heeft een gym waar je **energie spendeert om stats te trainen** (Strength, Defense, Speed, Dexterity). Dit is DE kern-gameplay-loop die spelers dagelijks terugbrengt. Noxhaven heeft stats (muscle, brains, charm) maar geen actief trainingssysteem — ze groeien alleen via level-ups.
 
-**3. Doodsmechaniek verfijnen voor MMO-balans**
-Omdat permadeath hard is, voegen we **verzachtende mechanismen** toe:
-- **Doodskist**: Bij game over bewaar 10% van je geld voor je volgende run (opgeslagen server-side per user)
-- **Legacy bonus**: Elk gestorven karakter geeft +2% XP bonus op je volgende run (max +20%, 10 runs)
-- **Waarschuwing bij laag HP**: Onder 20% HP krijg je een rode waarschuwing "VLUCHT OF STERF"
+- Gym met energy-cost per training sessie
+- Stats groeien incrementeel (niet per level)
+- Verschillende gyms per district met stat-focus
+- Gym membership tiers (duurder = snellere groei)
 
-**4. UI Aanpassingen**
-- **MainMenu**: Verwijder aparte "Hardcore Mode" knop — standaard spel is nu permadeath
-- **GameOverScreen**: Verwijder hardcore-specifieke tekst, toon altijd permadeath bericht + doodskist info
-- **VictoryScreen**: Verwijder `!state.hardcoreMode` conditie op Prestige Reset
-- **LeaderboardView**: Verwijder "Hardcore" tab — er is maar één modus. "Hall of Legends" blijft voor high-level spelers
-- **HUD/StatusBar**: Voeg permanent ☠️ indicator toe bij laag HP
+**2. Banen / Job Systeem**
+In Torn/MafiaMatrix kies je een **legitieme baan** (barman, advocaat, arts) die passief geld en perks geeft. Dit ontbreekt volledig in Noxhaven.
 
-**5. Server-side (Edge Functions)**
-- `game-action`: Verwijder hardcore-specifieke checks
-- Leaderboard: `is_hardcore` kolom altijd `true` voor nieuwe entries
-- **Nieuw**: `death_legacy` tabel of veld op profiel voor doodskist + legacy XP bonus
+- 8-10 banen met requirements (level, stats)
+- Dagelijks loon + unieke perks per baan
+- Baas-NPC relatie die groeit met werkdagen
+- Promoties na X dagen werken
+- Job-specifieke speciale acties (arts = heal anderen, advocaat = snellere bail)
 
-**6. Bestanden die aangepast worden**
+**3. Organized Crime (OC) Wachtlijst-systeem**
+Noxhaven heeft organized crimes maar de meeste mafia MMOs gebruiken een **sign-up + wachttijd** model: gang-leden melden zich aan voor een rol, na X uur wordt de OC automatisch uitgevoerd. Succes hangt af van de stats van deelnemers.
 
-| Bestand | Wijziging |
-|---|---|
-| `src/game/constants.ts` | `MAX_HOSPITALIZATIONS = 1`, `hardcoreMode: true` in initial state |
-| `src/game/types.ts` | Voeg `deathLegacy` veld toe aan GameState |
-| `src/game/reducers/combatHandlers.ts` | Verwijder Last Stand + hospital, direct game over |
-| `src/contexts/GameContext.tsx` | Verwijder Last Stand + hospital logica, forceer hardcoreMode, laad death legacy |
-| `src/components/game/MainMenu.tsx` | Verwijder hardcore knop/bevestiging |
-| `src/components/game/GameOverScreen.tsx` | Universeel permadeath scherm + doodskist info |
-| `src/components/game/VictoryScreen.tsx` | Verwijder hardcoreMode conditie |
-| `src/components/game/LeaderboardView.tsx` | Verwijder hardcore tab, houd Hall of Legends |
-| `src/pages/Index.tsx` | Verwijder `handleHardcoreStart` |
-| `supabase/functions/game-action/index.ts` | Verwijder hardcore checks |
+**4. Speler Bazaar / Item Market**
+Een echte **speler-naar-speler marktplaats** waar je individuele items (gear, speciale munitie, drugs) kunt listen met een vraagprijs — niet alleen veilingen maar ook directe "koop nu" listings. Torn's "Item Market" is een van de meest gebruikte features.
+
+**5. Merit / Perk Punten Systeem**
+Bij level-up verdien je **merit-punten** die je investeert in permanente passieve bonussen (bijv. +5% gym gains, -10% reistijd, +1 crime per dag). Dit geeft elke speler een unieke build.
+
+**6. Referral / Recruiter Systeem**
+Spelers die nieuwe spelers uitnodigen krijgen bonussen wanneer hun "recruit" bepaalde milestones haalt. Essentieel voor MMO-groei.
+
+**7. Company / Bedrijf Werknemers**
+Naast je eigen dekmantelbedrijven: andere spelers kunnen **bij jouw bedrijf werken** voor salaris + bonussen. De eigenaar krijgt productie-output. Creëert een werkgever-werknemer dynamiek.
+
+**8. Revive / Medical Systeem (uitgebreider)**
+Het "bust" en "revive" systeem bestaat al deels, maar in Torn is **reviven** een hele profession — spelers specialiseren zich erin en verdienen er geld mee. Revive-contracten, revive-wachtlijsten, betaalde revive-diensten.
+
+---
+
+### Aanbevolen Prioriteit
+
+| # | Feature | Impact | Complexiteit |
+|---|---------|--------|-------------|
+| 1 | **Gym / Stat Training** | Zeer hoog — dagelijkse terugkeer | Middel |
+| 2 | **Banen Systeem** | Hoog — passief inkomen + perks | Middel |
+| 3 | **Merit Punten** | Hoog — character build diversiteit | Laag |
+| 4 | **Speler Item Market** | Hoog — economie verdieping | Middel |
+| 5 | **Company Werknemers** | Middel — sociale binding | Hoog |
+| 6 | **OC Wachtlijst** | Middel — gang engagement | Laag |
+| 7 | **Referral Systeem** | Middel — groei | Laag |
+| 8 | **Revive Profession** | Laag — niche | Laag |
+
+Het **Gym-systeem** is veruit de belangrijkste ontbrekende feature — het is letterlijk de dagelijkse gameplay-loop van elke succesvolle mafia MMO.
 
