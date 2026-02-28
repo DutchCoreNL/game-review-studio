@@ -1009,7 +1009,7 @@ export function resolveMissionChoice(
   state: GameState,
   mission: ActiveMission,
   choiceId: string,
-  forceResult?: 'success' | 'fail'
+  forceResult?: 'success' | 'partial' | 'fail'
 ): {
   result: 'success' | 'partial' | 'fail';
   outcomeText: string;
