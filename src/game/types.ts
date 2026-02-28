@@ -3,6 +3,7 @@ export type GoodId = 'drugs' | 'weapons' | 'tech' | 'luxury' | 'meds' | 'explosi
 export type FamilyId = 'cartel' | 'syndicate' | 'bikers';
 export type CrewRole = 'Chauffeur' | 'Enforcer' | 'Hacker' | 'Smokkelaar';
 export type StatId = 'muscle' | 'brains' | 'charm';
+export type GymStatId = 'strength' | 'defense' | 'speed' | 'dexterity';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView = 
@@ -12,7 +13,7 @@ export type GameView =
   | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
-  | 'education'
+  | 'education' | 'gym' | 'jobs'
   | 'empire' | 'admin';
 
 // ========== VILLA TYPES ==========

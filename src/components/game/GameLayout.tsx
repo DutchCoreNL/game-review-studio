@@ -97,6 +97,8 @@ const AudioSettingsPanel = React.lazy(() => import('./profile/AudioSettingsPanel
 const LoadoutPanel = React.lazy(() => import('./profile/LoadoutPanel').then(m => ({ default: m.LoadoutPanel })));
 const TrophiesPanel = React.lazy(() => import('./profile/TrophiesPanel').then(m => ({ default: m.TrophiesPanel })));
 const EducationView = React.lazy(() => import('./EducationView').then(m => ({ default: m.EducationView })));
+const GymViewLazy = React.lazy(() => import('./GymView').then(m => ({ default: m.GymView })));
+const JobsViewLazy = React.lazy(() => import('./JobsView').then(m => ({ default: m.JobsView })));
 const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ default: m.PropertiesView })));
 const TravelViewLazy = React.lazy(() => import('./TravelView').then(m => ({ default: m.TravelView })));
 const ChatViewLazy = React.lazy(() => import('./ChatView').then(m => ({ default: m.ChatView })));
@@ -152,6 +154,8 @@ const views: Record<string, React.ComponentType> = {
   'imperium-stats': DrugEmpireStatsPanel,
   settings: AudioSettingsPanel,
   education: EducationView,
+  gym: GymViewLazy,
+  jobs: JobsViewLazy,
   properties: PropertiesView,
   travel: TravelViewLazy,
   chat: ChatViewLazy,
@@ -165,7 +169,7 @@ function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profil
   if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
-  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties'].includes(v)) return 'empire';
+  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
   return 'profile';
 }
 
