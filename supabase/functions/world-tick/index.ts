@@ -610,6 +610,491 @@ async function simulateBotGangActivity(supabase: any) {
   }
 }
 
+// ========== BOT ONLINE STATUS ==========
+async function simulateBotOnlineStatus(supabase: any, bots: any[]) {
+  try {
+    const onlineBots = bots.sort(() => Math.random() - 0.5).slice(0, Math.floor(bots.length * 0.6));
+    const rows = onlineBots.map(b => ({
+      user_id: b.id,
+      username: b.username,
+      district_id: b.loc,
+      level: b.level,
+      is_online: true,
+      last_seen_at: new Date().toISOString(),
+    }));
+    if (rows.length > 0) {
+      await supabase.from('player_online_status').upsert(rows, { onConflict: 'user_id' });
+    }
+  } catch (e) { console.error('Bot online status error:', e); }
+}
+
+// ========== BOT ACTIVITY FEED ==========
+const BOT_ACTIVITY_TEMPLATES: Array<(bot: any) => { action_type: string; description: string; icon: string }> = [
+  (b) => ({ action_type: 'trade', description: `heeft een handelspartij afgerond in ${DISTRICT_NAMES[b.loc]}`, icon: '📦' }),
+  (b) => ({ action_type: 'crime', description: `heeft een overval gepleegd in ${DISTRICT_NAMES[b.loc]}`, icon: '💥' }),
+  (b) => ({ action_type: 'travel', description: `is gearriveerd in ${DISTRICT_NAMES[b.loc]}`, icon: '🚗' }),
+  (b) => ({ action_type: 'fight', description: `heeft gevochten in ${DISTRICT_NAMES[b.loc]}`, icon: '⚔️' }),
+  (b) => ({ action_type: 'levelup', description: `is gestegen naar level ${b.level}!`, icon: '⬆️' }),
+  (b) => ({ action_type: 'market', description: `plaatst een advertentie op de zwarte markt`, icon: '🏪' }),
+  (b) => ({ action_type: 'bounty', description: `is betrokken bij een premiejacht`, icon: '🎯' }),
+  (b) => ({ action_type: 'faction', description: `valt een factie aan`, icon: '🐉' }),
+  (b) => ({ action_type: 'heist', description: `plant een overval met de gang`, icon: '🏦' }),
+  (b) => ({ action_type: 'casino', description: `gokt in het casino van ${DISTRICT_NAMES[b.loc]}`, icon: '🎰' }),
+];
+
+async function simulateBotActivityFeed(supabase: any, bots: any[]) {
+  try {
+    // 3-6 activity feed entries per tick
+    const count = 3 + Math.floor(Math.random() * 4);
+    const selected = bots.sort(() => Math.random() - 0.5).slice(0, count);
+    const rows = selected.map(bot => {
+      const template = pick(BOT_ACTIVITY_TEMPLATES);
+      const activity = template(bot);
+      return {
+        user_id: bot.id,
+        username: bot.username,
+        action_type: activity.action_type,
+        description: activity.description,
+        icon: activity.icon,
+        district_id: bot.loc,
+      };
+    });
+    if (rows.length > 0) {
+      await supabase.from('activity_feed').insert(rows);
+    }
+  } catch (e) { console.error('Bot activity feed error:', e); }
+}
+
+// ========== BOT WORLD RAIDS ==========
+async function simulateBotWorldRaids(supabase: any, bots: any[]) {
+  try {
+    const { data: raids } = await supabase.from('world_raids')
+      .select('*').eq('status', 'active').gt('boss_hp', 0);
+    if (!raids || raids.length === 0) return;
+
+    const eligible = bots.filter(b => b.level >= 8);
+    if (eligible.length === 0) return;
+
+    for (const raid of raids) {
+      if (Math.random() > 0.4) continue; // 40% chance per raid per tick
+      const attackers = eligible.sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 4));
+      let totalDmg = 0;
+      const participants = raid.participants || {};
+
+      for (const bot of attackers) {
+        const dmg = 3 + Math.floor(Math.random() * 12) + Math.floor(bot.level / 3);
+        totalDmg += dmg;
+        participants[bot.id] = (participants[bot.id] || 0) + dmg;
+      }
+
+      const newHp = Math.max(0, raid.boss_hp - totalDmg);
+      await supabase.from('world_raids').update({
+        boss_hp: newHp,
+        participants,
+        total_participants: Object.keys(participants).length,
+        ...(newHp <= 0 ? { status: 'completed', completed_at: new Date().toISOString() } : {}),
+      }).eq('id', raid.id);
+
+      if (newHp <= 0) {
+        await supabase.from('news_events').insert({
+          text: `🏆 World Raid "${raid.title}" is verslagen! ${Object.keys(participants).length} spelers droegen bij!`,
+          icon: '🏆', urgency: 'high', category: 'world',
+          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+    }
+  } catch (e) { console.error('Bot world raids error:', e); }
+}
+
+// ========== BOT SMUGGLE ROUTES ==========
+async function simulateBotSmuggleRoutes(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.15) return; // Low frequency
+
+    const gangBots = bots.filter(b => b.gang_id && b.level >= 10);
+    if (gangBots.length === 0) return;
+
+    // Check existing bot routes
+    const { count } = await supabase.from('smuggle_routes')
+      .select('id', { count: 'exact', head: true })
+      .in('created_by', bots.map((b: any) => b.id))
+      .eq('status', 'active');
+    if ((count || 0) >= 3) return;
+
+    const bot = pick(gangBots);
+    const from = bot.loc;
+    const to = pick(DISTRICTS.filter(d => d !== from));
+    const goodId = pick(GOODS_IDS);
+
+    await supabase.from('smuggle_routes').insert({
+      from_district: from,
+      to_district: to,
+      good_id: goodId,
+      gang_id: bot.gang_id,
+      created_by: bot.id,
+      profit_multiplier: 1.2 + Math.random() * 0.8,
+      risk_level: 1 + Math.floor(Math.random() * 4),
+      capacity: 20 + Math.floor(Math.random() * 80),
+      expires_at: new Date(Date.now() + (6 + Math.random() * 18) * 60 * 60 * 1000).toISOString(),
+    });
+
+    await supabase.from('news_events').insert({
+      text: `Nieuwe smokkelroute ontdekt van ${DISTRICT_NAMES[from]} naar ${DISTRICT_NAMES[to]}!`,
+      icon: '🚢', urgency: 'low', category: 'market',
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+  } catch (e) { console.error('Bot smuggle routes error:', e); }
+}
+
+// ========== BOT AUCTION BIDDING ==========
+async function simulateBotAuctions(supabase: any, bots: any[]) {
+  try {
+    const { data: auctions } = await supabase.from('live_auctions')
+      .select('*').eq('status', 'active').gt('ends_at', new Date().toISOString());
+    if (!auctions || auctions.length === 0) return;
+
+    const richBots = bots.filter(b => b.cash > 5000);
+    if (richBots.length === 0) return;
+
+    for (const auction of auctions) {
+      if (Math.random() > 0.25) continue; // 25% chance to bid per auction
+      // Don't bid on own auctions
+      const eligible = richBots.filter(b => b.id !== auction.seller_id && b.id !== auction.current_bidder_id && b.cash > auction.current_bid + auction.min_increment);
+      if (eligible.length === 0) continue;
+
+      const bot = pick(eligible);
+      const bidAmount = auction.current_bid + auction.min_increment + Math.floor(Math.random() * auction.min_increment * 2);
+      if (bidAmount > bot.cash) continue;
+
+      await supabase.from('auction_bids').insert({
+        auction_id: auction.id,
+        bidder_id: bot.id,
+        bidder_name: bot.username,
+        amount: bidAmount,
+      });
+      await supabase.from('live_auctions').update({
+        current_bid: bidAmount,
+        current_bidder_id: bot.id,
+        current_bidder_name: bot.username,
+        bid_count: auction.bid_count + 1,
+      }).eq('id', auction.id);
+      await supabase.from('bot_players').update({ cash: bot.cash - bidAmount }).eq('id', bot.id);
+      bot.cash -= bidAmount; // Update in-memory too
+    }
+  } catch (e) { console.error('Bot auction bidding error:', e); }
+}
+
+// ========== BOT GANG ALLIANCES ==========
+async function simulateBotGangAlliances(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.1) return; // Very low frequency
+
+    const gangBots = bots.filter(b => b.gang_id);
+    if (gangBots.length === 0) return;
+
+    // Get unique gang IDs from bots
+    const botGangIds = [...new Set(gangBots.map(b => b.gang_id))];
+    if (botGangIds.length < 2) return;
+
+    // Check existing alliances
+    const { count } = await supabase.from('gang_alliances')
+      .select('id', { count: 'exact', head: true })
+      .or(botGangIds.map(id => `gang_a_id.eq.${id},gang_b_id.eq.${id}`).join(','))
+      .eq('status', 'active');
+    if ((count || 0) >= 2) return;
+
+    // Also consider alliances with player gangs
+    const { data: allGangs } = await supabase.from('gangs').select('id').limit(20);
+    if (!allGangs || allGangs.length < 2) return;
+
+    const gangA = pick(botGangIds);
+    const otherGangs = (allGangs || []).map(g => g.id).filter(id => id !== gangA);
+    if (otherGangs.length === 0) return;
+    const gangB = pick(otherGangs);
+
+    // Check if alliance already exists
+    const { data: existing } = await supabase.from('gang_alliances')
+      .select('id')
+      .or(`and(gang_a_id.eq.${gangA},gang_b_id.eq.${gangB}),and(gang_a_id.eq.${gangB},gang_b_id.eq.${gangA})`)
+      .limit(1);
+    if (existing && existing.length > 0) return;
+
+    const proposer = gangBots.find(b => b.gang_id === gangA) || gangBots[0];
+    await supabase.from('gang_alliances').insert({
+      gang_a_id: gangA,
+      gang_b_id: gangB,
+      proposed_by: proposer.id,
+      status: 'active',
+      accepted_at: new Date().toISOString(),
+    });
+  } catch (e) { console.error('Bot gang alliances error:', e); }
+}
+
+// ========== BOT GANG WARS ==========
+async function simulateBotGangWars(supabase: any, bots: any[]) {
+  try {
+    // Bots participate in existing wars
+    const { data: wars } = await supabase.from('gang_wars')
+      .select('*').eq('status', 'active');
+    if (!wars || wars.length === 0) return;
+
+    const gangBots = bots.filter(b => b.gang_id && b.level >= 8);
+    if (gangBots.length === 0) return;
+
+    for (const war of wars) {
+      if (Math.random() > 0.35) continue;
+
+      // Find bots in either gang
+      const attackerBots = gangBots.filter(b => b.gang_id === war.attacker_gang_id);
+      const defenderBots = gangBots.filter(b => b.gang_id === war.defender_gang_id);
+
+      if (attackerBots.length > 0 && Math.random() < 0.5) {
+        const scoreGain = 1 + Math.floor(Math.random() * 3);
+        await supabase.from('gang_wars').update({
+          attacker_score: war.attacker_score + scoreGain,
+          attacker_chain: Math.min(10, war.attacker_chain + 1),
+          attacker_last_hit_at: new Date().toISOString(),
+        }).eq('id', war.id);
+      }
+      if (defenderBots.length > 0 && Math.random() < 0.5) {
+        const scoreGain = 1 + Math.floor(Math.random() * 3);
+        await supabase.from('gang_wars').update({
+          defender_score: war.defender_score + scoreGain,
+          defender_chain: Math.min(10, war.defender_chain + 1),
+          defender_last_hit_at: new Date().toISOString(),
+        }).eq('id', war.id);
+      }
+    }
+
+    // Occasionally start a new war (very rare)
+    if (Math.random() > 0.05) return;
+    const botGangIds = [...new Set(gangBots.map(b => b.gang_id))];
+    if (botGangIds.length < 2) return;
+
+    // Check if any bot gang is already in an active war
+    const { data: activeWars } = await supabase.from('gang_wars')
+      .select('attacker_gang_id, defender_gang_id').eq('status', 'active');
+    const warringGangs = new Set<string>();
+    for (const w of (activeWars || [])) { warringGangs.add(w.attacker_gang_id); warringGangs.add(w.defender_gang_id); }
+    const availableGangs = botGangIds.filter(id => !warringGangs.has(id));
+    if (availableGangs.length < 2) return;
+
+    const attacker = availableGangs[0];
+    // Try to find a player gang to attack (more interesting)
+    const { data: playerGangs } = await supabase.from('gangs').select('id')
+      .not('id', 'in', `(${botGangIds.join(',')})`)
+      .limit(5);
+    const defender = playerGangs && playerGangs.length > 0 ? pick(playerGangs).id : availableGangs[1];
+
+    await supabase.from('gang_wars').insert({
+      attacker_gang_id: attacker,
+      defender_gang_id: defender,
+      district_id: pick(DISTRICTS),
+    });
+    // News
+    const { data: gA } = await supabase.from('gangs').select('name, tag').eq('id', attacker).single();
+    const { data: gD } = await supabase.from('gangs').select('name, tag').eq('id', defender).single();
+    if (gA && gD) {
+      await supabase.from('news_events').insert({
+        text: `⚔️ GANG WAR! [${gA.tag}] ${gA.name} verklaart de oorlog aan [${gD.tag}] ${gD.name}!`,
+        icon: '⚔️', urgency: 'high', category: 'player',
+        expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+      });
+    }
+  } catch (e) { console.error('Bot gang wars error:', e); }
+}
+
+// ========== BOT PVP ATTACKS ==========
+async function simulateBotPvP(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.15) return; // ~15% chance per tick
+
+    const strongBots = bots.filter(b => b.level >= 12 && b.hp > 50);
+    if (strongBots.length === 0) return;
+
+    // Get real players in the same district
+    const bot = pick(strongBots);
+    const { data: targets } = await supabase.from('player_state')
+      .select('user_id, level, hp, loc, money')
+      .eq('loc', bot.loc)
+      .eq('game_over', false)
+      .is('prison_until', null)
+      .is('hospital_until', null)
+      .gt('hp', 30)
+      .limit(5);
+
+    if (!targets || targets.length === 0) return;
+
+    // Pick a target near same level
+    const target = pick(targets);
+
+    // Create rivalry record
+    await supabase.from('player_rivalries').upsert({
+      player_id: bot.id,
+      rival_id: target.user_id,
+      rivalry_score: 1 + Math.floor(Math.random() * 5),
+      source: 'bot_attack',
+      last_interaction: new Date().toISOString(),
+    }, { onConflict: 'player_id,rival_id' });
+
+    // Activity feed
+    const { data: targetProfile } = await supabase.from('profiles')
+      .select('username').eq('id', target.user_id).maybeSingle();
+    const targetName = targetProfile?.username || 'een speler';
+
+    await supabase.from('activity_feed').insert({
+      user_id: bot.id,
+      username: bot.username,
+      action_type: 'attack',
+      description: `heeft ${targetName} aangevallen in ${DISTRICT_NAMES[bot.loc]}!`,
+      icon: '⚔️',
+      district_id: bot.loc,
+      target_name: targetName,
+    });
+  } catch (e) { console.error('Bot PvP error:', e); }
+}
+
+// ========== BOT MESSAGES ==========
+const BOT_MESSAGE_TEMPLATES = [
+  { subject: 'Waarschuwing', body: 'Ik heb gehoord dat er een razzia op komst is. Pas op in de haven.' },
+  { subject: 'Zakelijk voorstel', body: 'Ik heb een partij goederen beschikbaar. Interesse? Laat het me weten.' },
+  { subject: 'Bondgenootschap?', body: 'We zouden samen kunnen werken. Mijn gang zoekt nog sterke spelers.' },
+  { subject: 'Territorium', body: 'Blijf uit mijn district. Dit is een waarschuwing.' },
+  { subject: 'Tip', body: 'Er is een smokkelroute geopend naar Crown Heights. Goed moment om te investeren.' },
+  { subject: 'Bedankt', body: 'GG voor die trade eerder. Laten we weer zaken doen.' },
+  { subject: 'Oorlog', body: 'Onze gang overweegt een aanval. Kies de juiste kant.' },
+];
+
+async function simulateBotMessages(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.1) return; // ~10% per tick
+
+    const { data: players } = await supabase.from('player_state')
+      .select('user_id').eq('game_over', false).limit(10);
+    if (!players || players.length === 0) return;
+
+    // Don't send to other bots
+    const botIds = new Set(bots.map(b => b.id));
+    const realPlayers = players.filter(p => !botIds.has(p.user_id));
+    if (realPlayers.length === 0) return;
+
+    const bot = pick(bots.filter(b => b.level >= 5));
+    if (!bot) return;
+    const target = pick(realPlayers);
+    const template = pick(BOT_MESSAGE_TEMPLATES);
+
+    await supabase.from('player_messages').insert({
+      sender_id: bot.id,
+      receiver_id: target.user_id,
+      subject: template.subject,
+      body: `${template.body}\n\n- ${bot.username}`,
+    });
+  } catch (e) { console.error('Bot messages error:', e); }
+}
+
+// ========== BOT DISTRICT EVENT CLAIMS ==========
+async function simulateBotDistrictEvents(supabase: any, bots: any[]) {
+  try {
+    const { data: events } = await supabase.from('district_events')
+      .select('*')
+      .eq('source_type', 'system')
+      .is('claimed_by', null)
+      .gt('expires_at', new Date().toISOString())
+      .limit(10);
+    if (!events || events.length === 0) return;
+
+    for (const event of events) {
+      if (Math.random() > 0.2) continue; // 20% chance per event
+      const botsInDistrict = bots.filter(b => b.loc === event.district_id);
+      if (botsInDistrict.length === 0) continue;
+
+      const bot = pick(botsInDistrict);
+      // Add bot as participant
+      const participants = event.participants || [];
+      if (participants.some((p: any) => p.id === bot.id)) continue;
+      participants.push({ id: bot.id, name: bot.username, action: 'joined' });
+
+      const shouldClaim = participants.length >= 3 && Math.random() < 0.3;
+      await supabase.from('district_events').update({
+        participants,
+        ...(shouldClaim ? { claimed_by: bot.id, claimed_at: new Date().toISOString() } : {}),
+      }).eq('id', event.id);
+    }
+  } catch (e) { console.error('Bot district events error:', e); }
+}
+
+// ========== BOT NPC MOOD CONTRIBUTIONS ==========
+async function simulateBotNpcMood(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.25) return;
+
+    const NPC_IDS = ['rosa', 'marco', 'yilmaz', 'luna', 'krow'];
+    const bot = pick(bots);
+    const npcId = pick(NPC_IDS);
+    const change = Math.random() > 0.6 ? 1 : -1; // Slight positive bias
+
+    // Upsert NPC mood
+    const { data: existing } = await supabase.from('npc_district_mood')
+      .select('*').eq('npc_id', npcId).eq('district_id', bot.loc).maybeSingle();
+
+    if (existing) {
+      const newScore = Math.max(-100, Math.min(100, existing.collective_score + change));
+      let status = 'neutral';
+      if (newScore >= 30) status = 'friendly';
+      else if (newScore >= 60) status = 'legendary';
+      else if (newScore <= -30) status = 'hostile';
+
+      await supabase.from('npc_district_mood').update({
+        collective_score: newScore,
+        interaction_count: existing.interaction_count + 1,
+        status,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id);
+    } else {
+      await supabase.from('npc_district_mood').insert({
+        npc_id: npcId,
+        district_id: bot.loc,
+        collective_score: change,
+        interaction_count: 1,
+        status: 'neutral',
+      });
+    }
+  } catch (e) { console.error('Bot NPC mood error:', e); }
+}
+
+// ========== BOT GANG CHAT ==========
+const BOT_GANG_CHAT_MESSAGES = [
+  'Wie is er online? Laten we een OC doen.',
+  'Ik ga naar Crown Heights, iemand mee?',
+  'We moeten ons territorium verdedigen, er zijn vijanden in de buurt.',
+  'Net een goede deal gesloten 💰',
+  'Pas op voor die nieuwe gang, ze worden sterker.',
+  'Wie heeft er ammo over? Ik ben bijna leeg.',
+  'Goed gevochten vandaag team! 💪',
+  'We moeten meer influence bijdragen in ons district.',
+  'Die faction boss is bijna down, laten we aanvallen.',
+  'Iemand interesse in een alliance met een andere gang?',
+];
+
+async function simulateBotGangChat(supabase: any, bots: any[]) {
+  try {
+    if (Math.random() > 0.3) return;
+
+    const gangBots = bots.filter(b => b.gang_id);
+    if (gangBots.length === 0) return;
+
+    const bot = pick(gangBots);
+    const message = pick(BOT_GANG_CHAT_MESSAGES);
+
+    await supabase.from('gang_chat').insert({
+      gang_id: bot.gang_id,
+      sender_id: bot.id,
+      sender_name: bot.username,
+      message,
+    });
+  } catch (e) { console.error('Bot gang chat error:', e); }
+}
+
 async function simulateBots(supabase: any, phase: string, worldDay: number) {
   try {
     const { data: bots } = await supabase
@@ -669,13 +1154,8 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
           break;
         }
         case 'chat':
-          // Handled separately in bulk
-          break;
         case 'market':
-          // Handled separately
-          break;
         case 'faction':
-          // Handled separately
           break;
         default:
           updates.hp = Math.min(bot.max_hp, bot.hp + Math.floor(Math.random() * 10) + 5);
@@ -721,7 +1201,7 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       await supabase.from('news_events').insert(newsToInsert);
     }
 
-    // ========== ADDITIONAL BOT ACTIVITIES (run in parallel) ==========
+    // ========== ALL BOT ACTIVITIES (run in parallel) ==========
     await Promise.all([
       simulateBotChat(supabase, bots, phase),
       simulateBotMarketListings(supabase, bots),
@@ -729,6 +1209,18 @@ async function simulateBots(supabase: any, phase: string, worldDay: number) {
       simulateBotBounties(supabase, bots),
       simulateBotGangActivity(supabase),
       syncBotsToLeaderboard(supabase, bots),
+      simulateBotOnlineStatus(supabase, bots),
+      simulateBotActivityFeed(supabase, bots),
+      simulateBotWorldRaids(supabase, bots),
+      simulateBotSmuggleRoutes(supabase, bots),
+      simulateBotAuctions(supabase, bots),
+      simulateBotGangAlliances(supabase, bots),
+      simulateBotGangWars(supabase, bots),
+      simulateBotPvP(supabase, bots),
+      simulateBotMessages(supabase, bots),
+      simulateBotDistrictEvents(supabase, bots),
+      simulateBotNpcMood(supabase, bots),
+      simulateBotGangChat(supabase, bots),
     ]);
   } catch (e) {
     console.error('Bot simulation error:', e);
