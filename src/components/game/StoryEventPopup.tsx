@@ -5,7 +5,7 @@ import { StatId } from '@/game/types';
 import { TypewriterText } from './animations/TypewriterText';
 import { GameButton } from './ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Brain, Star, Flame, AlertTriangle, Dices, Cpu } from 'lucide-react';
+import { Swords, Brain, Star, Flame, AlertTriangle, Dices, Cpu, Heart, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { playDramaticReveal } from '@/game/sounds';
 import streetEventBg from '@/assets/street-event-bg.jpg';
