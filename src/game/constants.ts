@@ -1887,6 +1887,9 @@ export function createInitialState(): import('./types').GameState {
     unlockedSkills: [],
     prestigeLevel: 0,
     xpStreak: 0,
+    // Merit Points
+    meritPoints: 0,
+    meritNodes: {},
     _pendingXpGains: [],
 // Prestige Reset & Hardcore Mode (always true — universal permadeath)
     hardcoreMode: true,

@@ -13,7 +13,7 @@ export type GameView =
   | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
-  | 'education' | 'gym' | 'jobs' | 'street_events'
+  | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin';
 
 // ========== VILLA TYPES ==========
@@ -1162,6 +1162,10 @@ export interface GameState {
   unlockedSkills: { skillId: string; level: number }[];
   prestigeLevel: number;
   xpStreak: number; // consecutive actions without hospitalization
+
+  // ========== MERIT POINTS STATE ==========
+  meritPoints: number; // unspent merit points
+  meritNodes: Record<string, number>; // nodeId -> invested level
 
   // ========== PRESTIGE RESET & HARDCORE MODE ==========
   hardcoreMode: boolean;
