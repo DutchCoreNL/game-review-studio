@@ -1,10 +1,20 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, Unlock, Trophy, Moon } from 'lucide-react';
 
 export interface XpBonus {
   key: string;
   label: string;
   value: number;
+}
+
+interface MilestoneReward {
+  level: number;
+  title: string;
+  titleIcon: string;
+  cash: number;
+  rep: number;
+  sp_bonus: number;
+  desc: string;
 }
 
 interface XpBreakdownPopupProps {
@@ -15,11 +25,14 @@ interface XpBreakdownPopupProps {
   bonuses: XpBonus[];
   levelUps: number;
   newLevel: number;
+  milestoneRewards?: MilestoneReward[];
+  unlocks?: string[];
+  restedConsumed?: number;
   onClose: () => void;
 }
 
 export function XpBreakdownPopup({
-  show, baseAmount, totalXp, multiplier, bonuses, levelUps, newLevel, onClose,
+  show, baseAmount, totalXp, multiplier, bonuses, levelUps, newLevel, milestoneRewards, unlocks, restedConsumed, onClose,
 }: XpBreakdownPopupProps) {
   return (
     <AnimatePresence>
@@ -72,12 +85,25 @@ export function XpBreakdownPopup({
                     className="flex items-center justify-between text-[0.6rem]"
                   >
                     <span className="text-muted-foreground truncate">{b.label}</span>
-                    <span className={`font-bold ${b.value >= 0.5 ? 'text-gold' : 'text-emerald'}`}>
-                      +{Math.round(b.value * 100)}%
+                    <span className={`font-bold ${b.key === 'rested' ? 'text-ice' : b.value >= 0.5 ? 'text-gold' : 'text-emerald'}`}>
+                      {b.key === 'rested' ? `+${Math.round(b.value * 0.5)} XP` : `+${Math.round(b.value * 100)}%`}
                     </span>
                   </motion.div>
                 ))}
               </div>
+            )}
+
+            {/* Rested XP consumed */}
+            {restedConsumed && restedConsumed > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="px-3 pb-1 flex items-center gap-1 text-[0.6rem] text-ice/80"
+              >
+                <Moon size={10} />
+                <span>{restedConsumed} rested XP verbruikt</span>
+              </motion.div>
             )}
 
             {/* Level up */}
@@ -86,11 +112,57 @@ export function XpBreakdownPopup({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="px-3 py-1.5 bg-gold/10 border-t border-gold/20 text-center"
+                className="px-3 py-1.5 bg-gold/10 border-t border-gold/20"
               >
-                <span className="text-xs font-bold text-gold gold-text-glow">
-                  ⬆ LEVEL {newLevel}! +{levelUps * 2} SP
-                </span>
+                <div className="text-center">
+                  <span className="text-xs font-bold text-gold gold-text-glow">
+                    ⬆ LEVEL {newLevel}! +{levelUps * 2} SP +{levelUps} ⭐ Merit
+                  </span>
+                </div>
+
+                {/* Unlocks */}
+                {unlocks && unlocks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="mt-1 space-y-0.5"
+                  >
+                    <div className="flex items-center gap-1 text-[0.55rem] text-gold/70 uppercase font-semibold">
+                      <Unlock size={9} />
+                      <span>Nieuw ontgrendeld</span>
+                    </div>
+                    {unlocks.map((u, i) => (
+                      <div key={i} className="text-[0.6rem] text-gold/90 pl-3">
+                        🔓 {u}
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Milestone rewards */}
+                {milestoneRewards && milestoneRewards.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.55 }}
+                    className="mt-1.5 space-y-1"
+                  >
+                    {milestoneRewards.map((m) => (
+                      <div key={m.level} className="bg-gold/10 rounded px-2 py-1 border border-gold/20">
+                        <div className="flex items-center gap-1">
+                          <Trophy size={10} className="text-gold" />
+                          <span className="text-[0.65rem] font-bold text-gold">
+                            {m.titleIcon} {m.title}
+                          </span>
+                        </div>
+                        <div className="text-[0.55rem] text-muted-foreground mt-0.5">
+                          {m.desc} • +€{m.cash.toLocaleString()} • +{m.rep} rep • +{m.sp_bonus} SP
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </div>
