@@ -1,43 +1,72 @@
 
 
-## Plan: Straatgebeurtenissen Systeem Hervormen
+## Analyse: Huidig Level Systeem
 
-### Probleem
-Bij het opnieuw inloggen na een tijdje verschijnt er direct een straatgebeurtenis-popup omdat:
-1. Een `pendingStreetEvent` wordt bewaard in localStorage en verschijnt opnieuw
-2. De 10-minuten cooldown is verlopen tijdens offline-tijd, dus de eerste actie triggert meteen een nieuw event
-3. Elk event is een blokkerende fullscreen popup — er is geen manier om ze later te bekijken
+### Hoe het nu werkt
 
-### Oplossing: Event Queue + Dedicated Sectie
-
-In plaats van directe popups, worden straatgebeurtenissen verzameld in een **event queue** die de speler zelf kan openen. Dit past bij de MMO-setting waar je na het inloggen een overzicht krijgt van "wat er is gebeurd" in plaats van meteen geblokkeerd te worden.
-
-**1. Event Queue systeem**
-- Nieuw veld `streetEventQueue: StreetEvent[]` (max 5 events) in GameState
-- `rollStreetEvent` voegt events toe aan de queue in plaats van direct `pendingStreetEvent` te zetten
-- Speler kiest zelf wanneer een event te openen vanuit de queue
-- Bij inloggen: wis oude `pendingStreetEvent` (als die ouder is dan 30 min), stel cooldown in op "nu"
-
-**2. Straatgebeurtenissen-sectie in de navigatie**
-- Nieuwe `GameView: 'street_events'` + bijbehorende `StreetEventsView.tsx`
-- Toont lijst van actieve events met urgentie-indicator en district-tag
-- Badge op nav-item toont aantal openstaande events
-- Elk event kan worden "geopend" → dan verschijnt de bestaande StoryEventPopup
-
-**3. Cooldown na login**
-- Bij het laden van een save: zet `lastStreetEventAt` op `now()` zodat er een 10-min buffer is
-- Wis `pendingStreetEvent` bij laden als het event ouder is dan 30 minuten
-
-**4. Aanpassingen per bestand**
-
-| Bestand | Wijziging |
+| Aspect | Huidige implementatie |
 |---|---|
-| `src/game/types.ts` | Voeg `streetEventQueue` toe, voeg `'street_events'` toe aan `GameView` |
-| `src/game/constants.ts` | Initialiseer `streetEventQueue: []` in INITIAL_STATE |
-| `src/game/storyEvents.ts` | Geen wijziging in rollStreetEvent zelf |
-| `src/contexts/GameContext.tsx` | Queue-logica: events gaan naar queue i.p.v. direct popup; login-cooldown; nieuw `OPEN_QUEUED_EVENT` action |
-| `src/components/game/StreetEventsView.tsx` | **Nieuw**: lijst van queued events met open-knoppen |
-| `src/components/game/GameLayout.tsx` | Registreer `street_events` view |
-| `src/components/game/DesktopSidebar.tsx` | Nav-item met badge |
-| `src/components/game/GameNav.tsx` | Badge count voor queue |
+| **XP Curve** | `nextXp * 1.4` per level (exponentieel, maar de `xpForLevel` functie uit skillTree.ts met `1.15^level` wordt niet gebruikt in engine.ts) |
+| **Level cap** | 50 (prestige unlock) |
+| **SP per level** | Flat +2 per level-up |
+| **Merit per level** | +1 per level, +1 extra bij milestones (5,10,15,...) |
+| **HP per level** | +5 per level (via `80 + level*5 + muscle*3`) |
+| **Milestones** | Elke 5 levels: titel + cash + rep + bonus SP |
+| **XP Multipliers** | Prestige (+5%/lvl), Merit bonus, Week events, maar district/streak/gang/first-of-day bonussen uit `XP_MULTIPLIERS` config worden **niet** toegepast in `gainXp()` |
+| **Level gates** | Features unlocken bij 1,5,10,15,20,25,30,40,50 |
+| **Rested XP** | 25/uur offline, max 5000, +50% bonus — maar nergens geconsumeerd in `gainXp()` |
+
+### Gevonden problemen
+
+1. **Dubbele merit toekenning** — regel 1507-1508: `meritPoints` wordt twee keer opgeteld bij level-up (bug)
+2. **Twee XP curves** — `xpForLevel()` in skillTree.ts (1.15^level) vs `nextXp * 1.4` in engine.ts — inconsistent
+3. **Ongebruikte XP multipliers** — District bonus, streak bonus, gang bonus, first-of-day bonus staan geconfigureerd maar worden nooit toegepast
+4. **Rested XP nooit geconsumeerd** — Config bestaat maar `gainXp()` past het niet toe
+5. **Server-side XP queue dood** — `_pendingXpGains` wordt gevuld maar nergens verwerkt (geen edge function)
+6. **Flat SP beloning** — Altijd +2, geen variatie of keuze
+
+### Vergelijking met soortgelijke MMO's (Torn, CriminalCase, MobWars)
+
+| Feature | Torn/MobWars | Jouw game | Verbetering |
+|---|---|---|---|
+| **XP bronnen** | Diverse: crimes, gym, education, missions, wars | Beperkt: ops, contracts, trades, combat | Meer XP-bronnen met variërende hoeveelheden |
+| **Diminishing returns** | XP per actie schaalt mee maar vertraagt | Flat XP per actie-type | XP schalen met level |
+| **Daily bonuses** | Login streaks, daily challenges | Geconfigureerd maar niet actief | Activeren |
+| **Level perks** | Stat points + specifieke unlocks + titles | SP + merit + milestone titels | Goed, maar merit-bug fixen |
+| **Prestige/rebirth** | Meerdere reset-lagen met carry-over | 10 prestige levels | Solide opzet |
+
+### Verbeterplan
+
+**1. Fix dubbele merit bug** (1 regel)
+- Verwijder de dubbele `state.meritPoints +=` op regel 1508
+
+**2. Activeer ongebruikte XP multipliers in `gainXp()`**
+- District danger bonus (Neon +15%, Crown +20%)
+- Streak bonus (+2% per actie zonder dood, max +20%)
+- Gang bonus (+10%)
+- First action of the day (2x)
+- Mastermind skill bonus
+
+**3. Implementeer Rested XP consumptie**
+- Bij `gainXp()`: check `state.restedXP > 0`, geef +50% bonus, trek rested XP af
+- Toon indicator in UI wanneer rested XP actief is
+
+**4. Unificeer XP curve**
+- Gebruik één formule: `xpForLevel()` uit skillTree.ts overal
+- Initialiseer `nextXp` op basis van deze functie bij level-up
+
+**5. Schaal XP rewards mee met level (diminishing returns)**
+- Lage-level acties geven minder XP naarmate je groeit (zoals Torn)
+- Formule: `effectiveXP = baseXP * Math.max(0.3, 1 - (playerLevel - actionLevel) * 0.05)`
+
+**6. Level-up notificatie verbeteren**
+- Bij level-up: toon duidelijk wat je hebt geunlockt (via LEVEL_GATES), hoeveel SP/merit je hebt gekregen, en eventuele milestone rewards
+
+### Bestanden die wijzigen
+
+| Bestand | Wat |
+|---|---|
+| `src/game/engine.ts` | Fix merit bug, activeer alle XP multipliers, rested XP consumptie, unificeer XP curve, diminishing returns |
+| `src/game/skillTree.ts` | Geen wijziging (xpForLevel blijft de bron) |
+| `src/game/meritSystem.ts` | Geen wijziging |
 
