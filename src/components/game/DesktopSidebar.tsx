@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { GameView } from '@/game/types';
 import {
-  Map, Dices, Heart, Home, Building2, Wrench,
+  Map, Dices, Heart, Home, Building2, Wrench, Zap,
   Crosshair, FileText, Target, Skull, Swords, Award, Calendar,
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
@@ -35,6 +35,7 @@ const CATEGORIES: Category[] = [
       { id: 'safehouse', label: 'Safehouse', icon: Home },
       { id: 'villa', label: 'Villa', icon: Building2 },
       { id: 'chopshop', label: 'Chop Shop', icon: Wrench },
+      { id: 'street_events', label: 'Straat Events', icon: Zap },
     ],
   },
   {

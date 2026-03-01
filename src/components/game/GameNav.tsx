@@ -26,17 +26,19 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
     const b: Partial<Record<string, number>> = {};
     const opsCount = (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0);
     if (opsCount > 0) b.ops = opsCount;
+    const streetCount = (state.streetEventQueue?.length || 0);
+    if (streetCount > 0) b.city = (b.city || 0) + streetCount;
     const demandCount = state.districtDemands ? Object.values(state.districtDemands).filter(Boolean).length : 0;
     if (demandCount > 0) b.market = demandCount;
-    const cityCount = (state.pendingStreetEvent ? 1 : 0) + (state.nightReport ? 1 : 0);
+    const cityCount = (state.nightReport ? 1 : 0);
     if (cityCount > 0) b.city = cityCount;
     if (digest) b.menu = 1;
     return b;
-  }, [state.activeContracts, state.hitContracts, state.districtDemands, state.pendingStreetEvent, state.nightReport, digest]);
+  }, [state.activeContracts, state.hitContracts, state.districtDemands, state.streetEventQueue, state.nightReport, digest]);
 
   // Check if current view belongs to a nav group
   const isInGroup = (navId: string): boolean => {
-    if (navId === 'city') return ['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop'].includes(view);
+    if (navId === 'city') return ['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'street_events'].includes(view);
     if (navId === 'ops') return ['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(view);
     if (navId === 'market') return ['market', 'trade', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(view);
     if (navId === 'garage') return ['garage', 'business', 'districts', 'families', 'gang', 'war', 'corruption', 'empire'].includes(view);

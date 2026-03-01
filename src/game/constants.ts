@@ -1779,6 +1779,7 @@ export function createInitialState(): import('./types').GameState {
     // Story & animation state
     pendingStreetEvent: null,
     streetEventResult: null,
+    streetEventQueue: [],
     screenEffect: null,
     lastRewardAmount: 0,
     crewPersonalities: {},
