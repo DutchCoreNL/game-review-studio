@@ -36,6 +36,9 @@ interface XpBreakdownData {
   bonuses: { key: string; label: string; value: number }[];
   levelUps: number;
   newLevel: number;
+  milestoneRewards?: { level: number; title: string; titleIcon: string; cash: number; rep: number; sp_bonus: number; desc: string }[];
+  unlocks?: string[];
+  restedConsumed?: number;
 }
 
 interface GameContextType {
@@ -3245,6 +3248,17 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
           }});
           // Show XP breakdown popup with bonus details
           if (res.data.totalXp > 0) {
+            // Collect unlocks for all levels gained
+            const unlocks: string[] = [];
+            if (res.data.levelUps > 0) {
+              const { LEVEL_GATES } = await import('@/game/skillTree');
+              const oldLevel = res.data.newLevel - res.data.levelUps;
+              for (const gate of LEVEL_GATES) {
+                if (gate.level > oldLevel && gate.level <= res.data.newLevel) {
+                  unlocks.push(...gate.unlocks);
+                }
+              }
+            }
             setXpBreakdown({
               baseAmount: res.data.baseAmount,
               totalXp: res.data.xpGained ?? res.data.totalXp,
@@ -3252,12 +3266,16 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
               bonuses: res.data.bonuses || [],
               levelUps: res.data.levelUps,
               newLevel: res.data.newLevel,
+              milestoneRewards: res.data.milestoneRewards || [],
+              unlocks: unlocks.length > 0 ? unlocks : undefined,
+              restedConsumed: res.data.restedConsumed || 0,
             });
-            // Auto-dismiss after 4 seconds
-            setTimeout(() => setXpBreakdown(null), 4000);
+            // Auto-dismiss after longer if level-up (6s) or normal (4s)
+            setTimeout(() => setXpBreakdown(null), res.data.levelUps > 0 ? 6000 : 4000);
           }
           if (res.data.levelUps > 0) {
-            showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP | +${res.data.levelUps} ⭐ Merit`);
+            const milestoneMsg = (res.data.milestoneRewards || []).map((m: any) => `${m.titleIcon} ${m.title}`).join(', ');
+            showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP | +${res.data.levelUps} ⭐ Merit${milestoneMsg ? ` | ${milestoneMsg}` : ''}`);
           }
         }
       } catch {

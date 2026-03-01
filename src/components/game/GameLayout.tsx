@@ -291,6 +291,9 @@ export function GameLayout() {
               bonuses={xpBreakdown.bonuses}
               levelUps={xpBreakdown.levelUps}
               newLevel={xpBreakdown.newLevel}
+              milestoneRewards={xpBreakdown.milestoneRewards}
+              unlocks={xpBreakdown.unlocks}
+              restedConsumed={xpBreakdown.restedConsumed}
               onClose={clearXpBreakdown}
             />
           )}

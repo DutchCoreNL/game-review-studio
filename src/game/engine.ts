@@ -15,6 +15,7 @@ import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, ref
 import { updateStockPrices } from './stocks';
 import { getWeekEventXpMultiplier, isHeatFreezeActive } from './weekEvents';
 import { getMeritMultiplier, getMeritPointsForLevelUp } from './meritSystem';
+import { xpForLevel, LEVEL_GATES, getMilestone } from './skillTree';
 
 // localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
@@ -1483,28 +1484,26 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
 }
 
 export function gainXp(state: GameState, amount: number, source: string = 'action'): boolean {
-  // Apply week event XP multiplier (e.g. 2x XP Weekend)
+  // Queue raw amount for server-side processing (server applies ALL multipliers)
+  if (!state._pendingXpGains) state._pendingXpGains = [];
+  state._pendingXpGains.push({ amount, source });
+  
+  // Optimistic local preview — apply only basic multipliers for instant feedback
+  // Server will reconcile with full multiplier stack (district, streak, gang, rested, etc.)
   const weekMultiplier = getWeekEventXpMultiplier(state);
-  // Apply prestige XP bonus (+5% per prestige level)
   const prestigeMultiplier = 1 + ((state.prestigeLevel || 0) * 0.05);
-  // Apply merit XP bonus
   const meritXpMult = getMeritMultiplier(state, 'xp');
   const finalAmount = Math.floor(amount * weekMultiplier * prestigeMultiplier * meritXpMult);
 
-  // Queue XP for server-side processing (server applies multipliers, level-ups, SP)
-  if (!state._pendingXpGains) state._pendingXpGains = [];
-  state._pendingXpGains.push({ amount: finalAmount, source });
-  
-  // Optimistic local preview with week event multiplier applied
   state.player.xp += finalAmount;
   if (state.player.xp >= state.player.nextXp) {
     state.player.xp -= state.player.nextXp;
     state.player.level++;
-    state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
+    // Unified XP curve: use xpForLevel() instead of flat *1.4
+    state.player.nextXp = xpForLevel(state.player.level);
     state.player.skillPoints += 2;
-    // Award merit points on level-up
+    // Award merit points on level-up (fixed: was duplicated)
     const meritGain = getMeritPointsForLevelUp(state.player.level);
-    state.meritPoints = (state.meritPoints || 0) + meritGain;
     state.meritPoints = (state.meritPoints || 0) + meritGain;
     const oldMax = state.playerMaxHP;
     syncPlayerMaxHP(state);
