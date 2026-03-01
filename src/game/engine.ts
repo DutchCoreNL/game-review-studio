@@ -14,6 +14,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { getWeekEventXpMultiplier, isHeatFreezeActive } from './weekEvents';
+import { getMeritMultiplier, getMeritPointsForLevelUp } from './meritSystem';
 
 // localStorage is now a secondary offline cache — cloud save is primary
 const SAVE_KEY = 'noxhaven_save_v11';
@@ -1486,7 +1487,9 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
   const weekMultiplier = getWeekEventXpMultiplier(state);
   // Apply prestige XP bonus (+5% per prestige level)
   const prestigeMultiplier = 1 + ((state.prestigeLevel || 0) * 0.05);
-  const finalAmount = Math.floor(amount * weekMultiplier * prestigeMultiplier);
+  // Apply merit XP bonus
+  const meritXpMult = getMeritMultiplier(state, 'xp');
+  const finalAmount = Math.floor(amount * weekMultiplier * prestigeMultiplier * meritXpMult);
 
   // Queue XP for server-side processing (server applies multipliers, level-ups, SP)
   if (!state._pendingXpGains) state._pendingXpGains = [];
@@ -1499,6 +1502,10 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     state.player.level++;
     state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
     state.player.skillPoints += 2;
+    // Award merit points on level-up
+    const meritGain = getMeritPointsForLevelUp(state.player.level);
+    state.meritPoints = (state.meritPoints || 0) + meritGain;
+    state.meritPoints = (state.meritPoints || 0) + meritGain;
     const oldMax = state.playerMaxHP;
     syncPlayerMaxHP(state);
     const hpGain = state.playerMaxHP - oldMax;

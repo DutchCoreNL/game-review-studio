@@ -6,7 +6,7 @@ import {
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
-  Star, Shield, Trophy, Mail, Settings,
+  Star, Shield, Trophy, Mail, Settings, Sparkles,
   ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -86,6 +86,7 @@ const CATEGORIES: Category[] = [
     label: 'PROFIEL', icon: '👤',
     items: [
       { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
+      { id: 'merit', label: 'Merit Punten', icon: Sparkles },
       { id: 'gym', label: 'Gym', icon: Award },
       { id: 'jobs', label: 'Banen', icon: Star },
       { id: 'education', label: 'Educatie', icon: GraduationCap },
@@ -189,7 +190,12 @@ export function DesktopSidebar() {
                           />
                         )}
                         <Icon size={14} strokeWidth={isActive ? 2.5 : 1.5} />
-                        <span>{item.label}</span>
+                        <span className="flex-1">{item.label}</span>
+                        {item.id === 'merit' && (state.meritPoints || 0) > 0 && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold bg-yellow-500/20 text-yellow-400 rounded-full">
+                            {state.meritPoints}
+                          </span>
+                        )}
                       </button>
                     );
                   })}

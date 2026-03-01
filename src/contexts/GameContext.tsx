@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useServerSync } from '@/hooks/useServerSync';
 import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
+import { MERIT_NODES, canUnlockMeritNode } from '../game/meritSystem';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
@@ -247,7 +248,9 @@ type GameAction =
   // Property actions
   | { type: 'BUY_PROPERTY'; propertyId: string }
   // Skill Tree actions
-  | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number };
+  | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number }
+  // Merit Points actions
+  | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -341,6 +344,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Migrate: force hardcoreMode true (universal permadeath)
       loaded.hardcoreMode = true;
       if (loaded.prestigeResetCount === undefined) loaded.prestigeResetCount = 0;
+      // Migrate: merit points
+      if (loaded.meritPoints === undefined) loaded.meritPoints = 0;
+      if (!loaded.meritNodes) loaded.meritNodes = {};
       return loaded;
     }
 
@@ -2129,6 +2135,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'UPGRADE_MERIT_NODE': {
+      const { nodeId } = action.payload;
+      const nodeDef = MERIT_NODES.find((n) => n.id === nodeId);
+      if (!nodeDef) return s;
+      const check = canUnlockMeritNode(s, nodeDef);
+      if (!check.canUnlock) return s;
+      const currentLevel = (s.meritNodes || {})[nodeId] || 0;
+      s.meritPoints = (s.meritPoints || 0) - nodeDef.costPerLevel;
+      s.meritNodes = { ...(s.meritNodes || {}), [nodeId]: currentLevel + 1 };
+      return s;
+    }
 
 
     case 'BUY_HEIST_EQUIP': {
@@ -3240,7 +3257,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
             setTimeout(() => setXpBreakdown(null), 4000);
           }
           if (res.data.levelUps > 0) {
-            showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP`);
+            showToast(`⬆️ Level ${res.data.newLevel}! +${res.data.levelUps * 2} SP | +${res.data.levelUps} ⭐ Merit`);
           }
         }
       } catch {
