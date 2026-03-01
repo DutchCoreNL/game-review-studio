@@ -198,10 +198,10 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
           <div className="absolute -bottom-0.5 left-1 right-1">
             <Progress value={xpPct} className="h-[2px] bg-muted/30" />
           </div>
-          {state.player.skillPoints > 0 && (
+          {((state.player.statPoints || 0) + state.player.skillPoints) > 0 && (
             <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gold text-secondary-foreground rounded-full text-[0.35rem] font-bold flex items-center justify-center z-10">
-              +{state.player.skillPoints}
+              className={`absolute -top-1 -right-1 w-3.5 h-3.5 ${state.player.skillPoints > 0 ? 'bg-gold' : 'bg-emerald'} text-secondary-foreground rounded-full text-[0.35rem] font-bold flex items-center justify-center z-10`}>
+              +{(state.player.statPoints || 0) + state.player.skillPoints}
             </motion.span>
           )}
         </div>

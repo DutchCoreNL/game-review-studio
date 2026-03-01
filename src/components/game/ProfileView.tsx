@@ -78,6 +78,7 @@ export function ProfileView() {
               <AnimatedXPBar xp={state.player.xp} nextXp={state.player.nextXp} level={state.player.level} />
               <p className="text-[0.5rem] text-muted-foreground mt-0.5 text-right">
                 {state.player.xp}/{state.player.nextXp} XP
+                {(state.player.statPoints || 0) > 0 && <span className="text-emerald font-bold ml-1">({state.player.statPoints} StP)</span>}
                 {state.player.skillPoints > 0 && <span className="text-gold font-bold ml-1">({state.player.skillPoints} SP)</span>}
               </p>
             </div>
@@ -144,9 +145,9 @@ export function ProfileView() {
                   <div className="w-16 flex items-center gap-1.5 text-muted-foreground">{s.icon}<span>{s.label}</span></div>
                   <div className="flex-1"><StatBar value={total} max={15} color="gold" height="sm" animate={false} /></div>
                   <span className="font-bold w-10 text-right">{base}{bonus > 0 && <span className="text-gold">+{bonus}</span>}</span>
-                  {state.player.skillPoints > 0 && (
+                  {(state.player.statPoints || 0) > 0 && (
                     <button onClick={() => { dispatch({ type: 'UPGRADE_STAT', stat: s.id }); showToast(`${s.label} verhoogd!`); }}
-                      className="w-5 h-5 rounded bg-muted border border-gold text-gold text-xs flex items-center justify-center hover:bg-gold/10">+</button>
+                      className="w-5 h-5 rounded bg-muted border border-emerald text-emerald text-xs flex items-center justify-center hover:bg-emerald/10">+</button>
                   )}
                 </div>
               );

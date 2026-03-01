@@ -1501,7 +1501,13 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     state.player.level++;
     // Unified XP curve: use xpForLevel() instead of flat *1.4
     state.player.nextXp = xpForLevel(state.player.level);
-    state.player.skillPoints += 2;
+    // +1 Stat Point per level-up (for raw stats)
+    state.player.statPoints = (state.player.statPoints || 0) + 1;
+    // Skill Points only at milestones (every 5 levels)
+    if (state.player.level % 5 === 0) {
+      const milestoneBonus = Math.min(5, 2 + Math.floor(state.player.level / 10));
+      state.player.skillPoints += milestoneBonus;
+    }
     // Award merit points on level-up (fixed: was duplicated)
     const meritGain = getMeritPointsForLevelUp(state.player.level);
     state.meritPoints = (state.meritPoints || 0) + meritGain;

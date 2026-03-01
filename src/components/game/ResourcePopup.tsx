@@ -431,6 +431,9 @@ function LevelPanel() {
 
       <div className="text-center mb-4">
         <span className="text-3xl font-bold text-gold">Level {state.player.level}</span>
+        {(state.player.statPoints || 0) > 0 && (
+          <p className="text-xs text-emerald mt-1 font-bold">{state.player.statPoints} Stat Points beschikbaar!</p>
+        )}
         {state.player.skillPoints > 0 && (
           <p className="text-xs text-gold mt-1 font-bold">{state.player.skillPoints} Skill Points beschikbaar!</p>
         )}
@@ -475,13 +478,13 @@ function LevelPanel() {
                 {base}
                 {bonus > 0 && <span className="text-gold">+{bonus}</span>}
               </span>
-              {state.player.skillPoints > 0 && (
+              {(state.player.statPoints || 0) > 0 && (
                 <button
                   onClick={() => {
                     dispatch({ type: 'UPGRADE_STAT', stat: s.id });
                     showToast(`${s.label} verhoogd!`);
                   }}
-                  className="w-6 h-6 rounded bg-[hsl(var(--gold)/0.1)] border border-gold text-gold text-xs flex items-center justify-center hover:bg-[hsl(var(--gold)/0.2)] transition-colors"
+                  className="w-6 h-6 rounded bg-emerald/10 border border-emerald text-emerald text-xs flex items-center justify-center hover:bg-emerald/20 transition-colors"
                 >
                   +
                 </button>
@@ -492,7 +495,7 @@ function LevelPanel() {
       </div>
 
       <p className="text-[0.6rem] text-muted-foreground mt-4 italic">
-        Verdien XP door te handelen, missies te voltooien en districten te veroveren. Elke level-up geeft 2 skill points.
+        Elke level-up geeft +1 Stat Point voor eigenschappen. Elke 5 levels ontvang je Skill Points voor de skill tree.
       </p>
     </div>
   );
