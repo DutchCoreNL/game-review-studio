@@ -1,71 +1,43 @@
 
 
-## Ontbrekende Features vergeleken met Top Mafia MMOs
+## Plan: Straatgebeurtenissen Systeem Hervormen
 
-Na analyse van Torn City, MafiaMatrix, Made Man Mafia, MafiaMMO en vergelijkbare spellen, en vergelijking met wat Noxhaven al heeft, zijn dit de belangrijkste ontbrekende systemen:
+### Probleem
+Bij het opnieuw inloggen na een tijdje verschijnt er direct een straatgebeurtenis-popup omdat:
+1. Een `pendingStreetEvent` wordt bewaard in localStorage en verschijnt opnieuw
+2. De 10-minuten cooldown is verlopen tijdens offline-tijd, dus de eerste actie triggert meteen een nieuw event
+3. Elk event is een blokkerende fullscreen popup — er is geen manier om ze later te bekijken
 
-### Wat Noxhaven AL heeft (goed afgedekt):
-- Combat / PvP, Gangs, Bounties, Heists, Casino
-- Handelssysteem, Veilingen, Stocks, Smokkelroutes
-- Properties, Villa, Safehouses, Voertuigen/Racing
-- Educatie (cursussen), Gevangenis, Corruptie
-- Reissysteem (internationale bestemmingen)
-- Facties, NPC-relaties, Story Arcs
-- Drug Empire, Crafting, Chop Shop
+### Oplossing: Event Queue + Dedicated Sectie
 
----
+In plaats van directe popups, worden straatgebeurtenissen verzameld in een **event queue** die de speler zelf kan openen. Dit past bij de MMO-setting waar je na het inloggen een overzicht krijgt van "wat er is gebeurd" in plaats van meteen geblokkeerd te worden.
 
-### Wat ONTBREEKT (gerangschikt op impact):
+**1. Event Queue systeem**
+- Nieuw veld `streetEventQueue: StreetEvent[]` (max 5 events) in GameState
+- `rollStreetEvent` voegt events toe aan de queue in plaats van direct `pendingStreetEvent` te zetten
+- Speler kiest zelf wanneer een event te openen vanuit de queue
+- Bij inloggen: wis oude `pendingStreetEvent` (als die ouder is dan 30 min), stel cooldown in op "nu"
 
-**1. Gym / Stat Training Systeem**
-Elke mafia MMO heeft een gym waar je **energie spendeert om stats te trainen** (Strength, Defense, Speed, Dexterity). Dit is DE kern-gameplay-loop die spelers dagelijks terugbrengt. Noxhaven heeft stats (muscle, brains, charm) maar geen actief trainingssysteem — ze groeien alleen via level-ups.
+**2. Straatgebeurtenissen-sectie in de navigatie**
+- Nieuwe `GameView: 'street_events'` + bijbehorende `StreetEventsView.tsx`
+- Toont lijst van actieve events met urgentie-indicator en district-tag
+- Badge op nav-item toont aantal openstaande events
+- Elk event kan worden "geopend" → dan verschijnt de bestaande StoryEventPopup
 
-- Gym met energy-cost per training sessie
-- Stats groeien incrementeel (niet per level)
-- Verschillende gyms per district met stat-focus
-- Gym membership tiers (duurder = snellere groei)
+**3. Cooldown na login**
+- Bij het laden van een save: zet `lastStreetEventAt` op `now()` zodat er een 10-min buffer is
+- Wis `pendingStreetEvent` bij laden als het event ouder is dan 30 minuten
 
-**2. Banen / Job Systeem**
-In Torn/MafiaMatrix kies je een **legitieme baan** (barman, advocaat, arts) die passief geld en perks geeft. Dit ontbreekt volledig in Noxhaven.
+**4. Aanpassingen per bestand**
 
-- 8-10 banen met requirements (level, stats)
-- Dagelijks loon + unieke perks per baan
-- Baas-NPC relatie die groeit met werkdagen
-- Promoties na X dagen werken
-- Job-specifieke speciale acties (arts = heal anderen, advocaat = snellere bail)
-
-**3. Organized Crime (OC) Wachtlijst-systeem**
-Noxhaven heeft organized crimes maar de meeste mafia MMOs gebruiken een **sign-up + wachttijd** model: gang-leden melden zich aan voor een rol, na X uur wordt de OC automatisch uitgevoerd. Succes hangt af van de stats van deelnemers.
-
-**4. Speler Bazaar / Item Market**
-Een echte **speler-naar-speler marktplaats** waar je individuele items (gear, speciale munitie, drugs) kunt listen met een vraagprijs — niet alleen veilingen maar ook directe "koop nu" listings. Torn's "Item Market" is een van de meest gebruikte features.
-
-**5. Merit / Perk Punten Systeem**
-Bij level-up verdien je **merit-punten** die je investeert in permanente passieve bonussen (bijv. +5% gym gains, -10% reistijd, +1 crime per dag). Dit geeft elke speler een unieke build.
-
-**6. Referral / Recruiter Systeem**
-Spelers die nieuwe spelers uitnodigen krijgen bonussen wanneer hun "recruit" bepaalde milestones haalt. Essentieel voor MMO-groei.
-
-**7. Company / Bedrijf Werknemers**
-Naast je eigen dekmantelbedrijven: andere spelers kunnen **bij jouw bedrijf werken** voor salaris + bonussen. De eigenaar krijgt productie-output. Creëert een werkgever-werknemer dynamiek.
-
-**8. Revive / Medical Systeem (uitgebreider)**
-Het "bust" en "revive" systeem bestaat al deels, maar in Torn is **reviven** een hele profession — spelers specialiseren zich erin en verdienen er geld mee. Revive-contracten, revive-wachtlijsten, betaalde revive-diensten.
-
----
-
-### Aanbevolen Prioriteit
-
-| # | Feature | Impact | Complexiteit |
-|---|---------|--------|-------------|
-| 1 | **Gym / Stat Training** | Zeer hoog — dagelijkse terugkeer | Middel |
-| 2 | **Banen Systeem** | Hoog — passief inkomen + perks | Middel |
-| 3 | **Merit Punten** | Hoog — character build diversiteit | Laag |
-| 4 | **Speler Item Market** | Hoog — economie verdieping | Middel |
-| 5 | **Company Werknemers** | Middel — sociale binding | Hoog |
-| 6 | **OC Wachtlijst** | Middel — gang engagement | Laag |
-| 7 | **Referral Systeem** | Middel — groei | Laag |
-| 8 | **Revive Profession** | Laag — niche | Laag |
-
-Het **Gym-systeem** is veruit de belangrijkste ontbrekende feature — het is letterlijk de dagelijkse gameplay-loop van elke succesvolle mafia MMO.
+| Bestand | Wijziging |
+|---|---|
+| `src/game/types.ts` | Voeg `streetEventQueue` toe, voeg `'street_events'` toe aan `GameView` |
+| `src/game/constants.ts` | Initialiseer `streetEventQueue: []` in INITIAL_STATE |
+| `src/game/storyEvents.ts` | Geen wijziging in rollStreetEvent zelf |
+| `src/contexts/GameContext.tsx` | Queue-logica: events gaan naar queue i.p.v. direct popup; login-cooldown; nieuw `OPEN_QUEUED_EVENT` action |
+| `src/components/game/StreetEventsView.tsx` | **Nieuw**: lijst van queued events met open-knoppen |
+| `src/components/game/GameLayout.tsx` | Registreer `street_events` view |
+| `src/components/game/DesktopSidebar.tsx` | Nav-item met badge |
+| `src/components/game/GameNav.tsx` | Badge count voor queue |
 
