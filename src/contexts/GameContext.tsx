@@ -3113,7 +3113,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
 
   const [view, setView] = React.useState<GameView>('city');
   const [tradeMode, setTradeMode] = React.useState<TradeMode>('buy');
-  const [selectedDistrict, setSelectedDistrict] = React.useState<DistrictId | null>(state.loc);
+  const [selectedDistrict, setSelectedDistrict] = React.useState<DistrictId | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
   const [toastError, setToastError] = React.useState(false);
   const [xpBreakdown, setXpBreakdown] = React.useState<XpBreakdownData | null>(null);
