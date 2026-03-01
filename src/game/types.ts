@@ -694,6 +694,7 @@ export interface PlayerState {
   xp: number;
   nextXp: number;
   skillPoints: number;
+  statPoints: number;
   stats: Record<StatId, number>;
   loadout: Record<GearSlot, string | null>;
 }

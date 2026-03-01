@@ -712,9 +712,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'UPGRADE_STAT': {
-      if (s.player.skillPoints <= 0) return s;
+      const statPts = s.player.statPoints || 0;
+      if (statPts <= 0) return s;
       s.player.stats[action.stat]++;
-      s.player.skillPoints--;
+      s.player.statPoints = statPts - 1;
       // Sync max HP when muscle changes
       if (action.stat === 'muscle') {
         const oldMax = s.playerMaxHP;
