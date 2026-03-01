@@ -13,7 +13,7 @@ export type GameView =
   | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
-  | 'education' | 'gym' | 'jobs'
+  | 'education' | 'gym' | 'jobs' | 'street_events'
   | 'empire' | 'admin';
 
 // ========== VILLA TYPES ==========
@@ -990,6 +990,7 @@ export interface GameState {
   // ========== STORY & ANIMATION STATE ==========
   pendingStreetEvent: any | null;
   streetEventResult: StreetEventResult | null;
+  streetEventQueue: any[]; // queued street events (max 5)
   screenEffect: ScreenEffectType;
   lastRewardAmount: number;
   crewPersonalities: Record<number, PersonalityTrait>;

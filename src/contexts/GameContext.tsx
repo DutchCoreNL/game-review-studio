@@ -125,6 +125,8 @@ type GameAction =
   | { type: 'FREE_PLAY' }
   | { type: 'RESOLVE_STREET_EVENT'; choiceId: string; forceResult?: 'success' | 'partial' | 'fail' }
   | { type: 'DISMISS_STREET_EVENT' }
+  | { type: 'OPEN_QUEUED_EVENT'; index: number }
+  | { type: 'DISMISS_QUEUED_EVENT'; index: number }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'SET_WEEK_EVENT'; event: any }
   | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
@@ -446,8 +448,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Roll for street event
       const travelEvent = rollStreetEvent(s, 'travel');
       if (travelEvent) {
-        s.pendingStreetEvent = travelEvent;
-        s.streetEventResult = null;
+        s.streetEventQueue = [...(s.streetEventQueue || []), travelEvent].slice(-5);
         s.lastStreetEventAt = new Date().toISOString();
       }
       // Roll for car theft encounter (15% base chance, only if no street event)
@@ -551,7 +552,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Roll for street event
       const autoTickEvent = rollStreetEvent(s, 'end_turn');
-      if (autoTickEvent) { s.pendingStreetEvent = autoTickEvent; s.streetEventResult = null; s.lastStreetEventAt = new Date().toISOString(); }
+      if (autoTickEvent) { s.streetEventQueue = [...(s.streetEventQueue || []), autoTickEvent].slice(-5); s.lastStreetEventAt = new Date().toISOString(); }
 
       // Endgame events
       if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
@@ -885,8 +886,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       const soloEvent = rollStreetEvent(s, 'solo_op');
       if (soloEvent) {
-        s.pendingStreetEvent = soloEvent;
-        s.streetEventResult = null;
+        s.streetEventQueue = [...(s.streetEventQueue || []), soloEvent].slice(-5);
         s.lastStreetEventAt = new Date().toISOString();
       }
       if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
@@ -1481,6 +1481,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       s.pendingStreetEvent = null;
       s.streetEventResult = null;
+      return s;
+    }
+
+    case 'OPEN_QUEUED_EVENT': {
+      const queue = s.streetEventQueue || [];
+      const idx = action.index;
+      if (idx < 0 || idx >= queue.length) return s;
+      s.pendingStreetEvent = queue[idx];
+      s.streetEventResult = null;
+      s.streetEventQueue = queue.filter((_: any, i: number) => i !== idx);
+      return s;
+    }
+
+    case 'DISMISS_QUEUED_EVENT': {
+      const q = s.streetEventQueue || [];
+      s.streetEventQueue = q.filter((_: any, i: number) => i !== action.index);
       return s;
     }
 
@@ -2970,6 +2986,22 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       // Story & animation migrations
       if (saved.pendingStreetEvent === undefined) saved.pendingStreetEvent = null;
       if (saved.streetEventResult === undefined) saved.streetEventResult = null;
+      if (!saved.streetEventQueue) saved.streetEventQueue = [];
+      // Login cooldown: clear stale pending event & push to queue, reset cooldown
+      if (saved.pendingStreetEvent) {
+        const eventAge = saved.lastStreetEventAt ? Date.now() - new Date(saved.lastStreetEventAt).getTime() : Infinity;
+        if (eventAge > 30 * 60 * 1000) {
+          // Old event — discard
+          saved.pendingStreetEvent = null;
+          saved.streetEventResult = null;
+        } else {
+          // Move to queue
+          saved.streetEventQueue = [...saved.streetEventQueue, saved.pendingStreetEvent].slice(-5);
+          saved.pendingStreetEvent = null;
+          saved.streetEventResult = null;
+        }
+      }
+      saved.lastStreetEventAt = new Date().toISOString(); // prevent immediate new events
       if (saved.screenEffect === undefined) saved.screenEffect = null;
       if (saved.lastRewardAmount === undefined) saved.lastRewardAmount = 0;
       if (!saved.crewPersonalities) saved.crewPersonalities = {};
