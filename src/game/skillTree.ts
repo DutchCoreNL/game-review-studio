@@ -338,3 +338,34 @@ export function getSkillStatBonus(unlockedSkills: { skillId: string; level: numb
   }
   return total;
 }
+
+// ========== DEFENSIVE STACKING CAP ==========
+
+const DEFENSIVE_CAP = 40; // max total % for DR + Dodge + Lifesteal combined
+
+/**
+ * Get capped defensive passives. The raw total of damage_reduction + dodge_chance + lifesteal
+ * is capped at 40%, with each stat scaled proportionally if the cap is exceeded.
+ */
+export function getCappedDefensives(unlockedSkills: { skillId: string; level: number }[]): {
+  damage_reduction: number;
+  dodge_chance: number;
+  lifesteal: number;
+} {
+  const rawDR = getSkillPassive(unlockedSkills, 'damage_reduction');
+  const rawDodge = getSkillPassive(unlockedSkills, 'dodge_chance');
+  const rawLS = getSkillPassive(unlockedSkills, 'lifesteal');
+  const total = rawDR + rawDodge + rawLS;
+
+  if (total <= DEFENSIVE_CAP) {
+    return { damage_reduction: rawDR, dodge_chance: rawDodge, lifesteal: rawLS };
+  }
+
+  // Scale proportionally
+  const scale = DEFENSIVE_CAP / total;
+  return {
+    damage_reduction: Math.floor(rawDR * scale),
+    dodge_chance: Math.floor(rawDodge * scale),
+    lifesteal: Math.floor(rawLS * scale),
+  };
+}

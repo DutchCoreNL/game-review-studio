@@ -303,7 +303,7 @@ export function generateContracts(state: GameState): void {
         risk: Math.min(95, Math.floor(template.risk + (state.day / 2) + eliteRiskBonus)),
         heat: template.heat + (isElite ? 5 : 0),
         reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0)) * ngScale * eliteMult),
-        xp: Math.floor((35 + (state.day * 2)) * eliteMult)
+        xp: Math.floor((35 + (Math.max(state.day, state.player?.level || 1) * 2)) * eliteMult)
       });
       continue;
     }
@@ -321,7 +321,7 @@ export function generateContracts(state: GameState): void {
       risk: Math.min(95, Math.floor(template.risk + (state.day / 2) + eliteRiskBonus)),
       heat: template.heat + (isElite ? 5 : 0),
       reward: Math.floor(template.rewardBase * (1 + Math.min(state.day * 0.05, 3.0)) * ngScale * eliteMult),
-      xp: Math.floor((35 + (state.day * 2)) * eliteMult)
+      xp: Math.floor((35 + (Math.max(state.day, state.player?.level || 1) * 2)) * eliteMult)
     });
   }
 }
@@ -1503,10 +1503,10 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     state.player.nextXp = xpForLevel(state.player.level);
     // +1 Stat Point per level-up (for raw stats)
     state.player.statPoints = (state.player.statPoints || 0) + 1;
-    // Skill Points only at milestones (every 5 levels)
-    if (state.player.level % 5 === 0) {
-      const milestoneBonus = Math.min(5, 2 + Math.floor(state.player.level / 10));
-      state.player.skillPoints += milestoneBonus;
+    // Skill Points only at milestones (every 5 levels) — uses milestone config
+    const milestone = getMilestone(state.player.level);
+    if (milestone && milestone.sp_bonus > 0) {
+      state.player.skillPoints += milestone.sp_bonus;
     }
     // Award merit points on level-up (fixed: was duplicated)
     const meritGain = getMeritPointsForLevelUp(state.player.level);
@@ -1540,7 +1540,8 @@ export function performSoloOp(state: GameState, opId: string): { success: boolea
     state.rep += repGain;
     state.stats.totalEarned += scaledReward;
     state.stats.missionsCompleted++;
-    gainXp(state, 15);
+    const opXp = 15 + state.player.level * 2;
+    gainXp(state, opXp);
     return { success: true, message: `${op.name} geslaagd! +€${scaledReward.toLocaleString()} zwart geld.` };
   } else {
     splitHeat(state, Math.floor(op.heat * 1.5), 0.3);
