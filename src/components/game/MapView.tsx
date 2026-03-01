@@ -118,31 +118,6 @@ export function MapView() {
     <div className="relative">
       <HidingOverlay />
 
-      {/* Quick-open buttons */}
-      <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
-        {state.nightReport && (
-          <button
-            onClick={() => setShowNightReport(true)}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-blood/30 text-blood hover:bg-blood/10 transition-colors backdrop-blur-sm"
-            title="Nacht Rapport openen"
-          >
-            <FileText size={12} />
-            <span className="text-[0.5rem] font-bold uppercase tracking-wider">Rapport</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
-          </button>
-        )}
-        <button
-          onClick={handleOpenDigest}
-          className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors backdrop-blur-sm"
-          title="Dagelijks Digest openen"
-        >
-          <Moon size={12} />
-          <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
-          {digest && !digest.seen && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
-          )}
-        </button>
-      </div>
 
       {showNightReport && state.nightReport && (
         <NightReport onClose={() => setShowNightReport(false)} />
@@ -153,6 +128,33 @@ export function MapView() {
       )}
 
       <NewsTicker items={newsItems} onClickItem={setSelectedNews} />
+
+      {/* Quick-open buttons below news ticker */}
+      <div className="flex items-center gap-1.5 mb-3">
+        {state.nightReport && (
+          <button
+            onClick={() => setShowNightReport(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-blood/30 text-blood hover:bg-blood/10 transition-colors"
+            title="Nacht Rapport openen"
+          >
+            <FileText size={12} />
+            <span className="text-[0.5rem] font-bold uppercase tracking-wider">Rapport</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+          </button>
+        )}
+        <button
+          onClick={handleOpenDigest}
+          className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors"
+          title="Dagelijks Digest openen"
+        >
+          <Moon size={12} />
+          <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
+          {digest && !digest.seen && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
+          )}
+        </button>
+      </div>
+
       <BreakingNewsFlash item={breakingItem} onDone={clearBreaking} onRead={setSelectedNews} />
       <NewsDetailPopup item={selectedNews} onClose={() => setSelectedNews(null)} />
 
