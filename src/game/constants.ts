@@ -1895,6 +1895,12 @@ export function createInitialState(): import('./types').GameState {
 // Prestige Reset & Hardcore Mode (always true — universal permadeath)
     hardcoreMode: true,
     prestigeResetCount: 0,
+
+    // Combat Streak & Loot
+    combatStreak: 0,
+    lastCombatRating: null,
+    lastCombatLoot: null,
+    lastCombatStats: null,
   };
 }
 

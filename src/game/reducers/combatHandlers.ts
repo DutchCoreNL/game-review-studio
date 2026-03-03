@@ -1,4 +1,5 @@
 import { GameState, FamilyId, FactionActionType } from '../types';
+import { calculateCombatRating, rollCombatLoot, getStreakBonus, CombatStats } from '../combatLoot';
 import * as Engine from '../engine';
 import { COMBAT_SKILLS, isSkillOnCooldown, tickCooldowns, tickBuffs, hasActiveBuff, COMBO_THRESHOLD, COMBO_FINISHER_DAMAGE, COMBO_FINISHER_STUN_CHANCE, BUFF_DEFS, getAvailableSkills } from '../combatSkills';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../newFeatures';
@@ -215,13 +216,47 @@ export function handleCombatAction(s: GameState, combatAction: 'attack' | 'heavy
 
 export function handleEndCombat(s: GameState): void {
   if (s.activeCombat) {
-    if (s.activeCombat.won) {
-      s.playerHP = Math.max(1, s.activeCombat.playerHP);
+    const combat = s.activeCombat;
+    if (combat.won) {
+      s.playerHP = Math.max(1, combat.playerHP);
+
+      // Calculate combat stats & rating
+      const stats: CombatStats = {
+        damageDealt: combat.enemyMaxHP - combat.targetHP,
+        damageTaken: combat.playerMaxHP - combat.playerHP,
+        turnsUsed: combat.turn,
+        skillsUsed: Object.values(combat.skillCooldowns).filter(v => v > 0).length,
+        combosLanded: combat.comboCounter >= 0 ? Math.floor(combat.comboCounter / 3) : 0,
+        playerHPPercent: Math.round((combat.playerHP / combat.playerMaxHP) * 100),
+      };
+      const rating = calculateCombatRating(stats);
+      s.combatStreak = (s.combatStreak || 0) + 1;
+      const streakBonus = getStreakBonus(s.combatStreak);
+      const loot = rollCombatLoot(
+        s.player.level,
+        rating,
+        streakBonus,
+        !!combat.isBoss
+      );
+
+      // Apply loot
+      s.money += loot.totalMoney;
+      s.stats.totalEarned += loot.totalMoney;
+      s.ammo = Math.min(500, (s.ammo || 0) + loot.totalAmmo);
+
+      // Store for UI
+      s.lastCombatRating = rating;
+      s.lastCombatLoot = loot;
+      s.lastCombatStats = stats;
     } else {
       // Universal permadeath: death = game over
       s.gameOver = true;
       s.playerHP = 0;
       s.hospitalizations = (s.hospitalizations || 0) + 1;
+      s.combatStreak = 0; // Reset streak on loss
+      s.lastCombatRating = null;
+      s.lastCombatLoot = null;
+      s.lastCombatStats = null;
     }
     if (s.activeCombat?.isNemesis && !s.activeCombat.won && s.nemesis?.alive) {
       s.nemesis.hp = s.activeCombat.targetHP;

@@ -1172,6 +1172,12 @@ export interface GameState {
   hardcoreMode: boolean;
   prestigeResetCount: number; // voluntary resets (separate from NG+)
 
+  // ========== COMBAT STREAK & LOOT STATE ==========
+  combatStreak: number; // consecutive wins
+  lastCombatRating: import('../game/combatLoot').CombatRating | null;
+  lastCombatLoot: import('../game/combatLoot').CombatLootResult | null;
+  lastCombatStats: import('../game/combatLoot').CombatStats | null;
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
