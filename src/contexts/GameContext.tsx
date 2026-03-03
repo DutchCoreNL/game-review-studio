@@ -29,6 +29,18 @@ import { generateDailyNews } from '../game/newsGenerator';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
 
+export interface CatchUpReportData {
+  ticksProcessed: number;
+  minutesAway: number;
+  daysAdvanced: number;
+  energyRestored: number;
+  nerveRestored: number;
+  moneyEarned: number;
+  heatDecayed: number;
+  xpGained: number;
+  levelUps: number;
+}
+
 interface XpBreakdownData {
   baseAmount: number;
   totalXp: number;
@@ -243,6 +255,7 @@ type GameAction =
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
   | { type: 'AUTO_TICK'; isCatchUp?: boolean }
+  | { type: 'SET_CATCH_UP_REPORT'; report: CatchUpReportData | null }
   | { type: 'RESET' }
   // PvP Turn-Based Combat
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
@@ -687,6 +700,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DISMISS_NIGHT_REPORT': {
       s.nightReport = null;
+      return s;
+    }
+
+    case 'SET_CATCH_UP_REPORT': {
+      (s as any).catchUpReport = action.report;
       return s;
     }
 
@@ -3203,11 +3221,40 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       const ticksPassed = Math.floor((now - lastTick) / interval);
       
       if (ticksPassed > 0 && !state.gameOver && !state.victoryData) {
-        // Process up to 5 ticks at once (to catch up after being away, but not too many)
         const ticksToProcess = Math.min(ticksPassed, 5);
         const isCatchUp = ticksPassed > 1;
+        
+        // Snapshot key values before catch-up for the report
+        const preDay = state.day;
+        const preMoney = state.money;
+        const preEnergy = state.energy;
+        const preNerve = state.nerve;
+        const preHeat = state.heat;
+        const preXp = state.player?.xp || 0;
+        const preLevel = state.player?.level || 1;
+        
         for (let i = 0; i < ticksToProcess; i++) {
           dispatch({ type: 'AUTO_TICK', isCatchUp });
+        }
+        
+        // Show catch-up report if multiple ticks were processed
+        if (isCatchUp) {
+          const minutesAway = Math.round((ticksPassed * (state.tickIntervalMinutes || 30)));
+          // We dispatch the report with pre-snapshot; the component will compute deltas from current state
+          dispatch({
+            type: 'SET_CATCH_UP_REPORT',
+            report: {
+              ticksProcessed: ticksToProcess,
+              minutesAway,
+              daysAdvanced: ticksToProcess,
+              energyRestored: Math.max(0, (state.maxEnergy || 100) - preEnergy),
+              nerveRestored: Math.max(0, (state.maxNerve || 50) - preNerve),
+              moneyEarned: 0, // will be computed after state updates
+              heatDecayed: Math.max(0, preHeat - (state.heat || 0)),
+              xpGained: 0,
+              levelUps: 0,
+            }
+          });
         }
       }
     };
