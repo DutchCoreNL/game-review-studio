@@ -127,6 +127,16 @@ export function getPlayerStat(state: GameState, stat: StatId): number {
   });
   const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
   if (activeV && stat === 'charm') base += activeV.charm;
+  // Procedural weapon bonus (replaces legacy weapon if equipped)
+  if (stat === 'muscle' && state.weaponInventory) {
+    const equippedWeapon = state.weaponInventory.find(w => w.equipped);
+    if (equippedWeapon) {
+      // If no legacy weapon equipped, add weapon damage as muscle
+      if (!loadout.weapon) {
+        base += Math.floor(equippedWeapon.damage * 0.6);
+      }
+    }
+  }
   return base;
 }
 

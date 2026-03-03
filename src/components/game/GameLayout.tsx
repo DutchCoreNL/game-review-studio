@@ -106,6 +106,7 @@ const OCViewLazy = React.lazy(() => import('./OrganizedCrimesView').then(m => ({
 const StreetEventsViewLazy = React.lazy(() => import('./StreetEventsView').then(m => ({ default: m.StreetEventsView })));
 const MeritPointsViewLazy = React.lazy(() => import('./MeritPointsView').then(m => ({ default: m.MeritPointsView })));
 const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m.WarView })));
+const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -164,6 +165,7 @@ const views: Record<string, React.ComponentType> = {
   'organized-crimes': OCViewLazy,
   'street_events': StreetEventsViewLazy,
   merit: MeritPointsViewLazy,
+  weapons: WeaponInventoryLazy,
   // Admin
   admin: AdminPanelView,
 };

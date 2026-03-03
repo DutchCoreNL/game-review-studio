@@ -1901,6 +1901,9 @@ export function createInitialState(): import('./types').GameState {
     lastCombatRating: null,
     lastCombatLoot: null,
     lastCombatStats: null,
+
+    // Procedural Weapon Inventory
+    weaponInventory: [],
   };
 }
 

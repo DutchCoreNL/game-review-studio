@@ -1,5 +1,7 @@
 // ========== COMBAT LOOT SYSTEM ==========
 
+import { generateWeapon } from './weaponGenerator';
+
 export type LootRarity = 'common' | 'uncommon' | 'rare' | 'epic';
 
 export interface LootItem {
@@ -18,6 +20,7 @@ export interface CombatLootResult {
   streakBonus: number; // multiplier, e.g. 1.1 for 10% bonus
   totalMoney: number;
   totalAmmo: number;
+  droppedWeapon: import('./weaponGenerator').GeneratedWeapon | null;
 }
 
 export type CombatRating = 'S' | 'A' | 'B' | 'C' | 'D';
@@ -161,11 +164,29 @@ export function rollCombatLoot(
     items.push({ ...pick, id: 'gear_' + Date.now() });
   }
 
+  // Procedural weapon drop
+  const weaponChance = isBoss ? 0.6 : rating === 'S' ? 0.35 : rating === 'A' ? 0.2 : rating === 'B' ? 0.12 : 0.05;
+  let droppedWeapon: import('./weaponGenerator').GeneratedWeapon | null = null;
+  if (Math.random() < weaponChance) {
+    const lootRarity: LootRarity = rating === 'S' ? 'epic' : rating === 'A' ? 'rare' : rating === 'B' ? 'uncommon' : 'common';
+    droppedWeapon = generateWeapon(enemyLevel, undefined, lootRarity);
+    items.push({
+      id: 'wpn_drop_' + Date.now(),
+      name: droppedWeapon.name,
+      icon: '🗡️',
+      rarity: (droppedWeapon.rarity === 'legendary' ? 'epic' : droppedWeapon.rarity) as LootRarity,
+      type: 'gear',
+      value: droppedWeapon.sellValue,
+      desc: `${droppedWeapon.damage} DMG | ${droppedWeapon.accuracy} ACC`,
+    });
+  }
+
   return {
     items,
     rating,
     streakBonus,
     totalMoney: money,
     totalAmmo: items.filter(i => i.type === 'ammo').reduce((s, i) => s + i.value, 0),
+    droppedWeapon,
   };
 }

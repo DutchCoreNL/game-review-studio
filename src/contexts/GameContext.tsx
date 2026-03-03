@@ -268,7 +268,11 @@ type GameAction =
   // Skill Tree actions
   | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number }
   // Merit Points actions
-  | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } };
+  | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
+  // Weapon inventory actions
+  | { type: 'EQUIP_WEAPON'; weaponId: string }
+  | { type: 'SELL_WEAPON'; weaponId: string }
+  | { type: 'ADD_WEAPON'; weapon: import('../game/weaponGenerator').GeneratedWeapon };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -2173,6 +2177,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== WEAPON INVENTORY ACTIONS ==========
+    case 'EQUIP_WEAPON': {
+      if (!s.weaponInventory) return s;
+      s.weaponInventory = s.weaponInventory.map(w => ({ ...w, equipped: w.id === action.weaponId }));
+      s.player.loadout.weapon = null;
+      return s;
+    }
+
+    case 'SELL_WEAPON': {
+      if (!s.weaponInventory) return s;
+      const wpnToSell = s.weaponInventory.find(w => w.id === action.weaponId);
+      if (!wpnToSell || wpnToSell.equipped) return s;
+      s.money += wpnToSell.sellValue;
+      s.stats.totalEarned += wpnToSell.sellValue;
+      s.weaponInventory = s.weaponInventory.filter(w => w.id !== action.weaponId);
+      return s;
+    }
+
+    case 'ADD_WEAPON': {
+      if (!s.weaponInventory) s.weaponInventory = [];
+      if (s.weaponInventory.length >= 20) return s;
+      s.weaponInventory.push(action.weapon);
+      return s;
+    }
 
     case 'BUY_HEIST_EQUIP': {
       if (!s.heistPlan) return s;
