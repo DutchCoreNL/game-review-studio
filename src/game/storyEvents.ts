@@ -1115,11 +1115,17 @@ function matchesAdvancedFilters(event: StreetEvent, state: GameState): boolean {
 
 export function rollStreetEvent(
   state: GameState,
-  trigger: 'travel' | 'end_turn' | 'solo_op'
+  trigger: 'travel' | 'end_turn' | 'solo_op',
+  options?: { skipEvents?: boolean }
 ): StreetEvent | null {
+  if (options?.skipEvents) return null;
   if (state.pendingStreetEvent) return null;
   if (state.day < 3) return null;
   if (state.prison || state.hospital || state.hidingDays > 0) return null;
+
+  // Session grace period: no events in the first 2 minutes after session start
+  const sessionStart = (state as any)._sessionStartedAt;
+  if (!sessionStart || (Date.now() - sessionStart) < 120_000) return null;
 
   // Cooldown check: don't trigger events too frequently (10 min minimum)
   const lastEventAt = (state as any).lastStreetEventAt;

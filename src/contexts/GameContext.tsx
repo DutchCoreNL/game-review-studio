@@ -242,7 +242,7 @@ type GameAction =
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
-  | { type: 'AUTO_TICK' }
+  | { type: 'AUTO_TICK'; isCatchUp?: boolean }
   | { type: 'RESET' }
   // PvP Turn-Based Combat
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
@@ -559,9 +559,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Roll for street event
-      const autoTickEvent = rollStreetEvent(s, 'end_turn');
-      if (autoTickEvent) { s.streetEventQueue = [...(s.streetEventQueue || []), autoTickEvent].slice(-5); s.lastStreetEventAt = new Date().toISOString(); }
+      // Roll for street event (skip during catch-up ticks)
+      if (!(action as any).isCatchUp) {
+        const autoTickEvent = rollStreetEvent(s, 'end_turn');
+        if (autoTickEvent) { s.streetEventQueue = [...(s.streetEventQueue || []), autoTickEvent].slice(-5); s.lastStreetEventAt = new Date().toISOString(); }
+      }
 
       // Endgame events
       if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
@@ -2895,6 +2897,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
   const [state, rawDispatch] = useReducer(gameReducer, null, () => {
     const saved = Engine.loadGame();
     if (saved) {
+      // Set session start timestamp for street event grace period
+      (saved as any)._sessionStartedAt = Date.now();
       // Ensure new fields exist
       if (!saved.achievements) saved.achievements = [];
       if (saved.tutorialDone === undefined) saved.tutorialDone = false;
@@ -3201,8 +3205,9 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (ticksPassed > 0 && !state.gameOver && !state.victoryData) {
         // Process up to 5 ticks at once (to catch up after being away, but not too many)
         const ticksToProcess = Math.min(ticksPassed, 5);
+        const isCatchUp = ticksPassed > 1;
         for (let i = 0; i < ticksToProcess; i++) {
-          dispatch({ type: 'AUTO_TICK' });
+          dispatch({ type: 'AUTO_TICK', isCatchUp });
         }
       }
     };
