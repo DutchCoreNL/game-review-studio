@@ -1,56 +1,42 @@
 
 
-## Analyse: SP Systeem — Past het nog?
+## Probleem: Street Events bij opstarten
 
-### Huidige situatie
+### Root cause
 
-SP wordt nu op **twee plekken** uitgegeven:
-1. **Raw stats** verhogen (Muscle/Brains/Charm +1) via het profiel
-2. **Skill Tree nodes** unlocken (1-3 SP per node)
+Bij het openen van het spel checkt `checkTick()` **direct op mount** (regel 3211) hoeveel 30-minuten ticks er gemist zijn. Als je bijv. 2 uur weg was, worden er **4 AUTO_TICKs** achter elkaar gefired — elk met een `rollStreetEvent('end_turn')` call.
 
-Daarnaast bestaat het **Merit Punten** systeem apart — ook permanente passieve bonussen.
+De 10-minuten cooldown (`EVENT_COOLDOWN_MS`) werkt niet in dit geval: alle ticks draaien synchroon in dezelfde render-cyclus, waardoor `Date.now()` telkens dezelfde waarde teruggeeft. Resultaat: meerdere events in de queue direct bij het openen.
 
-### Probleem
+Daarnaast is er geen **session-start grace period** — de allereerste tick na login kan ook al een event triggeren.
 
-Dit levert **drie overlappende progressie-lagen** op:
-- SP → stats (+1 kracht)
-- SP → skill nodes (passieve bonussen zoals crit chance, lifesteal)
-- Merit → passieve bonussen (damage, XP, trade)
+### Oplossing
 
-**Skill nodes en Merit doen grotendeels hetzelfde** (passieve percentages), waardoor de speler het verschil nauwelijks voelt. En SP uitgeven aan raw stats (+1) voelt vlak vergeleken met een skill node die +15% lifesteal geeft.
+Twee wijzigingen, beide in bestaande bestanden:
 
-### Vergelijking met referentie-games
+**1. Session-start grace period in `rollStreetEvent()`** (`src/game/storyEvents.ts`)
+- Voeg een nieuwe check toe: als `state._sessionStartedAt` niet bestaat of minder dan 2 minuten geleden is, return `null`
+- Dit voorkomt events direct bij het openen, ongeacht hoeveel ticks er catchup draaien
 
-| Game | Stat progressie | Skill progressie | Passieve perks |
-|---|---|---|---|
-| **Torn** | Gym training (tijdgebonden, geen punten) | Education (tijdgebonden cursussen) | Merits (apart budget) |
-| **MobWars** | Stat points bij level-up (dedicated) | Skill tree (apart budget) | Achievement perks |
-| **Jouw game** | SP (gedeeld budget) | SP (gedeeld budget) | Merit (apart budget) |
+**2. Skip street events tijdens catch-up ticks** (`src/contexts/GameContext.tsx`)
+- Bij de catch-up loop (regel 3201-3206), markeer ticks als `isCatchUp: true`
+- In de AUTO_TICK handler: als het een catch-up tick is, sla `rollStreetEvent` over
+- Alternatief (simpeler): sla `rollStreetEvent` alleen over als `ticksPassed > 1` (= catch-up scenario)
 
-### Voorstel: Splits SP op
+**3. Zet `_sessionStartedAt` bij mount** (`src/contexts/GameContext.tsx`)
+- In de useEffect die `checkTick` runt, sla `Date.now()` op in state of ref zodat `rollStreetEvent` de grace period kan checken
 
-**Stat Points (StP)** — voor raw stats, verdiend bij level-up (+1 per level)
-**Skill Points (SP)** — voor skill tree nodes, verdiend bij milestones en speciale acties
+### Concrete implementatie
 
-Dit geeft:
-- Elke level-up: **+1 StP** voor stats (directe kracht)
-- Milestones (elke 5 levels): **+2-5 SP** voor skill tree (strategische keuze)
-- Merit: blijft apart (permanente passieve bonussen bij prestige/speciale events)
-
-### Concrete wijzigingen
-
-| Bestand | Wat |
+| Bestand | Wijziging |
 |---|---|
-| `src/game/types.ts` | Voeg `statPoints: number` toe aan Player interface |
-| `src/game/constants.ts` | Initialiseer `statPoints: 0` |
-| `src/game/engine.ts` | Level-up: +1 statPoints (i.p.v. +2 SP); milestone: SP bonus via milestone config |
-| `src/contexts/GameContext.tsx` | `UPGRADE_STAT` gebruikt `statPoints` i.p.v. `skillPoints` |
-| `src/components/game/ProfileView.tsx` | Toon `statPoints` bij stat upgrade knoppen |
-| `src/components/game/ResourcePopup.tsx` | Toon `statPoints` bij stat upgrade knoppen |
-| `src/components/game/GameHeader.tsx` | Badge toont beide als beschikbaar |
-| `src/components/game/profile/SkillTreePanel.tsx` | Blijft `skillPoints` gebruiken (ongewijzigd) |
+| `src/contexts/GameContext.tsx` | Catch-up ticks skippen street events; session timestamp bijhouden |
+| `src/game/storyEvents.ts` | Grace period check (2 min na session start) |
 
-### Migratie bestaande spelers
-- Huidige `skillPoints` blijft behouden voor skill tree
-- `statPoints` start op 0 (of optioneel: geef 1 per huidig level als compensatie)
+### Aanpak detail
+
+- In `GameContext.tsx`: voeg een `sessionStartRef = useRef(Date.now())` toe. Bij catch-up ticks (`ticksPassed > 1`), dispatch een variant `AUTO_TICK_CATCHUP` of voeg een flag `skipEvents` toe aan de state voor de duur van de catch-up
+- In `rollStreetEvent()`: accepteer een optionele `skipEvents` flag, of check een `_sessionStartedAt` veld op state. Als het minder dan 2 minuten geleden is → geen event
+
+Dit is minimaal invasief (2 bestanden, ~15 regels) en lost het probleem structureel op zonder de normale gameplay-flow te beïnvloeden.
 
