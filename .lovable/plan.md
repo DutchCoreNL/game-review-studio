@@ -1,56 +1,77 @@
 
 
-# Gevechtsysteem Upgrade: Visueel & Beloningen
+# Borderlands-stijl Procedureel Wapensysteem
 
-## Huidige situatie
-Het gevecht heeft basisanimaties (HP-flash, shake, impact pulse) en een tekst-gebaseerde combat log. Overwinningen geven vaste beloningen (+€25.000, +200 REP). Er zijn geen loot drops, geen kill-streaks, geen gevechtsranking.
+## Concept
 
-## Plan
+Wapens worden **procedureel gegenereerd** uit onderdelen: een **Merk** (fabrikant), **Frame** (wapen-basis), **Loop** (nauwkeurigheid/bereik), **Magazijn** (clip/herlaad), en **Accessoire** (special effect). Elke combinatie levert unieke stats op. Met 5 merken × 5 frames × 5 lopen × 5 magazijnen × 2 accessoires = **250 unieke combinaties**.
 
-### 1. Visuele verbeteringen
+## Wapen-onderdelen
 
-**Floating damage numbers** (al in PvPCombatView, ontbreekt in CombatView)
-- Port het `DamagePopup` component naar `CombatView.tsx`
-- Toon schade-getallen die omhoog floaten bij elke actie (rood voor ontvangen, goud voor gegeven, groen voor heal)
+### Merken (5) — bepalen basiskwaliteit en visuele stijl
+| Merk | Bonus | Stijl |
+|---|---|---|
+| **Noxforge** | +15% schade | Ruwe, industriële wapens |
+| **Serpiente Arms** | +20% crit kans | Sierlijke, Latijns-geïnspireerde wapens |
+| **Volkov Industries** | +25% clip size | Zware, Russische militaire stijl |
+| **ShadowTech** | +10% alle stats | Futuristische, minimalistische wapens |
+| **Ironjaw** | +30% armor piercing | Brute, overkill-stijl |
 
-**Screen flash effecten**
-- Rode flash overlay bij zware schade ontvangen (>15 HP)
-- Gouden flash bij kritieke treffers
-- Subtiele screen-shake intensiteit schalen met schade-hoeveelheid
+### Frames (5) — wapen-type
+Pistol, SMG, Shotgun, Rifle, Blade (melee)
 
-**Verbeterde combat log styling**
-- Iconen per log-type (⚔️ aanval, 🛡️ verdediging, 💥 kritiek, 🩸 bleed)
-- Grotere, geanimeerde tekst voor kritieke momenten
-- Scheidingslijn tussen speler- en vijand-beurten
+### Lopen (5) — nauwkeurigheid/bereik
+Kort, Standaard, Lang, Precisie, Gedempt
 
-**Turn transition animatie**
-- Beurt-nummer indicator met animatie (zoals in PvPCombatView, ontbreekt in CombatView)
+### Magazijnen (5) — clip/herlaadsnelheid
+Klein (snel), Standaard, Uitgebreid, Drum, Speciaal
 
-### 2. Beloningen & Progressie
+### Accessoires (2) — optioneel special effect
+Geen, Laser Sight (+accuracy), Silencer (-heat), Incendiary (+DoT), Shock (+stun kans)
 
-**Combat Loot systeem**
-- Na overwinning: random loot roll uit een tabel gebaseerd op vijand-type en level
-- Loot categorieën: geld (altijd), gear (zeldzaam), speciale munitie (ongewoon), consumables (gewoon)
-- Visuele loot-reveal animatie: items verschijnen één voor één met rariteit-kleuren
+## Stats per wapen
 
-**Kill Streak tracker**
-- Bijhouden van opeenvolgende overwinningen in `state.combatStreak`
-- Streak bonussen: 3-streak (+10% loot), 5-streak (+25% loot + titel), 10-streak (+50% loot + achievement)
-- Visuele streak-indicator bovenaan gevechtsscherm
-- Streak breekt bij verlies
+Elk gegenereerd wapen krijgt berekende stats:
+- **Damage** (1-20): frame + loop + merk-bonus
+- **Accuracy** (1-10): loop + accessoire
+- **Fire Rate** (1-10): frame + magazijn
+- **Clip Size** (4-30): frame + magazijn + merk-bonus
+- **Special Effect**: accessoire-afhankelijk
 
-**Post-combat statistieken**
-- Uitgebreid resultaatscherm met: schade gegeven/ontvangen, skills gebruikt, combo's, beurten, efficiëntie-rating (S/A/B/C/D)
-- Rating beïnvloedt loot-kwaliteit
+Plus een **Rarity** (Common → Legendary) gebaseerd op de combinatie-kwaliteit.
 
-### Bestanden
+## Integratie met bestaand systeem
 
+- Het huidige `GEAR` array met vaste wapens blijft als "legacy" / winkelwapens
+- Procedurele wapens worden **gevonden als loot** na combat, heists, en als daily deal
+- Opgeslagen in `state.weaponInventory: GeneratedWeapon[]`
+- Equip via loadout — vervangt de huidige `weapon` slot
+- `muscle` stat wordt berekend uit het wapen's damage
+
+## Technische aanpak
+
+### Nieuwe bestanden
+| Bestand | Inhoud |
+|---|---|
+| `src/game/weaponGenerator.ts` | Merken, onderdelen, stat-berekening, `generateWeapon()` functie, rarity roll |
+| `src/components/game/weapons/WeaponCard.tsx` | Visuele kaart met stats, rarity-kleur, merk-logo |
+| `src/components/game/weapons/WeaponInventory.tsx` | Inventaris-overzicht met filter/sort |
+| `src/components/game/weapons/WeaponCompare.tsx` | Side-by-side vergelijking bij equip |
+
+### Wijzigingen
 | Bestand | Wijziging |
 |---|---|
-| `src/components/game/CombatView.tsx` | Damage popups, screen flash, turn indicator, loot reveal, streak UI, verbeterde result screen |
-| `src/game/combatLoot.ts` | **Nieuw** — Loot tabellen, roll-logica, rariteit-systeem |
-| `src/game/types.ts` | `combatStreak`, `lastCombatRating` toevoegen aan GameState |
-| `src/contexts/GameContext.tsx` | Streak tracking in END_COMBAT, loot toekenning |
+| `src/game/types.ts` | `GeneratedWeapon` interface, `weaponInventory` in GameState |
+| `src/game/constants.ts` | Onderdelen-definities (merken, frames, lopen, etc.) |
+| `src/game/combatLoot.ts` | Wapen-drops toevoegen aan loot rolls |
+| `src/contexts/GameContext.tsx` | Actions: `GENERATE_WEAPON`, `EQUIP_WEAPON`, `SELL_WEAPON` |
+| `src/components/game/trade/GearPanel.tsx` | Link naar wapeninventaris |
+| `src/components/game/CombatView.tsx` | Wapen-drops tonen in loot reveal |
 
-~200 regels nieuw, ~80 regels gewijzigd. Puur client-side, geen database-wijzigingen nodig.
+### Wapen-generatie flow
+1. Bij loot-roll → `generateWeapon(level, rarity)` maakt een random combinatie
+2. Stats worden berekend uit alle onderdelen
+3. Naam wordt samengesteld: `[Merk] [Frame] [Accessoire-suffix]` (bv. "Noxforge SMG Incendiary")
+4. Rarity bepaalt stat-multiplier (Common 0.8x → Legendary 1.5x)
+5. Wapen gaat naar `weaponInventory` (max 20 slots)
 
