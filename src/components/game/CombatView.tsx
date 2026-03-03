@@ -10,10 +10,34 @@ import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair, Flame } from 'lucide-react';
+import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair, Flame, Trophy, Star } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound } from '@/game/sounds';
 import { getAvailableSkills, isSkillOnCooldown, COMBO_THRESHOLD, BUFF_DEFS } from '@/game/combatSkills';
+import { RARITY_COLORS, RARITY_BG, getStreakLabel } from '@/game/combatLoot';
+
+// ========== Floating Damage Number ==========
+
+interface DamagePopupData {
+  id: number;
+  value: number;
+  type: 'dealt' | 'taken' | 'heal' | 'crit';
+}
+
+function DamagePopup({ value, type }: { value: number; type: 'dealt' | 'taken' | 'heal' | 'crit' }) {
+  const colorMap = { dealt: 'text-gold', taken: 'text-blood', heal: 'text-emerald', crit: 'text-gold' };
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0, scale: type === 'crit' ? 1.8 : 1.2 }}
+      animate={{ opacity: 0, y: -40 }}
+      transition={{ duration: 0.9 }}
+      className={`absolute font-bold text-sm ${colorMap[type]} pointer-events-none z-50`}
+      style={{ textShadow: '0 0 8px currentColor' }}
+    >
+      {type === 'heal' ? '+' : type === 'crit' ? '💥 ' : '-'}{value}
+    </motion.div>
+  );
+}
 
 // ========== Combat Action Button ==========
 
@@ -119,7 +143,6 @@ function SkillButtons({ combat, dispatch, playerLevel }: {
   playerLevel: number;
 }) {
   const skills = useMemo(() => getAvailableSkills(playerLevel), [playerLevel]);
-  // Filter out passive skills (emergency_heal)
   const activeSkills = skills.filter(s => s.effect.type !== 'emergency_heal');
 
   if (activeSkills.length === 0) return null;
@@ -171,12 +194,149 @@ function SkillButtons({ combat, dispatch, playerLevel }: {
   );
 }
 
+// ========== Enhanced Combat Log Entry ==========
+
+function CombatLogEntry({ log, index, turn }: { log: string; index: number; turn: number }) {
+  const isCrit = log.includes('KRITIEK') || log.includes('COMBO FINISHER') || log.includes('EXECUTIE');
+  const isVictory = log.includes('verslagen') || log.includes('STUNNED') || log.includes('geslaagd');
+  const isDefeat = log.includes('mislukt') || log.includes('Je bent verslagen');
+  const isEnemyAttack = log.includes('slaat terug') || log.includes('valt aan');
+  const isHeal = log.includes('+') && log.includes('HP');
+  const isBossDialogue = log.startsWith('Decker:') || log.startsWith('Voss:');
+
+  // Add icon prefix based on log type
+  let icon = '';
+  if (isCrit) icon = '💥 ';
+  else if (isVictory) icon = '🏆 ';
+  else if (isHeal) icon = '💚 ';
+  else if (isEnemyAttack) icon = '🩸 ';
+  else if (isDefeat) icon = '💀 ';
+  else if (log.includes('🛡️') || log.includes('Verdedig')) icon = '';
+  else if (!log.startsWith('🫁') && !log.startsWith('🔥') && !log.startsWith('💫') && !isBossDialogue) icon = '⚔️ ';
+
+  const className = isCrit
+    ? 'text-gold font-bold text-[0.65rem]'
+    : isVictory
+    ? 'text-gold font-bold'
+    : isDefeat || isEnemyAttack
+    ? 'text-blood'
+    : isBossDialogue
+    ? 'text-ice font-semibold italic'
+    : isHeal
+    ? 'text-emerald'
+    : 'text-muted-foreground';
+
+  return (
+    <motion.p
+      key={`${turn}-${index}`}
+      initial={{ opacity: 0, x: isEnemyAttack ? 10 : -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`text-[0.6rem] py-0.5 ${className} ${isEnemyAttack ? 'border-l-2 border-blood/30 pl-2 ml-1' : ''}`}
+    >
+      {icon}{log}
+    </motion.p>
+  );
+}
+
+// ========== Turn Indicator ==========
+
+function TurnIndicator({ turn }: { turn: number }) {
+  return (
+    <motion.div
+      key={turn}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className="flex items-center justify-center gap-2 mb-3"
+    >
+      <div className="h-px flex-1 bg-border" />
+      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border">
+        <Swords size={8} className="text-muted-foreground" />
+        <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">
+          Beurt {turn}
+        </span>
+      </div>
+      <div className="h-px flex-1 bg-border" />
+    </motion.div>
+  );
+}
+
+// ========== Streak Indicator ==========
+
+function StreakIndicator({ streak }: { streak: number }) {
+  const label = getStreakLabel(streak);
+  if (!label || streak < 3) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center justify-center gap-2 mb-2"
+    >
+      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/10 border border-gold/30">
+        <Flame size={10} className="text-gold" />
+        <span className="text-[0.55rem] font-bold text-gold">{label}</span>
+        <span className="text-[0.5rem] text-gold/70">×{streak}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 // ========== Active Combat View ==========
 
 function ActiveCombat() {
   const { state, dispatch } = useGame();
   const combat = state.activeCombat!;
   const prevFinished = useRef(false);
+  const prevPlayerHP = useRef(combat.playerHP);
+  const prevEnemyHP = useRef(combat.targetHP);
+  const [damagePopups, setDamagePopups] = useState<DamagePopupData[]>([]);
+  const popupIdRef = useRef(0);
+
+  // Track damage popups
+  useEffect(() => {
+    const playerDelta = prevPlayerHP.current - combat.playerHP;
+    const enemyDelta = prevEnemyHP.current - combat.targetHP;
+
+    const newPopups: DamagePopupData[] = [];
+
+    if (enemyDelta > 0) {
+      const lastLog = combat.logs[combat.logs.length - 1] || '';
+      const isCrit = lastLog.includes('KRITIEK') || lastLog.includes('COMBO FINISHER') || lastLog.includes('EXECUTIE');
+      newPopups.push({
+        id: popupIdRef.current++,
+        value: enemyDelta,
+        type: isCrit ? 'crit' : 'dealt',
+      });
+    }
+
+    if (playerDelta > 0) {
+      newPopups.push({
+        id: popupIdRef.current++,
+        value: playerDelta,
+        type: 'taken',
+      });
+    }
+
+    if (playerDelta < 0) {
+      // Player healed
+      newPopups.push({
+        id: popupIdRef.current++,
+        value: Math.abs(playerDelta),
+        type: 'heal',
+      });
+    }
+
+    if (newPopups.length > 0) {
+      setDamagePopups(prev => [...prev, ...newPopups]);
+      setTimeout(() => {
+        setDamagePopups(prev => prev.filter(p => !newPopups.find(n => n.id === p.id)));
+      }, 900);
+    }
+
+    prevPlayerHP.current = combat.playerHP;
+    prevEnemyHP.current = combat.targetHP;
+  }, [combat.playerHP, combat.targetHP, combat.turn]);
 
   useEffect(() => {
     if (combat?.finished && !prevFinished.current) {
@@ -188,7 +348,6 @@ function ActiveCombat() {
   const isBossFight = !!combat.bossPhase;
   const phaseData = combat.bossPhase ? BOSS_PHASES[combat.bossPhase - 1] : null;
 
-  // Memoize env to prevent new object each render
   const env = useMemo(() => {
     const baseEnv = COMBAT_ENVIRONMENTS[state.loc];
     const factionBossOverride = combat.isBoss && combat.familyId ? BOSS_COMBAT_OVERRIDES[combat.familyId as FamilyId] : null;
@@ -200,7 +359,6 @@ function ActiveCombat() {
       : baseEnv;
   }, [state.loc, combat.isBoss, combat.familyId, combat.bossPhase, combat.conquestPhase]);
 
-  // Pick a scene phrase based on turn — stable reference
   const scenePhrase = useMemo(() => {
     if (!env) return null;
     return env.scenePhrases[combat.turn % env.scenePhrases.length];
@@ -213,6 +371,9 @@ function ActiveCombat() {
       <img src={bgSrc} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
       <div className="relative z-10">
+      {/* Streak indicator */}
+      <StreakIndicator streak={state.combatStreak || 0} />
+
       {/* Boss phase indicator */}
       {isBossFight && phaseData && (
         <motion.div
@@ -236,6 +397,9 @@ function ActiveCombat() {
 
       <SectionHeader title={isBossFight ? "EINDBAAS GEVECHT" : "GEVECHT"} icon={<Swords size={12} />} />
 
+      {/* Turn indicator */}
+      <TurnIndicator turn={combat.turn} />
+
       {/* Scene description with typewriter */}
       {scenePhrase && (
         <motion.div
@@ -253,44 +417,53 @@ function ActiveCombat() {
       )}
 
       {/* Enemy portrait + HP Bars */}
-      {(combat.isBoss || isBossFight) && (
-        <div className="flex justify-center mb-3">
-          <div className="w-16 h-16 rounded-full border-2 border-blood overflow-hidden shadow-lg shadow-blood/30">
-            <img
-              src={isBossFight
-                ? (combat.bossPhase === 2 ? BOSS_IMAGES.decker : BOSS_IMAGES.voss)
-                : BOSS_IMAGES[combat.familyId || '']
-              }
-              alt={combat.targetName}
-              className="w-full h-full object-cover"
-            />
+      <div className="relative">
+        {(combat.isBoss || isBossFight) && (
+          <div className="flex justify-center mb-3">
+            <div className="w-16 h-16 rounded-full border-2 border-blood overflow-hidden shadow-lg shadow-blood/30">
+              <img
+                src={isBossFight
+                  ? (combat.bossPhase === 2 ? BOSS_IMAGES.decker : BOSS_IMAGES.voss)
+                  : BOSS_IMAGES[combat.familyId || '']
+                }
+                alt={combat.targetName}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
+        )}
+
+        {/* Floating damage popups on enemy */}
+        <div className="relative">
+          <AnimatePresence>
+            {damagePopups.filter(p => p.type === 'dealt' || p.type === 'crit').map(popup => (
+              <div key={popup.id} className="absolute top-0 left-1/2 -translate-x-1/2 z-50">
+                <DamagePopup value={popup.value} type={popup.type} />
+              </div>
+            ))}
+          </AnimatePresence>
+          <AnimatedHPBar label={combat.targetName} current={combat.targetHP} max={combat.enemyMaxHP} color="blood" flashColor="gold" />
         </div>
-      )}
-      <div className="space-y-3 mb-4">
-        <AnimatedHPBar label="Jij" current={combat.playerHP} max={combat.playerMaxHP} color="emerald" flashColor="blood" />
-        <AnimatedHPBar label={combat.targetName} current={combat.targetHP} max={combat.enemyMaxHP} color="blood" flashColor="gold" />
+
+        <div className="h-2" />
+
+        {/* Floating damage popups on player */}
+        <div className="relative">
+          <AnimatePresence>
+            {damagePopups.filter(p => p.type === 'taken' || p.type === 'heal').map(popup => (
+              <div key={popup.id} className="absolute top-0 left-1/2 -translate-x-1/2 z-50">
+                <DamagePopup value={popup.value} type={popup.type} />
+              </div>
+            ))}
+          </AnimatePresence>
+          <AnimatedHPBar label="Jij" current={combat.playerHP} max={combat.playerMaxHP} color="emerald" flashColor="blood" />
+        </div>
       </div>
 
-      {/* Combat Log */}
-      <div className="game-card mb-4 max-h-32 overflow-y-auto game-scroll p-3">
+      {/* Enhanced Combat Log */}
+      <div className="game-card mb-4 max-h-32 overflow-y-auto game-scroll p-3 mt-3">
         {combat.logs.slice(-6).map((log, i) => (
-          <motion.p
-            key={`${combat.turn}-${i}`}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`text-[0.6rem] py-0.5 ${
-              log.includes('verslagen') || log.includes('STUNNED') || log.includes('geslaagd')
-                ? 'text-gold font-bold'
-                : log.includes('mislukt') || log.includes('terug') || log.includes('✗')
-                ? 'text-blood'
-                : log.startsWith('Decker:') || log.startsWith('Voss:')
-                ? 'text-ice font-semibold italic'
-                : 'text-muted-foreground'
-            }`}
-          >
-            {log}
-          </motion.p>
+          <CombatLogEntry key={`${combat.turn}-${i}`} log={log} index={i} turn={combat.turn} />
         ))}
       </div>
 
@@ -432,9 +605,34 @@ function ActiveCombat() {
 
 // ========== Combat Result ==========
 
+const RATING_COLORS: Record<string, string> = {
+  S: 'text-gold',
+  A: 'text-emerald',
+  B: 'text-blue-400',
+  C: 'text-muted-foreground',
+  D: 'text-blood',
+};
+
 function CombatResult() {
   const { state, dispatch } = useGame();
   const combat = state.activeCombat!;
+  const loot = state.lastCombatLoot;
+  const stats = state.lastCombatStats;
+  const rating = state.lastCombatRating;
+  const [revealIndex, setRevealIndex] = useState(-1);
+
+  // Animated loot reveal
+  useEffect(() => {
+    if (!loot || !combat.won) return;
+    const items = loot.items;
+    let i = 0;
+    const interval = setInterval(() => {
+      setRevealIndex(i);
+      i++;
+      if (i >= items.length) clearInterval(interval);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [loot, combat.won]);
 
   return (
     <motion.div
@@ -469,6 +667,106 @@ function CombatResult() {
               ? combat.bossPhase === 2 ? '🌆 NOXHAVEN IS VAN JOU!' : '🏆 OVERWINNING!'
               : '💀 VERSLAGEN'}
           </motion.div>
+
+          {/* Combat Rating */}
+          {combat.won && rating && (
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
+              className="mb-3"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted border border-border">
+                <Star size={14} className={RATING_COLORS[rating] || 'text-muted-foreground'} />
+                <span className={`text-3xl font-black font-display ${RATING_COLORS[rating]}`}>{rating}</span>
+                <span className="text-[0.5rem] text-muted-foreground uppercase">Rating</span>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Combat Stats */}
+          {combat.won && stats && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-3 game-card p-3 text-left"
+            >
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[0.55rem]">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Schade gegeven</span>
+                  <span className="text-gold font-bold">{stats.damageDealt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Schade ontvangen</span>
+                  <span className="text-blood font-bold">{stats.damageTaken}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Beurten</span>
+                  <span className="font-bold">{stats.turnsUsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">HP resterend</span>
+                  <span className="text-emerald font-bold">{stats.playerHPPercent}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Skills gebruikt</span>
+                  <span className="text-game-purple font-bold">{stats.skillsUsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Combo's</span>
+                  <span className="text-gold font-bold">{stats.combosLanded}</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Streak bonus */}
+          {combat.won && loot && loot.streakBonus > 1 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="mb-2"
+            >
+              <span className="text-[0.55rem] font-bold text-gold">
+                🔥 Streak Bonus: +{Math.round((loot.streakBonus - 1) * 100)}% loot
+              </span>
+            </motion.div>
+          )}
+
+          {/* Loot reveal */}
+          {combat.won && loot && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mb-4 space-y-1.5"
+            >
+              <div className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Buit
+              </div>
+              {loot.items.map((item, i) => (
+                <AnimatePresence key={item.id}>
+                  {i <= revealIndex && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded border ${RARITY_BG[item.rarity]}`}
+                    >
+                      <span className="text-sm">{item.icon}</span>
+                      <div className="flex-1 text-left">
+                        <span className={`text-[0.6rem] font-bold ${RARITY_COLORS[item.rarity]}`}>{item.name}</span>
+                        <span className="text-[0.45rem] text-muted-foreground ml-2">{item.desc}</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              ))}
+            </motion.div>
+          )}
+
           {/* Near-miss feedback on defeat */}
           {!combat.won && combat.targetHP > 0 && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
@@ -484,10 +782,6 @@ function CombatResult() {
           {combat.won && combat.bossPhase === 2 && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="text-xs text-gold mb-4">+€100.000 | +500 REP | +500 XP | Heat gereset</motion.p>
-          )}
-          {combat.won && !combat.bossPhase && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-              className="text-xs text-gold mb-4">+€25.000 | +200 REP | +100 XP</motion.p>
           )}
           <GameButton variant="gold" size="lg" fullWidth glow onClick={() => dispatch({ type: 'END_COMBAT' })}>
             DOORGAAN
