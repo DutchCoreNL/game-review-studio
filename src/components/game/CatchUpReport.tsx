@@ -1,6 +1,6 @@
 import { useGame, type CatchUpReportData } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight } from 'lucide-react';
+import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2 } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { useEffect, useRef } from 'react';
 
@@ -122,6 +122,45 @@ export function CatchUpReport() {
                 prefix="+"
                 positive
                 color="text-blue-400"
+                delay={next()}
+              />
+            )}
+
+            {/* Business income */}
+            {report.businessIncome > 0 && (
+              <AnimatedReportRow
+                icon={<Building2 size={14} />}
+                label="Bedrijf inkomen"
+                value={report.businessIncome}
+                prefix="+€"
+                positive
+                color="text-emerald-400"
+                delay={next()}
+              />
+            )}
+
+            {/* District income */}
+            {report.districtIncome > 0 && (
+              <AnimatedReportRow
+                icon={<Coins size={14} />}
+                label="District inkomen"
+                value={report.districtIncome}
+                prefix="+€"
+                positive
+                color="text-emerald-400"
+                delay={next()}
+              />
+            )}
+
+            {/* Total money earned */}
+            {report.moneyEarned > 0 && (
+              <AnimatedReportRow
+                icon={<Coins size={14} />}
+                label="Totaal verdiend"
+                value={report.moneyEarned}
+                prefix="+€"
+                positive
+                color="text-gold"
                 delay={next()}
               />
             )}

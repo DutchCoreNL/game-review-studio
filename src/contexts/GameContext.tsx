@@ -39,6 +39,8 @@ export interface CatchUpReportData {
   heatDecayed: number;
   xpGained: number;
   levelUps: number;
+  businessIncome: number;
+  districtIncome: number;
 }
 
 interface XpBreakdownData {
@@ -3240,7 +3242,15 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         // Show catch-up report if multiple ticks were processed
         if (isCatchUp) {
           const minutesAway = Math.round((ticksPassed * (state.tickIntervalMinutes || 30)));
-          // We dispatch the report with pre-snapshot; the component will compute deltas from current state
+          
+          // Estimate income per tick from businesses
+          const bizIncome = (state.ownedBusinesses || []).reduce((s: number, bid: string) => {
+            const biz = BUSINESSES.find((b) => b.id === bid);
+            return s + (biz?.income || 0);
+          }, 0);
+          const totalBizIncome = bizIncome * ticksToProcess;
+          const totalDistIncome = 0; // MMO: district income removed
+          
           dispatch({
             type: 'SET_CATCH_UP_REPORT',
             report: {
@@ -3249,10 +3259,12 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
               daysAdvanced: ticksToProcess,
               energyRestored: Math.max(0, (state.maxEnergy || 100) - preEnergy),
               nerveRestored: Math.max(0, (state.maxNerve || 50) - preNerve),
-              moneyEarned: 0, // will be computed after state updates
+              moneyEarned: totalBizIncome + totalDistIncome,
               heatDecayed: Math.max(0, preHeat - (state.heat || 0)),
               xpGained: 0,
               levelUps: 0,
+              businessIncome: totalBizIncome,
+              districtIncome: totalDistIncome,
             }
           });
         }
