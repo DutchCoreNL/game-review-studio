@@ -14,7 +14,7 @@ export type GameView =
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
-  | 'empire' | 'admin';
+  | 'empire' | 'admin' | 'weapons';
 
 // ========== VILLA TYPES ==========
 
@@ -1177,6 +1177,9 @@ export interface GameState {
   lastCombatRating: import('../game/combatLoot').CombatRating | null;
   lastCombatLoot: import('../game/combatLoot').CombatLootResult | null;
   lastCombatStats: import('../game/combatLoot').CombatStats | null;
+
+  // ========== PROCEDURAL WEAPON INVENTORY ==========
+  weaponInventory: import('../game/weaponGenerator').GeneratedWeapon[];
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;

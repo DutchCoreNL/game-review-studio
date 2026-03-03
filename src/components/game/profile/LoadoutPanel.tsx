@@ -3,6 +3,7 @@ import { GEAR } from '@/game/constants';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { ViewWrapper } from '../ui/ViewWrapper';
+import { WeaponCard } from '../weapons/WeaponCard';
 import { motion } from 'framer-motion';
 import { Sword, Shield, Smartphone } from 'lucide-react';
 import profileBg from '@/assets/profile-bg.jpg';
@@ -12,15 +13,35 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function LoadoutPanel() {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch, showToast, setView } = useGame();
+  const equippedWeapon = state.weaponInventory?.find(w => w.equipped);
 
   return (
     <ViewWrapper bg={profileBg}>
       <SectionHeader title="Loadout" icon={<Shield size={12} />} />
+
+      {/* Procedural weapon slot */}
+      {equippedWeapon && (
+        <div className="mb-3">
+          <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Procedureel wapen</div>
+          <WeaponCard weapon={equippedWeapon} compact />
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2 mb-4">
         {(['weapon', 'armor', 'gadget'] as const).map(slot => {
           const gearId = state.player.loadout[slot];
           const item = gearId ? GEAR.find(g => g.id === gearId) : null;
+          // Hide legacy weapon slot if procedural weapon equipped
+          if (slot === 'weapon' && equippedWeapon && !gearId) return (
+            <motion.button key={slot}
+              onClick={() => setView('weapons' as any)}
+              className="aspect-square rounded flex flex-col items-center justify-center text-center p-2 transition-all border border-dashed border-gold/30 bg-gold/5 text-gold"
+              whileTap={{ scale: 0.95 }}>
+              <Sword size={20} />
+              <span className="text-[0.5rem] mt-1 uppercase tracking-wider font-semibold">Arsenaal</span>
+            </motion.button>
+          );
           return (
             <motion.button key={slot}
               onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast('Item uitgedaan'); } }}
@@ -34,6 +55,11 @@ export function LoadoutPanel() {
           );
         })}
       </div>
+
+      {/* Weapon Inventory Link */}
+      <GameButton variant="gold" size="sm" fullWidth className="mb-4" onClick={() => setView('weapons' as any)}>
+        <Sword size={12} /> Wapenarsenaal ({state.weaponInventory?.length || 0}/20)
+      </GameButton>
 
       <SectionHeader title="Kluis" />
       <div className="space-y-2 mb-4">

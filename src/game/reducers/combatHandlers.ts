@@ -244,6 +244,14 @@ export function handleEndCombat(s: GameState): void {
       s.stats.totalEarned += loot.totalMoney;
       s.ammo = Math.min(500, (s.ammo || 0) + loot.totalAmmo);
 
+      // Add dropped weapon to inventory
+      if (loot.droppedWeapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        if (s.weaponInventory.length < 20) {
+          s.weaponInventory.push(loot.droppedWeapon);
+        }
+      }
+
       // Store for UI
       s.lastCombatRating = rating;
       s.lastCombatLoot = loot;
