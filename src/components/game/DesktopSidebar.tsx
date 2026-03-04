@@ -6,7 +6,7 @@ import {
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
-  Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen, Sword,
+  Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen, Sword, Smartphone,
   ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -93,6 +93,8 @@ const CATEGORIES: Category[] = [
       { id: 'education', label: 'Educatie', icon: GraduationCap },
       { id: 'loadout', label: 'Loadout', icon: Shield },
       { id: 'weapons', label: 'Wapenarsenaal', icon: Sword },
+      { id: 'armor-arsenal', label: 'Pantser Arsenaal', icon: Shield },
+      { id: 'gadget-arsenal', label: 'Gadget Arsenaal', icon: Smartphone },
       { id: 'contacts', label: 'NPC Relaties', icon: Users },
       { id: 'reputation', label: 'Reputatie', icon: Star },
       { id: 'arcs', label: 'Story Arcs', icon: Target },

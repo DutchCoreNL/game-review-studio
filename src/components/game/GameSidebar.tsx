@@ -94,6 +94,8 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'profile', label: 'Stats & Skills', icon: Stats },
           { id: 'loadout', label: 'Loadout', icon: Shield },
           { id: 'weapons', label: 'Wapenarsenaal', icon: Sword, badge: state.weaponInventory?.length || 0 },
+          { id: 'armor-arsenal', label: 'Pantser', icon: Shield, badge: state.armorInventory?.length || 0 },
+          { id: 'gadget-arsenal', label: 'Gadgets', icon: Smartphone, badge: state.gadgetInventory?.length || 0 },
           { id: 'contacts', label: 'NPC Relaties', icon: Users },
           { id: 'reputation', label: 'Reputatie', icon: Star },
           { id: 'arcs', label: 'Story Arcs', icon: Target },

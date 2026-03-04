@@ -107,6 +107,8 @@ const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m
 const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
 const CampaignViewLazy = React.lazy(() => import('./campaign/CampaignView').then(m => ({ default: m.CampaignView })));
 const CodexViewLazy = React.lazy(() => import('./codex/CodexView').then(m => ({ default: m.CodexView })));
+const ArmorInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'armor' }) })));
+const GadgetInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'gadget' }) })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -168,6 +170,8 @@ const views: Record<string, React.ComponentType> = {
   weapons: WeaponInventoryLazy,
   campaign: CampaignViewLazy,
   codex: CodexViewLazy,
+  'armor-arsenal': ArmorInventoryLazy,
+  'gadget-arsenal': GadgetInventoryLazy,
   // Admin
   admin: AdminPanelView,
 };

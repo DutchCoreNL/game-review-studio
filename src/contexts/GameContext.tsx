@@ -278,6 +278,15 @@ type GameAction =
   | { type: 'FUSE_WEAPONS'; weaponIds: [string, string, string] }
   | { type: 'BULK_SELL_WEAPONS'; maxRarity: import('../game/weaponGenerator').WeaponRarity }
   | { type: 'ADD_WEAPON_MASTERY_XP'; weaponId: string; xp: number }
+  // Gear inventory actions
+  | { type: 'EQUIP_GEAR'; gearId: string; gearType: 'armor' | 'gadget' }
+  | { type: 'SELL_GEAR'; gearId: string; gearType: 'armor' | 'gadget' }
+  | { type: 'ADD_GEAR'; gear: import('../game/gearGenerator').GeneratedGear }
+  | { type: 'TOGGLE_GEAR_LOCK'; gearId: string; gearType: 'armor' | 'gadget' }
+  | { type: 'UPGRADE_GEAR'; gearId: string; gearType: 'armor' | 'gadget' }
+  | { type: 'SWAP_GEAR_MOD'; gearId: string; gearType: 'armor' | 'gadget'; modId: import('../game/gearGenerator').GearModId }
+  | { type: 'FUSE_GEAR'; gearIds: [string, string, string]; gearType: 'armor' | 'gadget' }
+  | { type: 'BULK_SELL_GEAR'; maxRarity: import('../game/gearGenerator').GearRarity; gearType: 'armor' | 'gadget' }
   // Campaign actions
   | { type: 'START_CAMPAIGN_MISSION'; chapterId: string; missionId: string }
   | { type: 'ADVANCE_CAMPAIGN_MISSION' }
@@ -1120,6 +1129,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           const xpGain = 10 + Math.floor(s.player.level * 1.5);
           masteryWpn.masteryXp = (masteryWpn.masteryXp || 0) + xpGain;
         }
+        // Mastery XP for equipped gear
+        const gearXpGain = 8 + Math.floor(s.player.level * 1.2);
+        const masteryArmor = s.armorInventory?.find(g => g.equipped);
+        if (masteryArmor) masteryArmor.masteryXp = (masteryArmor.masteryXp || 0) + gearXpGain;
+        const masteryGadget = s.gadgetInventory?.find(g => g.equipped);
+        if (masteryGadget) masteryGadget.masteryXp = (masteryGadget.masteryXp || 0) + gearXpGain;
       }
       if (s.activeCombat?.isNemesis && s.activeCombat?.won) {
         const nemCinematic = checkCinematicTrigger(s, 'nemesis_combat_start');
@@ -2155,6 +2170,112 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADD_WEAPON_MASTERY_XP': {
       if (!s.weaponInventory) return s;
       s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, masteryXp: (w.masteryXp || 0) + action.xp } : w);
+      return s;
+    }
+
+    // ========== GEAR INVENTORY ACTIONS ==========
+    case 'EQUIP_GEAR': {
+      const inv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!inv) return s;
+      const updated = inv.map(g => ({ ...g, equipped: g.id === action.gearId }));
+      if (action.gearType === 'armor') { s.armorInventory = updated; s.player.loadout.armor = null; }
+      else { s.gadgetInventory = updated; s.player.loadout.gadget = null; }
+      return s;
+    }
+
+    case 'SELL_GEAR': {
+      const gInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gInv) return s;
+      const gToSell = gInv.find(g => g.id === action.gearId);
+      if (!gToSell || gToSell.equipped || gToSell.locked) return s;
+      s.money += gToSell.sellValue;
+      s.stats.totalEarned += gToSell.sellValue;
+      if (action.gearType === 'armor') s.armorInventory = gInv.filter(g => g.id !== action.gearId);
+      else s.gadgetInventory = gInv.filter(g => g.id !== action.gearId);
+      return s;
+    }
+
+    case 'ADD_GEAR': {
+      const targetInv = action.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+      if (!s[targetInv]) (s as any)[targetInv] = [];
+      if (s[targetInv].length >= 20) return s;
+      s[targetInv].push(action.gear);
+      return s;
+    }
+
+    case 'TOGGLE_GEAR_LOCK': {
+      const gLockInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gLockInv) return s;
+      const updatedLock = gLockInv.map(g => g.id === action.gearId ? { ...g, locked: !g.locked } : g);
+      if (action.gearType === 'armor') s.armorInventory = updatedLock;
+      else s.gadgetInventory = updatedLock;
+      return s;
+    }
+
+    case 'UPGRADE_GEAR': {
+      const gUpgInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gUpgInv) return s;
+      const { upgradeGear, getGearUpgradeCost } = require('../game/gearUpgrade');
+      const gToUpg = gUpgInv.find(g => g.id === action.gearId);
+      if (!gToUpg || gToUpg.level >= 15) return s;
+      const gUpgCost = getGearUpgradeCost(gToUpg);
+      if (s.money < gUpgCost) return s;
+      s.money -= gUpgCost;
+      s.stats.totalSpent += gUpgCost;
+      const upgradedGear = upgradeGear(gToUpg);
+      const gUpgUpdated = gUpgInv.map(g => g.id === action.gearId ? { ...upgradedGear, equipped: g.equipped, locked: g.locked, masteryXp: g.masteryXp } : g);
+      if (action.gearType === 'armor') s.armorInventory = gUpgUpdated;
+      else s.gadgetInventory = gUpgUpdated;
+      return s;
+    }
+
+    case 'SWAP_GEAR_MOD': {
+      const gModInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gModInv) return s;
+      const { swapGearMod, getGearModSwapCost } = require('../game/gearUpgrade');
+      const modCost = getGearModSwapCost();
+      if (s.money < modCost) return s;
+      const gToMod = gModInv.find(g => g.id === action.gearId);
+      if (!gToMod) return s;
+      s.money -= modCost;
+      s.stats.totalSpent += modCost;
+      const modded = swapGearMod(gToMod, action.modId);
+      const gModUpdated = gModInv.map(g => g.id === action.gearId ? modded : g);
+      if (action.gearType === 'armor') s.armorInventory = gModUpdated;
+      else s.gadgetInventory = gModUpdated;
+      return s;
+    }
+
+    case 'FUSE_GEAR': {
+      const gFuseInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gFuseInv) return s;
+      const { canFuseGear, fuseGear } = require('../game/gearUpgrade');
+      const fuseGs = action.gearIds.map(id => gFuseInv.find(g => g.id === id)).filter(Boolean) as import('../game/gearGenerator').GeneratedGear[];
+      const gFuseCheck = canFuseGear(fuseGs, s.money);
+      if (!gFuseCheck.canFuse) return s;
+      s.money -= gFuseCheck.cost;
+      s.stats.totalSpent += gFuseCheck.cost;
+      const fusedGear = fuseGear(fuseGs, s.player.level);
+      const remaining = gFuseInv.filter(g => !action.gearIds.includes(g.id));
+      remaining.push(fusedGear);
+      if (action.gearType === 'armor') s.armorInventory = remaining;
+      else s.gadgetInventory = remaining;
+      return s;
+    }
+
+    case 'BULK_SELL_GEAR': {
+      const gBulkInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gBulkInv) return s;
+      const { getGearBelowRarity, getGearBulkSellValue } = require('../game/gearUpgrade');
+      const gToSellBulk = getGearBelowRarity(gBulkInv, action.maxRarity);
+      if (gToSellBulk.length === 0) return s;
+      const gBulkValue = getGearBulkSellValue(gToSellBulk);
+      const gSellIds = new Set(gToSellBulk.map((g: any) => g.id));
+      const gBulkRemaining = gBulkInv.filter(g => !gSellIds.has(g.id));
+      if (action.gearType === 'armor') s.armorInventory = gBulkRemaining;
+      else s.gadgetInventory = gBulkRemaining;
+      s.money += gBulkValue;
+      s.stats.totalEarned += gBulkValue;
       return s;
     }
 
