@@ -39,7 +39,7 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
   // Check if current view belongs to a nav group
   const isInGroup = (navId: string): boolean => {
     if (navId === 'city') return ['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'street_events'].includes(view);
-    if (navId === 'ops') return ['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(view);
+    if (navId === 'ops') return ['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign'].includes(view);
     if (navId === 'market') return ['market', 'trade', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(view);
     if (navId === 'garage') return ['garage', 'business', 'districts', 'families', 'gang', 'war', 'corruption', 'empire'].includes(view);
     return false;
