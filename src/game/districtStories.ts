@@ -14,7 +14,7 @@ export const DISTRICT_STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een mysterieuze container verschijnt in de haven. Wat zit erin — drugs, wapens, of iets veel ergers?',
     icon: '📦',
     triggerConditions: { minDay: 2, requiredDistrict: 'port', maxActiveArcs: 2 },
-    completionReward: { money: 15000, rep: 120, dirtyMoney: 10000, heat: 5 },
+    completionReward: { money: 15000, rep: 120, dirtyMoney: 10000, heat: 5, gearReward: { type: 'armor', minRarity: 'rare' } },
     steps: [
       {
         id: 'pl_1',
@@ -82,7 +82,7 @@ export const DISTRICT_STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een bankiersdochter is ontvoerd in Crown Heights. Jij hebt informatie — en een keuze.',
     icon: '👸',
     triggerConditions: { minDay: 2, requiredDistrict: 'crown', maxActiveArcs: 2 },
-    completionReward: { money: 30000, rep: 150, dirtyMoney: 0, heat: -5 },
+    completionReward: { money: 30000, rep: 150, dirtyMoney: 0, heat: -5, weaponReward: { minRarity: 'rare' } },
     steps: [
       {
         id: 'cg_1',
@@ -150,7 +150,7 @@ export const DISTRICT_STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een explosie in Iron Borough onthult een ondergronds tunnelnetwerk. Wie heeft het gebouwd?',
     icon: '🔥',
     triggerConditions: { minDay: 2, requiredDistrict: 'iron', maxActiveArcs: 2 },
-    completionReward: { money: 18000, rep: 130, dirtyMoney: 8000, heat: 0 },
+    completionReward: { money: 18000, rep: 130, dirtyMoney: 8000, heat: 0, gearReward: { type: 'armor', minRarity: 'rare' } },
     steps: [
       {
         id: 'if_1',
@@ -218,7 +218,7 @@ export const DISTRICT_STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een weeskind steelt van je in Lowrise. Straf je hem, of neem je hem onder je hoede?',
     icon: '👦',
     triggerConditions: { minDay: 2, requiredDistrict: 'low', maxActiveArcs: 2 },
-    completionReward: { money: 8000, rep: 180, dirtyMoney: 0, heat: -10 },
+    completionReward: { money: 8000, rep: 180, dirtyMoney: 0, heat: -10, gearReward: { type: 'gadget', minRarity: 'uncommon' } },
     steps: [
       {
         id: 'lk_1',
@@ -290,7 +290,7 @@ export const DISTRICT_STORY_ARCS: StoryArcTemplate[] = [
     description: 'Het casino in Neon Strip wordt gebruikt voor geldwitwassen door een onbekende organisatie.',
     icon: '🎰',
     triggerConditions: { minDay: 2, requiredDistrict: 'neon', maxActiveArcs: 2 },
-    completionReward: { money: 25000, rep: 160, dirtyMoney: 15000, heat: 0 },
+    completionReward: { money: 25000, rep: 160, dirtyMoney: 15000, heat: 0, gearReward: { type: 'gadget', minRarity: 'rare' } },
     steps: [
       {
         id: 'nj_1',

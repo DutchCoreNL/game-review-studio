@@ -6,6 +6,8 @@
 import { GameState, DistrictId, StatId } from './types';
 import { getPlayerStat } from './engine';
 import { addPhoneMessage } from './newFeatures';
+import { generateGear, type GeneratedGear, type GearType } from './gearGenerator';
+import { generateWeapon, type GeneratedWeapon } from './weaponGenerator';
 
 // ========== TYPES ==========
 
@@ -62,6 +64,10 @@ export interface StoryArcTemplate {
     rep: number;
     dirtyMoney: number;
     heat: number;
+    /** Optional: type of gear reward on completion */
+    gearReward?: { type: GearType; minRarity: 'uncommon' | 'rare' | 'epic'; themed?: string };
+    /** Optional: weapon reward on completion */
+    weaponReward?: { minRarity: 'uncommon' | 'rare' | 'epic' };
   };
 }
 
@@ -87,7 +93,7 @@ export const STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een mysterieuze bron stuurt berichten over een corrupt politienetwerk. Vertrouw je hem, of is het een val?',
     icon: '🕵️',
     triggerConditions: { minDay: 5, minRep: 50 },
-    completionReward: { money: 25000, rep: 200, dirtyMoney: 0, heat: -20 },
+    completionReward: { money: 25000, rep: 200, dirtyMoney: 0, heat: -20, gearReward: { type: 'gadget', minRarity: 'rare' } },
     steps: [
       {
         id: 'inf_1',
@@ -211,7 +217,7 @@ export const STORY_ARCS: StoryArcTemplate[] = [
     description: 'Je ontdekt dat een oud maffiafortuin ergens in Noxhaven verborgen is. Volg aanwijzingen over meerdere districten.',
     icon: '🗝️',
     triggerConditions: { minDay: 8, minDistricts: 1 },
-    completionReward: { money: 40000, rep: 150, dirtyMoney: 20000, heat: 0 },
+    completionReward: { money: 40000, rep: 150, dirtyMoney: 20000, heat: 0, weaponReward: { minRarity: 'rare' } },
     steps: [
       {
         id: 'erf_1',
@@ -329,7 +335,7 @@ export const STORY_ARCS: StoryArcTemplate[] = [
     description: 'Een nieuwe speler in Noxhaven daagt je positie uit. Diplomatie of geweld?',
     icon: '⚔️',
     triggerConditions: { minDay: 12, minRep: 100, minDistricts: 2 },
-    completionReward: { money: 20000, rep: 300, dirtyMoney: 10000, heat: -10 },
+    completionReward: { money: 20000, rep: 300, dirtyMoney: 10000, heat: -10, gearReward: { type: 'armor', minRarity: 'epic' } },
     steps: [
       {
         id: 'riv_1',
@@ -603,7 +609,21 @@ export function resolveArcChoice(
       if (reward.money > 0) state.stats.totalEarned += reward.money;
       if (reward.dirtyMoney > 0) state.stats.totalEarned += reward.dirtyMoney;
       
-      addPhoneMessage(state, 'anonymous', `Verhaallijn "${template.name}" voltooid! ${template.icon} Beloning: €${reward.money.toLocaleString()}`, 'opportunity');
+      // Generate gear reward if specified
+      if (reward.gearReward) {
+        const gearDrop = generateGear(state.player.level, reward.gearReward.type, reward.gearReward.minRarity as any);
+        const gInv = reward.gearReward.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!state[gInv]) (state as any)[gInv] = [];
+        if ((state as any)[gInv].length < 20) (state as any)[gInv].push(gearDrop);
+      }
+      // Generate weapon reward if specified
+      if (reward.weaponReward) {
+        const wpnDrop = generateWeapon(state.player.level, reward.weaponReward.minRarity as any);
+        if (!state.weaponInventory) state.weaponInventory = [];
+        if (state.weaponInventory.length < 20) state.weaponInventory.push(wpnDrop);
+      }
+      
+      addPhoneMessage(state, 'anonymous', `Verhaallijn "${template.name}" voltooid! ${template.icon} Beloning: €${reward.money.toLocaleString()}${reward.gearReward ? ' + Gear!' : ''}${reward.weaponReward ? ' + Wapen!' : ''}`, 'opportunity');
     } else {
       addPhoneMessage(state, 'anonymous', `Verhaallijn "${template.name}" afgerond. Te veel mislukkingen — beperkte beloning.`, 'info');
       // Half reward on partial failure
