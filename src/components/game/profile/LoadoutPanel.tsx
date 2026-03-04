@@ -6,10 +6,11 @@ import { ViewWrapper } from '../ui/ViewWrapper';
 import { WeaponCard } from '../weapons/WeaponCard';
 import { motion } from 'framer-motion';
 import { Sword, Shield, Smartphone } from 'lucide-react';
+import { WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import profileBg from '@/assets/profile-bg.jpg';
 
 const SLOT_ICONS: Record<string, React.ReactNode> = {
-  weapon: <Sword size={20} />, armor: <Shield size={20} />, gadget: <Smartphone size={20} />,
+  armor: <Shield size={20} />, gadget: <Smartphone size={20} />,
 };
 
 export function LoadoutPanel() {
@@ -20,28 +21,31 @@ export function LoadoutPanel() {
     <ViewWrapper bg={profileBg}>
       <SectionHeader title="Loadout" icon={<Shield size={12} />} />
 
-      {/* Procedural weapon slot */}
-      {equippedWeapon && (
-        <div className="mb-3">
-          <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Procedureel wapen</div>
+      {/* Procedural weapon slot — primary */}
+      <div className="mb-4">
+        <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Wapen</div>
+        {equippedWeapon ? (
           <WeaponCard weapon={equippedWeapon} compact />
-        </div>
-      )}
+        ) : (
+          <motion.button
+            onClick={() => setView('weapons' as any)}
+            className="w-full rounded flex items-center gap-3 p-3 transition-all border border-dashed border-border bg-muted/20 text-muted-foreground hover:border-gold/30 hover:text-gold"
+            whileTap={{ scale: 0.98 }}
+          >
+            <Sword size={20} />
+            <div className="text-left">
+              <span className="text-xs font-semibold">Geen wapen uitgerust</span>
+              <p className="text-[0.45rem] opacity-70">Ga naar het Wapenarsenaal om een wapen te kiezen</p>
+            </div>
+          </motion.button>
+        )}
+      </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {(['weapon', 'armor', 'gadget'] as const).map(slot => {
+      {/* Armor & Gadget slots (legacy gear) */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {(['armor', 'gadget'] as const).map(slot => {
           const gearId = state.player.loadout[slot];
           const item = gearId ? GEAR.find(g => g.id === gearId) : null;
-          // Hide legacy weapon slot if procedural weapon equipped
-          if (slot === 'weapon' && equippedWeapon && !gearId) return (
-            <motion.button key={slot}
-              onClick={() => setView('weapons' as any)}
-              className="aspect-square rounded flex flex-col items-center justify-center text-center p-2 transition-all border border-dashed border-gold/30 bg-gold/5 text-gold"
-              whileTap={{ scale: 0.95 }}>
-              <Sword size={20} />
-              <span className="text-[0.5rem] mt-1 uppercase tracking-wider font-semibold">Arsenaal</span>
-            </motion.button>
-          );
           return (
             <motion.button key={slot}
               onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast('Item uitgedaan'); } }}
@@ -63,9 +67,14 @@ export function LoadoutPanel() {
 
       <SectionHeader title="Kluis" />
       <div className="space-y-2 mb-4">
-        {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).map(id => {
+        {state.ownedGear.filter(id => {
+          const isEquipped = Object.values(state.player.loadout).includes(id);
+          return !isEquipped;
+        }).map(id => {
           const item = GEAR.find(g => g.id === id);
           if (!item) return null;
+          // Skip legacy weapons — they're replaced by procedural system
+          if (item.type === 'weapon') return null;
           return (
             <div key={id} className="game-card flex justify-between items-center">
               <div>

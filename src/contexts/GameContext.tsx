@@ -2960,9 +2960,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (pvpAmmoCost > 0) {
         Engine.ensureAmmoStock(s);
         const pvpAmmoType = Engine.getActiveAmmoType(s);
-        const equippedWeaponId = s.player.loadout.weapon;
-        const equippedWeapon = equippedWeaponId ? GEAR.find(g => g.id === equippedWeaponId) : null;
-        const isMelee = equippedWeapon?.ammoType === null;
+        const procWeapon = s.weaponInventory?.find(w => w.equipped);
+        const legacyWeaponId = s.player.loadout.weapon;
+        const legacyWeapon = legacyWeaponId ? GEAR.find(g => g.id === legacyWeaponId) : null;
+        const isMelee = procWeapon ? procWeapon.frame === 'blade' : (legacyWeapon?.ammoType === null);
         if (!isMelee) {
           const pvpCurrentAmmo = s.ammoStock[pvpAmmoType] || 0;
           if (pvpCurrentAmmo >= pvpAmmoCost) {

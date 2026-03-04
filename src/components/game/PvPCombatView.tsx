@@ -3,6 +3,7 @@ import { useGame } from '@/contexts/GameContext';
 import { PvPCombatState, CombatBuff } from '@/game/types';
 import { COMBAT_SKILLS, COMBO_THRESHOLD, getAvailableSkills, isSkillOnCooldown, BUFF_DEFS } from '@/game/combatSkills';
 import { GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
+import { WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -240,17 +241,40 @@ export function PvPCombatView() {
 
         {/* Ammo indicator */}
         {(() => {
-          const equippedWeaponId = state.player.loadout.weapon;
-          const equippedWeapon = equippedWeaponId ? (GEAR.find(g => g.id === equippedWeaponId) ?? null) : null;
-          const isMelee = equippedWeapon?.ammoType === null;
-          if (isMelee) {
+          const procWeapon = state.weaponInventory?.find(w => w.equipped);
+          const legacyWeaponId = state.player.loadout.weapon;
+          const legacyWeapon = legacyWeaponId ? (GEAR.find(g => g.id === legacyWeaponId) ?? null) : null;
+          const isMelee = procWeapon ? procWeapon.frame === 'blade' : (legacyWeapon?.ammoType === null);
+          
+          if (procWeapon) {
             return (
-              <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
-                ⚔️ {equippedWeapon?.name || 'Melee'} — Geen munitie nodig
+              <div className="text-center mb-2 space-y-0.5">
+                <div className={`text-[0.55rem] font-bold ${WEAPON_RARITY_COLORS[procWeapon.rarity]}`}>
+                  {procWeapon.name} ({WEAPON_RARITY_LABEL[procWeapon.rarity]})
+                </div>
+                <div className="text-[0.45rem] text-muted-foreground flex items-center justify-center gap-2">
+                  <span>⚔️ {procWeapon.damage} DMG</span>
+                  <span>🎯 {procWeapon.accuracy} ACC</span>
+                  <span>💥 {procWeapon.critChance}% CRIT</span>
+                  {procWeapon.specialEffect && <span>{procWeapon.specialEffect}</span>}
+                </div>
+                {!isMelee && (
+                  <div className={`text-[0.5rem] font-bold ${(state.ammo || 0) <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
+                    🔫 Kogels: {state.ammo || 0}/500
+                  </div>
+                )}
               </div>
             );
           }
-          const ammoType = equippedWeapon?.ammoType || '9mm';
+          
+          if (isMelee) {
+            return (
+              <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
+                ⚔️ {legacyWeapon?.name || 'Melee'} — Geen munitie nodig
+              </div>
+            );
+          }
+          const ammoType = legacyWeapon?.ammoType || '9mm';
           const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
           const typeAmmo = ammoStock[ammoType] || 0;
           const typeLabel = AMMO_TYPE_LABELS[ammoType]?.label || ammoType;
@@ -259,7 +283,6 @@ export function PvPCombatView() {
               <Crosshair size={10} className={typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'} />
               <span className={`text-[0.55rem] font-bold ${typeAmmo <= 3 ? 'text-blood' : 'text-muted-foreground'}`}>
                 {typeLabel}: {typeAmmo}
-                {equippedWeapon?.clipSize ? ` | Clip: ${equippedWeapon.clipSize}` : ''}
                 {typeAmmo === 0 && <span className="text-blood animate-pulse ml-1">— MELEE MODUS (50%)</span>}
               </span>
             </div>
