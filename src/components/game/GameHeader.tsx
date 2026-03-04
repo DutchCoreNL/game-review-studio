@@ -21,7 +21,7 @@ import { WifiPopup } from './header/WifiPopup';
 import { formatGameDate } from '@/lib/gameDate';
 import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
+type PopupType = 'rep' | 'heat' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,
@@ -224,17 +224,6 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
           tooltip={`${ammoLabel} munitie voor je actieve wapen.`}
           onTap={() => setPopup('ammo')}
         />
-
-        {/* Compact conditional tiles */}
-        {state.debt > 0 && (
-          <ResourceTile
-            label={state.debt > 100000 ? '💀' : '€'}
-            value={`${(state.debt / 1000).toFixed(0)}k`}
-            color={state.debt > 100000 ? 'text-blood' : 'text-muted-foreground'}
-            tooltip="Je openstaande schuld."
-            onTap={() => setPopup('debt')}
-          />
-        )}
 
         {isHiding && (
           <ResourceTile label="" value={`🫥${state.hidingDays}d`} color="text-ice"

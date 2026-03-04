@@ -7,7 +7,7 @@ import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AmmoType, StatId } from '@/game/types';
 import { useState } from 'react';
 
-type PopupType = 'rep' | 'heat' | 'debt' | 'level' | 'ammo' | 'karma' | 'hp' | null;
+type PopupType = 'rep' | 'heat' | 'level' | 'ammo' | 'karma' | 'hp' | null;
 
 interface ResourcePopupProps {
   type: PopupType;
@@ -42,7 +42,6 @@ export function ResourcePopup({ type, onClose }: ResourcePopupProps) {
               </button>
               {type === 'rep' && <RepPanel />}
               {type === 'heat' && <HeatPanel onClose={onClose} />}
-              {type === 'debt' && <DebtPanel onClose={onClose} />}
               {type === 'level' && <LevelPanel />}
               {type === 'ammo' && <AmmoPanel />}
               {type === 'karma' && <KarmaPanel />}
@@ -334,83 +333,6 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-function DebtPanel({ onClose }: { onClose: () => void }) {
-  const { state, dispatch, showToast } = useGame();
-  const dailyInterest = Math.floor(state.debt * 0.03);
-
-  const payAmounts = [1000, 5000, 10000, 50000];
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-4">
-        <Skull size={18} className={state.debt > 100000 ? 'text-blood' : 'text-muted-foreground'} />
-        <h3 className="font-bold text-sm uppercase tracking-wider">Schuld</h3>
-      </div>
-
-      <div className="text-center mb-4">
-        <span className={`text-3xl font-bold ${state.debt > 100000 ? 'text-blood' : state.debt > 0 ? 'text-gold' : 'text-emerald'}`}>
-          €{state.debt.toLocaleString()}
-        </span>
-        {state.debt > 0 && (
-          <p className="text-xs text-blood mt-1">+€{dailyInterest.toLocaleString()} rente per dag (3%)</p>
-        )}
-        {state.debt === 0 && (
-          <p className="text-xs text-emerald mt-1">Schuldenvrij! 🎉</p>
-        )}
-      </div>
-
-      {state.debt > 0 && (
-        <>
-          <div className="space-y-2 mb-4">
-            <InfoRow label="Schuld limiet" value="€250.000" valueClass={state.debt > 200000 ? 'text-blood' : undefined} />
-            <InfoRow label="Dagelijkse rente" value={`€${dailyInterest.toLocaleString()}`} valueClass="text-blood" />
-            <InfoRow label="Beschikbaar geld" value={`€${state.money.toLocaleString()}`} valueClass="text-gold" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {payAmounts.map(amount => {
-              const payable = Math.min(amount, state.money, state.debt);
-              const disabled = state.money <= 0 || state.debt <= 0 || payable <= 0;
-              return (
-                <button
-                  key={amount}
-                  onClick={() => {
-                    dispatch({ type: 'PAY_DEBT', amount: payable });
-                    showToast(`€${payable.toLocaleString()} afgelost`);
-                  }}
-                  disabled={disabled}
-                  className="py-2 rounded text-xs font-bold bg-[hsl(var(--blood)/0.1)] border border-blood text-blood disabled:opacity-30"
-                >
-                  €{amount.toLocaleString()}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            onClick={() => {
-              const payable = Math.min(state.money, state.debt);
-              if (payable <= 0) return showToast('Niet genoeg geld!', true);
-              dispatch({ type: 'PAY_DEBT', amount: payable });
-              showToast(`€${payable.toLocaleString()} afgelost`);
-            }}
-            disabled={state.money <= 0 || state.debt <= 0}
-            className="w-full py-2.5 rounded text-xs font-bold bg-blood text-primary-foreground disabled:opacity-30"
-          >
-            ALLES AFLOSSEN (€{Math.min(state.money, state.debt).toLocaleString()})
-          </button>
-        </>
-      )}
-
-      {state.debt > 200000 && (
-        <p className="text-[0.6rem] text-blood mt-3 font-semibold">
-          ⚠️ Schuld boven €200k! Bij €250k kun je geen dagen meer afsluiten.
-        </p>
-      )}
-    </div>
-  );
-}
-
 // ========== LEVEL PANEL ==========
 function LevelPanel() {
   const { state, dispatch, showToast } = useGame();

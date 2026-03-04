@@ -1679,7 +1679,7 @@ export function createInitialState(): import('./types').GameState {
     day: 1,
     money: 3000,
     dirtyMoney: 0,
-    debt: 2000,
+    debt: 0,
     rep: 0,
     heat: 0,
     personalHeat: 0,
