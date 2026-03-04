@@ -47,7 +47,7 @@ export function NightReport({ onClose }: { onClose?: () => void }) {
   if (!report) return null;
 
   const totalIncome = report.districtIncome + report.businessIncome;
-  const totalCosts = report.debtInterest + report.policeFine;
+  const totalCosts = report.policeFine;
 
   // Staggered delay counter
   let d = 0;
@@ -97,10 +97,6 @@ export function NightReport({ onClose }: { onClose?: () => void }) {
   // Drug Empire risk event
   const drugRiskDelay = report.drugEmpireRiskEvent ? next(0.2) : d;
   if (report.drugEmpireRiskEvent) scheduleSound(drugRiskDelay, playAlarmSound);
-
-  // Costs
-  const debtDelay = report.debtInterest > 0 ? next() : d;
-  if (report.debtInterest > 0) scheduleSound(debtDelay, playNegativeSound);
 
   // Heat & crew healing bars
   const heatDelay = next();
@@ -320,10 +316,6 @@ export function NightReport({ onClose }: { onClose?: () => void }) {
                 </motion.div>
               );
             })()}
-
-            {report.debtInterest > 0 && (
-              <AnimatedReportRow icon={<TrendingDown size={14} />} label="Schuld Rente" value={report.debtInterest} prefix="€" positive color="text-blood" delay={debtDelay} />
-            )}
 
             {/* Vehicle Heat bar */}
             <AnimatedResourceBar

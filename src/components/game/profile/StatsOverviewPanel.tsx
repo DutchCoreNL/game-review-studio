@@ -66,9 +66,6 @@ export function StatsOverviewPanel() {
           <InfoRow icon={<TrendingUp size={10} />} label="Totaal Dagelijks" value={`€${totalDailyIncome.toLocaleString()}/dag`} valueClass="text-gold" />
           <InfoRow icon={<Coins size={10} />} label="Witwas Capaciteit" value={`€${dailyWash.toLocaleString()}/dag`} valueClass="text-ice" />
           <InfoRow icon={<Coins size={10} />} label="Zwart Geld" value={`€${state.dirtyMoney.toLocaleString()}`} valueClass="text-muted-foreground" />
-          {state.debt > 0 && (
-            <InfoRow icon={<Coins size={10} />} label="Rente/dag" value={`-€${Math.floor(state.debt * 0.03).toLocaleString()}`} valueClass="text-blood" />
-          )}
         </div>
       </div>
 

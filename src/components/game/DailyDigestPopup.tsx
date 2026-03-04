@@ -98,12 +98,6 @@ export function DailyDigestPopup({ forceOpen, onClose }: DailyDigestPopupProps =
                 </div>
                 <div className="space-y-1 text-[0.6rem]">
                   <p className="text-muted-foreground">Passief inkomen is verwerkt via je businesses, districten en villa.</p>
-                  {sections.income.debt > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Schuld rente</span>
-                      <span className="text-blood font-bold">-€{sections.income.debtInterest.toLocaleString()}</span>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}

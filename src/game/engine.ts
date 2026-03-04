@@ -1000,12 +1000,6 @@ export function endTurn(state: GameState): NightReportData {
     }
   }
 
-  // Debt interest
-  if (state.debt > 0) {
-    report.debtInterest = Math.floor(state.debt * 0.03);
-    state.debt = Math.floor(state.debt * 1.03);
-  }
-
   // Vehicle condition decay
   state.ownedVehicles.forEach(v => {
     const decay = Math.floor(Math.random() * 5) + 2; // 2-6% per day

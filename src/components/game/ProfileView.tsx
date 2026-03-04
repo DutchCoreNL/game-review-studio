@@ -175,24 +175,6 @@ export function ProfileView() {
             </div>
           </div>
 
-          {/* Debt */}
-          {state.debt > 0 && (
-            <>
-              <SectionHeader title="Schuld" icon={<Skull size={12} />} />
-              <div className="game-card border-l-[3px] border-l-blood mb-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-bold text-sm text-blood">€{state.debt.toLocaleString()}</h4>
-                    <p className="text-[0.55rem] text-muted-foreground">3% rente per dag</p>
-                  </div>
-                  <GameButton variant="blood" size="sm"
-                    onClick={() => { const amt = Math.min(5000, state.money, state.debt); dispatch({ type: 'PAY_DEBT', amount: amt }); showToast(`€${amt.toLocaleString()} afgelost`); }}>
-                    AFLOSSEN
-                  </GameButton>
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Casino Quick Link */}
           <SectionHeader title="Casino" icon={<Dices size={12} />} />

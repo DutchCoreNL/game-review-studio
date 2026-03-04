@@ -99,7 +99,6 @@ type GameAction =
   | { type: 'SOLO_OP'; opId: string }
   | { type: 'EXECUTE_CONTRACT'; contractId: number; crewIndex: number }
   | { type: 'BUY_CHEMICALS'; amount: number }
-  | { type: 'PAY_DEBT'; amount: number }
   | { type: 'SET_TUTORIAL_DONE' }
   | { type: 'CLAIM_DAILY_REWARD' }
   | { type: 'CASINO_BET'; amount: number }
@@ -539,7 +538,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'AUTO_TICK': {
       // Automatic day progression — the ONLY way days advance in MMO
-      if (s.debt > 250000) return s;
       if (s.gameOver || s.victoryData) return s;
       
       // === ENERGY/NERVE REGENERATION ===
@@ -951,14 +949,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.money -= cost;
       s.stats.totalSpent += cost;
       s.lab.chemicals += action.amount;
-      return s;
-    }
-
-    case 'PAY_DEBT': {
-      if (action.amount < 0 || s.money < action.amount || s.debt <= 0) return s;
-      const amt = Math.min(action.amount, s.debt);
-      s.money -= amt;
-      s.debt -= amt;
       return s;
     }
 
