@@ -12,18 +12,18 @@ import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, canTriggerFinalBoss, createNewGamePlus, getPhaseUpMessage, getDeckDialogue, getEndgameEvent, createPrestigeReset } from '../game/endgame';
-import { rollStreetEvent, resolveStreetChoice } from '../game/storyEvents';
+// Street events removed (not suitable for MMO)
 import { checkArcTriggers, checkArcProgression, resolveArcChoice } from '../game/storyArcs';
 import { generateDailyChallenges, updateChallengeProgress, getChallengeTemplate } from '../game/dailyChallenges';
 import { rollNpcEncounter, applyNpcBonuses } from '../game/npcs';
-import { rollNpcEvent, resolveNpcEvent, applyMissingNpcBonuses } from '../game/npcEvents';
+import { applyMissingNpcBonuses } from '../game/npcEvents';
 import { checkWeekEvent, processWeekEvent } from '../game/weekEvents';
 import { applyBackstory } from '../game/backstory';
 import { generateArcFlashback } from '../game/flashbacks';
 import { generateHitContracts, executeHit } from '../game/hitman';
 import * as bountyModule from '../game/bounties';
 import * as stockModule from '../game/stocks';
-import { resolveCrewEvent } from '../game/crewEvents';
+// Crew events removed (not suitable for MMO)
 import { checkCinematicTrigger, applyCinematicChoice, markCinematicSeen } from '../game/cinematics';
 import { generateDailyNews } from '../game/newsGenerator';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
@@ -481,12 +481,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.addVehicleHeat(s, travelHeat);
       Engine.recomputeHeat(s);
       s.loc = action.to;
-      // Roll for street event
-      const travelEvent = rollStreetEvent(s, 'travel');
-      if (travelEvent) {
-        s.streetEventQueue = [...(s.streetEventQueue || []), travelEvent].slice(-5);
-        s.lastStreetEventAt = new Date().toISOString();
-      }
+      // Street events removed (MMO)
       // Roll for car theft encounter (15% base chance, only if no street event)
       if (!s.pendingStreetEvent && !s.pendingCarTheft && s.stolenCars.length < 8) {
         const carTheftChance = 0.15 + (s.player.level * 0.01);
@@ -585,11 +580,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Roll for street event (skip during catch-up ticks)
-      if (!(action as any).isCatchUp) {
-        const autoTickEvent = rollStreetEvent(s, 'end_turn');
-        if (autoTickEvent) { s.streetEventQueue = [...(s.streetEventQueue || []), autoTickEvent].slice(-5); s.lastStreetEventAt = new Date().toISOString(); }
-      }
+      // Street events removed (MMO)
 
       // Endgame events
       if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
@@ -631,14 +622,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       syncChallenges(s);
       
-      // NPC
-      if (!s.pendingStreetEvent && !s.pendingArcEvent) {
+      // NPC encounters (phone messages only, no popups)
+      if (!s.pendingArcEvent) {
         const npcEnc = rollNpcEncounter(s);
         if (npcEnc) addPhoneMessage(s, npcEnc.npcId, npcEnc.message, 'info');
-        if (!(s as any).pendingNpcEvent) {
-          const npcEvt = rollNpcEvent(s);
-          if (npcEvt) (s as any).pendingNpcEvent = npcEvt;
-        }
       }
       const npcBonuses = applyNpcBonuses(s);
       if (npcBonuses.extraHeatDecay > 0) { Engine.addPersonalHeat(s, -npcBonuses.extraHeatDecay); Engine.recomputeHeat(s); }
@@ -927,11 +914,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.screenEffect = 'blood-flash';
         }
       }
-      const soloEvent = rollStreetEvent(s, 'solo_op');
-      if (soloEvent) {
-        s.streetEventQueue = [...(s.streetEventQueue || []), soloEvent].slice(-5);
-        s.lastStreetEventAt = new Date().toISOString();
-      }
+      // Street events removed (MMO)
       if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
       syncChallenges(s);
       return s;
@@ -1429,111 +1412,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'RESOLVE_STREET_EVENT': {
-      if (!s.pendingStreetEvent) return s;
-      const result = resolveStreetChoice(s, s.pendingStreetEvent, action.choiceId, action.forceResult);
-      // Apply effects
-      if (result.success) {
-        s.money += result.effects.money;
-        s.dirtyMoney += result.effects.dirtyMoney;
-        // Heat 2.0: street events split heat
-        Engine.splitHeat(s, result.effects.heat, 0.5);
-        Engine.recomputeHeat(s);
-        s.rep += result.effects.rep;
-        if (result.effects.money > 0) s.stats.totalEarned += result.effects.money;
-        if (result.effects.dirtyMoney > 0) s.stats.totalEarned += result.effects.dirtyMoney;
-        if (result.effects.crewDamage > 0 && s.crew.length > 0) {
-          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
-          target.hp = Math.max(1, target.hp - result.effects.crewDamage);
-        }
-        // Set screen effect
-        if (result.effects.money > 2000 || result.effects.dirtyMoney > 3000) {
-          s.screenEffect = 'gold-flash';
-          s.lastRewardAmount = result.effects.money + result.effects.dirtyMoney;
-        }
-      } else {
-        s.money += result.effects.money; // negative on fail
-        // Heat 2.0: failed events add more personal heat
-        Engine.splitHeat(s, result.effects.heat, 0.3);
-        Engine.recomputeHeat(s);
-        s.rep += result.effects.rep;
-        if (result.effects.crewDamage > 0 && s.crew.length > 0) {
-          const target = s.crew[Math.floor(Math.random() * s.crew.length)];
-          target.hp = Math.max(1, target.hp - result.effects.crewDamage);
-        }
-        if (result.effects.crewDamage > 10) {
-          s.screenEffect = 'blood-flash';
-        }
-      }
-
-      // === NEW: Apply karma effect ===
-      if (result.effects.karma) {
-        s.karma = Math.max(-100, Math.min(100, s.karma + result.effects.karma));
-      }
-
-      // === NEW: Apply faction relation effect ===
-      if (result.effects.factionRel) {
-        const { familyId, change } = result.effects.factionRel;
-        s.familyRel[familyId] = (s.familyRel[familyId] || 0) + change;
-      }
-
-      // === NEW: Apply NPC relation effect ===
-      if (result.effects.npcRel && s.npcRelations) {
-        const { npcId, change } = result.effects.npcRel;
-        if (s.npcRelations[npcId]) {
-          s.npcRelations[npcId].value += change;
-          s.npcRelations[npcId].lastInteractionDay = s.day;
-        }
-      }
-
-      // === NEW: Queue follow-up event for next day ===
-      if (result.followUpEventId) {
-        (s as any)._pendingFollowUpEventId = result.followUpEventId;
-      }
-
-      // === NEW: Broadcast news to all players (async, fire-and-forget) ===
-      if (result.newsBroadcast) {
-        try {
-          supabase.from('news_events').insert({
-            text: result.newsBroadcast,
-            icon: '🔥',
-            urgency: 'medium',
-            category: 'player_action',
-            district_id: s.loc,
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          }).then(() => {});
-        } catch (_) { /* silent */ }
-      }
-
-      s.streetEventResult = { success: result.success, text: result.text };
-      return s;
-    }
-
-    case 'DISMISS_STREET_EVENT': {
-      // Clear consumed follow-up if this was the follow-up event
-      if ((s as any)._pendingFollowUpEventId && s.pendingStreetEvent?.id === (s as any)._pendingFollowUpEventId) {
-        (s as any)._pendingFollowUpEventId = null;
-      }
-      s.pendingStreetEvent = null;
-      s.streetEventResult = null;
-      return s;
-    }
-
-    case 'OPEN_QUEUED_EVENT': {
-      const queue = s.streetEventQueue || [];
-      const idx = action.index;
-      if (idx < 0 || idx >= queue.length) return s;
-      s.pendingStreetEvent = queue[idx];
-      s.streetEventResult = null;
-      s.streetEventQueue = queue.filter((_: any, i: number) => i !== idx);
-      return s;
-    }
-
-    case 'DISMISS_QUEUED_EVENT': {
-      const q = s.streetEventQueue || [];
-      s.streetEventQueue = q.filter((_: any, i: number) => i !== action.index);
-      return s;
-    }
+    // Street events removed (MMO)
 
     case 'SET_SCREEN_EFFECT': {
       s.screenEffect = action.effect;
@@ -1648,44 +1527,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    // ========== CREW LOYALTY EVENT ACTIONS ==========
-
-    case 'RESOLVE_CREW_EVENT': {
-      if (!s.pendingCrewEvent) return s;
-      resolveCrewEvent(s, s.pendingCrewEvent, action.choiceId);
-      s.pendingCrewEvent = null;
-      return s;
-    }
-
-    case 'DISMISS_CREW_EVENT': {
-      if (s.pendingCrewEvent) {
-        const member = s.crew[s.pendingCrewEvent.crewIndex];
-        if (member) {
-          member.loyalty = Math.max(0, member.loyalty - 5);
-        }
-        if (!s.crewEventCooldowns) s.crewEventCooldowns = {};
-        s.crewEventCooldowns[s.pendingCrewEvent.crewIndex] = s.day;
-      }
-      s.pendingCrewEvent = null;
-      return s;
-    }
-
-    case 'RESOLVE_NPC_EVENT': {
-      const npcEvt = (s as any).pendingNpcEvent;
-      if (!npcEvt) return s;
-      const npcResult = resolveNpcEvent(s, npcEvt, action.choiceId);
-      if (npcResult.moneyChange > 0) {
-        s.screenEffect = 'gold-flash';
-        s.lastRewardAmount = npcResult.moneyChange;
-      }
-      (s as any).pendingNpcEvent = null;
-      return s;
-    }
-
-    case 'DISMISS_NPC_EVENT': {
-      (s as any).pendingNpcEvent = null;
-      return s;
-    }
+    // Crew/NPC event popups removed (MMO)
 
     // ========== HEAT 2.0 ACTIONS ==========
 

@@ -35,7 +35,7 @@ const CATEGORIES: Category[] = [
       { id: 'safehouse', label: 'Safehouse', icon: Home },
       { id: 'villa', label: 'Villa', icon: Building2 },
       { id: 'chopshop', label: 'Chop Shop', icon: Wrench },
-      { id: 'street_events', label: 'Straat Events', icon: Zap },
+      
     ],
   },
   {

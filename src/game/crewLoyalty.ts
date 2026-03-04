@@ -7,7 +7,7 @@
 
 import type { GameState, NightReportData, FamilyId } from './types';
 import { addPhoneMessage } from './newFeatures';
-import { rollCrewEvent, checkLoyaltyMilestones } from './crewEvents';
+import { checkLoyaltyMilestones } from './crewEvents';
 
 const DEFECTION_THRESHOLD = 20;
 const DEFECTION_CHANCE = 0.4; // 40% chance to defect when below threshold
@@ -115,17 +115,7 @@ export function processCrewLoyalty(state: GameState, report: NightReportData): v
   // Check loyalty milestones (trouw bonus, ultimatum)
   checkLoyaltyMilestones(state);
 
-  // Roll for crew loyalty event
-  const crewEvent = rollCrewEvent(state);
-  if (crewEvent) {
-    state.pendingCrewEvent = crewEvent;
-    addPhoneMessage(
-      state,
-      crewEvent.crewName,
-      crewEvent.message,
-      'opportunity'
-    );
-  }
+  // Crew event popups removed (MMO)
 }
 
 /** Get loyalty status label */
