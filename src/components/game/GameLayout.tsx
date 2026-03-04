@@ -24,9 +24,7 @@ import { TutorialOverlay } from './TutorialOverlay';
 
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
-import { CrewEventPopup } from './CrewEventPopup';
 import { VictoryScreen } from './VictoryScreen';
-import { StoryEventPopup } from './StoryEventPopup';
 import { StoryArcEvent } from './StoryArcEvent';
 import { CarTheftPopup } from './CarTheftPopup';
 import { FinalBossAlert } from './FinalBossAlert';
@@ -41,7 +39,7 @@ import { GameOverScreen } from './GameOverScreen';
 import { AchievementPopup } from './AchievementPopup';
 import { CinematicOverlay } from './CinematicOverlay';
 import { ScreenEffects } from './animations/ScreenEffects';
-import { NpcEventPopup } from './NpcEventPopup';
+
 import { WeekEventBanner } from './WeekEventBanner';
 import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
@@ -103,7 +101,7 @@ const PropertiesView = React.lazy(() => import('./PropertiesView').then(m => ({ 
 const TravelViewLazy = React.lazy(() => import('./TravelView').then(m => ({ default: m.TravelView })));
 const ChatViewLazy = React.lazy(() => import('./ChatView').then(m => ({ default: m.ChatView })));
 const OCViewLazy = React.lazy(() => import('./OrganizedCrimesView').then(m => ({ default: m.OrganizedCrimesView })));
-const StreetEventsViewLazy = React.lazy(() => import('./StreetEventsView').then(m => ({ default: m.StreetEventsView })));
+
 const MeritPointsViewLazy = React.lazy(() => import('./MeritPointsView').then(m => ({ default: m.MeritPointsView })));
 const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m.WarView })));
 const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
@@ -164,7 +162,7 @@ const views: Record<string, React.ComponentType> = {
   travel: TravelViewLazy,
   chat: ChatViewLazy,
   'organized-crimes': OCViewLazy,
-  'street_events': StreetEventsViewLazy,
+  
   merit: MeritPointsViewLazy,
   weapons: WeaponInventoryLazy,
   campaign: CampaignViewLazy,
@@ -174,7 +172,7 @@ const views: Record<string, React.ComponentType> = {
 
 // Map view to music scene
 function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
-  if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat', 'street_events'].includes(v)) return 'city';
+  if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
@@ -220,10 +218,10 @@ export function GameLayout() {
 
   // Popup open sounds
   useEffect(() => {
-    if (state.pendingStreetEvent || state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup || state.pendingBountyEncounter) {
+    if (state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup || state.pendingBountyEncounter) {
       playPopupOpen();
     }
-  }, [state.pendingStreetEvent, state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
+  }, [state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
 
   // Sync world time of day → game state for phase-based events
   useEffect(() => {
@@ -308,9 +306,7 @@ export function GameLayout() {
           {state.activeMission && <MissionEncounterView />}
           {state.showPhone && <PhoneOverlay />}
           {state.pendingSpecChoice && <CrewSpecPopup />}
-          {state.pendingCrewEvent && <CrewEventPopup />}
           {state.victoryData && <VictoryScreen />}
-          {!state.prison && state.pendingStreetEvent && <StoryEventPopup />}
           {!state.prison && state.pendingArcEvent && <StoryArcEvent />}
           {!state.prison && state.pendingCarTheft && <CarTheftPopup />}
           {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
@@ -321,7 +317,7 @@ export function GameLayout() {
           {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
           <FinalBossAlert />
           <AchievementPopup />
-          {(state as any).pendingNpcEvent && <NpcEventPopup />}
+          
           {state.pendingBountyEncounter && <BountyEncounterPopup />}
           {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
           {state.gameOver && <GameOverScreen />}

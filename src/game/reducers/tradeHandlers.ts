@@ -2,7 +2,7 @@ import { GameState, GoodId, TradeMode } from '../types';
 import * as Engine from '../engine';
 import { GEAR, BUSINESSES, GOODS } from '../constants';
 import { syncChallenges } from './helpers';
-import { rollStreetEvent } from '../storyEvents';
+
 
 export function handleTrade(s: GameState, gid: GoodId, mode: TradeMode, quantity: number): void {
   if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return;
@@ -161,12 +161,7 @@ export function handleSoloOp(s: GameState, opId: string): void {
       s.screenEffect = 'blood-flash';
     }
   }
-  const soloEvent = rollStreetEvent(s, 'solo_op');
-  if (soloEvent) {
-    s.pendingStreetEvent = soloEvent;
-    s.streetEventResult = null;
-    s.lastStreetEventAt = new Date().toISOString();
-  }
+  // Street events removed (MMO)
   if (s.dailyProgress) { s.dailyProgress.solo_ops++; }
   syncChallenges(s);
 }
