@@ -1,77 +1,74 @@
 
 
-# Borderlands-stijl Procedureel Wapensysteem
+# Verhaalcampagne Systeem — Handmatig & Chapter-based
 
-## Concept
+## Huidige situatie
+Verhaalbogen triggeren **automatisch** per beurt op basis van dag/reputatie-condities. Stappen vorderen met een cooldown van X dagen. De speler heeft geen controle over wanneer het verhaal speelt.
 
-Wapens worden **procedureel gegenereerd** uit onderdelen: een **Merk** (fabrikant), **Frame** (wapen-basis), **Loop** (nauwkeurigheid/bereik), **Magazijn** (clip/herlaad), en **Accessoire** (special effect). Elke combinatie levert unieke stats op. Met 5 merken × 5 frames × 5 lopen × 5 magazijnen × 2 accessoires = **250 unieke combinaties**.
+## Nieuw systeem
 
-## Wapen-onderdelen
+### Concept
+Een apart **Campagne-menu** met een knop in de hoofdnavigatie. Het verhaal is opgedeeld in **Chapters** (hoofdstukken), elk met meerdere **missies** en een **eindboss**. De speler kiest zelf wanneer hij een missie start — volledig los van de dagelijkse beurt-cyclus.
 
-### Merken (5) — bepalen basiskwaliteit en visuele stijl
-| Merk | Bonus | Stijl |
-|---|---|---|
-| **Noxforge** | +15% schade | Ruwe, industriële wapens |
-| **Serpiente Arms** | +20% crit kans | Sierlijke, Latijns-geïnspireerde wapens |
-| **Volkov Industries** | +25% clip size | Zware, Russische militaire stijl |
-| **ShadowTech** | +10% alle stats | Futuristische, minimalistische wapens |
-| **Ironjaw** | +30% armor piercing | Brute, overkill-stijl |
+### Structuur
 
-### Frames (5) — wapen-type
-Pistol, SMG, Shotgun, Rifle, Blade (melee)
+```text
+CAMPAGNE
+├── Chapter 1: De Schaduwen van Noxhaven (3 missies + boss)
+├── Chapter 2: Het Syndicaat (4 missies + boss)  [unlock na Ch.1]
+├── Chapter 3: Bloed & Eer (4 missies + boss)    [unlock na Ch.2]
+├── Chapter 4: De Machtsgreep (3 missies + boss)  [unlock na Ch.3]
+└── Chapter 5: Eindspel (2 missies + final boss)  [unlock na Ch.4]
+```
 
-### Lopen (5) — nauwkeurigheid/bereik
-Kort, Standaard, Lang, Precisie, Gedempt
+### Boss Systeem
+- Elke chapter eindigt met een **unieke boss** (bijv. corrupte politiechef, rivaliserende maffiabaas)
+- Bosses zijn **herhaalbaar** — bij elke overwinning dropt betere loot
+- Boss moeilijkheid schaalt met speler-level
+- Eerste kill: gegarandeerd **Rare+** wapen uit het procedurele systeem
+- Herhaalde kills: kans op **Epic/Legendary** wapens + exclusieve boss-only onderdelen
 
-### Magazijnen (5) — clip/herlaadsnelheid
-Klein (snel), Standaard, Uitgebreid, Drum, Speciaal
+### Wapen Loot Integratie
+- Missies droppen Common-Rare wapens
+- Bosses droppen Rare-Legendary wapens
+- Elk chapter introduceert **chapter-exclusieve** wapen-onderdelen (bijv. Chapter 3 ontgrendelt "Drakon" merk-drops)
+- Boss-only accessoires (bijv. "Vasari's Grip" — uniek accessoire alleen van Ch.2 boss)
 
-### Accessoires (2) — optioneel special effect
-Geen, Laser Sight (+accuracy), Silencer (-heat), Incendiary (+DoT), Shock (+stun kans)
+### Technische aanpak
 
-## Stats per wapen
+**Nieuw bestand: `src/game/campaign.ts`**
+- Chapter/missie definities, boss-stats, unlock-logica
+- `CampaignState` tracking (welke chapters/missies voltooid, boss kill counts)
+- Boss encounter generator met scaling
 
-Elk gegenereerd wapen krijgt berekende stats:
-- **Damage** (1-20): frame + loop + merk-bonus
-- **Accuracy** (1-10): loop + accessoire
-- **Fire Rate** (1-10): frame + magazijn
-- **Clip Size** (4-30): frame + magazijn + merk-bonus
-- **Special Effect**: accessoire-afhankelijk
+**Nieuw bestand: `src/components/game/campaign/CampaignView.tsx`**
+- Overzicht van alle chapters met unlock-status
+- Missie-selectie per chapter
+- Boss-fight launcher
 
-Plus een **Rarity** (Common → Legendary) gebaseerd op de combinatie-kwaliteit.
+**Nieuw bestand: `src/components/game/campaign/BossFight.tsx`**
+- Speciaal gevechtsscherm voor bosses (uitgebreider dan normaal combat)
+- Boss HP bar met fases, unieke aanvallen
+- Loot reveal na overwinning
 
-## Integratie met bestaand systeem
-
-- Het huidige `GEAR` array met vaste wapens blijft als "legacy" / winkelwapens
-- Procedurele wapens worden **gevonden als loot** na combat, heists, en als daily deal
-- Opgeslagen in `state.weaponInventory: GeneratedWeapon[]`
-- Equip via loadout — vervangt de huidige `weapon` slot
-- `muscle` stat wordt berekend uit het wapen's damage
-
-## Technische aanpak
-
-### Nieuwe bestanden
-| Bestand | Inhoud |
-|---|---|
-| `src/game/weaponGenerator.ts` | Merken, onderdelen, stat-berekening, `generateWeapon()` functie, rarity roll |
-| `src/components/game/weapons/WeaponCard.tsx` | Visuele kaart met stats, rarity-kleur, merk-logo |
-| `src/components/game/weapons/WeaponInventory.tsx` | Inventaris-overzicht met filter/sort |
-| `src/components/game/weapons/WeaponCompare.tsx` | Side-by-side vergelijking bij equip |
-
-### Wijzigingen
+**Wijzigingen:**
 | Bestand | Wijziging |
 |---|---|
-| `src/game/types.ts` | `GeneratedWeapon` interface, `weaponInventory` in GameState |
-| `src/game/constants.ts` | Onderdelen-definities (merken, frames, lopen, etc.) |
-| `src/game/combatLoot.ts` | Wapen-drops toevoegen aan loot rolls |
-| `src/contexts/GameContext.tsx` | Actions: `GENERATE_WEAPON`, `EQUIP_WEAPON`, `SELL_WEAPON` |
-| `src/components/game/trade/GearPanel.tsx` | Link naar wapeninventaris |
-| `src/components/game/CombatView.tsx` | Wapen-drops tonen in loot reveal |
+| `src/game/types.ts` | `CampaignState` in GameState |
+| `src/game/constants.ts` | Default campaign state |
+| `src/contexts/GameContext.tsx` | Campaign actions, verwijder automatische arc triggers |
+| `src/components/game/GameLayout.tsx` | Campaign knop in navigatie |
+| `src/game/weaponGenerator.ts` | Boss-only onderdelen en chapter-locked drops |
+| `src/game/combatLoot.ts` | Boss loot tabellen |
 
-### Wapen-generatie flow
-1. Bij loot-roll → `generateWeapon(level, rarity)` maakt een random combinatie
-2. Stats worden berekend uit alle onderdelen
-3. Naam wordt samengesteld: `[Merk] [Frame] [Accessoire-suffix]` (bv. "Noxforge SMG Incendiary")
-4. Rarity bepaalt stat-multiplier (Common 0.8x → Legendary 1.5x)
-5. Wapen gaat naar `weaponInventory` (max 20 slots)
+**Bestaande arcs migratie:**
+- De 3 huidige arcs (Informant, Erfenis, Rivaal) worden omgebouwd naar missies binnen chapters
+- `checkArcTriggers` en `checkArcProgression` worden verwijderd uit de beurt-cyclus
+- Backward-compatible: bestaande saves behouden voortgang
+
+### Extra ideeën
+- **Chapter Rewards**: voltooien van een heel chapter geeft een permanente bonus (bijv. +5% crit, unlock van een nieuw district)
+- **Moeilijkheidsgraden**: Normal / Hard / Nightmare per chapter voor betere loot
+- **Boss Leaderboard**: snelste kill-time tracking
+- **Verhaalkeuzegevolgen**: keuzes in missies beïnvloeden welke variant van de boss je tegenkomt (zwakkere maar snellere variant vs. tankier maar tragere)
 
