@@ -12,9 +12,9 @@ import {
   Crosshair, FileText, Target, Skull, Swords, Award, Calendar,
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
-  Car, Store, MapPin,
+  Car, Store, MapPin, Hammer,
   BarChart3 as Stats, Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
-  ShieldAlert, LucideIcon, BookOpen,
+  ShieldAlert, LucideIcon, BookOpen, Skull as SkullIcon,
 } from 'lucide-react';
 
 interface SidebarCategory {
@@ -68,6 +68,8 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'stocks', label: 'Beurs', icon: TrendingUp, badge: !!state.pendingInsiderTip },
           { id: 'launder', label: 'Witwassen', icon: Droplets },
           { id: 'gear', label: 'Gear', icon: ShieldCheck },
+          { id: 'black-market', label: 'Zwarte Markt', icon: SkullIcon },
+          { id: 'salvage', label: 'Salvage', icon: Hammer },
         ],
       },
       {

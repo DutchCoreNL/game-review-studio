@@ -61,6 +61,8 @@ const CATEGORIES: Category[] = [
       { id: 'stocks', label: 'Beurs', icon: TrendingUp },
       { id: 'launder', label: 'Witwassen', icon: Droplets },
       { id: 'gear', label: 'Gear', icon: ShieldCheck },
+      { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
+      { id: 'salvage', label: 'Salvage', icon: Wrench },
     ],
   },
   {

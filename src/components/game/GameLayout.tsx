@@ -21,6 +21,7 @@ import { GameToast } from './GameToast';
 import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
 import { LoreNotification } from './codex/LoreNotification';
+import { DailyRewardPopup } from './DailyRewardPopup';
 
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
@@ -109,6 +110,8 @@ const CampaignViewLazy = React.lazy(() => import('./campaign/CampaignView').then
 const CodexViewLazy = React.lazy(() => import('./codex/CodexView').then(m => ({ default: m.CodexView })));
 const ArmorInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'armor' }) })));
 const GadgetInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'gadget' }) })));
+const BlackMarketViewLazy = React.lazy(() => import('./shop/BlackMarketView').then(m => ({ default: m.BlackMarketView })));
+const SalvageViewLazy = React.lazy(() => import('./crafting/SalvageView').then(m => ({ default: m.SalvageView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -172,6 +175,8 @@ const views: Record<string, React.ComponentType> = {
   codex: CodexViewLazy,
   'armor-arsenal': ArmorInventoryLazy,
   'gadget-arsenal': GadgetInventoryLazy,
+  'black-market': BlackMarketViewLazy,
+  'salvage': SalvageViewLazy,
   // Admin
   admin: AdminPanelView,
 };
@@ -180,7 +185,7 @@ const views: Record<string, React.ComponentType> = {
 function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
   if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign'].includes(v)) return 'ops';
-  if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
+  if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear', 'black-market', 'salvage'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
   return 'profile';
 }
@@ -331,6 +336,7 @@ export function GameLayout() {
           {state.backstory === null && state.tutorialDone && (
             <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
           )}
+          {state.tutorialDone && state.backstory !== null && <DailyRewardPopup />}
           {worldState.maintenanceMode && !isAdmin && (
             <MaintenanceOverlay message={worldState.maintenanceMessage} />
           )}

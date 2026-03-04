@@ -1914,6 +1914,14 @@ export function createInitialState(): import('./types').GameState {
 
     // Campaign state
     campaign: createInitialCampaignStateFn(),
+
+    // Black Market & Acquisition state
+    blackMarketStock: null,
+    dailyRewardStreak: 0,
+    lastDailyRewardClaim: null,
+    scrapMaterials: 0,
+    pityCounter: 0,
+    lootCratesPurchased: 0,
   };
 }
 
