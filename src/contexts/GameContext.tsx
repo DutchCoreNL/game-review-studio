@@ -481,6 +481,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.addVehicleHeat(s, travelHeat);
       Engine.recomputeHeat(s);
       s.loc = action.to;
+      // Track visited districts for codex
+      if (!s.visitedDistricts) s.visitedDistricts = [];
+      if (!s.visitedDistricts.includes(action.to)) s.visitedDistricts.push(action.to);
       // Street events removed (MMO)
       // Roll for car theft encounter (15% base chance, only if no street event)
       if (!s.pendingStreetEvent && !s.pendingCarTheft && s.stolenCars.length < 8) {
@@ -568,6 +571,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       
       Engine.endTurn(s);
       Engine.checkAchievements(s);
+      // Codex unlock check
+      try {
+        const { checkCodexUnlocks } = require('../game/codex');
+        if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
+        const { newUnlocks } = checkCodexUnlocks(s);
+        if (newUnlocks.length > 0) {
+          s.codex.unlockedEntries = [...s.codex.unlockedEntries, ...newUnlocks];
+          s.codex.newEntries = [...s.codex.newEntries, ...newUnlocks];
+          s._lastCodexUnlock = newUnlocks[newUnlocks.length - 1];
+        }
+      } catch (_) {}
       const oldPhaseAT = s.endgamePhase;
       s.endgamePhase = calculateEndgamePhase(s);
 
@@ -1429,8 +1443,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== CODEX ACTIONS ==========
+    case 'CODEX_MARK_READ' as any: {
+      if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
+      const entryId = (action as any).entryId;
+      if (!s.codex.readEntries.includes(entryId)) s.codex.readEntries.push(entryId);
+      s.codex.newEntries = s.codex.newEntries.filter((id: string) => id !== entryId);
+      return s;
+    }
+
+    case 'CODEX_CHECK_UNLOCKS' as any: {
+      if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
+      try {
+        const { checkCodexUnlocks } = require('../game/codex');
+        const { newUnlocks } = checkCodexUnlocks(s);
+        if (newUnlocks.length > 0) {
+          s.codex.unlockedEntries = [...s.codex.unlockedEntries, ...newUnlocks];
+          s.codex.newEntries = [...s.codex.newEntries, ...newUnlocks];
+          s._lastCodexUnlock = newUnlocks[newUnlocks.length - 1];
+        }
+      } catch (_) {}
+      return s;
+    }
+
     case 'RESOLVE_ARC_EVENT': {
-      if (!s.pendingArcEvent) return s;
       const arcResult = resolveArcChoice(s, action.arcId, action.choiceId);
       // Apply effects
       if (arcResult.success) {

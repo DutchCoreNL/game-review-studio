@@ -20,7 +20,7 @@ import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
 import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
-
+import { LoreNotification } from './codex/LoreNotification';
 
 import { PhoneOverlay } from './PhoneOverlay';
 import { CrewSpecPopup } from './CrewSpecPopup';
@@ -106,6 +106,7 @@ const MeritPointsViewLazy = React.lazy(() => import('./MeritPointsView').then(m 
 const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m.WarView })));
 const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
 const CampaignViewLazy = React.lazy(() => import('./campaign/CampaignView').then(m => ({ default: m.CampaignView })));
+const CodexViewLazy = React.lazy(() => import('./codex/CodexView').then(m => ({ default: m.CodexView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -166,6 +167,7 @@ const views: Record<string, React.ComponentType> = {
   merit: MeritPointsViewLazy,
   weapons: WeaponInventoryLazy,
   campaign: CampaignViewLazy,
+  codex: CodexViewLazy,
   // Admin
   admin: AdminPanelView,
 };
@@ -301,7 +303,7 @@ export function GameLayout() {
           )}
 
           {!state.tutorialDone && <TutorialOverlay />}
-          
+          <LoreNotification />
 
           {state.activeMission && <MissionEncounterView />}
           {state.showPhone && <PhoneOverlay />}

@@ -14,7 +14,7 @@ export type GameView =
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
-  | 'empire' | 'admin' | 'weapons' | 'campaign';
+  | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex';
 
 // ========== VILLA TYPES ==========
 
@@ -1005,6 +1005,11 @@ export interface GameState {
   completedArcs: string[];
   pendingArcEvent: { arcId: string; stepIndex: number } | null;
   arcEventResult: { success: boolean; text: string } | null;
+
+  // ========== CODEX & LORE STATE ==========
+  visitedDistricts: string[];
+  codex: import('../game/codex').CodexState;
+  _lastCodexUnlock?: string;
 
   // ========== CORRUPTION NETWORK STATE ==========
   corruptContacts: CorruptContact[];
