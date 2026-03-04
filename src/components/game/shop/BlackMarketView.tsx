@@ -4,6 +4,7 @@ import { generateBlackMarketStock, shouldRefreshStock, getBlackMarketItemName, g
 import { CRATE_DEFS, type CrateTier } from '@/game/lootCrates';
 import { GEAR_RARITY_COLORS, GEAR_RARITY_LABEL, GEAR_RARITY_BG } from '@/game/gearGenerator';
 import { Button } from '@/components/ui/button';
+import { WEAPON_FRAME_IMAGES, GEAR_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Package, Sparkles, DollarSign, Banknote } from 'lucide-react';
 
@@ -106,7 +107,7 @@ export function BlackMarketView() {
                 {stock.items.map((item) => {
                   const rarity = getBlackMarketItemRarity(item);
                   const name = getBlackMarketItemName(item);
-                  const icon = item.weapon ? '🗡️' : item.gear?.type === 'armor' ? '🛡️' : '📱';
+                  const itemImg = item.weapon ? WEAPON_FRAME_IMAGES[item.weapon.frame] : item.gear ? GEAR_FRAME_IMAGES[item.gear.frame] : undefined;
                   return (
                     <motion.div
                       key={item.id}
@@ -117,7 +118,7 @@ export function BlackMarketView() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span>{icon}</span>
+                            {itemImg && <img src={itemImg} alt={name} className="w-8 h-8 object-contain rounded" />}
                             {item.isFeatured && <span className="text-[0.5rem] bg-gold/20 text-gold px-1.5 py-0.5 rounded font-bold">⭐ FEATURED</span>}
                             <span className={`text-[0.5rem] uppercase font-bold ${rarityColor(rarity)}`}>{rarityLabel(rarity)}</span>
                           </div>
