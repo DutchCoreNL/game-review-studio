@@ -88,7 +88,7 @@ export function WeaponInventory() {
           {/* Frame filter */}
           <button
             onClick={() => {
-              const frames: (FrameId | 'all')[] = ['all', 'pistol', 'smg', 'shotgun', 'rifle', 'blade'];
+              const frames: (FrameId | 'all')[] = ['all', 'pistol', 'smg', 'shotgun', 'rifle', 'blade', 'lmg', 'launcher'];
               const idx = frames.indexOf(filterFrame);
               setFilterFrame(frames[(idx + 1) % frames.length]);
             }}
