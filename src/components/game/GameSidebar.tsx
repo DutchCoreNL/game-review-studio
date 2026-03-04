@@ -14,7 +14,7 @@ import {
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
   BarChart3 as Stats, Star, Shield, Smartphone, Trophy, Mail, Settings,
-  ShieldAlert, LucideIcon,
+  ShieldAlert, LucideIcon, BookOpen,
 } from 'lucide-react';
 
 interface SidebarCategory {
@@ -48,6 +48,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
       {
         label: 'ACTIES', icon: '⚔',
         items: [
+          { id: 'campaign', label: 'Campagne', icon: BookOpen },
           { id: 'ops', label: 'Operaties', icon: Crosshair, badge: (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0) },
           { id: 'contracts', label: 'Contracten', icon: FileText },
           { id: 'heists', label: 'Heists', icon: Target },
