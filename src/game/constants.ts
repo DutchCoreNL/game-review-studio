@@ -1,4 +1,5 @@
 import { District, Vehicle, Good, Family, SoloOperation, ContractTemplate, HQUpgrade, GearItem, Business, Achievement, DistrictId, GoodId, FamilyId, FactionActionType, RandomEvent, WeatherType, NemesisState, DistrictDefense, DistrictHQUpgradeDef, DistrictHQUpgradeId, CrewRole, VehicleUpgradeType, StealableCarDef, ChopShopUpgrade, ChopShopUpgradeId, SafehouseUpgradeDef, SafehouseUpgradeId, CorruptContactDef, AmmoPack, StatId } from './types'; // HQUpgrade kept for backwards compat
+import { createInitialCampaignState as createInitialCampaignStateFn } from './campaign';
 
 // ========== AMMO PACKS (Universal) ==========
 
@@ -1904,6 +1905,9 @@ export function createInitialState(): import('./types').GameState {
 
     // Procedural Weapon Inventory
     weaponInventory: [],
+
+    // Campaign state
+    campaign: createInitialCampaignStateFn(),
   };
 }
 

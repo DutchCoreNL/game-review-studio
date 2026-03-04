@@ -272,7 +272,16 @@ type GameAction =
   // Weapon inventory actions
   | { type: 'EQUIP_WEAPON'; weaponId: string }
   | { type: 'SELL_WEAPON'; weaponId: string }
-  | { type: 'ADD_WEAPON'; weapon: import('../game/weaponGenerator').GeneratedWeapon };
+  | { type: 'ADD_WEAPON'; weapon: import('../game/weaponGenerator').GeneratedWeapon }
+  // Campaign actions
+  | { type: 'START_CAMPAIGN_MISSION'; chapterId: string; missionId: string }
+  | { type: 'ADVANCE_CAMPAIGN_MISSION' }
+  | { type: 'COLLECT_CAMPAIGN_MISSION_REWARDS' }
+  | { type: 'END_CAMPAIGN_MISSION' }
+  | { type: 'START_BOSS_FIGHT_CAMPAIGN'; chapterId: string }
+  | { type: 'BOSS_FIGHT_ACTION'; action: 'attack' | 'heavy' | 'defend' }
+  | { type: 'COLLECT_BOSS_LOOT' }
+  | { type: 'END_BOSS_FIGHT' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -601,8 +610,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Story arcs
-      if (!s.prison) { checkArcTriggers(s); if (!s.pendingStreetEvent) checkArcProgression(s); }
+      // Story arcs — now handled via Campaign menu, no longer auto-triggered
+      // if (!s.prison) { checkArcTriggers(s); if (!s.pendingStreetEvent) checkArcProgression(s); }
       
       // Car orders
       if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {
@@ -2201,6 +2210,139 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.weaponInventory.push(action.weapon);
       return s;
     }
+
+    // ========== CAMPAIGN ACTIONS ==========
+    case 'START_CAMPAIGN_MISSION': {
+      const { startCampaignMission, canStartMission, getMissionDef } = require('../game/campaign');
+      if (!s.campaign) return s;
+      if (!canStartMission(s.campaign, action.chapterId, action.missionId, s.player.level)) return s;
+      const mDef = getMissionDef(action.missionId);
+      if (!mDef || s.energy < mDef.energyCost) return s;
+      s.energy -= mDef.energyCost;
+      s.campaign.activeCampaignMission = startCampaignMission(action.chapterId, action.missionId);
+      return s;
+    }
+
+    case 'ADVANCE_CAMPAIGN_MISSION': {
+      const { advanceCampaignMission } = require('../game/campaign');
+      if (!s.campaign?.activeCampaignMission) return s;
+      const playerPower = Engine.getPlayerStat(s, 'muscle') + Engine.getPlayerStat(s, 'brains');
+      s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower);
+      return s;
+    }
+
+    case 'COLLECT_CAMPAIGN_MISSION_REWARDS': {
+      if (!s.campaign?.activeCampaignMission) return s;
+      const m = s.campaign.activeCampaignMission;
+      if (!m.finished || !m.success) return s;
+      s.money += m.rewards.money;
+      s.stats.totalEarned += m.rewards.money;
+      s.rep += m.rewards.rep;
+      Engine.gainXp(s, m.rewards.xp);
+      // Mark mission completed
+      const chProgress = s.campaign.chapters.find(c => c.chapterId === m.chapterId);
+      if (chProgress) {
+        const mProgress = chProgress.missions.find(mp => mp.missionId === m.missionId);
+        if (mProgress) {
+          mProgress.completed = true;
+          mProgress.completedAt = s.day;
+          mProgress.bestRating = 'A';
+        }
+      }
+      // Add dropped weapon
+      if (m.droppedWeapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        if (s.weaponInventory.length < 20) s.weaponInventory.push(m.droppedWeapon);
+      }
+      s.campaign.activeCampaignMission = null;
+      return s;
+    }
+
+    case 'END_CAMPAIGN_MISSION': {
+      if (s.campaign) s.campaign.activeCampaignMission = null;
+      return s;
+    }
+
+    case 'START_BOSS_FIGHT_CAMPAIGN': {
+      const { startBossFight, canFightBoss } = require('../game/campaign');
+      if (!s.campaign) return s;
+      if (!canFightBoss(s.campaign, action.chapterId, s.player.level)) return s;
+      const chProgress = s.campaign.chapters.find(c => c.chapterId === action.chapterId);
+      const diff = chProgress?.difficulty || 'normal';
+      s.campaign.activeBossFight = startBossFight(action.chapterId, s.playerHP, s.playerMaxHP, diff, s.player.level);
+      return s;
+    }
+
+    case 'BOSS_FIGHT_ACTION': {
+      const { bossFightTurn } = require('../game/campaign');
+      if (!s.campaign?.activeBossFight) return s;
+      const pDmg = Engine.getPlayerStat(s, 'muscle') + Math.floor(s.player.level * 2);
+      const pArmor = Math.floor(Engine.getPlayerStat(s, 'brains') * 0.5);
+      s.campaign.activeBossFight = bossFightTurn(s.campaign.activeBossFight, action.action, pDmg, pArmor);
+      // Sync player HP back
+      if (s.campaign.activeBossFight.finished && !s.campaign.activeBossFight.won) {
+        s.playerHP = Math.max(1, Math.floor(s.playerMaxHP * 0.1));
+      }
+      // Generate loot if won
+      if (s.campaign.activeBossFight.finished && s.campaign.activeBossFight.won) {
+        const { generateBossLoot } = require('../game/campaign');
+        const fight = s.campaign.activeBossFight;
+        const chProgress = s.campaign.chapters.find(c => c.chapterId === fight.chapterId);
+        const killCount = chProgress?.boss.killCount || 0;
+        const diff = chProgress?.difficulty || 'normal';
+        const loot = generateBossLoot(fight.chapterId, s.player.level, killCount, diff);
+        s.campaign.activeBossFight.loot = loot.weapon;
+        s.campaign.activeBossFight.moneyLoot = loot.money;
+        s.campaign.activeBossFight.accessoryLoot = loot.accessory;
+      }
+      return s;
+    }
+
+    case 'COLLECT_BOSS_LOOT': {
+      if (!s.campaign?.activeBossFight?.won) return s;
+      const fight = s.campaign.activeBossFight;
+      // Add money
+      s.money += fight.moneyLoot;
+      s.stats.totalEarned += fight.moneyLoot;
+      // Add weapon
+      if (fight.loot) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        if (s.weaponInventory.length < 20) s.weaponInventory.push(fight.loot);
+      }
+      // Update boss progress
+      const chProgress = s.campaign.chapters.find(c => c.chapterId === fight.chapterId);
+      if (chProgress) {
+        chProgress.boss.killCount++;
+        chProgress.boss.lastKillDay = s.day;
+        if (!chProgress.boss.bestTime || fight.turn < chProgress.boss.bestTime) {
+          chProgress.boss.bestTime = fight.turn;
+        }
+        s.campaign.totalBossKills++;
+        // Check chapter completion
+        const allMissionsDone = chProgress.missions.every(m => m.completed);
+        if (allMissionsDone && chProgress.boss.killCount >= 1 && !chProgress.completed) {
+          chProgress.completed = true;
+          chProgress.completedAt = s.day;
+          // Collect chapter bonus
+          if (!s.campaign.chapterBonuses.includes(fight.chapterId)) {
+            s.campaign.chapterBonuses.push(fight.chapterId);
+          }
+          // Unlock next chapter
+          const chIdx = s.campaign.chapters.findIndex(c => c.chapterId === fight.chapterId);
+          if (chIdx >= 0 && chIdx < s.campaign.chapters.length - 1) {
+            s.campaign.chapters[chIdx + 1].unlocked = true;
+          }
+        }
+      }
+      s.campaign.activeBossFight = null;
+      return s;
+    }
+
+    case 'END_BOSS_FIGHT': {
+      if (s.campaign) s.campaign.activeBossFight = null;
+      return s;
+    }
+
 
     case 'BUY_HEIST_EQUIP': {
       if (!s.heistPlan) return s;

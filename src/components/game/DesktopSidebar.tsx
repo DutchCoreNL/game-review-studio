@@ -6,7 +6,7 @@ import {
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
-  Star, Shield, Trophy, Mail, Settings, Sparkles,
+  Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen,
   ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -41,6 +41,7 @@ const CATEGORIES: Category[] = [
   {
     label: 'ACTIES', icon: '⚔',
     items: [
+      { id: 'campaign', label: 'Campagne', icon: BookOpen },
       { id: 'ops', label: 'Operaties', icon: Crosshair },
       { id: 'contracts', label: 'Contracten', icon: FileText },
       { id: 'heists', label: 'Heists', icon: Target },

@@ -1,0 +1,737 @@
+// ========== CAMPAIGN SYSTEM — CHAPTER-BASED STORY ==========
+
+import { generateWeapon, type GeneratedWeapon, type WeaponRarity, type BrandId } from './weaponGenerator';
+
+// ========== TYPES ==========
+
+export type CampaignDifficulty = 'normal' | 'hard' | 'nightmare';
+
+export interface CampaignMission {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  energyCost: number;
+  minLevel: number;
+  encounters: number; // number of combat encounters
+  rewards: {
+    money: [number, number]; // [min, max]
+    rep: number;
+    xp: number;
+  };
+  weaponDropChance: number; // 0-1
+  weaponRarityFloor: WeaponRarity;
+  narrativeText: string[];
+}
+
+export interface CampaignBoss {
+  id: string;
+  name: string;
+  title: string;
+  icon: string;
+  portrait: string;
+  hp: number;
+  damage: number;
+  armor: number;
+  speed: number;
+  phases: BossPhase[];
+  lootTable: BossLootEntry[];
+  exclusiveBrand?: BrandId; // chapter-exclusive brand unlock
+  dialogue: {
+    intro: string;
+    phase2: string;
+    defeat: string;
+    playerDefeat: string;
+  };
+}
+
+export interface BossPhase {
+  hpThreshold: number; // activate when boss HP drops below this %
+  name: string;
+  attackBonus: number;
+  specialAttack: {
+    name: string;
+    icon: string;
+    damage: number;
+    effect: string;
+    chance: number; // 0-1 probability per turn
+  };
+}
+
+export interface BossLootEntry {
+  type: 'weapon' | 'money' | 'accessory';
+  chance: number;
+  minRarity?: WeaponRarity;
+  money?: number;
+  accessoryName?: string;
+  accessoryIcon?: string;
+  accessoryEffect?: string;
+}
+
+export interface CampaignChapter {
+  id: string;
+  number: number;
+  title: string;
+  subtitle: string;
+  icon: string;
+  description: string;
+  minLevel: number;
+  missions: CampaignMission[];
+  boss: CampaignBoss;
+  completionReward: {
+    title: string;
+    description: string;
+    icon: string;
+    bonusType: 'crit' | 'damage' | 'defense' | 'income' | 'xp';
+    bonusValue: number;
+  };
+}
+
+export interface CampaignMissionProgress {
+  missionId: string;
+  completed: boolean;
+  bestRating: string | null;
+  completedAt: number | null; // day
+}
+
+export interface CampaignBossProgress {
+  bossId: string;
+  killCount: number;
+  bestTime: number | null; // turns
+  lastKillDay: number | null;
+}
+
+export interface CampaignChapterProgress {
+  chapterId: string;
+  unlocked: boolean;
+  missions: CampaignMissionProgress[];
+  boss: CampaignBossProgress;
+  completed: boolean;
+  completedAt: number | null;
+  difficulty: CampaignDifficulty;
+}
+
+export interface CampaignState {
+  chapters: CampaignChapterProgress[];
+  activeBossFight: ActiveBossFight | null;
+  activeCampaignMission: ActiveCampaignMission | null;
+  totalBossKills: number;
+  chapterBonuses: string[]; // collected chapter completion bonus IDs
+}
+
+export interface ActiveBossFight {
+  chapterId: string;
+  bossId: string;
+  bossHP: number;
+  bossMaxHP: number;
+  playerHP: number;
+  playerMaxHP: number;
+  currentPhase: number;
+  turn: number;
+  log: BossFightLogEntry[];
+  difficulty: CampaignDifficulty;
+  loot: GeneratedWeapon | null;
+  moneyLoot: number;
+  accessoryLoot: { name: string; icon: string; effect: string } | null;
+  finished: boolean;
+  won: boolean;
+}
+
+export interface ActiveCampaignMission {
+  chapterId: string;
+  missionId: string;
+  currentEncounter: number;
+  totalEncounters: number;
+  log: string[];
+  rewards: { money: number; rep: number; xp: number };
+  finished: boolean;
+  success: boolean;
+  droppedWeapon: GeneratedWeapon | null;
+}
+
+export interface BossFightLogEntry {
+  turn: number;
+  text: string;
+  type: 'player' | 'boss' | 'phase' | 'loot' | 'info';
+  icon?: string;
+}
+
+// ========== CHAPTER DEFINITIONS ==========
+
+export const CAMPAIGN_CHAPTERS: CampaignChapter[] = [
+  {
+    id: 'ch1',
+    number: 1,
+    title: 'De Schaduwen van Noxhaven',
+    subtitle: 'Waar alles begint',
+    icon: '🌑',
+    description: 'De straten van Noxhaven verbergen duistere geheimen. Een reeks mysterieuze verdwijningen leidt je naar een ondergronds netwerk dat de stad al jaren in zijn greep houdt.',
+    minLevel: 1,
+    missions: [
+      {
+        id: 'ch1_m1', title: 'De Informant', description: 'Zoek een informant die weet wat er in de haven gaande is.',
+        icon: '🕵️', energyCost: 3, minLevel: 1, encounters: 2,
+        rewards: { money: [2000, 5000], rep: 15, xp: 80 },
+        weaponDropChance: 0.3, weaponRarityFloor: 'common',
+        narrativeText: ['Een koude wind waait door de steegjes van Port Nero...', 'De informant treft je in een verlaten pakhuis.'],
+      },
+      {
+        id: 'ch1_m2', title: 'Het Spoor', description: 'Volg de aanwijzingen naar een geheim laboratorium.',
+        icon: '🔍', energyCost: 4, minLevel: 2, encounters: 3,
+        rewards: { money: [4000, 8000], rep: 20, xp: 120 },
+        weaponDropChance: 0.4, weaponRarityFloor: 'common',
+        narrativeText: ['De aanwijzingen leiden je naar Iron Borough...', 'Een verlaten fabriek, maar niet zo verlaten als het lijkt.'],
+      },
+      {
+        id: 'ch1_m3', title: 'De Confrontatie', description: 'Infiltreer het netwerk en vind de leider.',
+        icon: '💥', energyCost: 5, minLevel: 3, encounters: 4,
+        rewards: { money: [6000, 12000], rep: 30, xp: 180 },
+        weaponDropChance: 0.5, weaponRarityFloor: 'uncommon',
+        narrativeText: ['Het moment van de waarheid is aangebroken...', 'De leider wacht op je in de kelder.'],
+      },
+    ],
+    boss: {
+      id: 'boss_viktor', name: 'Viktor "De Slager" Kozlov', title: 'Onderwerelds Slachter',
+      icon: '🪓', portrait: '🪓',
+      hp: 200, damage: 18, armor: 8, speed: 5,
+      phases: [
+        { hpThreshold: 100, name: 'Koelbloedig', attackBonus: 0, specialAttack: { name: 'Bijlzwaai', icon: '🪓', damage: 25, effect: 'Zware slag die armor negeert', chance: 0.25 } },
+        { hpThreshold: 50, name: 'Razernij', attackBonus: 8, specialAttack: { name: 'Executie', icon: '💀', damage: 40, effect: 'Dodelijke combo — kan stunnen', chance: 0.3 } },
+      ],
+      lootTable: [
+        { type: 'weapon', chance: 1.0, minRarity: 'rare' },
+        { type: 'money', chance: 1.0, money: 15000 },
+        { type: 'accessory', chance: 0.3, accessoryName: "Kozlov's Slagersmes", accessoryIcon: '🔪', accessoryEffect: '+5% crit schade' },
+      ],
+      dialogue: {
+        intro: '"Je had niet naar me moeten zoeken, vriend. Niemand verlaat dit pakhuis levend."',
+        phase2: '"GENOEG! Nu laat ik je zien waarom ze me De Slager noemen!"',
+        defeat: '"Nee... dit kan niet... ik was... onoverwinnelijk..."',
+        playerDefeat: '"Weer eentje voor de vleesmolen. Jammer."',
+      },
+    },
+    completionReward: {
+      title: 'Schaduwkenner', description: '+5% kritieke trefkans permanent', icon: '🌑',
+      bonusType: 'crit', bonusValue: 5,
+    },
+  },
+  {
+    id: 'ch2',
+    number: 2,
+    title: 'Het Syndicaat',
+    subtitle: 'De vijand van mijn vijand',
+    icon: '🕸️',
+    description: 'Na de val van Kozlov komt een groter gevaar aan het licht: het Syndicaat, een organisatie die de hele onderwereld controleert vanuit de schaduwen.',
+    minLevel: 5,
+    missions: [
+      {
+        id: 'ch2_m1', title: 'Infiltratie', description: 'Werk je een weg naar binnen bij het Syndicaat.',
+        icon: '🎭', energyCost: 4, minLevel: 5, encounters: 3,
+        rewards: { money: [5000, 10000], rep: 25, xp: 150 },
+        weaponDropChance: 0.4, weaponRarityFloor: 'uncommon',
+        narrativeText: ['Een uitnodiging voor een exclusief pokertoernooi...', 'De perfecte dekmantel om binnen te komen.'],
+      },
+      {
+        id: 'ch2_m2', title: 'Dubbelspel', description: 'Speel beide kanten tegen elkaar uit.',
+        icon: '🃏', energyCost: 5, minLevel: 6, encounters: 3,
+        rewards: { money: [8000, 15000], rep: 30, xp: 200 },
+        weaponDropChance: 0.45, weaponRarityFloor: 'uncommon',
+        narrativeText: ['Het Syndicaat vertrouwt je — maar hoelang nog?', 'Een gevaarlijk spel van loyaliteit en verraad.'],
+      },
+      {
+        id: 'ch2_m3', title: 'Het Verraad', description: 'Ontmasker de verrader binnen je eigen kring.',
+        icon: '🗡️', energyCost: 5, minLevel: 7, encounters: 4,
+        rewards: { money: [10000, 18000], rep: 35, xp: 250 },
+        weaponDropChance: 0.5, weaponRarityFloor: 'rare',
+        narrativeText: ['Iemand dicht bij je werkt voor de vijand...', 'De waarheid komt altijd boven water.'],
+      },
+      {
+        id: 'ch2_m4', title: 'De Ontmanteling', description: 'Vernietig de financiële basis van het Syndicaat.',
+        icon: '💣', energyCost: 6, minLevel: 8, encounters: 5,
+        rewards: { money: [12000, 22000], rep: 40, xp: 300 },
+        weaponDropChance: 0.55, weaponRarityFloor: 'rare',
+        narrativeText: ['Tijd om het Syndicaat waar het pijn doet te raken...', 'Hun geldstromen zijn hun zwakste punt.'],
+      },
+    ],
+    boss: {
+      id: 'boss_vasari', name: 'Don Vasari', title: 'Syndicaat Godfather',
+      icon: '🎩', portrait: '🎩',
+      hp: 350, damage: 22, armor: 12, speed: 6,
+      phases: [
+        { hpThreshold: 100, name: 'Elegant', attackBonus: 0, specialAttack: { name: 'Vergulde Kogel', icon: '✨', damage: 30, effect: 'Precisie-schot dat armor doorboort', chance: 0.2 } },
+        { hpThreshold: 50, name: 'Wanhopig', attackBonus: 10, specialAttack: { name: 'Laatste Bevel', icon: '📞', damage: 45, effect: 'Roept versterking — extra schade', chance: 0.35 } },
+      ],
+      lootTable: [
+        { type: 'weapon', chance: 1.0, minRarity: 'rare' },
+        { type: 'money', chance: 1.0, money: 30000 },
+        { type: 'accessory', chance: 0.4, accessoryName: "Vasari's Grip", accessoryIcon: '🧤', accessoryEffect: '+8% wapen accuracy' },
+      ],
+      exclusiveBrand: 'serpiente',
+      dialogue: {
+        intro: '"Ah, de beruchte nieuwkomer. Ik moet zeggen, je hebt lef. Maar lef alleen zal je niet redden."',
+        phase2: '"Genoeg spelletjes! Guards — elimineer dit probleem!"',
+        defeat: '"Dit... dit is niet hoe het verhaal zou eindigen... niet voor mij..."',
+        playerDefeat: '"Begraving of crematie? Ik laat de keuze aan jou."',
+      },
+    },
+    completionReward: {
+      title: 'Syndicaat Breker', description: '+10% wapenhandel inkomsten', icon: '🕸️',
+      bonusType: 'income', bonusValue: 10,
+    },
+  },
+  {
+    id: 'ch3',
+    number: 3,
+    title: 'Bloed & Eer',
+    subtitle: 'De prijs van macht',
+    icon: '⚔️',
+    description: 'Met het Syndicaat verzwakt, rijzen nieuwe machten. De oude families van Noxhaven eisen hun territorium terug — en jij staat in de weg.',
+    minLevel: 10,
+    missions: [
+      {
+        id: 'ch3_m1', title: 'Bloedeed', description: 'Smeed een alliantie met een onverwachte bondgenoot.',
+        icon: '🤝', energyCost: 5, minLevel: 10, encounters: 4,
+        rewards: { money: [10000, 20000], rep: 35, xp: 280 },
+        weaponDropChance: 0.5, weaponRarityFloor: 'rare',
+        narrativeText: ['Een voorstel dat je niet kunt weigeren...', 'Maar vertrouwen is een luxe in Noxhaven.'],
+      },
+      {
+        id: 'ch3_m2', title: 'De Familiefehde', description: 'Stop een oorlog tussen twee rivaliserende families.',
+        icon: '🔥', energyCost: 6, minLevel: 11, encounters: 5,
+        rewards: { money: [15000, 25000], rep: 40, xp: 350 },
+        weaponDropChance: 0.55, weaponRarityFloor: 'rare',
+        narrativeText: ['De straten kleuren rood...', 'Alleen jij kunt dit stoppen — of erger maken.'],
+      },
+      {
+        id: 'ch3_m3', title: 'Eer onder Dieven', description: 'Een onmogelijke heist om je waarde te bewijzen.',
+        icon: '💎', energyCost: 6, minLevel: 12, encounters: 5,
+        rewards: { money: [18000, 30000], rep: 45, xp: 400 },
+        weaponDropChance: 0.6, weaponRarityFloor: 'rare',
+        narrativeText: ['De kluis van de Centrale Bank...', 'Onmogelijk? Dat woord ken je niet.'],
+      },
+      {
+        id: 'ch3_m4', title: 'De Zuivering', description: 'Elimineer de verraders in je eigen organisatie.',
+        icon: '🩸', energyCost: 7, minLevel: 13, encounters: 6,
+        rewards: { money: [20000, 35000], rep: 50, xp: 450 },
+        weaponDropChance: 0.65, weaponRarityFloor: 'rare',
+        narrativeText: ['Verraad moet worden bestraft...', 'Maar wie kun je nog vertrouwen?'],
+      },
+    ],
+    boss: {
+      id: 'boss_carmela', name: 'Carmela "La Loba" Reyes', title: 'Koningin van de Straat',
+      icon: '🐺', portrait: '🐺',
+      hp: 500, damage: 28, armor: 15, speed: 8,
+      phases: [
+        { hpThreshold: 100, name: 'Berekend', attackBonus: 0, specialAttack: { name: 'Wolfsbeet', icon: '🐺', damage: 35, effect: 'Snelle combo — moeilijk te ontwijken', chance: 0.3 } },
+        { hpThreshold: 50, name: 'Losgeslagen', attackBonus: 12, specialAttack: { name: 'Roedel Aanval', icon: '🐺🐺', damage: 55, effect: 'Meervoudige aanval met wolfsbende', chance: 0.35 } },
+      ],
+      lootTable: [
+        { type: 'weapon', chance: 1.0, minRarity: 'epic' },
+        { type: 'money', chance: 1.0, money: 50000 },
+        { type: 'accessory', chance: 0.45, accessoryName: "La Loba's Ketting", accessoryIcon: '🐺', accessoryEffect: '+5% dodge kans' },
+      ],
+      exclusiveBrand: 'drakon',
+      dialogue: {
+        intro: '"Ze noemen me La Loba — de wolvin. En jij bent in mijn territorium, prooi."',
+        phase2: '"Mijn roedel! Aan mij! Verscheur deze indringer!"',
+        defeat: '"De wolvin... valt... maar haar roedel... zal je vinden..."',
+        playerDefeat: '"De wolven eten vanavond goed."',
+      },
+    },
+    completionReward: {
+      title: 'Bloedbroeder', description: '+3 max schade op alle wapens', icon: '⚔️',
+      bonusType: 'damage', bonusValue: 3,
+    },
+  },
+  {
+    id: 'ch4',
+    number: 4,
+    title: 'De Machtsgreep',
+    subtitle: 'De kroon wacht',
+    icon: '👑',
+    description: 'De onderwereld is verzwakt door jouw acties. Nu is het moment om de ultieme macht te grijpen — maar de burgemeester heeft andere plannen.',
+    minLevel: 15,
+    missions: [
+      {
+        id: 'ch4_m1', title: 'Politieke Manoeuvres', description: 'Manipuleer de verkiezingen van Noxhaven.',
+        icon: '🏛️', energyCost: 7, minLevel: 15, encounters: 5,
+        rewards: { money: [20000, 40000], rep: 50, xp: 500 },
+        weaponDropChance: 0.6, weaponRarityFloor: 'rare',
+        narrativeText: ['Democratie is slechts een instrument...', 'En jij bent de meester-manipulator.'],
+      },
+      {
+        id: 'ch4_m2', title: 'De Coup', description: 'Neem het stadhuis over — met geweld of diplomatie.',
+        icon: '⚡', energyCost: 8, minLevel: 16, encounters: 6,
+        rewards: { money: [30000, 50000], rep: 60, xp: 600 },
+        weaponDropChance: 0.65, weaponRarityFloor: 'epic',
+        narrativeText: ['Het is tijd. De stad zal van jou zijn.', 'Maar tegen welke prijs?'],
+      },
+      {
+        id: 'ch4_m3', title: 'Het Laatste Verzet', description: 'Vernietig de laatste oppositie.',
+        icon: '🔥', energyCost: 8, minLevel: 17, encounters: 7,
+        rewards: { money: [35000, 60000], rep: 70, xp: 700 },
+        weaponDropChance: 0.7, weaponRarityFloor: 'epic',
+        narrativeText: ['Ze geven niet op. Maar jij ook niet.', 'De straten van Noxhaven beven.'],
+      },
+    ],
+    boss: {
+      id: 'boss_decker', name: 'Commissaris Decker', title: 'De Corrupte Arm der Wet',
+      icon: '🛡️', portrait: '🛡️',
+      hp: 700, damage: 35, armor: 20, speed: 7,
+      phases: [
+        { hpThreshold: 100, name: 'Autoriteit', attackBonus: 0, specialAttack: { name: 'Arrestatiebevel', icon: '📋', damage: 40, effect: 'Stuurt elite-eenheid — vermindert snelheid', chance: 0.25 } },
+        { hpThreshold: 50, name: 'Desperaat', attackBonus: 15, specialAttack: { name: 'Noodverordening', icon: '🚨', damage: 65, effect: 'Volledige politie-inzet — massale schade', chance: 0.3 } },
+      ],
+      lootTable: [
+        { type: 'weapon', chance: 1.0, minRarity: 'epic' },
+        { type: 'money', chance: 1.0, money: 75000 },
+        { type: 'accessory', chance: 0.5, accessoryName: "Decker's Badge", accessoryIcon: '🛡️', accessoryEffect: '-10% heat per gevecht' },
+      ],
+      exclusiveBrand: 'phantom',
+      dialogue: {
+        intro: '"Ik BEN de wet in deze stad. En jij bent het bewijs dat ik heb gefaald. Dat fout... corrigeer ik nu."',
+        phase2: '"ALLE EENHEDEN! CODE ROOD! DIT SUBJECT MOET GENEUTRALISEERD WORDEN!"',
+        defeat: '"De... de wet... verliest nooit... dit is... onmogelijk..."',
+        playerDefeat: '"Opgesloten voor de rest van je leven. Dat is nog mild."',
+      },
+    },
+    completionReward: {
+      title: 'Machtsgrijper', description: '+15% verdediging permanent', icon: '👑',
+      bonusType: 'defense', bonusValue: 15,
+    },
+  },
+  {
+    id: 'ch5',
+    number: 5,
+    title: 'Eindspel',
+    subtitle: 'De kroning',
+    icon: '💀',
+    description: 'Achter alle facties, alle corruptie, staat één figuur: De Architect. De persoon die Noxhaven heeft gebouwd tot wat het is. Het is tijd voor de finale.',
+    minLevel: 20,
+    missions: [
+      {
+        id: 'ch5_m1', title: 'De Ontmaskering', description: 'Onthul de ware identiteit van De Architect.',
+        icon: '🎭', energyCost: 8, minLevel: 20, encounters: 6,
+        rewards: { money: [40000, 70000], rep: 80, xp: 800 },
+        weaponDropChance: 0.7, weaponRarityFloor: 'epic',
+        narrativeText: ['Alle puzzelstukjes vallen op hun plaats...', 'De waarheid is schokkender dan je dacht.'],
+      },
+      {
+        id: 'ch5_m2', title: 'De Belegering', description: 'Bestorm het fort van De Architect.',
+        icon: '🏰', energyCost: 10, minLevel: 22, encounters: 8,
+        rewards: { money: [50000, 90000], rep: 100, xp: 1000 },
+        weaponDropChance: 0.8, weaponRarityFloor: 'epic',
+        narrativeText: ['Het fort op de klif boven Noxhaven...', 'De laatste barrière tussen jou en totale macht.'],
+      },
+    ],
+    boss: {
+      id: 'boss_architect', name: 'De Architect', title: 'Meester van Noxhaven',
+      icon: '🏛️', portrait: '🏛️',
+      hp: 1000, damage: 45, armor: 25, speed: 9,
+      phases: [
+        { hpThreshold: 100, name: 'Controle', attackBonus: 0, specialAttack: { name: 'Meesterplan', icon: '🧠', damage: 50, effect: 'Voorspelt je aanval — halveert volgende schade', chance: 0.3 } },
+        { hpThreshold: 60, name: 'Chaos', attackBonus: 12, specialAttack: { name: 'Vallen Activeren', icon: '⚙️', damage: 60, effect: 'Verborgen vallen — kan niet ontwijken', chance: 0.35 } },
+        { hpThreshold: 30, name: 'Wanhoop', attackBonus: 20, specialAttack: { name: 'Alles Vernietigen', icon: '💥', damage: 80, effect: 'Vernietigt het fort — massale AOE schade', chance: 0.4 } },
+      ],
+      lootTable: [
+        { type: 'weapon', chance: 1.0, minRarity: 'legendary' },
+        { type: 'money', chance: 1.0, money: 150000 },
+        { type: 'accessory', chance: 0.6, accessoryName: "Architect's Signet", accessoryIcon: '💍', accessoryEffect: '+10% alle stats' },
+      ],
+      dialogue: {
+        intro: '"Je hebt mijn stad kapotgemaakt. Elke factie, elk systeem — mijn creatie. En nu kom je voor MIJ? Dan laat ik je zien wat echte macht is."',
+        phase2: '"Interessant. Je bent sterker dan ik dacht. Maar dit fort heeft meer verrassingen dan jij je kunt voorstellen."',
+        defeat: '"De... Architect... valt... maar Noxhaven... zal altijd... van mij zijn..."',
+        playerDefeat: '"Je was bijna goed genoeg. Bijna."',
+      },
+    },
+    completionReward: {
+      title: 'Meester van Noxhaven', description: '+20% XP permanent', icon: '💀',
+      bonusType: 'xp', bonusValue: 20,
+    },
+  },
+];
+
+// ========== STATE HELPERS ==========
+
+export function createInitialCampaignState(): CampaignState {
+  return {
+    chapters: CAMPAIGN_CHAPTERS.map((ch, i) => ({
+      chapterId: ch.id,
+      unlocked: i === 0, // only chapter 1 unlocked
+      missions: ch.missions.map(m => ({
+        missionId: m.id,
+        completed: false,
+        bestRating: null,
+        completedAt: null,
+      })),
+      boss: {
+        bossId: ch.boss.id,
+        killCount: 0,
+        bestTime: null,
+        lastKillDay: null,
+      },
+      completed: false,
+      completedAt: null,
+      difficulty: 'normal' as CampaignDifficulty,
+    })),
+    activeBossFight: null,
+    activeCampaignMission: null,
+    totalBossKills: 0,
+    chapterBonuses: [],
+  };
+}
+
+export function getChapterDef(chapterId: string): CampaignChapter | undefined {
+  return CAMPAIGN_CHAPTERS.find(c => c.id === chapterId);
+}
+
+export function getMissionDef(missionId: string): CampaignMission | undefined {
+  for (const ch of CAMPAIGN_CHAPTERS) {
+    const m = ch.missions.find(m => m.id === missionId);
+    if (m) return m;
+  }
+  return undefined;
+}
+
+export function getBossDef(bossId: string): CampaignBoss | undefined {
+  for (const ch of CAMPAIGN_CHAPTERS) {
+    if (ch.boss.id === bossId) return ch.boss;
+  }
+  return undefined;
+}
+
+export function canStartMission(state: CampaignState, chapterId: string, missionId: string, playerLevel: number): boolean {
+  const chProgress = state.chapters.find(c => c.chapterId === chapterId);
+  if (!chProgress || !chProgress.unlocked) return false;
+  const chDef = getChapterDef(chapterId);
+  if (!chDef) return false;
+  const mDef = chDef.missions.find(m => m.id === missionId);
+  if (!mDef) return false;
+  // Must meet level requirement
+  if (playerLevel < mDef.minLevel) return false;
+  // All previous missions in chapter must be completed
+  const mIndex = chDef.missions.findIndex(m => m.id === missionId);
+  for (let i = 0; i < mIndex; i++) {
+    const prev = chProgress.missions.find(p => p.missionId === chDef.missions[i].id);
+    if (!prev || !prev.completed) return false;
+  }
+  return true;
+}
+
+export function canFightBoss(state: CampaignState, chapterId: string, playerLevel: number): boolean {
+  const chProgress = state.chapters.find(c => c.chapterId === chapterId);
+  if (!chProgress || !chProgress.unlocked) return false;
+  const chDef = getChapterDef(chapterId);
+  if (!chDef) return false;
+  if (playerLevel < chDef.minLevel) return false;
+  // All missions must be completed
+  return chProgress.missions.every(m => m.completed);
+}
+
+// ========== BOSS FIGHT LOGIC ==========
+
+export function startBossFight(chapterId: string, playerHP: number, playerMaxHP: number, difficulty: CampaignDifficulty, playerLevel: number): ActiveBossFight {
+  const ch = getChapterDef(chapterId)!;
+  const boss = ch.boss;
+  const diffMult = difficulty === 'nightmare' ? 1.8 : difficulty === 'hard' ? 1.4 : 1.0;
+  const levelScale = 1 + (playerLevel - ch.minLevel) * 0.05;
+  const scaledHP = Math.floor(boss.hp * diffMult * levelScale);
+
+  return {
+    chapterId,
+    bossId: boss.id,
+    bossHP: scaledHP,
+    bossMaxHP: scaledHP,
+    playerHP,
+    playerMaxHP,
+    currentPhase: 0,
+    turn: 0,
+    log: [
+      { turn: 0, text: boss.dialogue.intro, type: 'boss', icon: boss.icon },
+      { turn: 0, text: `${boss.name} verschijnt! [${boss.title}]`, type: 'info', icon: '⚔️' },
+    ],
+    difficulty,
+    loot: null,
+    moneyLoot: 0,
+    accessoryLoot: null,
+    finished: false,
+    won: false,
+  };
+}
+
+export function bossFightTurn(
+  fight: ActiveBossFight,
+  action: 'attack' | 'heavy' | 'defend',
+  playerDamage: number,
+  playerArmor: number
+): ActiveBossFight {
+  const ch = getChapterDef(fight.chapterId)!;
+  const boss = ch.boss;
+  const diffMult = fight.difficulty === 'nightmare' ? 1.8 : fight.difficulty === 'hard' ? 1.4 : 1.0;
+  const turn = fight.turn + 1;
+  const log: BossFightLogEntry[] = [];
+
+  // Player action
+  let pDmg = 0;
+  let pDefending = false;
+  if (action === 'attack') {
+    pDmg = Math.max(1, playerDamage - Math.floor(boss.armor * 0.3));
+    log.push({ turn, text: `Je valt aan voor ${pDmg} schade!`, type: 'player', icon: '⚔️' });
+  } else if (action === 'heavy') {
+    pDmg = Math.max(1, Math.floor(playerDamage * 1.5) - Math.floor(boss.armor * 0.2));
+    const miss = Math.random() < 0.2;
+    if (miss) {
+      pDmg = 0;
+      log.push({ turn, text: 'Je zware aanval mist!', type: 'player', icon: '💨' });
+    } else {
+      log.push({ turn, text: `Zware aanval! ${pDmg} schade!`, type: 'player', icon: '💥' });
+    }
+  } else {
+    pDefending = true;
+    log.push({ turn, text: 'Je neemt een verdedigende houding aan.', type: 'player', icon: '🛡️' });
+  }
+
+  let newBossHP = Math.max(0, fight.bossHP - pDmg);
+
+  // Check phase transition
+  const hpPercent = (newBossHP / fight.bossMaxHP) * 100;
+  let currentPhase = fight.currentPhase;
+  if (currentPhase < boss.phases.length - 1 && hpPercent <= boss.phases[currentPhase + 1].hpThreshold) {
+    currentPhase++;
+    const phaseName = boss.phases[currentPhase].name;
+    log.push({ turn, text: `${boss.name} gaat over in fase: ${phaseName}!`, type: 'phase', icon: '⚠️' });
+    if (currentPhase === 1) {
+      log.push({ turn, text: boss.dialogue.phase2, type: 'boss', icon: boss.icon });
+    }
+  }
+
+  // Boss dead?
+  if (newBossHP <= 0) {
+    log.push({ turn, text: boss.dialogue.defeat, type: 'boss', icon: '💀' });
+    log.push({ turn, text: `${boss.name} is verslagen!`, type: 'info', icon: '🏆' });
+    return { ...fight, bossHP: 0, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: true };
+  }
+
+  // Boss attacks
+  const phase = boss.phases[currentPhase];
+  const baseDmg = Math.floor((boss.damage + phase.attackBonus) * diffMult);
+  let bDmg: number;
+  const useSpecial = Math.random() < phase.specialAttack.chance;
+
+  if (useSpecial) {
+    bDmg = Math.floor(phase.specialAttack.damage * diffMult);
+    if (pDefending) bDmg = Math.floor(bDmg * 0.4);
+    else bDmg = Math.max(1, bDmg - playerArmor);
+    log.push({ turn, text: `${boss.name} gebruikt ${phase.specialAttack.name}! ${bDmg} schade! ${phase.specialAttack.effect}`, type: 'boss', icon: phase.specialAttack.icon });
+  } else {
+    bDmg = pDefending ? Math.floor(baseDmg * 0.4) : Math.max(1, baseDmg - playerArmor);
+    log.push({ turn, text: `${boss.name} valt aan voor ${bDmg} schade!`, type: 'boss', icon: '👊' });
+  }
+
+  const newPlayerHP = Math.max(0, fight.playerHP - bDmg);
+
+  // Player dead?
+  if (newPlayerHP <= 0) {
+    log.push({ turn, text: boss.dialogue.playerDefeat, type: 'boss', icon: '💀' });
+    log.push({ turn, text: 'Je bent verslagen...', type: 'info', icon: '☠️' });
+    return { ...fight, playerHP: 0, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: false };
+  }
+
+  return { ...fight, bossHP: newBossHP, playerHP: newPlayerHP, turn, currentPhase, log: [...fight.log, ...log] };
+}
+
+export function generateBossLoot(
+  chapterId: string,
+  playerLevel: number,
+  killCount: number,
+  difficulty: CampaignDifficulty
+): { weapon: GeneratedWeapon | null; money: number; accessory: { name: string; icon: string; effect: string } | null } {
+  const ch = getChapterDef(chapterId)!;
+  const boss = ch.boss;
+  const diffBonus = difficulty === 'nightmare' ? 2 : difficulty === 'hard' ? 1.5 : 1;
+
+  let weapon: GeneratedWeapon | null = null;
+  let money = 0;
+  let accessory: { name: string; icon: string; effect: string } | null = null;
+
+  for (const entry of boss.lootTable) {
+    if (Math.random() > entry.chance) continue;
+    if (entry.type === 'weapon') {
+      // First kill = guaranteed rarity floor, repeat kills = chance for better
+      const minRarity = entry.minRarity || 'rare';
+      const rarityUpgrade = killCount > 0 && Math.random() < 0.2 * killCount;
+      const rarity: WeaponRarity = rarityUpgrade ? 'legendary' : minRarity;
+      weapon = generateWeapon(playerLevel, rarity);
+    } else if (entry.type === 'money') {
+      money = Math.floor((entry.money || 10000) * diffBonus);
+    } else if (entry.type === 'accessory') {
+      accessory = { name: entry.accessoryName!, icon: entry.accessoryIcon!, effect: entry.accessoryEffect! };
+    }
+  }
+
+  return { weapon, money, accessory };
+}
+
+// ========== CAMPAIGN MISSION COMBAT ==========
+
+export function startCampaignMission(chapterId: string, missionId: string): ActiveCampaignMission {
+  const mDef = getMissionDef(missionId)!;
+  return {
+    chapterId,
+    missionId,
+    currentEncounter: 0,
+    totalEncounters: mDef.encounters,
+    log: [mDef.narrativeText[0] || `Missie gestart: ${mDef.title}`],
+    rewards: {
+      money: mDef.rewards.money[0] + Math.floor(Math.random() * (mDef.rewards.money[1] - mDef.rewards.money[0])),
+      rep: mDef.rewards.rep,
+      xp: mDef.rewards.xp,
+    },
+    finished: false,
+    success: false,
+    droppedWeapon: null,
+  };
+}
+
+export function advanceCampaignMission(mission: ActiveCampaignMission, playerLevel: number, playerPower: number): ActiveCampaignMission {
+  const mDef = getMissionDef(mission.missionId)!;
+  const encounter = mission.currentEncounter + 1;
+  const difficulty = 40 + encounter * 10 + playerLevel * 2;
+  const roll = Math.random() * 100 + playerPower * 0.5;
+  const success = roll > difficulty * 0.6;
+
+  const log = [...mission.log];
+  if (success) {
+    log.push(`Encounter ${encounter}/${mission.totalEncounters}: Succes! Je overwint de vijanden.`);
+  } else {
+    log.push(`Encounter ${encounter}/${mission.totalEncounters}: Mislukt! De missie is gefaald.`);
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: false };
+  }
+
+  if (encounter >= mission.totalEncounters) {
+    // Mission complete — check weapon drop
+    let droppedWeapon: GeneratedWeapon | null = null;
+    if (Math.random() < mDef.weaponDropChance) {
+      droppedWeapon = generateWeapon(playerLevel, undefined, mDef.weaponRarityFloor === 'epic' ? 'epic' : mDef.weaponRarityFloor === 'rare' ? 'rare' : 'uncommon');
+    }
+    if (mDef.narrativeText[1]) log.push(mDef.narrativeText[1]);
+    log.push('Missie voltooid! 🎉');
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon };
+  }
+
+  return { ...mission, currentEncounter: encounter, log };
+}
+
+// ========== CHAPTER BONUS HELPERS ==========
+
+export function getCampaignBonuses(state: CampaignState): { crit: number; damage: number; defense: number; income: number; xp: number } {
+  const bonuses = { crit: 0, damage: 0, defense: 0, income: 0, xp: 0 };
+  for (const bonusId of state.chapterBonuses) {
+    const ch = CAMPAIGN_CHAPTERS.find(c => c.id === bonusId);
+    if (ch) {
+      bonuses[ch.completionReward.bonusType] += ch.completionReward.bonusValue;
+    }
+  }
+  return bonuses;
+}
