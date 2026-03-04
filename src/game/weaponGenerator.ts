@@ -85,6 +85,12 @@ export interface GeneratedWeapon {
   level: number;
   sellValue: number;
   equipped: boolean;
+  // New features
+  locked?: boolean;
+  masteryXp?: number;
+  isUnique?: boolean;
+  uniqueGlow?: string;
+  lore?: string;
 }
 
 // ========== COMPONENT DEFINITIONS ==========
@@ -166,7 +172,7 @@ export const WEAPON_RARITY_LABEL: Record<WeaponRarity, string> = {
   legendary: 'Legendarisch',
 };
 
-const RARITY_STAT_MULT: Record<WeaponRarity, number> = {
+export const RARITY_STAT_MULT: Record<WeaponRarity, number> = {
   common: 0.8,
   uncommon: 1.0,
   rare: 1.15,
@@ -174,7 +180,7 @@ const RARITY_STAT_MULT: Record<WeaponRarity, number> = {
   legendary: 1.5,
 };
 
-const RARITY_SELL_MULT: Record<WeaponRarity, number> = {
+export const RARITY_SELL_MULT: Record<WeaponRarity, number> = {
   common: 500,
   uncommon: 1500,
   rare: 4000,

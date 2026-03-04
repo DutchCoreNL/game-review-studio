@@ -272,6 +272,12 @@ type GameAction =
   | { type: 'EQUIP_WEAPON'; weaponId: string }
   | { type: 'SELL_WEAPON'; weaponId: string }
   | { type: 'ADD_WEAPON'; weapon: import('../game/weaponGenerator').GeneratedWeapon }
+  | { type: 'TOGGLE_WEAPON_LOCK'; weaponId: string }
+  | { type: 'UPGRADE_WEAPON'; weaponId: string }
+  | { type: 'SWAP_WEAPON_ACCESSORY'; weaponId: string; accessoryId: import('../game/weaponGenerator').AccessoryId }
+  | { type: 'FUSE_WEAPONS'; weaponIds: [string, string, string] }
+  | { type: 'BULK_SELL_WEAPONS'; maxRarity: import('../game/weaponGenerator').WeaponRarity }
+  | { type: 'ADD_WEAPON_MASTERY_XP'; weaponId: string; xp: number }
   // Campaign actions
   | { type: 'START_CAMPAIGN_MISSION'; chapterId: string; missionId: string }
   | { type: 'ADVANCE_CAMPAIGN_MISSION' }
@@ -1108,6 +1114,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.activeCombat?.won) {
         const combatCinematic = checkCinematicTrigger(s, 'combat_won');
         if (combatCinematic) s.pendingCinematic = combatCinematic;
+        // Mastery XP for equipped weapon
+        const masteryWpn = s.weaponInventory?.find(w => w.equipped);
+        if (masteryWpn) {
+          const xpGain = 10 + Math.floor(s.player.level * 1.5);
+          masteryWpn.masteryXp = (masteryWpn.masteryXp || 0) + xpGain;
+        }
       }
       if (s.activeCombat?.isNemesis && s.activeCombat?.won) {
         const nemCinematic = checkCinematicTrigger(s, 'nemesis_combat_start');
@@ -2065,7 +2077,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SELL_WEAPON': {
       if (!s.weaponInventory) return s;
       const wpnToSell = s.weaponInventory.find(w => w.id === action.weaponId);
-      if (!wpnToSell || wpnToSell.equipped) return s;
+      if (!wpnToSell || wpnToSell.equipped || wpnToSell.locked) return s;
       s.money += wpnToSell.sellValue;
       s.stats.totalEarned += wpnToSell.sellValue;
       s.weaponInventory = s.weaponInventory.filter(w => w.id !== action.weaponId);
@@ -2076,6 +2088,73 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.weaponInventory) s.weaponInventory = [];
       if (s.weaponInventory.length >= 20) return s;
       s.weaponInventory.push(action.weapon);
+      return s;
+    }
+
+    case 'TOGGLE_WEAPON_LOCK': {
+      if (!s.weaponInventory) return s;
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, locked: !w.locked } : w);
+      return s;
+    }
+
+    case 'UPGRADE_WEAPON': {
+      if (!s.weaponInventory) return s;
+      const { upgradeWeapon, getUpgradeCost } = require('../game/weaponUpgrade');
+      const wpnToUpgrade = s.weaponInventory.find(w => w.id === action.weaponId);
+      if (!wpnToUpgrade || wpnToUpgrade.level >= 15) return s;
+      const upgCost = getUpgradeCost(wpnToUpgrade);
+      if (s.money < upgCost) return s;
+      s.money -= upgCost;
+      s.stats.totalSpent += upgCost;
+      const upgraded = upgradeWeapon(wpnToUpgrade);
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...upgraded, equipped: w.equipped, locked: w.locked, masteryXp: w.masteryXp } : w);
+      return s;
+    }
+
+    case 'SWAP_WEAPON_ACCESSORY': {
+      if (!s.weaponInventory) return s;
+      const { swapAccessory, getAccessorySwapCost } = require('../game/weaponUpgrade');
+      const swapCost = getAccessorySwapCost();
+      if (s.money < swapCost) return s;
+      const wpnToSwap = s.weaponInventory.find(w => w.id === action.weaponId);
+      if (!wpnToSwap) return s;
+      s.money -= swapCost;
+      s.stats.totalSpent += swapCost;
+      const swapped = swapAccessory(wpnToSwap, action.accessoryId);
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? swapped : w);
+      return s;
+    }
+
+    case 'FUSE_WEAPONS': {
+      if (!s.weaponInventory) return s;
+      const { canFuseWeapons, fuseWeapons } = require('../game/weaponUpgrade');
+      const fuseWpns = action.weaponIds.map(id => s.weaponInventory!.find(w => w.id === id)).filter(Boolean) as import('../game/weaponGenerator').GeneratedWeapon[];
+      const fuseCheck = canFuseWeapons(fuseWpns, s.money);
+      if (!fuseCheck.canFuse) return s;
+      s.money -= fuseCheck.cost;
+      s.stats.totalSpent += fuseCheck.cost;
+      const fusedWeapon = fuseWeapons(fuseWpns, s.player.level);
+      s.weaponInventory = s.weaponInventory.filter(w => !action.weaponIds.includes(w.id));
+      s.weaponInventory.push(fusedWeapon);
+      return s;
+    }
+
+    case 'BULK_SELL_WEAPONS': {
+      if (!s.weaponInventory) return s;
+      const { getWeaponsBelowRarity, getBulkSellValue } = require('../game/weaponUpgrade');
+      const toSell = getWeaponsBelowRarity(s.weaponInventory, action.maxRarity);
+      if (toSell.length === 0) return s;
+      const totalValue = getBulkSellValue(toSell);
+      const sellIds = new Set(toSell.map((w: any) => w.id));
+      s.weaponInventory = s.weaponInventory.filter(w => !sellIds.has(w.id));
+      s.money += totalValue;
+      s.stats.totalEarned += totalValue;
+      return s;
+    }
+
+    case 'ADD_WEAPON_MASTERY_XP': {
+      if (!s.weaponInventory) return s;
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, masteryXp: (w.masteryXp || 0) + action.xp } : w);
       return s;
     }
 
