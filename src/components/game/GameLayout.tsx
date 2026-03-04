@@ -107,6 +107,7 @@ const StreetEventsViewLazy = React.lazy(() => import('./StreetEventsView').then(
 const MeritPointsViewLazy = React.lazy(() => import('./MeritPointsView').then(m => ({ default: m.MeritPointsView })));
 const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m.WarView })));
 const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
+const CampaignViewLazy = React.lazy(() => import('./campaign/CampaignView').then(m => ({ default: m.CampaignView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
@@ -166,6 +167,7 @@ const views: Record<string, React.ComponentType> = {
   'street_events': StreetEventsViewLazy,
   merit: MeritPointsViewLazy,
   weapons: WeaponInventoryLazy,
+  campaign: CampaignViewLazy,
   // Admin
   admin: AdminPanelView,
 };
@@ -173,7 +175,7 @@ const views: Record<string, React.ComponentType> = {
 // Map view to music scene
 function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
   if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat', 'street_events'].includes(v)) return 'city';
-  if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew'].includes(v)) return 'ops';
+  if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
   return 'profile';
