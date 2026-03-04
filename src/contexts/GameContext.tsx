@@ -287,6 +287,17 @@ type GameAction =
   | { type: 'SWAP_GEAR_MOD'; gearId: string; gearType: 'armor' | 'gadget'; modId: import('../game/gearGenerator').GearModId }
   | { type: 'FUSE_GEAR'; gearIds: [string, string, string]; gearType: 'armor' | 'gadget' }
   | { type: 'BULK_SELL_GEAR'; maxRarity: import('../game/gearGenerator').GearRarity; gearType: 'armor' | 'gadget' }
+  // Black Market actions
+  | { type: 'BUY_BLACK_MARKET_ITEM'; itemId: string; useDirtyMoney: boolean }
+  | { type: 'REFRESH_BLACK_MARKET' }
+  // Loot Crate actions
+  | { type: 'OPEN_LOOT_CRATE'; tier: import('../game/lootCrates').CrateTier }
+  // Daily Reward actions
+  | { type: 'CLAIM_DAILY_LOGIN_REWARD' }
+  // Salvage/Crafting actions
+  | { type: 'SALVAGE_WEAPON'; weaponId: string }
+  | { type: 'SALVAGE_GEAR'; gearId: string; gearType: 'armor' | 'gadget' }
+  | { type: 'CRAFT_SALVAGE'; recipeId: string }
   // Campaign actions
   | { type: 'START_CAMPAIGN_MISSION'; chapterId: string; missionId: string }
   | { type: 'ADVANCE_CAMPAIGN_MISSION' }
@@ -392,6 +403,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Migrate: merit points
       if (loaded.meritPoints === undefined) loaded.meritPoints = 0;
       if (!loaded.meritNodes) loaded.meritNodes = {};
+      // Migrate: black market & acquisition state
+      if (loaded.blackMarketStock === undefined) loaded.blackMarketStock = null;
+      if (loaded.dailyRewardStreak === undefined) loaded.dailyRewardStreak = 0;
+      if (loaded.lastDailyRewardClaim === undefined) loaded.lastDailyRewardClaim = null;
+      if (loaded.scrapMaterials === undefined) loaded.scrapMaterials = 0;
+      if (loaded.pityCounter === undefined) loaded.pityCounter = 0;
+      if (loaded.lootCratesPurchased === undefined) loaded.lootCratesPurchased = 0;
       return loaded;
     }
 
@@ -2276,6 +2294,131 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       else s.gadgetInventory = gBulkRemaining;
       s.money += gBulkValue;
       s.stats.totalEarned += gBulkValue;
+      return s;
+    }
+
+    // ========== BLACK MARKET ACTIONS ==========
+    case 'BUY_BLACK_MARKET_ITEM': {
+      const { generateBlackMarketStock, shouldRefreshStock } = require('../game/blackMarket');
+      if (!s.blackMarketStock) return s;
+      const bmItem = s.blackMarketStock.items.find((i: any) => i.id === action.itemId);
+      if (!bmItem || bmItem.sold) return s;
+      const cost = action.useDirtyMoney ? bmItem.dirtyPrice : bmItem.price;
+      if (action.useDirtyMoney) {
+        if (s.dirtyMoney < cost) return s;
+        s.dirtyMoney -= cost;
+      } else {
+        if (s.money < cost) return s;
+        s.money -= cost;
+        s.stats.totalSpent += cost;
+      }
+      bmItem.sold = true;
+      if (bmItem.weapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        s.weaponInventory.push(bmItem.weapon);
+      }
+      if (bmItem.gear) {
+        const inv = bmItem.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[inv]) (s as any)[inv] = [];
+        (s as any)[inv].push(bmItem.gear);
+      }
+      return s;
+    }
+
+    case 'REFRESH_BLACK_MARKET': {
+      const { generateBlackMarketStock } = require('../game/blackMarket');
+      s.blackMarketStock = generateBlackMarketStock(s.player.level, s.day);
+      return s;
+    }
+
+    // ========== LOOT CRATE ACTIONS ==========
+    case 'OPEN_LOOT_CRATE': {
+      const { openCrate, getCrateDef } = require('../game/lootCrates');
+      const crateDef = getCrateDef(action.tier);
+      if (s.money < crateDef.price) return s;
+      s.money -= crateDef.price;
+      s.stats.totalSpent += crateDef.price;
+      const { result, newPityCounter } = openCrate(action.tier, s.player.level, s.pityCounter || 0);
+      s.pityCounter = newPityCounter;
+      s.lootCratesPurchased = (s.lootCratesPurchased || 0) + 1;
+      if (result.weapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        s.weaponInventory.push(result.weapon);
+      }
+      if (result.gear) {
+        const inv = result.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[inv]) (s as any)[inv] = [];
+        (s as any)[inv].push(result.gear);
+      }
+      return s;
+    }
+
+    // ========== DAILY LOGIN REWARD ACTIONS ==========
+    case 'CLAIM_DAILY_LOGIN_REWARD': {
+      const { canClaimDailyReward, shouldResetStreak, claimDailyReward } = require('../game/dailyRewards');
+      if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
+      let streak = s.dailyRewardStreak || 0;
+      if (shouldResetStreak(s.lastDailyRewardClaim)) streak = 0;
+      streak += 1;
+      const result = claimDailyReward(streak, s.player.level);
+      s.dailyRewardStreak = streak;
+      s.lastDailyRewardClaim = new Date().toISOString();
+      if (result.money) { s.money += Math.floor(result.money); s.stats.totalEarned += Math.floor(result.money); }
+      if (result.ammo) { s.ammo = Math.min(500, (s.ammo || 0) + result.ammo); }
+      if (result.weapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        s.weaponInventory.push(result.weapon);
+      }
+      if (result.gear) {
+        const inv = result.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[inv]) (s as any)[inv] = [];
+        (s as any)[inv].push(result.gear);
+      }
+      return s;
+    }
+
+    // ========== SALVAGE/CRAFTING ACTIONS ==========
+    case 'SALVAGE_WEAPON': {
+      const { getWeaponScrapValue } = require('../game/salvage');
+      if (!s.weaponInventory) return s;
+      const wpn = s.weaponInventory.find(w => w.id === action.weaponId);
+      if (!wpn || wpn.equipped || wpn.locked) return s;
+      const scrap = getWeaponScrapValue(wpn);
+      s.scrapMaterials = (s.scrapMaterials || 0) + scrap;
+      s.weaponInventory = s.weaponInventory.filter(w => w.id !== action.weaponId);
+      return s;
+    }
+
+    case 'SALVAGE_GEAR': {
+      const { getGearScrapValue } = require('../game/salvage');
+      const gSalvInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gSalvInv) return s;
+      const gSalv = gSalvInv.find(g => g.id === action.gearId);
+      if (!gSalv || gSalv.equipped || gSalv.locked) return s;
+      const gScrap = getGearScrapValue(gSalv);
+      s.scrapMaterials = (s.scrapMaterials || 0) + gScrap;
+      if (action.gearType === 'armor') s.armorInventory = gSalvInv.filter(g => g.id !== action.gearId);
+      else s.gadgetInventory = gSalvInv.filter(g => g.id !== action.gearId);
+      return s;
+    }
+
+    case 'CRAFT_SALVAGE': {
+      const { CRAFT_RECIPES, executeCraft } = require('../game/salvage');
+      const recipe = CRAFT_RECIPES.find((r: any) => r.id === action.recipeId);
+      if (!recipe) return s;
+      if ((s.scrapMaterials || 0) < recipe.scrapCost) return s;
+      const craftResult = executeCraft(action.recipeId, s.player.level);
+      if (!craftResult) return s;
+      s.scrapMaterials = (s.scrapMaterials || 0) - recipe.scrapCost;
+      if (craftResult.weapon) {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        s.weaponInventory.push(craftResult.weapon);
+      }
+      if (craftResult.gear) {
+        const inv = craftResult.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[inv]) (s as any)[inv] = [];
+        (s as any)[inv].push(craftResult.gear);
+      }
       return s;
     }
 

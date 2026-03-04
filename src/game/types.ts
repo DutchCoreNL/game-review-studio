@@ -14,7 +14,8 @@ export type GameView =
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
-  | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal';
+  | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
+  | 'black-market' | 'salvage';
 
 // ========== VILLA TYPES ==========
 
@@ -1192,6 +1193,14 @@ export interface GameState {
 
   // ========== CAMPAIGN STATE ==========
   campaign: import('../game/campaign').CampaignState;
+
+  // ========== BLACK MARKET & ACQUISITION STATE ==========
+  blackMarketStock: import('../game/blackMarket').BlackMarketStock | null;
+  dailyRewardStreak: number;
+  lastDailyRewardClaim: string | null; // ISO date string
+  scrapMaterials: number;
+  pityCounter: number;
+  lootCratesPurchased: number;
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
