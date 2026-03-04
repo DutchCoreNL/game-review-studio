@@ -6,11 +6,11 @@ import type { LootRarity } from './combatLoot';
 
 export type WeaponRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
-export type BrandId = 'noxforge' | 'serpiente' | 'volkov' | 'shadowtech' | 'ironjaw';
-export type FrameId = 'pistol' | 'smg' | 'shotgun' | 'rifle' | 'blade';
-export type BarrelId = 'kort' | 'standaard' | 'lang' | 'precisie' | 'gedempt';
-export type MagazineId = 'klein' | 'standaard' | 'uitgebreid' | 'drum' | 'speciaal';
-export type AccessoryId = 'geen' | 'laser' | 'silencer' | 'incendiary' | 'shock';
+export type BrandId = 'noxforge' | 'serpiente' | 'volkov' | 'shadowtech' | 'ironjaw' | 'krakeel' | 'phantom' | 'drakon';
+export type FrameId = 'pistol' | 'smg' | 'shotgun' | 'rifle' | 'blade' | 'lmg' | 'launcher';
+export type BarrelId = 'kort' | 'standaard' | 'lang' | 'precisie' | 'gedempt' | 'dubbel' | 'plasma';
+export type MagazineId = 'klein' | 'standaard' | 'uitgebreid' | 'drum' | 'speciaal' | 'belt' | 'cassette';
+export type AccessoryId = 'geen' | 'laser' | 'silencer' | 'incendiary' | 'shock' | 'cryo' | 'toxic';
 
 export interface WeaponBrand {
   id: BrandId;
@@ -95,6 +95,9 @@ export const WEAPON_BRANDS: WeaponBrand[] = [
   { id: 'volkov', name: 'Volkov Industries', icon: '⚙️', color: 'text-ice', bonus: '+25% clip size', damageMult: 1, accuracyMult: 1, fireRateMult: 0.95, clipMult: 1.25, critBonus: 0, armorPierce: 0 },
   { id: 'shadowtech', name: 'ShadowTech', icon: '👁️', color: 'text-game-purple', bonus: '+10% alle stats', damageMult: 1.1, accuracyMult: 1.1, fireRateMult: 1.1, clipMult: 1.1, critBonus: 0.05, armorPierce: 0.05 },
   { id: 'ironjaw', name: 'Ironjaw', icon: '💀', color: 'text-gold', bonus: '+30% armor pierce', damageMult: 1.05, accuracyMult: 0.95, fireRateMult: 1, clipMult: 1, critBonus: 0, armorPierce: 0.3 },
+  { id: 'krakeel', name: 'Krakeel', icon: '💣', color: 'text-red-500', bonus: '+20% vuursnelheid', damageMult: 0.95, accuracyMult: 0.9, fireRateMult: 1.2, clipMult: 1, critBonus: 0, armorPierce: 0.1 },
+  { id: 'phantom', name: 'Phantom Corp', icon: '👻', color: 'text-slate-300', bonus: '+15% accuracy & stealth', damageMult: 0.95, accuracyMult: 1.15, fireRateMult: 1.05, clipMult: 0.9, critBonus: 0.1, armorPierce: 0 },
+  { id: 'drakon', name: 'Drakon Heavy', icon: '🐉', color: 'text-amber-500', bonus: '+25% schade, -10% snelheid', damageMult: 1.25, accuracyMult: 0.9, fireRateMult: 0.9, clipMult: 1.1, critBonus: 0, armorPierce: 0.15 },
 ];
 
 export const WEAPON_FRAMES: WeaponFrame[] = [
@@ -103,6 +106,8 @@ export const WEAPON_FRAMES: WeaponFrame[] = [
   { id: 'shotgun', name: 'Shotgun', icon: '💥', baseDamage: 12, baseAccuracy: 4, baseFireRate: 3, baseClip: 6, isMelee: false },
   { id: 'rifle', name: 'Rifle', icon: '🎯', baseDamage: 10, baseAccuracy: 9, baseFireRate: 4, baseClip: 10, isMelee: false },
   { id: 'blade', name: 'Blade', icon: '🗡️', baseDamage: 8, baseAccuracy: 8, baseFireRate: 7, baseClip: 0, isMelee: true },
+  { id: 'lmg', name: 'LMG', icon: '🔫', baseDamage: 7, baseAccuracy: 3, baseFireRate: 8, baseClip: 30, isMelee: false },
+  { id: 'launcher', name: 'Launcher', icon: '🚀', baseDamage: 18, baseAccuracy: 3, baseFireRate: 1, baseClip: 2, isMelee: false },
 ];
 
 export const WEAPON_BARRELS: WeaponBarrel[] = [
@@ -111,6 +116,8 @@ export const WEAPON_BARRELS: WeaponBarrel[] = [
   { id: 'lang', name: 'Lange Loop', damageBonus: 2, accuracyBonus: 2, rangeLabel: 'Lang bereik' },
   { id: 'precisie', name: 'Precisie Loop', damageBonus: 1, accuracyBonus: 4, rangeLabel: 'Precisie' },
   { id: 'gedempt', name: 'Gedempte Loop', damageBonus: -1, accuracyBonus: 1, rangeLabel: 'Stil' },
+  { id: 'dubbel', name: 'Dubbele Loop', damageBonus: 4, accuracyBonus: -3, rangeLabel: 'Dubbel vuur' },
+  { id: 'plasma', name: 'Plasma Loop', damageBonus: 3, accuracyBonus: 1, rangeLabel: 'Energie' },
 ];
 
 export const WEAPON_MAGAZINES: WeaponMagazine[] = [
@@ -119,6 +126,8 @@ export const WEAPON_MAGAZINES: WeaponMagazine[] = [
   { id: 'uitgebreid', name: 'Uitgebreid Magazijn', clipBonus: 6, fireRateBonus: -1, reloadLabel: 'Langzame herlaad' },
   { id: 'drum', name: 'Drum Magazijn', clipBonus: 12, fireRateBonus: -2, reloadLabel: 'Zware herlaad' },
   { id: 'speciaal', name: 'Speciaal Magazijn', clipBonus: 3, fireRateBonus: 1, reloadLabel: 'Snelle feed' },
+  { id: 'belt', name: 'Belt Feed', clipBonus: 20, fireRateBonus: -3, reloadLabel: 'Belt herlaad' },
+  { id: 'cassette', name: 'Cassette Mag', clipBonus: 8, fireRateBonus: 2, reloadLabel: 'Cassette feed' },
 ];
 
 export const WEAPON_ACCESSORIES: WeaponAccessory[] = [
@@ -127,6 +136,8 @@ export const WEAPON_ACCESSORIES: WeaponAccessory[] = [
   { id: 'silencer', name: 'Silencer', icon: '🤫', effect: '-3 heat per gevecht', accuracyBonus: 0, heatReduction: 3, dotDamage: 0, stunChance: 0 },
   { id: 'incendiary', name: 'Incendiary', icon: '🔥', effect: '+2 DoT/beurt', accuracyBonus: 0, heatReduction: 0, dotDamage: 2, stunChance: 0 },
   { id: 'shock', name: 'Shock', icon: '⚡', effect: '15% stun kans', accuracyBonus: 0, heatReduction: 0, dotDamage: 0, stunChance: 0.15 },
+  { id: 'cryo', name: 'Cryo Module', icon: '❄️', effect: '12% slow + 1 DoT', accuracyBonus: 0, heatReduction: 0, dotDamage: 1, stunChance: 0.12 },
+  { id: 'toxic', name: 'Toxic Rounds', icon: '☠️', effect: '+3 DoT/beurt (gif)', accuracyBonus: 0, heatReduction: 0, dotDamage: 3, stunChance: 0 },
 ];
 
 // ========== RARITY ==========
@@ -236,7 +247,9 @@ export function generateWeapon(level: number, forcedRarity?: WeaponRarity, lootR
 
   // Special effect text
   let specialEffect: string | null = null;
-  if (accessory.dotDamage > 0) specialEffect = `🔥 ${accessory.dotDamage} brand schade/beurt`;
+  if (accessory.id === 'cryo') specialEffect = `❄️ ${Math.round(accessory.stunChance * 100)}% slow + ${accessory.dotDamage} cryo/beurt`;
+  else if (accessory.id === 'toxic') specialEffect = `☠️ ${accessory.dotDamage} gif schade/beurt`;
+  else if (accessory.dotDamage > 0) specialEffect = `🔥 ${accessory.dotDamage} brand schade/beurt`;
   else if (accessory.stunChance > 0) specialEffect = `⚡ ${Math.round(accessory.stunChance * 100)}% stun kans`;
   else if (accessory.heatReduction > 0) specialEffect = `🤫 -${accessory.heatReduction} heat per gevecht`;
   else if (accessory.accuracyBonus > 0) specialEffect = `🔴 +${accessory.accuracyBonus} accuracy`;
