@@ -700,14 +700,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Auto-dismiss night report after setting it (make it non-blocking)
       // The night report will auto-dismiss in 8 seconds via the NightReport component
       
-      // Sync leaderboard
+      // Sync leaderboard (fire-and-forget, ignore rate limit errors)
       syncLeaderboard({
         rep: s.rep, cash: s.money, day: s.day, level: s.player.level,
         districts_owned: s.ownedDistricts.length, crew_size: s.crew.length,
         karma: s.karma || 0, backstory: s.backstory || null,
         prestige_level: s.prestigeLevel || 0,
         is_hardcore: s.hardcoreMode || false,
-      });
+      }).catch(() => {});
       return s;
     }
 
