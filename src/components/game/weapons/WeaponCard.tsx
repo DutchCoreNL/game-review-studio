@@ -1,5 +1,6 @@
 import { GeneratedWeapon, getBrandDef, getFrameDef, WEAPON_RARITY_COLORS, WEAPON_RARITY_BG, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import { getMasteryProgress, getMasteryTitle, getEffectiveStats } from '@/game/weaponUpgrade';
+import { WEAPON_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { GameBadge } from '../ui/GameBadge';
 import { motion } from 'framer-motion';
 import { Crosshair, Flame, Zap, Shield, Target, Lock, Star } from 'lucide-react';
@@ -69,7 +70,7 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
         onClick={onClick}
         className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-all ${WEAPON_RARITY_BG[weapon.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
       >
-        <span className="text-lg">{frame.icon}</span>
+        <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-8 h-8 object-contain rounded" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className={`text-[0.6rem] font-bold truncate ${WEAPON_RARITY_COLORS[weapon.rarity]}`}>{weapon.name}</span>
@@ -106,8 +107,8 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded flex items-center justify-center text-lg border ${WEAPON_RARITY_BG[weapon.rarity]}`}>
-            {frame.icon}
+          <div className={`w-10 h-10 rounded overflow-hidden border ${WEAPON_RARITY_BG[weapon.rarity]}`}>
+            <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="flex items-center gap-1">

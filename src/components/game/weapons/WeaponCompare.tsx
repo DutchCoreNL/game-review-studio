@@ -1,4 +1,5 @@
 import { GeneratedWeapon, WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL, getBrandDef, getFrameDef, AccessoryId } from '@/game/weaponGenerator';
+import { WEAPON_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { canUpgradeWeapon, getUpgradeCost, getAccessorySwapCost, getAvailableAccessories, getEffectiveStats, getMasteryProgress, getMasteryTitle } from '@/game/weaponUpgrade';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -76,7 +77,7 @@ export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onUpgrad
         animate={{ scale: 1, opacity: 1 }}
         className={`game-card p-4 mb-3 text-center border ${weapon.rarity === 'legendary' ? 'border-gold' : weapon.rarity === 'epic' ? 'border-game-purple' : 'border-border'} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
       >
-        <span className="text-4xl block mb-2">{frame.icon}</span>
+        <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-16 h-16 object-contain mx-auto mb-2" />
         <h3 className={`text-sm font-bold font-display ${WEAPON_RARITY_COLORS[weapon.rarity]}`}>{weapon.name}</h3>
         <div className="flex items-center justify-center gap-2 mt-1">
           <span className={`text-[0.5rem] ${brand.color}`}>{brand.icon} {brand.name}</span>

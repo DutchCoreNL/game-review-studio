@@ -1,4 +1,5 @@
 import { GeneratedGear, GEAR_RARITY_COLORS, GEAR_RARITY_LABEL, getGearBrandDef, getGearFrameDef, GearModId, GearType } from '@/game/gearGenerator';
+import { GEAR_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { canUpgradeGear, getGearUpgradeCost, getGearModSwapCost, getAvailableMods, getEffectiveGearStats, getGearMasteryProgress, getGearMasteryTitle } from '@/game/gearUpgrade';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -73,7 +74,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         animate={{ scale: 1, opacity: 1 }}
         className={`game-card p-4 mb-3 text-center border ${gear.rarity === 'legendary' ? 'border-gold' : gear.rarity === 'epic' ? 'border-game-purple' : 'border-border'} ${gear.isUnique ? gear.uniqueGlow || '' : ''}`}
       >
-        <span className="text-4xl block mb-2">{frame.icon}</span>
+        <img src={GEAR_FRAME_IMAGES[gear.frame]} alt={frame.name} className="w-16 h-16 object-contain mx-auto mb-2" />
         <h3 className={`text-sm font-bold font-display ${GEAR_RARITY_COLORS[gear.rarity]}`}>{gear.name}</h3>
         <div className="flex items-center justify-center gap-2 mt-1">
           <span className={`text-[0.5rem] ${brand.color}`}>{brand.icon} {brand.name}</span>

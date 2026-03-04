@@ -1,5 +1,6 @@
 import { GeneratedGear, getGearBrandDef, getGearFrameDef, GEAR_RARITY_COLORS, GEAR_RARITY_BG, GEAR_RARITY_LABEL, GearType } from '@/game/gearGenerator';
 import { getGearMasteryProgress, getGearMasteryTitle, getEffectiveGearStats } from '@/game/gearUpgrade';
+import { GEAR_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { GameBadge } from '../ui/GameBadge';
 import { motion } from 'framer-motion';
 import { Shield, Brain, Heart, Lock, Star, Sparkles } from 'lucide-react';
@@ -70,7 +71,7 @@ export function GearCard({ gear, compact = false, onClick, actions, highlight = 
         onClick={onClick}
         className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-all ${GEAR_RARITY_BG[gear.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${gear.isUnique ? gear.uniqueGlow || '' : ''}`}
       >
-        <span className="text-lg">{frame.icon}</span>
+        <img src={GEAR_FRAME_IMAGES[gear.frame]} alt={frame.name} className="w-8 h-8 object-contain rounded" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className={`text-[0.6rem] font-bold truncate ${GEAR_RARITY_COLORS[gear.rarity]}`}>{gear.name}</span>
@@ -107,8 +108,8 @@ export function GearCard({ gear, compact = false, onClick, actions, highlight = 
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded flex items-center justify-center text-lg border ${GEAR_RARITY_BG[gear.rarity]}`}>
-            {frame.icon}
+          <div className={`w-10 h-10 rounded overflow-hidden border ${GEAR_RARITY_BG[gear.rarity]}`}>
+            <img src={GEAR_FRAME_IMAGES[gear.frame]} alt={frame.name} className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="flex items-center gap-1">
