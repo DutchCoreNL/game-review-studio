@@ -96,6 +96,7 @@ const CATEGORIES: Category[] = [
       { id: 'contacts', label: 'NPC Relaties', icon: Users },
       { id: 'reputation', label: 'Reputatie', icon: Star },
       { id: 'arcs', label: 'Story Arcs', icon: Target },
+      { id: 'codex', label: 'Codex', icon: BookOpen },
       { id: 'trophies', label: 'Trofeeën', icon: Trophy },
       { id: 'leaderboard', label: 'Leaderboard', icon: CrownIcon },
       { id: 'messages', label: 'Berichten', icon: Mail },

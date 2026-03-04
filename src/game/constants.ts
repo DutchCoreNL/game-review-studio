@@ -1807,6 +1807,8 @@ export function createInitialState(): import('./types').GameState {
     pendingFlashback: null,
     keyDecisions: [],
     mmoPerkFlags: {},
+    visitedDistricts: ['low'],
+    codex: { unlockedEntries: [], readEntries: [], newEntries: [] },
     // Hitman & Ammo state (universal ammo system)
     ammo: 20,
     ammoStock: { '9mm': 20, '7.62mm': 0, 'shells': 0 }, // legacy compat
