@@ -17,6 +17,11 @@ export async function syncLeaderboard(data: SyncData) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
 
+  // Skip sync for anonymous users (Quick Play) - they have no profile
+  const isAnonymous = session.user?.app_metadata?.provider === 'anonymous' 
+    || session.user?.is_anonymous === true;
+  if (isAnonymous) return;
+
   // Check if player is muted
   const { data: mutes } = await supabase
     .from('player_sanctions')
