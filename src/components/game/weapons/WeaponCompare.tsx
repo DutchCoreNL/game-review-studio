@@ -1,15 +1,19 @@
-import { GeneratedWeapon, WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL, getBrandDef, getFrameDef } from '@/game/weaponGenerator';
+import { GeneratedWeapon, WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL, getBrandDef, getFrameDef, AccessoryId } from '@/game/weaponGenerator';
+import { canUpgradeWeapon, getUpgradeCost, getAccessorySwapCost, getAvailableAccessories, getEffectiveStats, getMasteryProgress, getMasteryTitle } from '@/game/weaponUpgrade';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { SectionHeader } from '../ui/SectionHeader';
+import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Crosshair, Target, Flame, Zap, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { ArrowLeft, Crosshair, Target, Flame, Zap, ArrowUp, ArrowDown, Wrench, Star, Sparkles } from 'lucide-react';
+import { useState } from 'react';
 
 interface WeaponCompareProps {
   weapon: GeneratedWeapon;
   currentWeapon: GeneratedWeapon | null;
   onEquip: () => void;
   onSell: () => void;
+  onUpgrade: () => void;
   onBack: () => void;
 }
 
@@ -34,14 +38,29 @@ function ComparisonStat({ label, newVal, oldVal, icon }: { label: string; newVal
   );
 }
 
-export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onBack }: WeaponCompareProps) {
+export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onUpgrade, onBack }: WeaponCompareProps) {
+  const { state, dispatch, showToast } = useGame();
+  const [showAccessorySwap, setShowAccessorySwap] = useState(false);
   const brand = getBrandDef(weapon.brand);
   const frame = getFrameDef(weapon.frame);
+  const effectiveStats = getEffectiveStats(weapon);
+  const mastery = getMasteryProgress(weapon.masteryXp || 0);
+  const masteryTitle = getMasteryTitle(weapon.frame, mastery.level);
 
-  const oldDamage = currentWeapon?.damage ?? 0;
-  const oldAccuracy = currentWeapon?.accuracy ?? 0;
-  const oldFireRate = currentWeapon?.fireRate ?? 0;
-  const oldClip = currentWeapon?.clipSize ?? 0;
+  const oldStats = currentWeapon ? getEffectiveStats(currentWeapon) : { damage: 0, accuracy: 0, fireRate: 0, clipSize: 0, critChance: 0, armorPierce: 0 };
+
+  const upgradeCheck = canUpgradeWeapon(weapon, state.money);
+
+  const handleAccessorySwap = (accessoryId: AccessoryId) => {
+    const cost = getAccessorySwapCost();
+    if (state.money < cost) {
+      showToast('Niet genoeg geld!');
+      return;
+    }
+    dispatch({ type: 'SWAP_WEAPON_ACCESSORY', weaponId: weapon.id, accessoryId });
+    showToast(`Accessoire gewisseld! -€${cost.toLocaleString()}`);
+    setShowAccessorySwap(false);
+  };
 
   return (
     <div>
@@ -55,7 +74,7 @@ export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onBack }
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`game-card p-4 mb-3 text-center border ${weapon.rarity === 'legendary' ? 'border-gold' : weapon.rarity === 'epic' ? 'border-game-purple' : 'border-border'}`}
+        className={`game-card p-4 mb-3 text-center border ${weapon.rarity === 'legendary' ? 'border-gold' : weapon.rarity === 'epic' ? 'border-game-purple' : 'border-border'} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
       >
         <span className="text-4xl block mb-2">{frame.icon}</span>
         <h3 className={`text-sm font-bold font-display ${WEAPON_RARITY_COLORS[weapon.rarity]}`}>{weapon.name}</h3>
@@ -64,42 +83,116 @@ export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onBack }
           <GameBadge variant={weapon.rarity === 'legendary' ? 'gold' : weapon.rarity === 'epic' ? 'purple' : weapon.rarity === 'rare' ? 'ice' : weapon.rarity === 'uncommon' ? 'emerald' : 'muted'} size="sm">
             {WEAPON_RARITY_LABEL[weapon.rarity]}
           </GameBadge>
+          {weapon.isUnique && <GameBadge variant="purple" size="sm">UNIEK</GameBadge>}
         </div>
+        {weapon.lore && (
+          <p className="text-[0.45rem] italic text-muted-foreground mt-2">"{weapon.lore}"</p>
+        )}
       </motion.div>
+
+      {/* Mastery */}
+      {(weapon.masteryXp || 0) > 0 && (
+        <div className="game-card p-3 mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1">
+              <Star size={10} className="text-gold" />
+              <span className="text-[0.5rem] font-bold text-gold">Mastery Level {mastery.level}/5</span>
+              {masteryTitle && <span className="text-[0.45rem] text-gold/70 italic ml-1">"{masteryTitle}"</span>}
+            </div>
+            <span className="text-[0.45rem] text-muted-foreground">{weapon.masteryXp}/{mastery.nextXp} XP</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${mastery.progress * 100}%` }} />
+          </div>
+          {mastery.level > 0 && (
+            <p className="text-[0.4rem] text-gold/70 mt-1">+{mastery.level * 2}% stat bonus actief</p>
+          )}
+        </div>
+      )}
 
       {/* Stat comparison */}
       <div className="game-card p-3 mb-3">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
           {currentWeapon ? 'Vergelijking met huidig wapen' : 'Statistieken'}
         </div>
-        <ComparisonStat label="Schade" newVal={weapon.damage} oldVal={oldDamage} icon={<Crosshair size={10} className="text-blood" />} />
-        <ComparisonStat label="Accuracy" newVal={weapon.accuracy} oldVal={oldAccuracy} icon={<Target size={10} className="text-ice" />} />
-        <ComparisonStat label="Vuursnelheid" newVal={weapon.fireRate} oldVal={oldFireRate} icon={<Flame size={10} className="text-gold" />} />
+        <ComparisonStat label="Schade" newVal={effectiveStats.damage} oldVal={oldStats.damage} icon={<Crosshair size={10} className="text-blood" />} />
+        <ComparisonStat label="Accuracy" newVal={effectiveStats.accuracy} oldVal={oldStats.accuracy} icon={<Target size={10} className="text-ice" />} />
+        <ComparisonStat label="Vuursnelheid" newVal={effectiveStats.fireRate} oldVal={oldStats.fireRate} icon={<Flame size={10} className="text-gold" />} />
         {!frame.isMelee && (
-          <ComparisonStat label="Clip" newVal={weapon.clipSize} oldVal={oldClip} icon={<Zap size={10} className="text-emerald" />} />
+          <ComparisonStat label="Clip" newVal={effectiveStats.clipSize} oldVal={oldStats.clipSize} icon={<Zap size={10} className="text-emerald" />} />
         )}
+        <div className="border-t border-border mt-1 pt-1">
+          <div className="flex items-center justify-between text-[0.5rem]">
+            <span className="text-muted-foreground">DPS (schade × vuursnelheid)</span>
+            <span className="font-bold text-gold">{effectiveStats.damage * effectiveStats.fireRate}</span>
+          </div>
+        </div>
       </div>
 
       {/* Special effects */}
-      {(weapon.specialEffect || weapon.critChance > 5 || weapon.armorPierce > 0) && (
+      {(weapon.specialEffect || effectiveStats.critChance > 5 || effectiveStats.armorPierce > 0) && (
         <div className="game-card p-3 mb-3">
           <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Speciale effecten</div>
           <div className="space-y-1">
-            {weapon.critChance > 5 && <div className="text-[0.5rem] text-gold">💥 {weapon.critChance}% kritieke kans</div>}
-            {weapon.armorPierce > 0 && <div className="text-[0.5rem] text-blood">🛡️ {weapon.armorPierce}% armor doordringing</div>}
+            {effectiveStats.critChance > 5 && <div className="text-[0.5rem] text-gold">💥 {effectiveStats.critChance}% kritieke kans</div>}
+            {effectiveStats.armorPierce > 0 && <div className="text-[0.5rem] text-blood">🛡️ {effectiveStats.armorPierce}% armor doordringing</div>}
             {weapon.specialEffect && <div className="text-[0.5rem] text-game-purple">{weapon.specialEffect}</div>}
           </div>
         </div>
       )}
+
+      {/* Upgrade section */}
+      <div className="game-card p-3 mb-3">
+        <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
+          <Wrench size={8} className="inline mr-1" /> Verbeteren
+        </div>
+        <div className="flex gap-2">
+          <GameButton
+            variant="gold"
+            size="sm"
+            fullWidth
+            disabled={!upgradeCheck.canUpgrade}
+            onClick={onUpgrade}
+          >
+            <Sparkles size={10} /> UPGRADE Lvl {weapon.level}→{weapon.level + 1} (€{upgradeCheck.cost.toLocaleString()})
+          </GameButton>
+        </div>
+        {!upgradeCheck.canUpgrade && upgradeCheck.reason && (
+          <p className="text-[0.4rem] text-blood mt-1">{upgradeCheck.reason}</p>
+        )}
+        <button
+          onClick={() => setShowAccessorySwap(!showAccessorySwap)}
+          className="text-[0.45rem] text-ice hover:text-foreground mt-2 transition-colors"
+        >
+          🔧 Accessoire wisselen (€{getAccessorySwapCost().toLocaleString()})
+        </button>
+        {showAccessorySwap && (
+          <div className="mt-2 space-y-1">
+            {getAvailableAccessories(weapon.accessory).map(acc => (
+              <button
+                key={acc.id}
+                onClick={() => handleAccessorySwap(acc.id)}
+                className="w-full text-left text-[0.45rem] p-1.5 rounded bg-muted/30 hover:bg-muted/60 transition-colors flex items-center gap-2"
+              >
+                <span>{acc.icon}</span>
+                <span className="font-semibold">{acc.name}</span>
+                <span className="text-muted-foreground">{acc.effect}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Actions */}
       <div className="flex gap-2">
         <GameButton variant="gold" size="lg" fullWidth glow onClick={onEquip}>
           {weapon.equipped ? 'AL UITGERUST' : 'UITRUSTEN'}
         </GameButton>
-        <GameButton variant="muted" size="lg" onClick={onSell}>
-          VERKOOP €{weapon.sellValue.toLocaleString()}
-        </GameButton>
+        {!weapon.locked && (
+          <GameButton variant="muted" size="lg" onClick={onSell}>
+            VERKOOP €{weapon.sellValue.toLocaleString()}
+          </GameButton>
+        )}
       </div>
     </div>
   );
