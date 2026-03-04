@@ -1908,6 +1908,10 @@ export function createInitialState(): import('./types').GameState {
     // Procedural Weapon Inventory
     weaponInventory: [],
 
+    // Procedural Gear Inventory
+    armorInventory: [],
+    gadgetInventory: [],
+
     // Campaign state
     campaign: createInitialCampaignStateFn(),
   };

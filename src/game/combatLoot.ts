@@ -1,6 +1,7 @@
 // ========== COMBAT LOOT SYSTEM ==========
 
 import { generateWeapon } from './weaponGenerator';
+import { generateGear } from './gearGenerator';
 
 export type LootRarity = 'common' | 'uncommon' | 'rare' | 'epic';
 
@@ -21,6 +22,7 @@ export interface CombatLootResult {
   totalMoney: number;
   totalAmmo: number;
   droppedWeapon: import('./weaponGenerator').GeneratedWeapon | null;
+  droppedGear: import('./gearGenerator').GeneratedGear | null;
 }
 
 export type CombatRating = 'S' | 'A' | 'B' | 'C' | 'D';
@@ -181,6 +183,24 @@ export function rollCombatLoot(
     });
   }
 
+  // Procedural gear drop (armor or gadget)
+  const gearDropChance = isBoss ? 0.5 : rating === 'S' ? 0.25 : rating === 'A' ? 0.15 : rating === 'B' ? 0.08 : 0.03;
+  let droppedGear: import('./gearGenerator').GeneratedGear | null = null;
+  if (Math.random() < gearDropChance) {
+    const gearType = Math.random() < 0.5 ? 'armor' as const : 'gadget' as const;
+    const gearLootRarity: LootRarity = rating === 'S' ? 'epic' : rating === 'A' ? 'rare' : rating === 'B' ? 'uncommon' : 'common';
+    droppedGear = generateGear(enemyLevel, gearType, undefined, gearLootRarity);
+    items.push({
+      id: 'gear_drop_' + Date.now(),
+      name: droppedGear.name,
+      icon: gearType === 'armor' ? '🛡️' : '📱',
+      rarity: (droppedGear.rarity === 'legendary' ? 'epic' : droppedGear.rarity) as LootRarity,
+      type: 'gear',
+      value: droppedGear.sellValue,
+      desc: `${droppedGear.defense} DEF | ${droppedGear.brains} INT`,
+    });
+  }
+
   return {
     items,
     rating,
@@ -188,5 +208,6 @@ export function rollCombatLoot(
     totalMoney: money,
     totalAmmo: items.filter(i => i.type === 'ammo').reduce((s, i) => s + i.value, 0),
     droppedWeapon,
+    droppedGear,
   };
 }
