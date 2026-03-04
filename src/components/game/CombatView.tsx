@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUEST_COMBAT_OVERRIDES, GEAR } from '@/game/constants';
+import { WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
 import { FamilyId, DistrictId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
@@ -471,20 +472,43 @@ function ActiveCombat() {
       {!combat.finished ? (
         <>
           {(() => {
-            const equippedWeaponId = state.player.loadout.weapon;
-            const equippedWeapon = equippedWeaponId ? (GEAR.find(g => g.id === equippedWeaponId) ?? null) : null;
-            const isMeleeWeapon = equippedWeapon?.ammoType === null;
+            const procWeapon = state.weaponInventory?.find(w => w.equipped);
+            const legacyWeaponId = state.player.loadout.weapon;
+            const legacyWeapon = legacyWeaponId ? (GEAR.find(g => g.id === legacyWeaponId) ?? null) : null;
+            const isMeleeWeapon = procWeapon ? procWeapon.frame === 'blade' : (legacyWeapon?.ammoType === null);
+            
+            if (procWeapon) {
+              return (
+                <div className="text-center mb-2 space-y-0.5">
+                  <div className={`text-[0.55rem] font-bold ${WEAPON_RARITY_COLORS[procWeapon.rarity]}`}>
+                    {procWeapon.name} ({WEAPON_RARITY_LABEL[procWeapon.rarity]})
+                  </div>
+                  <div className="text-[0.45rem] text-muted-foreground flex items-center justify-center gap-2">
+                    <span>⚔️ {procWeapon.damage} DMG</span>
+                    <span>🎯 {procWeapon.accuracy} ACC</span>
+                    <span>💥 {procWeapon.critChance}% CRIT</span>
+                    {procWeapon.specialEffect && <span>{procWeapon.specialEffect}</span>}
+                  </div>
+                  {!isMeleeWeapon && (
+                    <div className={`text-[0.5rem] font-bold ${(state.ammo || 0) <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
+                      🔫 Kogels: {state.ammo || 0}/500 {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50%)</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            
             if (isMeleeWeapon) {
               return (
                 <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
-                  ⚔️ {equippedWeapon?.name || 'Melee'} — Geen munitie nodig
+                  ⚔️ {legacyWeapon?.name || 'Melee'} — Geen munitie nodig
                 </div>
               );
             }
             const totalAmmo = state.ammo || 0;
             return (
               <div className={`text-center mb-2 text-[0.55rem] font-bold ${totalAmmo <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
-                🔫 Kogels: {totalAmmo}/500 {equippedWeapon?.clipSize ? `| Clip: ${equippedWeapon.clipSize}` : ''} {state.activeSpecialAmmo ? `| ${state.activeSpecialAmmo === 'armor_piercing' ? '🔩 AP' : state.activeSpecialAmmo === 'hollowpoints' ? '💥 HP' : '✨ Tracer'}` : ''} {totalAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
+                🔫 Kogels: {totalAmmo}/500 {legacyWeapon?.clipSize ? `| Clip: ${legacyWeapon.clipSize}` : ''} {state.activeSpecialAmmo ? `| ${state.activeSpecialAmmo === 'armor_piercing' ? '🔩 AP' : state.activeSpecialAmmo === 'hollowpoints' ? '💥 HP' : '✨ Tracer'}` : ''} {totalAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
               </div>
             );
           })()}

@@ -13,7 +13,7 @@ import {
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin,
-  BarChart3 as Stats, Star, Shield, Smartphone, Trophy, Mail, Settings,
+  BarChart3 as Stats, Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
   ShieldAlert, LucideIcon, BookOpen,
 } from 'lucide-react';
 
@@ -93,6 +93,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
         items: [
           { id: 'profile', label: 'Stats & Skills', icon: Stats },
           { id: 'loadout', label: 'Loadout', icon: Shield },
+          { id: 'weapons', label: 'Wapenarsenaal', icon: Sword, badge: state.weaponInventory?.length || 0 },
           { id: 'contacts', label: 'NPC Relaties', icon: Users },
           { id: 'reputation', label: 'Reputatie', icon: Star },
           { id: 'arcs', label: 'Story Arcs', icon: Target },

@@ -13,6 +13,10 @@ import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
+import { WEAPON_ACCESSORIES, type AccessoryId } from './weaponGenerator';
+
+const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
+  Object.fromEntries(WEAPON_ACCESSORIES.map(a => [a.id, { dotDamage: a.dotDamage, stunChance: a.stunChance, heatReduction: a.heatReduction }]));
 import { getWeekEventXpMultiplier, isHeatFreezeActive } from './weekEvents';
 import { getMeritMultiplier, getMeritPointsForLevelUp } from './meritSystem';
 import { xpForLevel, LEVEL_GATES, getMilestone } from './skillTree';
@@ -127,14 +131,11 @@ export function getPlayerStat(state: GameState, stat: StatId): number {
   });
   const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
   if (activeV && stat === 'charm') base += activeV.charm;
-  // Procedural weapon bonus (replaces legacy weapon if equipped)
+  // Procedural weapon bonus — always replaces legacy weapon for muscle
   if (stat === 'muscle' && state.weaponInventory) {
     const equippedWeapon = state.weaponInventory.find(w => w.equipped);
     if (equippedWeapon) {
-      // If no legacy weapon equipped, add weapon damage as muscle
-      if (!loadout.weapon) {
-        base += Math.floor(equippedWeapon.damage * 0.6);
-      }
+      base += Math.floor(equippedWeapon.damage * 0.6);
     }
   }
   return base;
@@ -1826,10 +1827,26 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   const fmt = (s: string, vars: Record<string, string | number>) =>
     Object.entries(vars).reduce((r, [k, v]) => r.replace(`{${k}}`, String(v)), s);
 
-  // Ammo system — check equipped weapon for melee vs ranged
+  // ===== WEAPON SYSTEM — procedural weapon takes priority over legacy =====
+  const procWeapon = state.weaponInventory?.find(w => w.equipped) || null;
   const equippedWeaponId = state.player.loadout.weapon;
-  const equippedWeapon = equippedWeaponId ? GEAR.find(g => g.id === equippedWeaponId) : null;
-  const isMelee = equippedWeapon?.ammoType === null; // Blade etc.
+  const legacyWeapon = equippedWeaponId ? GEAR.find(g => g.id === equippedWeaponId) : null;
+  
+  // Procedural weapon stats
+  const wpnDamage = procWeapon ? procWeapon.damage : 0;
+  const wpnAccuracy = procWeapon ? procWeapon.accuracy / 10 : 0.7; // normalize 1-10 to 0.1-1.0
+  const wpnFireRate = procWeapon ? procWeapon.fireRate : 5;
+  const wpnCritChance = procWeapon ? procWeapon.critChance / 100 : 0.05;
+  const wpnArmorPierce = procWeapon ? procWeapon.armorPierce / 100 : 0;
+  const wpnDotDamage = procWeapon ? (WEAPON_ACCESSORIES_MAP[procWeapon.accessory]?.dotDamage || 0) : 0;
+  const wpnStunChance = procWeapon ? (WEAPON_ACCESSORIES_MAP[procWeapon.accessory]?.stunChance || 0) : 0;
+  const wpnHeatReduction = procWeapon ? (WEAPON_ACCESSORIES_MAP[procWeapon.accessory]?.heatReduction || 0) : 0;
+  
+  // Determine melee vs ranged
+  const isMelee = procWeapon
+    ? procWeapon.frame === 'blade'
+    : (legacyWeapon?.ammoType === null);
+  
   ensureAmmoStock(state);
   const activeAmmoType = getActiveAmmoType(state);
   const currentTypeAmmo = state.ammoStock[activeAmmoType] || 0;
@@ -1843,18 +1860,25 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   switch (action) {
     case 'attack':
       if (isMelee) {
-        // Melee weapon: full damage, no ammo cost
-        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
-        if (env) {
+        playerDamage = Math.floor(8 + muscle * 2.5 + wpnDamage * 0.4 + Math.random() * 6);
+        // Crit check
+        if (Math.random() < wpnCritChance) {
+          playerDamage = Math.floor(playerDamage * 1.8);
+          combat.logs.push(`💥 KRITIEK! ${playerDamage} schade! ⚔️`);
+        } else if (env) {
           combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' ⚔️');
         } else {
-          combat.logs.push(`Je slaat toe met ${equippedWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
+          combat.logs.push(`Je slaat toe met ${procWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
         }
       } else if (hasAmmo) {
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
         syncAmmoTotal(state);
-        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
-        if (env) {
+        playerDamage = Math.floor((8 + muscle * 2.5 + wpnDamage * 0.4 + Math.random() * 6) * wpnAccuracy);
+        // Crit check
+        if (Math.random() < wpnCritChance) {
+          playerDamage = Math.floor(playerDamage * 1.8);
+          combat.logs.push(`💥 KRITIEK! ${playerDamage} schade! 🔫`);
+        } else if (env) {
           combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' 🔫');
         } else {
           combat.logs.push(`Je slaat toe voor ${playerDamage} schade! 🔫 (-1 kogel)`);
@@ -1866,13 +1890,15 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       break;
     case 'heavy':
       if (isMelee) {
-        // Melee weapon: full heavy damage, no ammo cost
         if (Math.random() < 0.6 + (muscle * 0.03)) {
-          playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
-          if (env) {
+          playerDamage = Math.floor(15 + muscle * 3.5 + wpnDamage * 0.6 + Math.random() * 10);
+          if (Math.random() < wpnCritChance * 1.5) {
+            playerDamage = Math.floor(playerDamage * 2.0);
+            combat.logs.push(`💥 KRITIEKE ZWARE KLAP! ${playerDamage} schade! ⚔️`);
+          } else if (env) {
             combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' ⚔️');
           } else {
-            combat.logs.push(`ZWARE KLAP met ${equippedWeapon?.name || 'melee'}! ${playerDamage} schade! ⚔️`);
+            combat.logs.push(`ZWARE KLAP met ${procWeapon?.name || 'melee'}! ${playerDamage} schade! ⚔️`);
           }
         } else {
           combat.logs.push(`Je zware melee-aanval mist! ⚔️`);
@@ -1881,7 +1907,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 2);
         syncAmmoTotal(state);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
-          playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
+          playerDamage = Math.floor((15 + muscle * 3.5 + wpnDamage * 0.6 + Math.random() * 10) * wpnAccuracy);
           if (env) {
             combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' 🔫🔫');
           } else {
@@ -1951,7 +1977,37 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     }
   }
 
+  // Apply armor pierce — reduce enemy effective defense
+  if (wpnArmorPierce > 0 && playerDamage > 0) {
+    const pierceBonus = Math.floor(playerDamage * wpnArmorPierce * 0.3);
+    if (pierceBonus > 0) {
+      playerDamage += pierceBonus;
+      combat.logs.push(`🔩 Armor Pierce: +${pierceBonus} extra schade`);
+    }
+  }
+
   combat.targetHP = Math.max(0, combat.targetHP - playerDamage);
+
+  // Apply weapon accessory effects (DoT, stun)
+  if (procWeapon && playerDamage > 0) {
+    // DoT damage (fire, toxic, cryo)
+    if (wpnDotDamage > 0) {
+      const dotTotal = Math.floor(wpnDotDamage * (1 + state.player.level * 0.15));
+      combat.targetHP = Math.max(0, combat.targetHP - dotTotal);
+      const dotIcon = procWeapon.accessory === 'toxic' ? '☠️' : procWeapon.accessory === 'cryo' ? '❄️' : '🔥';
+      combat.logs.push(`${dotIcon} ${dotTotal} extra effect schade!`);
+    }
+    // Stun chance from accessory (shock, cryo)
+    if (wpnStunChance > 0 && !combat.stunned && Math.random() < wpnStunChance) {
+      combat.stunned = true;
+      const stunIcon = procWeapon.accessory === 'cryo' ? '❄️' : '⚡';
+      combat.logs.push(`${stunIcon} Vijand is ${procWeapon.accessory === 'cryo' ? 'bevroren' : 'STUNNED'}!`);
+    }
+    // Heat reduction from silencer
+    if (wpnHeatReduction > 0) {
+      state.heat = Math.max(0, state.heat - wpnHeatReduction);
+    }
+  }
 
   // Check if enemy defeated
   if (combat.targetHP <= 0) {
