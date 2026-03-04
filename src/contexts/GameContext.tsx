@@ -2465,6 +2465,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (!s.weaponInventory) s.weaponInventory = [];
         if (s.weaponInventory.length < 20) s.weaponInventory.push(m.droppedWeapon);
       }
+      // Add dropped gear
+      if (m.droppedGear) {
+        const gInv = m.droppedGear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[gInv]) (s as any)[gInv] = [];
+        if ((s as any)[gInv].length < 20) (s as any)[gInv].push(m.droppedGear);
+      }
       s.campaign.activeCampaignMission = null;
       return s;
     }
@@ -2503,6 +2509,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const diff = chProgress?.difficulty || 'normal';
         const loot = generateBossLoot(fight.chapterId, s.player.level, killCount, diff);
         s.campaign.activeBossFight.loot = loot.weapon;
+        s.campaign.activeBossFight.gearLoot = loot.gear;
         s.campaign.activeBossFight.moneyLoot = loot.money;
         s.campaign.activeBossFight.accessoryLoot = loot.accessory;
       }
@@ -2519,6 +2526,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (fight.loot) {
         if (!s.weaponInventory) s.weaponInventory = [];
         if (s.weaponInventory.length < 20) s.weaponInventory.push(fight.loot);
+      }
+      // Add gear loot
+      if (fight.gearLoot) {
+        const gInv = fight.gearLoot.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[gInv]) (s as any)[gInv] = [];
+        if ((s as any)[gInv].length < 20) (s as any)[gInv].push(fight.gearLoot);
       }
       // Update boss progress
       const chProgress = s.campaign.chapters.find(c => c.chapterId === fight.chapterId);

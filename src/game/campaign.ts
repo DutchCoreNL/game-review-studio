@@ -1,6 +1,7 @@
 // ========== CAMPAIGN SYSTEM — CHAPTER-BASED STORY ==========
 
 import { generateWeapon, type GeneratedWeapon, type WeaponRarity, type BrandId } from './weaponGenerator';
+import { generateGear, type GeneratedGear, type GearRarity, type GearType } from './gearGenerator';
 
 // ========== TYPES ==========
 
@@ -131,6 +132,7 @@ export interface ActiveBossFight {
   log: BossFightLogEntry[];
   difficulty: CampaignDifficulty;
   loot: GeneratedWeapon | null;
+  gearLoot: GeneratedGear | null;
   moneyLoot: number;
   accessoryLoot: { name: string; icon: string; effect: string } | null;
   finished: boolean;
@@ -147,6 +149,7 @@ export interface ActiveCampaignMission {
   finished: boolean;
   success: boolean;
   droppedWeapon: GeneratedWeapon | null;
+  droppedGear: GeneratedGear | null;
 }
 
 export interface BossFightLogEntry {
@@ -739,6 +742,7 @@ export function startBossFight(chapterId: string, playerHP: number, playerMaxHP:
     ],
     difficulty,
     loot: null,
+    gearLoot: null,
     moneyLoot: 0,
     accessoryLoot: null,
     finished: false,
@@ -832,12 +836,13 @@ export function generateBossLoot(
   playerLevel: number,
   killCount: number,
   difficulty: CampaignDifficulty
-): { weapon: GeneratedWeapon | null; money: number; accessory: { name: string; icon: string; effect: string } | null } {
+): { weapon: GeneratedWeapon | null; gear: GeneratedGear | null; money: number; accessory: { name: string; icon: string; effect: string } | null } {
   const ch = getChapterDef(chapterId)!;
   const boss = ch.boss;
   const diffBonus = difficulty === 'nightmare' ? 2 : difficulty === 'hard' ? 1.5 : 1;
 
   let weapon: GeneratedWeapon | null = null;
+  let gear: GeneratedGear | null = null;
   let money = 0;
   let accessory: { name: string; icon: string; effect: string } | null = null;
 
@@ -856,7 +861,16 @@ export function generateBossLoot(
     }
   }
 
-  return { weapon, money, accessory };
+  // Boss also has a 40% chance to drop gear (scales with chapter number)
+  if (Math.random() < 0.4 + ch.number * 0.05) {
+    const gearType: GearType = Math.random() < 0.5 ? 'armor' : 'gadget';
+    const minGearRarity = ch.number >= 4 ? 'epic' as const : ch.number >= 2 ? 'rare' as const : 'uncommon' as const;
+    const gearRarityUpgrade = killCount > 0 && Math.random() < 0.15 * killCount;
+    const gearRarity = gearRarityUpgrade ? 'legendary' as const : minGearRarity;
+    gear = generateGear(playerLevel, gearType, gearRarity);
+  }
+
+  return { weapon, gear, money, accessory };
 }
 
 // ========== CAMPAIGN MISSION COMBAT ==========
@@ -877,6 +891,7 @@ export function startCampaignMission(chapterId: string, missionId: string): Acti
     finished: false,
     success: false,
     droppedWeapon: null,
+    droppedGear: null,
   };
 }
 
@@ -898,12 +913,19 @@ export function advanceCampaignMission(mission: ActiveCampaignMission, playerLev
   if (encounter >= mission.totalEncounters) {
     // Mission complete — check weapon drop
     let droppedWeapon: GeneratedWeapon | null = null;
+    let droppedGear: GeneratedGear | null = null;
     if (Math.random() < mDef.weaponDropChance) {
       droppedWeapon = generateWeapon(playerLevel, undefined, mDef.weaponRarityFloor === 'epic' ? 'epic' : mDef.weaponRarityFloor === 'rare' ? 'rare' : 'uncommon');
     }
+    // 30% kans op gear drop (naast wapen)
+    if (Math.random() < mDef.weaponDropChance * 0.6) {
+      const gearType: GearType = Math.random() < 0.5 ? 'armor' : 'gadget';
+      const gearRarity = mDef.weaponRarityFloor === 'epic' ? 'epic' as const : mDef.weaponRarityFloor === 'rare' ? 'rare' as const : 'uncommon' as const;
+      droppedGear = generateGear(playerLevel, gearType, gearRarity);
+    }
     if (mDef.narrativeText[1]) log.push(mDef.narrativeText[1]);
     log.push('Missie voltooid! 🎉');
-    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon };
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon, droppedGear };
   }
 
   return { ...mission, currentEncounter: encounter, log };
