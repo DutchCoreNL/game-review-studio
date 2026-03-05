@@ -1,14 +1,15 @@
 import { GameState, GoodId, TradeMode } from '../types';
 import * as Engine from '../engine';
-import { GEAR, BUSINESSES, GOODS } from '../constants';
+import { GEAR, BUSINESSES, GOODS, SOLO_OPERATIONS, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_MISSION } from '../constants';
 import { syncChallenges } from './helpers';
+import { addPhoneMessage } from '../newFeatures';
+import { CRAFT_RECIPES, canCraft } from '../crafting';
 
 
 export function handleTrade(s: GameState, gid: GoodId, mode: TradeMode, quantity: number): void {
   if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return;
   if (Engine.isWanted(s) && !s.prison) {
     if (Engine.checkWantedArrest(s)) {
-      const { addPhoneMessage } = require('../newFeatures');
       addPhoneMessage(s, 'NHPD', `Gearresteerd tijdens een handelsactie! Je was GEZOCHT. Straf: ${s.prison?.daysRemaining} dagen.`, 'threat');
       s.screenEffect = 'blood-flash';
       return;
@@ -141,8 +142,6 @@ export function handleBribePolice(s: GameState): void {
 
 export function handleSoloOp(s: GameState, opId: string): void {
   if ((s.hidingDays || 0) > 0 || s.prison) return;
-  const { SOLO_OPERATIONS, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_MISSION } = require('../constants');
-  const { addPhoneMessage } = require('../newFeatures');
   const soloOpDef = SOLO_OPERATIONS.find((o: any) => o.id === opId);
   const soloResult = Engine.performSoloOp(s, opId);
   if (soloResult.nearMiss) (s as any)._nearMiss = soloResult.nearMiss;
@@ -168,7 +167,7 @@ export function handleSoloOp(s: GameState, opId: string): void {
 
 export function handleCraftItem(s: GameState, recipeId: string): void {
   if (!s.villa) return;
-  const { CRAFT_RECIPES, canCraft } = require('../crafting');
+  
   const recipe = CRAFT_RECIPES.find((r: any) => r.id === recipeId);
   if (!recipe) return;
   const check = canCraft(s, recipe);
