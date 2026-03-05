@@ -49,7 +49,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
   const [popup, setPopup] = useState<PopupType>(null);
   const [nextPhaseCountdown, setNextPhaseCountdown] = useState<string>('');
   
-  // Countdown to next world phase (from world_state.next_cycle_at)
+  // Countdown to next world phase (real-time: 6h phases)
   useEffect(() => {
     const update = () => {
       if (!worldState.nextCycleAt) { setNextPhaseCountdown('--:--'); return; }
@@ -57,9 +57,14 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
       if (diff <= 0) {
         setNextPhaseCountdown('nu');
       } else {
-        const mins = Math.floor(diff / 60000);
-        const secs = Math.floor((diff % 60000) / 1000);
-        setNextPhaseCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+        const hours = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        if (hours > 0) {
+          setNextPhaseCountdown(`${hours}u ${mins}m`);
+        } else {
+          const secs = Math.floor((diff % 60000) / 1000);
+          setNextPhaseCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+        }
       }
     };
     update();

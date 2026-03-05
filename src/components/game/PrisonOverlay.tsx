@@ -58,10 +58,10 @@ function PrisonOverlayInner() {
   // Progress
   const progressPct = prison.totalSentence > 0 ? (prison.dayServed / prison.totalSentence) * 100 : 0;
 
-  // Realtime countdown: each game-day = tickIntervalMinutes (default 30min)
-  const tickMs = (state.tickIntervalMinutes || 30) * 60 * 1000;
+  // Realtime countdown: each game-day = 1 real day (24h)
+  const dayMs = 24 * 60 * 60 * 1000;
   const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
-  const releaseTime = lastTick + (prison.daysRemaining * tickMs);
+  const releaseTime = lastTick + (prison.daysRemaining * dayMs);
   const msLeft = Math.max(0, releaseTime - Date.now());
   const hoursLeft = Math.floor(msLeft / 3600000);
   const minsLeft = Math.floor((msLeft % 3600000) / 60000);

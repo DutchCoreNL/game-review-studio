@@ -37,10 +37,10 @@ function HospitalInner() {
     ? ((hospital.totalDays - hospital.daysRemaining) / hospital.totalDays) * 100
     : 0;
 
-  // Realtime countdown
-  const tickMs = (state.tickIntervalMinutes || 30) * 60 * 1000;
+  // Realtime countdown: each game-day = 1 real day (24h)
+  const dayMs = 24 * 60 * 60 * 1000;
   const lastTick = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
-  const releaseTime = lastTick + (hospital.daysRemaining * tickMs);
+  const releaseTime = lastTick + (hospital.daysRemaining * dayMs);
   const msLeft = Math.max(0, releaseTime - Date.now());
   const hoursLeft = Math.floor(msLeft / 3600000);
   const minsLeft = Math.floor((msLeft % 3600000) / 60000);

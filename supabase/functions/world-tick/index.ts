@@ -11,6 +11,53 @@ const WEATHER_WEIGHTS = [40, 25, 15, 10, 10]; // clear is most common
 const DISTRICTS = ['low', 'port', 'iron', 'neon', 'crown'];
 const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
 
+// === REAL-TIME PHASE CALCULATION (1 game day = 1 real day, CET/CEST) ===
+// Dawn: 06:00-12:00, Day: 12:00-18:00, Dusk: 18:00-00:00, Night: 00:00-06:00
+function getPhaseFromRealTime(): { phase: string; nextPhaseAt: Date; worldDayOffset: boolean } {
+  const now = new Date();
+  // CET = UTC+1 (simplified; CEST = UTC+2 in summer — close enough for game purposes)
+  const cetHour = (now.getUTCHours() + 1) % 24;
+  
+  let phase: string;
+  let nextBoundaryHourUTC: number;
+  let isDawn = false;
+  
+  if (cetHour >= 6 && cetHour < 12) {
+    phase = 'dawn';
+    nextBoundaryHourUTC = 11; // 12:00 CET = 11:00 UTC
+    isDawn = true;
+  } else if (cetHour >= 12 && cetHour < 18) {
+    phase = 'day';
+    nextBoundaryHourUTC = 17; // 18:00 CET = 17:00 UTC
+  } else if (cetHour >= 18) {
+    phase = 'dusk';
+    nextBoundaryHourUTC = 23; // 00:00 CET = 23:00 UTC
+  } else {
+    phase = 'night';
+    nextBoundaryHourUTC = 5; // 06:00 CET = 05:00 UTC
+  }
+  
+  // Calculate next phase boundary
+  const nextPhaseAt = new Date(now);
+  nextPhaseAt.setUTCMinutes(0, 0, 0);
+  if (nextBoundaryHourUTC < now.getUTCHours()) {
+    // Next boundary is tomorrow
+    nextPhaseAt.setUTCDate(nextPhaseAt.getUTCDate() + 1);
+  }
+  nextPhaseAt.setUTCHours(nextBoundaryHourUTC);
+  
+  return { phase, nextPhaseAt, worldDayOffset: isDawn };
+}
+
+// Calculate world_day from a reference date (Jan 1, 2025 as day 1)
+function getWorldDayFromDate(): number {
+  const REFERENCE_DATE = new Date('2025-01-01T05:00:00Z'); // 06:00 CET = day 1 start
+  const now = new Date();
+  const diffMs = now.getTime() - REFERENCE_DATE.getTime();
+  return Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
+}
+const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
+
 function weightedRandomWeather(): string {
   const total = WEATHER_WEIGHTS.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
@@ -2499,17 +2546,64 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to read world_state: ${readErr?.message}`);
     }
 
-    const currentPhaseIdx = TIME_PHASES.indexOf(ws.time_of_day as any);
-    const nextPhaseIdx = (currentPhaseIdx + 1) % TIME_PHASES.length;
-    const nextPhase = TIME_PHASES[nextPhaseIdx];
-    const isDawn = nextPhase === 'dawn';
+    // === REAL-TIME PHASE CALCULATION ===
+    const { phase: realPhase, nextPhaseAt } = getPhaseFromRealTime();
+    const realWorldDay = getWorldDayFromDate();
+    const nextPhase = realPhase;
+    const phaseChanged = ws.time_of_day !== realPhase;
+    const isDawn = realPhase === 'dawn' && ws.time_of_day !== 'dawn';
+    const dayChanged = realWorldDay !== ws.world_day;
+
+    // If phase hasn't changed, still do periodic processing but skip phase-change logic
+    if (!phaseChanged) {
+      // Still process moles, rested XP, bots etc. on each tick
+      await processMoles(supabase);
+      
+      // Rested XP
+      try {
+        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const { data: offlinePlayers } = await supabase.from('player_state')
+          .select('user_id, rested_xp, last_action_at')
+          .lt('last_action_at', thirtyMinAgo)
+          .lt('rested_xp', 5000)
+          .limit(200);
+        if (offlinePlayers && offlinePlayers.length > 0) {
+          for (const p of offlinePlayers) {
+            const hoursOffline = Math.min(24, (Date.now() - new Date(p.last_action_at).getTime()) / 3600000);
+            const gain = Math.floor(25 * Math.min(hoursOffline, 0.5));
+            if (gain > 0) {
+              const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
+              await supabase.from('player_state').update({ rested_xp: newRested }).eq('user_id', p.user_id);
+            }
+          }
+        }
+      } catch (e) { console.error('Rested XP error:', e); }
+
+      await simulateBots(supabase, ws.time_of_day, ws.world_day);
+
+      // Update next_cycle_at so countdown stays accurate
+      await supabase.from('world_state').update({
+        next_cycle_at: nextPhaseAt.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', 1);
+
+      return new Response(JSON.stringify({
+        success: true,
+        phase: ws.time_of_day,
+        world_day: ws.world_day,
+        weather: ws.current_weather,
+        note: 'no_phase_change',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // === PHASE CHANGED — proceed with full processing ===
 
     // ========== WEEKLY EVENT: 2x XP Weekend + Faction Modifiers ==========
-    const currentDay = isDawn ? ws.world_day + 1 : ws.world_day;
+    const currentDay = realWorldDay;
     const dayInWeek = ((currentDay - 1) % 7) + 1; // 1-7 cycle
     let activeEvent = ws.active_event;
 
-    if (isDawn) {
+    if (isDawn || dayChanged) {
       if (dayInWeek === 6) {
         activeEvent = {
           id: '2x_xp_weekend',
@@ -2532,14 +2626,14 @@ Deno.serve(async (req) => {
     // Build update
     const update: Record<string, any> = {
       time_of_day: nextPhase,
-      next_cycle_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      next_cycle_at: nextPhaseAt.toISOString(),
       updated_at: new Date().toISOString(),
       active_event: activeEvent,
     };
 
-    if (isDawn) {
-      // New day: increment world_day, roll new weather
-      update.world_day = ws.world_day + 1;
+    if (isDawn || dayChanged) {
+      // New day: set world_day to real day, roll new weather
+      update.world_day = realWorldDay;
       update.current_weather = weightedRandomWeather();
       update.weather_changed_at = new Date().toISOString();
 
@@ -2600,11 +2694,8 @@ Deno.serve(async (req) => {
     await processMoles(supabase);
 
     // ========== RESTED XP ACCUMULATION ==========
-    // Give offline players rested XP (25 XP/hour base, max 5000)
     try {
       const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      await supabase.rpc('execute_sql', {}).catch(() => {}); // no-op fallback
-      // Update all players who haven't been active in 30+ min
       const { data: offlinePlayers } = await supabase.from('player_state')
         .select('user_id, rested_xp, last_action_at')
         .lt('last_action_at', thirtyMinAgo)
@@ -2613,7 +2704,7 @@ Deno.serve(async (req) => {
       if (offlinePlayers && offlinePlayers.length > 0) {
         for (const p of offlinePlayers) {
           const hoursOffline = Math.min(24, (Date.now() - new Date(p.last_action_at).getTime()) / 3600000);
-          const gain = Math.floor(25 * Math.min(hoursOffline, 0.5)); // per tick (30 min = 0.5 hour)
+          const gain = Math.floor(25 * Math.min(hoursOffline, 0.5));
           if (gain > 0) {
             const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
             await supabase.from('player_state').update({ rested_xp: newRested }).eq('user_id', p.user_id);

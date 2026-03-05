@@ -157,6 +157,7 @@ type GameAction =
   | { type: 'DISMISS_QUEUED_EVENT'; index: number }
   | { type: 'SET_SCREEN_EFFECT'; effect: ScreenEffectType }
   | { type: 'SET_WEEK_EVENT'; event: any }
+  | { type: 'SYNC_WORLD_TIME'; timeOfDay: string; worldDay?: number }
   | { type: 'RESOLVE_ARC_EVENT'; arcId: string; choiceId: string }
   | { type: 'DISMISS_ARC_EVENT' }
   // Heat 2.0 actions
@@ -1493,8 +1494,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'SYNC_WORLD_TIME' as any: {
-      s.worldTimeOfDay = (action as any).timeOfDay || 'day';
+    case 'SYNC_WORLD_TIME': {
+      s.worldTimeOfDay = (action.timeOfDay as 'dawn' | 'day' | 'dusk' | 'night') || 'day';
+      // Sync player day with world_day (1 game day = 1 real day)
+      if (action.worldDay && action.worldDay > 0) {
+        s.day = action.worldDay;
+      }
       return s;
     }
 

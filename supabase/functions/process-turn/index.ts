@@ -563,8 +563,8 @@ function processFullTurn(s: any): any {
     }
   }
   
-  // === DAY INCREMENT ===
-  s.day++;
+  // === DAY SYNC (1 game day = 1 real day, synced with world_day) ===
+  // Day is no longer manually incremented — it syncs with the server world_day
   if (!s.stats) s.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: 0 };
   s.stats.daysPlayed = (s.stats.daysPlayed || 0) + 1;
   
