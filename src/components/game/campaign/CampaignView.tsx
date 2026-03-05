@@ -73,7 +73,7 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
 
               {/* Missions */}
               {chapter.missions.map((mission, i) => {
-                const mProgress = progress.missions[i];
+                const mProgress = progress.missions[i] || { completed: false, bestRating: null, completedAt: null, missionId: mission.id };
                 const canStart = canStartMission(campaignState, chapter.id, mission.id, state.player.level);
                 const isLocked = !canStart && !mProgress.completed;
 
