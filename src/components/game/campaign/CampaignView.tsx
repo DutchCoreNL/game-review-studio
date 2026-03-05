@@ -187,7 +187,8 @@ export function CampaignView() {
         {/* Chapters */}
         <div className="space-y-3">
           {CAMPAIGN_CHAPTERS.map((chapter) => {
-            const progress = campaignState.chapters.find(c => c.chapterId === chapter.id)!;
+            const progress = campaignState.chapters.find(c => c.chapterId === chapter.id);
+            if (!progress) return null;
             return <ChapterCard key={chapter.id} chapter={chapter} progress={progress} />;
           })}
         </div>
