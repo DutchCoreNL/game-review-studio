@@ -1,4 +1,5 @@
 import { GameState, FamilyId, FactionActionType } from '../types';
+import { syncChallenges } from './helpers';
 import { calculateCombatRating, rollCombatLoot, getStreakBonus, CombatStats } from '../combatLoot';
 import * as Engine from '../engine';
 import { COMBAT_SKILLS, isSkillOnCooldown, tickCooldowns, tickBuffs, hasActiveBuff, COMBO_THRESHOLD, COMBO_FINISHER_DAMAGE, COMBO_FINISHER_STUN_CHANCE, BUFF_DEFS, getAvailableSkills } from '../combatSkills';
@@ -303,7 +304,7 @@ export function handleFactionAction(s: GameState, familyId: FamilyId, actionType
   s._lastFactionResult = result;
   Engine.checkAchievements(s);
   if (s.dailyProgress) { s.dailyProgress.faction_actions++; }
-  const { syncChallenges } = require('./helpers');
+  
   syncChallenges(s);
 }
 

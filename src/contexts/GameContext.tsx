@@ -4,7 +4,7 @@ import { useServerSync } from '@/hooks/useServerSync';
 import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { MERIT_NODES, canUnlockMeritNode } from '../game/meritSystem';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
@@ -26,6 +26,17 @@ import * as stockModule from '../game/stocks';
 // Crew events removed (not suitable for MMO)
 import { checkCinematicTrigger, applyCinematicChoice, markCinematicSeen } from '../game/cinematics';
 import { generateDailyNews } from '../game/newsGenerator';
+import { checkCodexUnlocks } from '../game/codex';
+import { upgradeWeapon, getUpgradeCost, swapAccessory, getAccessorySwapCost, canFuseWeapons, fuseWeapons, getWeaponsBelowRarity, getBulkSellValue } from '../game/weaponUpgrade';
+import { upgradeGear, getGearUpgradeCost, swapGearMod, getGearModSwapCost, canFuseGear, fuseGear, getGearBelowRarity, getGearBulkSellValue } from '../game/gearUpgrade';
+import { generateBlackMarketStock, shouldRefreshStock } from '../game/blackMarket';
+import { openCrate, getCrateDef } from '../game/lootCrates';
+import { canClaimDailyReward, shouldResetStreak, claimDailyReward } from '../game/dailyRewards';
+import { getWeaponScrapValue, getGearScrapValue, CRAFT_RECIPES as SALVAGE_RECIPES, executeCraft } from '../game/salvage';
+import { startCampaignMission, canStartMission, getMissionDef, advanceCampaignMission, startBossFight, canFightBoss, bossFightTurn, generateBossLoot } from '../game/campaign';
+import { PROPERTIES, canAffordProperty, getCurrentProperty } from '../game/properties';
+import { CRAFT_RECIPES as VILLA_CRAFT_RECIPES, canCraft as villaCanCraft } from '../game/crafting';
+import { createPvPCombatState, pvpCombatTurn } from '../game/combatSkills';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
 
@@ -606,7 +617,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.checkAchievements(s);
       // Codex unlock check
       try {
-        const { checkCodexUnlocks } = require('../game/codex');
         if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
         const { newUnlocks } = checkCodexUnlocks(s);
         if (newUnlocks.length > 0) {
@@ -1500,7 +1510,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CODEX_CHECK_UNLOCKS' as any: {
       if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
       try {
-        const { checkCodexUnlocks } = require('../game/codex');
         const { newUnlocks } = checkCodexUnlocks(s);
         if (newUnlocks.length > 0) {
           s.codex.unlockedEntries = [...s.codex.unlockedEntries, ...newUnlocks];
@@ -2132,7 +2141,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'UPGRADE_WEAPON': {
       if (!s.weaponInventory) return s;
-      const { upgradeWeapon, getUpgradeCost } = require('../game/weaponUpgrade');
       const wpnToUpgrade = s.weaponInventory.find(w => w.id === action.weaponId);
       if (!wpnToUpgrade || wpnToUpgrade.level >= 15) return s;
       const upgCost = getUpgradeCost(wpnToUpgrade);
@@ -2146,7 +2154,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SWAP_WEAPON_ACCESSORY': {
       if (!s.weaponInventory) return s;
-      const { swapAccessory, getAccessorySwapCost } = require('../game/weaponUpgrade');
       const swapCost = getAccessorySwapCost();
       if (s.money < swapCost) return s;
       const wpnToSwap = s.weaponInventory.find(w => w.id === action.weaponId);
@@ -2160,7 +2167,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'FUSE_WEAPONS': {
       if (!s.weaponInventory) return s;
-      const { canFuseWeapons, fuseWeapons } = require('../game/weaponUpgrade');
       const fuseWpns = action.weaponIds.map(id => s.weaponInventory!.find(w => w.id === id)).filter(Boolean) as import('../game/weaponGenerator').GeneratedWeapon[];
       const fuseCheck = canFuseWeapons(fuseWpns, s.money);
       if (!fuseCheck.canFuse) return s;
@@ -2174,7 +2180,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BULK_SELL_WEAPONS': {
       if (!s.weaponInventory) return s;
-      const { getWeaponsBelowRarity, getBulkSellValue } = require('../game/weaponUpgrade');
       const toSell = getWeaponsBelowRarity(s.weaponInventory, action.maxRarity);
       if (toSell.length === 0) return s;
       const totalValue = getBulkSellValue(toSell);
@@ -2233,7 +2238,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'UPGRADE_GEAR': {
       const gUpgInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
       if (!gUpgInv) return s;
-      const { upgradeGear, getGearUpgradeCost } = require('../game/gearUpgrade');
       const gToUpg = gUpgInv.find(g => g.id === action.gearId);
       if (!gToUpg || gToUpg.level >= 15) return s;
       const gUpgCost = getGearUpgradeCost(gToUpg);
@@ -2250,7 +2254,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SWAP_GEAR_MOD': {
       const gModInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
       if (!gModInv) return s;
-      const { swapGearMod, getGearModSwapCost } = require('../game/gearUpgrade');
       const modCost = getGearModSwapCost();
       if (s.money < modCost) return s;
       const gToMod = gModInv.find(g => g.id === action.gearId);
@@ -2267,7 +2270,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'FUSE_GEAR': {
       const gFuseInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
       if (!gFuseInv) return s;
-      const { canFuseGear, fuseGear } = require('../game/gearUpgrade');
       const fuseGs = action.gearIds.map(id => gFuseInv.find(g => g.id === id)).filter(Boolean) as import('../game/gearGenerator').GeneratedGear[];
       const gFuseCheck = canFuseGear(fuseGs, s.money);
       if (!gFuseCheck.canFuse) return s;
@@ -2284,7 +2286,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BULK_SELL_GEAR': {
       const gBulkInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
       if (!gBulkInv) return s;
-      const { getGearBelowRarity, getGearBulkSellValue } = require('../game/gearUpgrade');
       const gToSellBulk = getGearBelowRarity(gBulkInv, action.maxRarity);
       if (gToSellBulk.length === 0) return s;
       const gBulkValue = getGearBulkSellValue(gToSellBulk);
@@ -2299,7 +2300,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== BLACK MARKET ACTIONS ==========
     case 'BUY_BLACK_MARKET_ITEM': {
-      const { generateBlackMarketStock, shouldRefreshStock } = require('../game/blackMarket');
+      if (!s.blackMarketStock) return s;
       if (!s.blackMarketStock) return s;
       const bmItem = s.blackMarketStock.items.find((i: any) => i.id === action.itemId);
       if (!bmItem || bmItem.sold) return s;
@@ -2326,14 +2327,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'REFRESH_BLACK_MARKET': {
-      const { generateBlackMarketStock } = require('../game/blackMarket');
+      s.blackMarketStock = generateBlackMarketStock(s.player.level, s.day);
       s.blackMarketStock = generateBlackMarketStock(s.player.level, s.day);
       return s;
     }
 
     // ========== LOOT CRATE ACTIONS ==========
     case 'OPEN_LOOT_CRATE': {
-      const { openCrate, getCrateDef } = require('../game/lootCrates');
       const crateDef = getCrateDef(action.tier);
       if (s.money < crateDef.price) return s;
       s.money -= crateDef.price;
@@ -2355,7 +2355,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== DAILY LOGIN REWARD ACTIONS ==========
     case 'CLAIM_DAILY_LOGIN_REWARD': {
-      const { canClaimDailyReward, shouldResetStreak, claimDailyReward } = require('../game/dailyRewards');
+      if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
       if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
       let streak = s.dailyRewardStreak || 0;
       if (shouldResetStreak(s.lastDailyRewardClaim)) streak = 0;
@@ -2379,7 +2379,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== SALVAGE/CRAFTING ACTIONS ==========
     case 'SALVAGE_WEAPON': {
-      const { getWeaponScrapValue } = require('../game/salvage');
+      if (!s.weaponInventory) return s;
       if (!s.weaponInventory) return s;
       const wpn = s.weaponInventory.find(w => w.id === action.weaponId);
       if (!wpn || wpn.equipped || wpn.locked) return s;
@@ -2390,7 +2390,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SALVAGE_GEAR': {
-      const { getGearScrapValue } = require('../game/salvage');
       const gSalvInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
       if (!gSalvInv) return s;
       const gSalv = gSalvInv.find(g => g.id === action.gearId);
@@ -2403,8 +2402,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'CRAFT_SALVAGE': {
-      const { CRAFT_RECIPES, executeCraft } = require('../game/salvage');
-      const recipe = CRAFT_RECIPES.find((r: any) => r.id === action.recipeId);
+      const recipe = SALVAGE_RECIPES.find((r: any) => r.id === action.recipeId);
       if (!recipe) return s;
       if ((s.scrapMaterials || 0) < recipe.scrapCost) return s;
       const craftResult = executeCraft(action.recipeId, s.player.level);
@@ -2424,7 +2422,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== CAMPAIGN ACTIONS ==========
     case 'START_CAMPAIGN_MISSION': {
-      const { startCampaignMission, canStartMission, getMissionDef } = require('../game/campaign');
+      if (!s.campaign) return s;
       if (!s.campaign) return s;
       if (!canStartMission(s.campaign, action.chapterId, action.missionId, s.player.level)) return s;
       const mDef = getMissionDef(action.missionId);
@@ -2435,7 +2433,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'ADVANCE_CAMPAIGN_MISSION': {
-      const { advanceCampaignMission } = require('../game/campaign');
+      if (!s.campaign?.activeCampaignMission) return s;
       if (!s.campaign?.activeCampaignMission) return s;
       const playerPower = Engine.getPlayerStat(s, 'muscle') + Engine.getPlayerStat(s, 'brains');
       s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower);
@@ -2481,7 +2479,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'START_BOSS_FIGHT_CAMPAIGN': {
-      const { startBossFight, canFightBoss } = require('../game/campaign');
+      if (!s.campaign) return s;
       if (!s.campaign) return s;
       if (!canFightBoss(s.campaign, action.chapterId, s.player.level)) return s;
       const chProgress = s.campaign.chapters.find(c => c.chapterId === action.chapterId);
@@ -2491,7 +2489,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'BOSS_FIGHT_ACTION': {
-      const { bossFightTurn } = require('../game/campaign');
+      if (!s.campaign?.activeBossFight) return s;
       if (!s.campaign?.activeBossFight) return s;
       const pDmg = Engine.getPlayerStat(s, 'muscle') + Math.floor(s.player.level * 2);
       const pArmor = Math.floor(Engine.getPlayerStat(s, 'brains') * 0.5);
@@ -2502,7 +2500,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       // Generate loot if won
       if (s.campaign.activeBossFight.finished && s.campaign.activeBossFight.won) {
-        const { generateBossLoot } = require('../game/campaign');
         const fight = s.campaign.activeBossFight;
         const chProgress = s.campaign.chapters.find(c => c.chapterId === fight.chapterId);
         const killCount = chProgress?.boss.killCount || 0;
@@ -2661,7 +2658,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     // ========== VILLA ACTIONS ==========
 
     case 'BUY_PROPERTY': {
-      const { PROPERTIES, canAffordProperty, getCurrentProperty } = require('@/game/properties');
       const prop = PROPERTIES.find((p: any) => p.id === action.propertyId);
       if (!prop) return s;
       const current = getCurrentProperty(s.propertyId);
@@ -2759,10 +2755,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CRAFT_ITEM': {
       if (!s.villa) return s;
-      const { CRAFT_RECIPES, canCraft } = require('../game/crafting');
-      const recipe = CRAFT_RECIPES.find((r: any) => r.id === action.recipeId);
+      const recipe = VILLA_CRAFT_RECIPES.find((r: any) => r.id === action.recipeId);
       if (!recipe) return s;
-      const check = canCraft(s, recipe);
+      const check = villaCanCraft(s, recipe);
       if (!check.ok) return s;
       // Consume ingredients
       for (const ing of recipe.ingredients) {
@@ -2770,7 +2765,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       s.lab.chemicals -= recipe.chemCost;
       // Add crafted output with boosted cost basis
-      const baseCost = require('../game/constants').GOODS.find((g: any) => g.id === recipe.output.goodId)?.base || 500;
+      const baseCost = GOODS.find((g: any) => g.id === recipe.output.goodId)?.base || 500;
       const craftedCost = Math.floor(baseCost * recipe.sellMultiplier);
       const existing = s.inventory[recipe.output.goodId] || 0;
       const existingCost = s.inventoryCosts[recipe.output.goodId] || 0;
@@ -3153,7 +3148,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'START_PVP_COMBAT': {
       const target = action.target;
-      const { createPvPCombatState } = require('../game/combatSkills');
       const attackerStats = {
         muscle: Engine.getPlayerStat(s, 'muscle'),
         brains: Engine.getPlayerStat(s, 'brains'),
@@ -3198,7 +3192,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      const { pvpCombatTurn } = require('../game/combatSkills');
       const newCombat = pvpCombatTurn(s.activePvPCombat, action.action, action.skillId);
       s.activePvPCombat = newCombat;
       // Screen effects
