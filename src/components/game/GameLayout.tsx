@@ -212,6 +212,13 @@ export function GameLayout() {
     setWeather(state.weather);
   }, [state.weather]);
 
+  // Sync player day with world_day (1 game day = 1 real day)
+  useEffect(() => {
+    if (!worldState.loading && worldState.worldDay > 0 && state.day !== worldState.worldDay) {
+      dispatch({ type: 'SYNC_WORLD_TIME', timeOfDay: worldState.timeOfDay, worldDay: worldState.worldDay });
+    }
+  }, [worldState.worldDay, worldState.loading]);
+
   // Load saved audio prefs & start ambiance on mount
   useEffect(() => {
     try {
