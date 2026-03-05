@@ -311,34 +311,49 @@ export function GameLayout() {
             />
           )}
 
-          {!state.tutorialDone && <TutorialOverlay />}
-          <LoreNotification />
-
-          {state.activeMission && <MissionEncounterView />}
-          {state.showPhone && <PhoneOverlay />}
-          {state.pendingSpecChoice && <CrewSpecPopup />}
-          {state.victoryData && <VictoryScreen />}
-          {!state.prison && state.pendingArcEvent && <StoryArcEvent />}
-          {!state.prison && state.pendingCarTheft && <CarTheftPopup />}
-          {!state.prison && state.pendingCorruptionEvent && <CorruptionEventPopup />}
-          {!state.prison && state.pendingFlashback && <FlashbackOverlay />}
-          {state.prison && <PrisonOverlay />}
-          {state.hospital && <HospitalStayOverlay />}
-          {!state.prison && state.pendingWarEvent && <WarEventPopup />}
-          {!state.prison && state.pendingConquestPopup && <ConquestPopup />}
-          <FinalBossAlert />
-          <AchievementPopup />
-          
-          {state.pendingBountyEncounter && <BountyEncounterPopup />}
-          {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
-          {state.gameOver && <GameOverScreen />}
-          {state.pendingCinematic && <CinematicOverlay />}
-          {state.backstory === null && state.tutorialDone && (
-            <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
-          )}
-          {state.tutorialDone && state.backstory !== null && <DailyRewardPopup />}
-          {worldState.maintenanceMode && !isAdmin && (
+          {/* === OVERLAY PRIORITY SYSTEM ===
+               Priority 1: Maintenance (blocks everything)
+               Priority 2: Tutorial (blocks all game popups)
+               Priority 3: Backstory selection (blocks gameplay popups)
+               Priority 4: Game-critical overlays (prison, hospital, game over, cinematic)
+               Priority 5: Event popups & notifications
+          */}
+          {worldState.maintenanceMode && !isAdmin ? (
             <MaintenanceOverlay message={worldState.maintenanceMessage} />
+          ) : !state.tutorialDone ? (
+            <TutorialOverlay />
+          ) : state.backstory === null ? (
+            <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
+          ) : (
+            <>
+              {/* Priority 4: Game-critical states */}
+              {state.gameOver && <GameOverScreen />}
+              {state.prison && <PrisonOverlay />}
+              {state.hospital && <HospitalStayOverlay />}
+              {state.pendingCinematic && <CinematicOverlay />}
+              {state.activeMission && <MissionEncounterView />}
+              {state.victoryData && <VictoryScreen />}
+
+              {/* Priority 5: Event popups (only when no critical overlay is active) */}
+              {!state.gameOver && !state.prison && !state.hospital && !state.activeMission && !state.pendingCinematic && (
+                <>
+                  <DailyRewardPopup />
+                  <LoreNotification />
+                  {state.showPhone && <PhoneOverlay />}
+                  {state.pendingSpecChoice && <CrewSpecPopup />}
+                  {state.pendingArcEvent && <StoryArcEvent />}
+                  {state.pendingCarTheft && <CarTheftPopup />}
+                  {state.pendingCorruptionEvent && <CorruptionEventPopup />}
+                  {state.pendingFlashback && <FlashbackOverlay />}
+                  {state.pendingWarEvent && <WarEventPopup />}
+                  {state.pendingConquestPopup && <ConquestPopup />}
+                  {state.pendingBountyEncounter && <BountyEncounterPopup />}
+                  {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
+                  <FinalBossAlert />
+                  <AchievementPopup />
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
