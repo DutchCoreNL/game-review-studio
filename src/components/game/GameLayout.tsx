@@ -195,8 +195,22 @@ export function GameLayout() {
   const { isAdmin } = useAdmin();
   const worldState = useWorldState();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const tutorialInitiallyDoneRef = useRef(state.tutorialDone);
+  const [forceTutorialOverlay, setForceTutorialOverlay] = useState(() => !state.tutorialDone);
 
   const ViewComponent = state.activeCombat ? CombatView : (views[view] || MapView);
+
+  useEffect(() => {
+    if (state.tutorialDone) {
+      const completedInSession = typeof window !== 'undefined' && sessionStorage.getItem('noxhaven_tutorial_completed') === '1';
+      if (tutorialInitiallyDoneRef.current || completedInSession) {
+        setForceTutorialOverlay(false);
+      }
+      return;
+    }
+
+    setForceTutorialOverlay(true);
+  }, [state.tutorialDone]);
 
   // Music scene management
   useEffect(() => {
@@ -350,7 +364,7 @@ export function GameLayout() {
           */}
           {worldState.maintenanceMode && !isAdmin ? (
             <MaintenanceOverlay message={worldState.maintenanceMessage} />
-          ) : !state.tutorialDone ? (
+          ) : forceTutorialOverlay ? (
             <TutorialOverlay />
           ) : state.backstory === null ? (
             <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />

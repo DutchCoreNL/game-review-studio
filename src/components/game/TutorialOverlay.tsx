@@ -115,10 +115,19 @@ export function TutorialOverlay() {
   const [step, setStep] = useState(0);
   const [confirmSkip, setConfirmSkip] = useState(false);
 
+  const finishTutorial = () => {
+    try {
+      sessionStorage.setItem('noxhaven_tutorial_completed', '1');
+    } catch {
+      // ignore storage errors
+    }
+    dispatch({ type: 'SET_TUTORIAL_DONE' });
+  };
+
   const next = () => {
     setConfirmSkip(false);
     if (step < STEPS.length - 1) setStep(step + 1);
-    else dispatch({ type: 'SET_TUTORIAL_DONE' });
+    else finishTutorial();
   };
 
   const skipTutorial = () => {
@@ -126,7 +135,7 @@ export function TutorialOverlay() {
       setConfirmSkip(true);
       return;
     }
-    dispatch({ type: 'SET_TUTORIAL_DONE' });
+    finishTutorial();
   };
 
   const current = STEPS[step];
