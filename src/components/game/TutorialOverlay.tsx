@@ -113,10 +113,20 @@ const STEPS = [
 export function TutorialOverlay() {
   const { dispatch } = useGame();
   const [step, setStep] = useState(0);
+  const [confirmSkip, setConfirmSkip] = useState(false);
 
   const next = () => {
+    setConfirmSkip(false);
     if (step < STEPS.length - 1) setStep(step + 1);
     else dispatch({ type: 'SET_TUTORIAL_DONE' });
+  };
+
+  const skipTutorial = () => {
+    if (!confirmSkip) {
+      setConfirmSkip(true);
+      return;
+    }
+    dispatch({ type: 'SET_TUTORIAL_DONE' });
   };
 
   const current = STEPS[step];
@@ -126,7 +136,7 @@ export function TutorialOverlay() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-background/95 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm"
+      className="fixed inset-0 bg-background/95 z-[2147483647] flex items-center justify-center p-4 backdrop-blur-sm"
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -165,10 +175,10 @@ export function TutorialOverlay() {
 
             {step < STEPS.length - 1 && (
               <button
-                onClick={() => dispatch({ type: 'SET_TUTORIAL_DONE' })}
+                onClick={skipTutorial}
                 className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Overslaan
+                {confirmSkip ? 'Nogmaals drukken om over te slaan' : 'Overslaan'}
               </button>
             )}
           </div>
