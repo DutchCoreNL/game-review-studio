@@ -265,6 +265,29 @@ export function GameLayout() {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
   }, [dispatch]);
 
+  const hasCriticalOverlay = Boolean(
+    state.gameOver ||
+    state.prison ||
+    state.hospital ||
+    state.activeMission ||
+    state.pendingCinematic ||
+    state.victoryData
+  );
+
+  const activeEventPopup = (() => {
+    if (state.pendingSpecChoice) return <CrewSpecPopup />;
+    if (state.pendingArcEvent) return <StoryArcEvent />;
+    if (state.pendingBountyEncounter) return <BountyEncounterPopup />;
+    if (state.pendingConquestPopup) return <ConquestPopup />;
+    if (state.pendingWarEvent) return <WarEventPopup />;
+    if (state.pendingCorruptionEvent) return <CorruptionEventPopup />;
+    if (state.pendingCarTheft) return <CarTheftPopup />;
+    if (state.pendingFlashback) return <FlashbackOverlay />;
+    if (state.nemesis?.pendingDefeatChoice) return <NemesisDefeatPopup />;
+    if (state.showPhone) return <PhoneOverlay />;
+    return null;
+  })();
+
   return (
     <ScreenEffects effect={state.screenEffect} onDone={clearEffect}>
       <div className="noise-overlay vignette flex h-[100dvh] w-full bg-background relative overflow-hidden">
@@ -341,23 +364,18 @@ export function GameLayout() {
               {state.activeMission && <MissionEncounterView />}
               {state.victoryData && <VictoryScreen />}
 
-              {/* Priority 5: Event popups (only when no critical overlay is active) */}
-              {!state.gameOver && !state.prison && !state.hospital && !state.activeMission && !state.pendingCinematic && (
+              {/* Priority 5: exactly one event popup at a time */}
+              {!hasCriticalOverlay && (
                 <>
-                  <DailyRewardPopup />
-                  <LoreNotification />
-                  {state.showPhone && <PhoneOverlay />}
-                  {state.pendingSpecChoice && <CrewSpecPopup />}
-                  {state.pendingArcEvent && <StoryArcEvent />}
-                  {state.pendingCarTheft && <CarTheftPopup />}
-                  {state.pendingCorruptionEvent && <CorruptionEventPopup />}
-                  {state.pendingFlashback && <FlashbackOverlay />}
-                  {state.pendingWarEvent && <WarEventPopup />}
-                  {state.pendingConquestPopup && <ConquestPopup />}
-                  {state.pendingBountyEncounter && <BountyEncounterPopup />}
-                  {state.nemesis?.pendingDefeatChoice && <NemesisDefeatPopup />}
-                  <FinalBossAlert />
-                  <AchievementPopup />
+                  {activeEventPopup}
+                  {!activeEventPopup && (
+                    <>
+                      <DailyRewardPopup />
+                      <LoreNotification />
+                      <FinalBossAlert />
+                      <AchievementPopup />
+                    </>
+                  )}
                 </>
               )}
             </>
