@@ -7,7 +7,7 @@ import { StatBar } from './ui/StatBar';
 import { InfoRow } from './ui/InfoRow';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star, Swords, Trophy } from 'lucide-react';
+import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star, Swords, Trophy, DollarSign } from 'lucide-react';
 import { DISTRICT_IMAGES } from '@/assets/items';
 import { gameApi } from '@/lib/gameApi';
 import type { DistrictData } from '@/hooks/useDistrictData';
@@ -71,10 +71,8 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
     if (res.success) {
       playCoinSound();
       showToast(res.message);
-      // Refresh district info
       const info = await gameApi.getDistrictInfo();
       if (info.success && info.data) setDistrictInfo(info.data as any);
-      // Sync money from server
       dispatch({ type: 'SPEND_MONEY', amount: Math.floor(donateAmount / 500) * 500 });
     } else {
       showToast(res.message, true);
@@ -106,72 +104,102 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="fixed left-4 right-4 top-[100px] bottom-4 z-[9001] max-w-[560px] mx-auto flex flex-col"
       >
-        <div className="game-card border-t-[3px] border-t-blood shadow-xl overflow-y-auto max-h-full game-scroll overflow-hidden">
-          {/* District banner image */}
+        <div className="game-card shadow-xl overflow-y-auto max-h-full game-scroll overflow-hidden">
+          {/* Cinematic District Banner */}
           {DISTRICT_IMAGES[selectedDistrict] && (
-            <div className="relative -mx-4 -mt-4 mb-3 h-28 overflow-hidden">
+            <div className="relative -mx-4 -mt-4 h-32 overflow-hidden">
               <img src={DISTRICT_IMAGES[selectedDistrict]} alt={sel.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+              {/* Status badge overlay */}
+              <div className="absolute top-3 left-3">
+                {isHere && (
+                  <span className="text-[0.45rem] font-bold uppercase tracking-wider bg-gold/90 text-secondary-foreground px-2 py-0.5 rounded">
+                    📍 Je bent hier
+                  </span>
+                )}
+              </div>
+              {/* Title overlay */}
+              <div className="absolute bottom-3 left-3">
+                <h3 className="font-bold text-lg font-display tracking-wider text-foreground drop-shadow-lg">{sel.name}</h3>
+                {territory ? (
+                  <span className={`text-[0.5rem] font-semibold drop-shadow ${isGangOwned ? "text-blood" : "text-muted-foreground"}`}>
+                    {isGangOwned ? `♛ Jouw gang's territorium` : `⚔️ [${territory.gangTag}] ${territory.gangName}`}
+                  </span>
+                ) : (
+                  <span className="text-[0.5rem] text-muted-foreground drop-shadow">🏴 Ongecontroleerd</span>
+                )}
+              </div>
+              {/* District Rep bar overlay */}
+              {(() => {
+                const rep = state.districtRep?.[selectedDistrict] || 0;
+                return (
+                  <div className="absolute bottom-0 left-0 right-0 px-3 pb-1">
+                    <StatBar value={rep} max={100} color="gold" height="sm" />
+                  </div>
+                );
+              })()}
             </div>
           )}
           <button
             onClick={() => selectDistrict(null)}
-            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors z-10"
+            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors z-10 bg-background/60 backdrop-blur-sm rounded-full p-1"
           >
-            <X size={16} />
+            <X size={14} />
           </button>
 
-          <div className="flex items-center gap-2.5 mb-3">
-            {isGangOwned ? (
-              <div className="w-8 h-8 rounded bg-blood/15 flex items-center justify-center">
-                <Crown size={16} className="text-blood" />
+          {/* Content - only show icon header if no image */}
+          {!DISTRICT_IMAGES[selectedDistrict] && (
+            <div className="flex items-center gap-2.5 mb-3">
+              {isGangOwned ? (
+                <div className="w-8 h-8 rounded bg-blood/15 flex items-center justify-center">
+                  <Crown size={16} className="text-blood" />
+                </div>
+              ) : isHere ? (
+                <div className="w-8 h-8 rounded bg-gold/15 flex items-center justify-center">
+                  <MapPin size={16} className="text-gold" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                  <Navigation size={16} className="text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <h3 className="font-bold text-sm font-display tracking-wider">{sel.name}</h3>
               </div>
-            ) : isHere ? (
-              <div className="w-8 h-8 rounded bg-gold/15 flex items-center justify-center">
-                <MapPin size={16} className="text-gold" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
-                <Navigation size={16} className="text-muted-foreground" />
-              </div>
-            )}
-            <div>
-              <h3 className="font-bold text-sm font-display tracking-wider">{sel.name}</h3>
-              <div className="flex items-center gap-2 text-[0.55rem] text-muted-foreground">
-                {isHere && <span className="text-gold font-semibold">📍 Je bent hier</span>}
-                {territory ? (
-                  <span className={isGangOwned ? "text-blood font-semibold" : "text-muted-foreground font-semibold"}>
-                    {isGangOwned ? `♛ Jouw gang's territorium` : `⚔️ [${territory.gangTag}] ${territory.gangName}`}
-                  </span>
-                ) : (
-                  <span>🏴 Ongecontroleerd</span>
-                )}
-              </div>
+            </div>
+          )}
+
+          {flavor && (
+            <p className="text-[0.6rem] text-muted-foreground italic mb-3 pl-1 border-l-2 border-border ml-1 mt-3">"{flavor}"</p>
+          )}
+
+          {/* Info cards grid */}
+          <div className="grid grid-cols-2 gap-2 mb-3 mt-2">
+            <div className="game-card bg-gold/5 border border-gold/20 p-2 text-center">
+              <DollarSign size={12} className="text-gold mx-auto mb-0.5" />
+              <div className="text-[0.45rem] text-muted-foreground">Gang Inkomen</div>
+              <div className="text-xs font-bold text-gold">€{sel.income}/dag</div>
+            </div>
+            <div className="game-card bg-muted/30 p-2 text-center">
+              <Shield size={12} className="text-muted-foreground mx-auto mb-0.5" />
+              <div className="text-[0.45rem] text-muted-foreground">Controle Drempel</div>
+              <div className="text-xs font-bold">{CONTROL_THRESHOLD} invloed</div>
             </div>
           </div>
 
-          {flavor && (
-            <p className="text-[0.6rem] text-muted-foreground italic mb-3 pl-1 border-l-2 border-border ml-1">"{flavor}"</p>
-          )}
-
-          <div className="space-y-1.5 mb-3">
-            <InfoRow label="Gang Inkomen" value={`€${sel.income}/dag`} valueClass="text-gold" />
-            <InfoRow label="Controle drempel" value={`${CONTROL_THRESHOLD} invloed`} />
-          </div>
-
           <div className={`text-[0.55rem] px-2.5 py-1.5 rounded mb-3 font-semibold ${
-            isGangOwned ? 'bg-blood/10 text-blood' : 'bg-muted text-muted-foreground'
+            isGangOwned ? 'bg-blood/10 text-blood border border-blood/20' : 'bg-muted text-muted-foreground border border-border'
           }`}>
             ♛ {sel.perk}
           </div>
 
           {demand && (
-            <div className="flex items-center gap-1.5 mb-3 text-[0.6rem] text-gold font-semibold bg-gold/8 rounded px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5 mb-3 text-[0.6rem] text-gold font-semibold bg-gold/8 rounded px-2.5 py-1.5 border border-gold/20">
               <TrendingUp size={12} /> Hoge vraag: {demand} (+60% prijs)
             </div>
           )}
 
-          {/* Gang Influence Section */}
+          {/* Gang Influence */}
           {inGang && (
             <div className="mb-3 game-card bg-muted/30 p-2.5">
               <div className="flex items-center gap-1.5 mb-1.5">
@@ -219,7 +247,7 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
             );
           })()}
 
-          {/* Influence Contribution (only when in gang & in district) */}
+          {/* Influence Contribution */}
           {inGang && isHere && (
             <div className="mb-3 space-y-2">
               <div className="flex items-center gap-1.5">
@@ -255,13 +283,13 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
 
           {/* No gang warning */}
           {!inGang && isHere && (
-            <div className="mb-3 text-[0.55rem] text-muted-foreground bg-muted/30 rounded p-2.5 text-center">
+            <div className="mb-3 text-[0.55rem] text-muted-foreground bg-muted/30 rounded p-2.5 text-center border border-border">
               <Users size={14} className="mx-auto mb-1 text-muted-foreground/50" />
               Je moet in een gang zitten om invloed te kunnen bijdragen aan een district.
             </div>
           )}
 
-          {/* MMO: Mini-leaderboard — Top spelers in dit district */}
+          {/* MMO: Mini-leaderboard */}
           {districtData && (() => {
             const topPlayers = districtData.districtPlayers[selectedDistrict] || [];
             const playerCount = districtData.playerCounts[selectedDistrict] || 0;
@@ -271,7 +299,6 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
 
             return (
               <div className="mb-3 space-y-2">
-                {/* Active players + danger */}
                 <div className="flex items-center gap-2 text-[0.55rem]">
                   <span className="text-ice font-semibold">👥 {playerCount} actief</span>
                   {dangerLevel > 20 && (
@@ -281,11 +308,10 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
                   )}
                 </div>
 
-                {/* Active events */}
                 {activeEvents.length > 0 && (
                   <div className="space-y-1">
                     {activeEvents.slice(0, 3).map(ev => (
-                      <div key={ev.id} className="text-[0.5rem] flex items-center gap-1.5 bg-blood/8 text-blood rounded px-2 py-1 font-semibold">
+                      <div key={ev.id} className="text-[0.5rem] flex items-center gap-1.5 bg-blood/8 text-blood rounded px-2 py-1 font-semibold border border-blood/15">
                         <span className="animate-pulse">●</span>
                         {ev.title}
                       </div>
@@ -293,7 +319,6 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
                   </div>
                 )}
 
-                {/* Top players */}
                 {topPlayers.length > 0 && (
                   <div className="game-card bg-muted/30 p-2">
                     <div className="flex items-center gap-1.5 mb-1.5">
@@ -321,7 +346,7 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
             );
           })()}
 
-          {/* Travel button (when not here) */}
+          {/* Travel button */}
           {!isHere && (
             <GameButton
               variant="blood"

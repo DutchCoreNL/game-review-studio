@@ -1,98 +1,87 @@
 
 
-# Cinematic UI Overhaul — Alle Overige Views
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-Alle resterende views upgraden naar dezelfde noir cinematic stijl als Combat en Missions: immersieve headers, kaart-gebaseerde layouts, betere visuele hiërarchie.
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
----
-
-## 1. Heist View (`heist/HeistView.tsx`)
-
-**Heist Selectie:**
-- Cinematic header (h-36) met heist-bg en overlay: "HEIST PLANNING" titel
-- Heist-kaarten als grote cards met afbeelding-banner, moeilijkheidsgraad-badge, en beloningen als icon-chips
-- Locked heists met donkere overlay + lock-icoon
-
-**Heist Planning:**
-- Rol-selectie als kaarten met crew-portret, rol-beschrijving en stat-vereisten (color-coded)
-- Equipment keuze als grid van icon-cards met bonus-beschrijving
-- Intel-meter als visuele progress bar met fase-labels
-
-**Heist Executie:**
-- Scene header met heist-afbeelding, fase-indicator als stappen-balk
-- Keuze-opties als actie-kaarten (zoals combat) met risico/beloning-info
-- Minigame-integratie behouden maar met cinematic framing
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
 ---
 
-## 2. Casino View (`CasinoView.tsx`)
+## Plan: Arsenaal Acquisitie Systeem
 
-**Lobby:**
-- Grote casino-bg header (h-36) met "VELVET ROOM" neon-stijl titel
-- Spel-selectie als kaarten met spel-afbeelding, korte beschrijving, en VIP-bonus badge
-- Sessie-stats panel compact onderaan: winst/verlies, streak, VIP-level
-- Storm-lock als visuele overlay op de hele view
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-**Individuele spellen:** behouden maar met cinematic wrapper
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
----
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-## 3. Trade View — Market Panel (`trade/MarketPanel.tsx` + `TradeView.tsx`)
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
-- Cinematic header al aanwezig via ViewWrapper, maar sub-panels upgraden:
-- Goederen als kaarten met thumbnail, prijs, en koop/verkoop knoppen inline
-- Prijs-vergelijking per district als compacte color-coded badges
-- Winst-indicatoren prominenter (groen/rood pijlen)
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
----
-
-## 4. Chop Shop View (`ChopShopView.tsx`)
-
-- Cinematic header met chopshop-bg (al aanwezig maar verbeteren)
-- Auto-kaarten met grotere afbeelding-banner, conditie-bar, en waarde overlay
-- Upgrade-opties als icon-cards met bonus-beschrijving
-- Crusher/Omkat acties als gestylede actie-kaarten ipv knoppen
-
----
-
-## 5. District Popup (`DistrictPopup.tsx`)
-
-- Grotere district-afbeelding als header (h-28) met naam + rep-bar overlay
-- Info-secties als kaarten: Eigenaar, Gangs, Perks, HQ Upgrades
-- Actieknoppen (Travel, Donate, Conquer) als color-coded actie-kaarten
-- Territory-info met gang-badges
-
----
-
-## 6. Safehouse View (`SafehouseView.tsx`)
-
-- Cinematic header met safehouse-bg
-- Safehouse-kaarten per district met status-badge en upgrade-level indicator
-- Upgrade-opties als kaarten met afbeelding, kosten-badge, en effect-beschrijving
-- Perk-overzicht als compact icon-grid
-
----
-
-## 7. Hospital View (`HospitalView.tsx`)
-
-- Compacte cinematic header met medisch thema
-- HP-status als grote visuele bar met percentage
-- Heal-opties als 3 kaarten: klein/medium/volledig met icoon, kosten, en beschrijving
-- Consistente card-layout met de rest
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
 ---
 
-## Technisch Overzicht
+## Technisch overzicht
 
-| View | Bestand | Aanpak |
-|------|---------|--------|
-| Heist selectie + planning + executie | `heist/HeistView.tsx` | Herstructurering |
-| Casino lobby | `CasinoView.tsx` | Herstructurering |
-| Trade market panel | `trade/MarketPanel.tsx` | Uitbreiding |
-| Chop Shop | `ChopShopView.tsx` | Herstructurering |
-| District Popup | `DistrictPopup.tsx` | Herstructurering |
-| Safehouse | `SafehouseView.tsx` | Herstructurering |
-| Hospital | `HospitalView.tsx` | Herstructurering |
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-Puur visuele wijzigingen — geen gameplay-logica aanpassingen. Alle bestaande functionaliteit blijft intact. Framer Motion animaties en bestaande afbeeldingen worden hergebruikt.
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 
