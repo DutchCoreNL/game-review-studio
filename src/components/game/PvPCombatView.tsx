@@ -314,6 +314,38 @@ export function PvPCombatView() {
         {/* Actions */}
         {!combat.finished ? (
           <>
+            {/* Stance Selector */}
+            <div className="flex gap-1.5 mb-3 justify-center">
+              {(['aggressive', 'balanced', 'defensive'] as CombatStance[]).map(s => {
+                const mod = STANCE_MODIFIERS[s];
+                const isActive = combat.stance === s;
+                const activeColors: Record<CombatStance, string> = {
+                  aggressive: 'border-blood bg-blood text-primary-foreground',
+                  balanced: 'border-gold bg-gold text-background',
+                  defensive: 'border-emerald bg-emerald text-primary-foreground',
+                };
+                const inactiveColors: Record<CombatStance, string> = {
+                  aggressive: 'border-blood text-blood bg-blood/10',
+                  balanced: 'border-gold text-gold bg-gold/10',
+                  defensive: 'border-emerald text-emerald bg-emerald/10',
+                };
+                return (
+                  <motion.button
+                    key={s}
+                    onClick={() => dispatch({ type: 'SET_PVP_STANCE', stance: s })}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded border text-[0.5rem] font-bold transition-all ${
+                      isActive ? activeColors[s] : `${inactiveColors[s]} opacity-60 hover:opacity-100`
+                    }`}
+                    whileTap={{ scale: 0.95 }}
+                    title={mod.desc}
+                  >
+                    <span>{mod.icon}</span>
+                    <span className="uppercase tracking-wider">{mod.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+
             {/* Base actions */}
             <div className="grid grid-cols-3 gap-1.5 mb-2">
               <motion.button
