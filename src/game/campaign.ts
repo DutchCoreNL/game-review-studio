@@ -6,6 +6,8 @@ import { generateGear, type GeneratedGear, type GearRarity, type GearType } from
 // ========== TYPES ==========
 
 export type CampaignDifficulty = 'normal' | 'hard' | 'nightmare';
+export type EncounterChoice = 'stealth' | 'standard' | 'aggressive';
+export type EncounterType = 'combat' | 'trap' | 'npc' | 'exploration';
 
 export interface CampaignMission {
   id: string;
@@ -137,6 +139,12 @@ export interface ActiveBossFight {
   accessoryLoot: { name: string; icon: string; effect: string } | null;
   finished: boolean;
   won: boolean;
+  // Enhanced boss mechanics
+  cooldowns: { heavy: number; dodge: number };
+  rage: number; // 0-100
+  rageMax: number;
+  defendBuff: number; // turns of defend buff remaining
+  phaseJustChanged: boolean;
 }
 
 export interface ActiveCampaignMission {
@@ -144,12 +152,19 @@ export interface ActiveCampaignMission {
   missionId: string;
   currentEncounter: number;
   totalEncounters: number;
+  encounterTypes: EncounterType[];
+  currentEncounterType: EncounterType;
   log: string[];
   rewards: { money: number; rep: number; xp: number };
   finished: boolean;
   success: boolean;
   droppedWeapon: GeneratedWeapon | null;
   droppedGear: GeneratedGear | null;
+  // Tactical choices
+  choices: EncounterChoice[];
+  totalHeatGain: number;
+  hpLost: number;
+  rating: number; // 1-3 stars
 }
 
 export interface BossFightLogEntry {
