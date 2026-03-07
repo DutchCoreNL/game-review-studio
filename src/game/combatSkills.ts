@@ -1,4 +1,20 @@
-import { CombatSkill, CombatBuff, PvPCombatState } from './types';
+import { CombatSkill, CombatBuff, PvPCombatState, CombatStance } from './types';
+
+// ========== STANCE DEFINITIONS ==========
+
+export const STANCE_MODIFIERS: Record<CombatStance, {
+  label: string;
+  icon: string;
+  desc: string;
+  damageMod: number;    // multiplier
+  defenseMod: number;   // multiplier (applied to enemy damage reduction)
+  critBonus: number;    // additive crit chance
+  healBonus: number;    // flat heal per turn (defensive only)
+}> = {
+  aggressive: { label: 'Agressief', icon: '🔥', desc: '+30% schade, +15% crit, -20% verdediging', damageMod: 1.3, defenseMod: 0.8, critBonus: 0.15, healBonus: 0 },
+  balanced:   { label: 'Gebalanceerd', icon: '⚖️', desc: 'Geen modifiers', damageMod: 1.0, defenseMod: 1.0, critBonus: 0, healBonus: 0 },
+  defensive:  { label: 'Defensief', icon: '🛡️', desc: '-25% schade, +50% verdediging, +5 HP/beurt', damageMod: 0.75, defenseMod: 1.5, critBonus: 0, healBonus: 5 },
+};
 
 // ========== COMBAT SKILL DEFINITIONS ==========
 
