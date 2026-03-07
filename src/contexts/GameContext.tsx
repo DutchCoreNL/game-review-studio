@@ -316,10 +316,12 @@ type GameAction =
   | { type: 'COLLECT_CAMPAIGN_MISSION_REWARDS' }
   | { type: 'END_CAMPAIGN_MISSION' }
   | { type: 'START_BOSS_FIGHT_CAMPAIGN'; chapterId: string }
-  | { type: 'BOSS_FIGHT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'dodge' }
+  | { type: 'BOSS_FIGHT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'dodge' | 'item'; itemId?: string }
   | { type: 'COLLECT_BOSS_LOOT' }
   | { type: 'END_BOSS_FIGHT' }
-  | { type: 'SET_CHAPTER_DIFFICULTY'; chapterId: string; difficulty: import('../game/campaign').CampaignDifficulty };
+  | { type: 'SET_CHAPTER_DIFFICULTY'; chapterId: string; difficulty: import('../game/campaign').CampaignDifficulty }
+  | { type: 'CAMPAIGN_MISSION_PUSH' }
+  | { type: 'CAMPAIGN_MISSION_REST' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -2449,7 +2451,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADVANCE_CAMPAIGN_MISSION': {
       if (!s.campaign?.activeCampaignMission) return s;
       const playerPower = Engine.getPlayerStat(s, 'muscle') + Engine.getPlayerStat(s, 'brains');
-      s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower, action.choice);
+      const adaptiveMod = (s.campaign.failCounts?.[s.campaign.activeCampaignMission.missionId] || 0) * 0.1;
+      s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower, action.choice, Math.min(0.3, adaptiveMod));
+      return s;
+    }
+
+    case 'CAMPAIGN_MISSION_PUSH': {
+      if (!s.campaign?.activeCampaignMission) return s;
+      s.campaign.activeCampaignMission.carryOver.bonusLootMod *= 1.5;
+      s.campaign.activeCampaignMission.riskRewardPending = false;
+      return s;
+    }
+
+    case 'CAMPAIGN_MISSION_REST': {
+      if (!s.campaign?.activeCampaignMission) return s;
+      s.campaign.activeCampaignMission.morale = Math.min(100, s.campaign.activeCampaignMission.morale + 15);
+      s.campaign.activeCampaignMission.carryOver.moraleBoosted = true;
+      s.campaign.activeCampaignMission.riskRewardPending = false;
       return s;
     }
 
@@ -2524,7 +2542,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const pDmg = Engine.getPlayerStat(s, 'muscle') + Math.floor(s.player.level * 2);
       const pArmor = Math.floor(Engine.getPlayerStat(s, 'brains') * 0.5);
       const pSpeed = Engine.getPlayerStat(s, 'brains') + Math.floor(s.player.level * 0.5);
-      s.campaign.activeBossFight = bossFightTurn(s.campaign.activeBossFight, action.action, pDmg, pArmor, pSpeed);
+      s.campaign.activeBossFight = bossFightTurn(s.campaign.activeBossFight, action.action, pDmg, pArmor, pSpeed, action.itemId);
       // Sync player HP back
       if (s.campaign.activeBossFight.finished && !s.campaign.activeBossFight.won) {
         s.playerHP = Math.max(1, Math.floor(s.playerMaxHP * 0.1));

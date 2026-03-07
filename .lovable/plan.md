@@ -1,122 +1,87 @@
 
 
-# Campagne Verbetering — Alle 4 Gebieden
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-De campagne heeft al een solide basis met briefings, 7 encounter-types, moreel, boss rage/cooldowns, sterrenrating en trofeeën. Nu gaan we elk aspect naar een hoger niveau tillen.
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
----
-
-## 1. Meer Strategische Diepte
-
-### Boss Gevecht
-- **Buff/Debuff Systeem**: Bosses kunnen debuffs toepassen (vertraagd, vergiftigd, geblindeerd) die meerdere beurten duren. Speler kan met "Verdedig" debuffs clearen.
-- **Item Gebruik in Gevecht**: Nieuwe actie "Item" (5e knop) — gebruik consumables (medkit = heal, flash = boss mist 1 beurt, adrenaline = dubbele schade 1 beurt). Max 2 items per boss fight.
-- **Boss Counter-Mechaniek**: Bosses hebben een "tells" systeem — bepaalde acties in een bepaalde fase worden gecounterd (bijv. heavy attack in fase 2 = boss countert). Aanwijzingen in de log.
-- **Combo Systeem**: 3x aanval achter elkaar = bonus schade. Attack → Heavy → Attack = "Executie Combo" voor 2x schade.
-
-### Missie Encounters
-- **Encounter Gevolgen**: Keuzes in eerdere encounters beïnvloeden latere encounters (bijv. stealth in encounter 1 = minder vijanden in encounter 3, aggressive = boss heeft meer rage bij start).
-- **Risico/Beloning Keuze**: Na elke encounter: optie om "door te pushen" (skip healing, +50% loot) of "rust nemen" (recover morale, geen bonus).
-
-### Implementatie
-- Uitbreiding `ActiveBossFight` met `debuffs: BossDebuff[]`, `itemsUsed: number`, `comboCounter: number`
-- Uitbreiding `bossFightTurn()` met debuff/combo/counter logica
-- Nieuwe actie `'item'` in BOSS_FIGHT_ACTION union type
-- Uitbreiding `advanceCampaignMission()` met encounter-carry-over effecten
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
 ---
 
-## 2. Betere Progressie & Balans
+## Plan: Arsenaal Acquisitie Systeem
 
-### Power Curve
-- **Difficulty Scaling**: Hard = 1.5x stats + boss heeft extra fase, Nightmare = 2x stats + boss healt 5% per 5 beurten + unieke mechaniek
-- **Mission Difficulty Stars**: Visuele indicator (1-5 schedels) per missie op basis van speler level vs missie level
-- **Adaptive Difficulty**: Als speler 3x faalt op een missie, verlaag moeilijkheid subtiel met 10%
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-### Loot Scaling
-- **Pity System**: Na 5 missies zonder weapon drop = gegarandeerd wapen
-- **Chapter-Specifieke Gear Sets**: Elk chapter heeft 3 thematische items (wapen + armor + gadget) met set-bonus als je alle 3 draagt
-- **Boss Kill Milestones**: 1e kill = gegarandeerd epic, 3e kill = gegarandeerd legendary, 5e kill = exclusief accessory
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
-### Replay Value
-- **Challenge Modifiers**: Bij replay kun je modifiers activeren (No Heal, Speed Run, Pacifist) voor extra rewards
-- **Weekly Challenge**: Één random missie per week met speciale regels en exclusieve beloning
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-### Implementatie
-- Nieuw bestand `src/game/campaignGearSets.ts` met set-definities en bonus-berekeningen
-- Uitbreiding `CampaignState` met `pityCounter`, `weeklyChallenge`, `failCount`
-- Uitbreiding missie-definities met `difficultyRating` en `gearSetPiece`
-- Modifier-logica in `advanceCampaignMission()` en `bossFightTurn()`
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
----
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
-## 3. Meer Content & Variatie
-
-### Extra Content
-- **Bonus Objectieven per Missie**: Elke missie krijgt 1-2 optionele doelen (bijv. "Voltooi zonder agressief", "Vind het geheime item", "Eindig met 80%+ moreel") voor extra beloningen
-- **Hidden Encounters**: 15% kans op een "verborgen encounter" na de laatste encounter — optioneel, maar met betere loot
-- **Elite Variant Missies**: Na 3-ster completion verschijnt een "Elite" variant met 50% meer encounters, sterkere vijanden, maar dubbele loot
-- **Mini-Boss Encounters**: Sommige missies (ch3+) hebben een mini-boss als middelste encounter met eigen HP bar en 1 speciale aanval
-
-### Secret Content
-- **Geheime Boss per Chapter**: Na alle missies 3 sterren op Nightmare = onthul een "Shadow Boss" (harder dan hoofdboss, uniek accessory)
-- **Lore Collectibles**: Verborgen lore-fragmenten in exploration encounters die het Codex-systeem voeden
-
-### Implementatie
-- Uitbreiding `CampaignMission` met `bonusObjectives: BonusObjective[]`
-- Uitbreiding `ActiveCampaignMission` met `bonusObjectivesCompleted: string[]`, `hiddenEncounterTriggered`
-- Nieuwe UI sectie in debriefing voor bonus-doelen
-- Mini-boss logica als sub-systeem van encounter resolution
-- Secret boss data in chapter definitie (optioneel veld)
-
----
-
-## 4. Visuele & UX Polish
-
-### Missie View
-- **Encounter Kaart**: In plaats van tekst-only, toon een gestylede "kaart" per encounter met type-icoon, sfeer-illustratie (CSS gradient achtergrond per type), en keuze-knoppen als kaart-acties
-- **Keuze-Feedback Animatie**: Bij stealth = groene glow fade, bij aggressive = rood screen shake, bij standard = blauwe pulse
-- **Progressie Balk met Encounter Icons**: Vervang de huidige emoji-rij door een visuele "pad" (connected dots) met encounter-type icons
-- **Random Event Popup**: Animeer random events als een floating card die inschuift in plaats van een log-entry
-
-### Boss Fight View
-- **Damage Numbers**: Floating damage numbers die omhoog animeren bij elke hit (rood voor boss schade, groen voor healing)
-- **Boss Sprite Animatie**: Boss icon schudt bij hit, pulseert bij special attack, groeit bij phase change
-- **Action Feedback**: Kort visueel effect per actie (slash animatie bij attack, schild shimmer bij defend, blur bij dodge)
-- **HP Bar Segmenten**: Boss HP bar verdeeld in segmenten (elke 10%) met crack-effect bij doorbreken
-
-### Campaign Overview
-- **Chapter Kaart**: Vervang de lijst door een visuele "route" (verticaal pad met chapter nodes, verbonden door lijnen)
-- **Boss Trophy Vitrine**: Toon verzamelde trofeeën als kleine iconen met tooltip in een aparte sectie
-- **Missie Sterren Animatie**: Bij hover over voltooide missie, toon de sterren met een subtiele glans
-
-### Implementatie
-- Nieuw component `src/components/game/campaign/EncounterCard.tsx` voor gestylede encounter presentatie
-- Nieuw component `src/components/game/campaign/DamageNumber.tsx` voor floating damage
-- Nieuw component `src/components/game/campaign/ChapterMap.tsx` voor visuele route
-- CSS animaties in Tailwind voor screen shake, glow, pulse effecten
-- Framer Motion voor damage numbers, encounter transitions, trophy showcase
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
 ---
 
-## Technisch Overzicht
+## Technisch overzicht
 
-| Onderdeel | Bestand | Type |
-|-----------|---------|------|
-| Boss debuffs, combos, items, counters | `campaign.ts` | Uitbreiding |
-| Encounter carry-over effecten | `campaign.ts` | Uitbreiding |
-| Chapter gear sets & set-bonussen | `campaignGearSets.ts` | Nieuw |
-| Bonus objectieven, hidden encounters, elite missies | `campaign.ts` | Uitbreiding |
-| Mini-boss encounter systeem | `campaign.ts` | Nieuw |
-| Pity system, fail tracking, weekly challenge | `campaign.ts` + `GameContext.tsx` | Uitbreiding |
-| Encounter card component | `EncounterCard.tsx` | Nieuw |
-| Floating damage numbers | `DamageNumber.tsx` | Nieuw |
-| Chapter kaart visualisatie | `ChapterMap.tsx` | Nieuw |
-| Boss sprite animaties & action feedback | `BossFightView.tsx` | Uitbreiding |
-| Missie keuze-feedback animaties | `CampaignMissionView.tsx` | Uitbreiding |
-| Random event popups | `CampaignMissionView.tsx` | Uitbreiding |
-| Trophy vitrine & missie hover | `CampaignView.tsx` | Uitbreiding |
-| State uitbreidingen (debuffs, pity, objectives) | `GameContext.tsx` | Uitbreiding |
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-Alle wijzigingen zijn client-side. Geen database migraties nodig. Gezien de omvang raad ik aan in 2 fasen te implementeren: eerst strategische diepte + progressie (gameplay-impact), dan content + visuele polish.
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 
