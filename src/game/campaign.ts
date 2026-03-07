@@ -6,6 +6,8 @@ import { generateGear, type GeneratedGear, type GearRarity, type GearType } from
 // ========== TYPES ==========
 
 export type CampaignDifficulty = 'normal' | 'hard' | 'nightmare';
+export type EncounterChoice = 'stealth' | 'standard' | 'aggressive';
+export type EncounterType = 'combat' | 'trap' | 'npc' | 'exploration';
 
 export interface CampaignMission {
   id: string;
@@ -137,6 +139,12 @@ export interface ActiveBossFight {
   accessoryLoot: { name: string; icon: string; effect: string } | null;
   finished: boolean;
   won: boolean;
+  // Enhanced boss mechanics
+  cooldowns: { heavy: number; dodge: number };
+  rage: number; // 0-100
+  rageMax: number;
+  defendBuff: number; // turns of defend buff remaining
+  phaseJustChanged: boolean;
 }
 
 export interface ActiveCampaignMission {
@@ -144,12 +152,19 @@ export interface ActiveCampaignMission {
   missionId: string;
   currentEncounter: number;
   totalEncounters: number;
+  encounterTypes: EncounterType[];
+  currentEncounterType: EncounterType;
   log: string[];
   rewards: { money: number; rep: number; xp: number };
   finished: boolean;
   success: boolean;
   droppedWeapon: GeneratedWeapon | null;
   droppedGear: GeneratedGear | null;
+  // Tactical choices
+  choices: EncounterChoice[];
+  totalHeatGain: number;
+  hpLost: number;
+  rating: number; // 1-3 stars
 }
 
 export interface BossFightLogEntry {
@@ -747,27 +762,43 @@ export function startBossFight(chapterId: string, playerHP: number, playerMaxHP:
     accessoryLoot: null,
     finished: false,
     won: false,
+    cooldowns: { heavy: 0, dodge: 0 },
+    rage: 0,
+    rageMax: 100,
+    defendBuff: 0,
+    phaseJustChanged: false,
   };
 }
 
 export function bossFightTurn(
   fight: ActiveBossFight,
-  action: 'attack' | 'heavy' | 'defend',
+  action: 'attack' | 'heavy' | 'defend' | 'dodge',
   playerDamage: number,
-  playerArmor: number
+  playerArmor: number,
+  playerSpeed: number = 0
 ): ActiveBossFight {
   const ch = getChapterDef(fight.chapterId)!;
   const boss = ch.boss;
   const diffMult = fight.difficulty === 'nightmare' ? 1.8 : fight.difficulty === 'hard' ? 1.4 : 1.0;
   const turn = fight.turn + 1;
   const log: BossFightLogEntry[] = [];
+  let newCooldowns = { ...fight.cooldowns };
+  let newRage = fight.rage;
+  let newDefendBuff = Math.max(0, fight.defendBuff - 1);
+
+  // Decrease cooldowns
+  if (newCooldowns.heavy > 0) newCooldowns.heavy--;
+  if (newCooldowns.dodge > 0) newCooldowns.dodge--;
 
   // Player action
   let pDmg = 0;
   let pDefending = false;
+  let pDodging = false;
   if (action === 'attack') {
-    pDmg = Math.max(1, playerDamage - Math.floor(boss.armor * 0.3));
+    const defendBonus = fight.defendBuff > 0 ? 1.1 : 1.0;
+    pDmg = Math.max(1, Math.floor(playerDamage * defendBonus) - Math.floor(boss.armor * 0.3));
     log.push({ turn, text: `Je valt aan voor ${pDmg} schade!`, type: 'player', icon: '⚔️' });
+    newRage += 5;
   } else if (action === 'heavy') {
     pDmg = Math.max(1, Math.floor(playerDamage * 1.5) - Math.floor(boss.armor * 0.2));
     const miss = Math.random() < 0.2;
@@ -777,9 +808,18 @@ export function bossFightTurn(
     } else {
       log.push({ turn, text: `Zware aanval! ${pDmg} schade!`, type: 'player', icon: '💥' });
     }
+    newCooldowns.heavy = 2;
+    newRage += 10;
+  } else if (action === 'dodge') {
+    pDodging = true;
+    newCooldowns.dodge = 3;
+    log.push({ turn, text: 'Je maakt een ontwijkende beweging!', type: 'player', icon: '💨' });
+    newRage += 3;
   } else {
     pDefending = true;
-    log.push({ turn, text: 'Je neemt een verdedigende houding aan.', type: 'player', icon: '🛡️' });
+    newDefendBuff = 2;
+    log.push({ turn, text: 'Je neemt een verdedigende houding aan. (+10% aanval volgende beurt)', type: 'player', icon: '🛡️' });
+    newRage += 3;
   }
 
   let newBossHP = Math.max(0, fight.bossHP - pDmg);
@@ -787,48 +827,94 @@ export function bossFightTurn(
   // Check phase transition
   const hpPercent = (newBossHP / fight.bossMaxHP) * 100;
   let currentPhase = fight.currentPhase;
+  let phaseJustChanged = false;
   if (currentPhase < boss.phases.length - 1 && hpPercent <= boss.phases[currentPhase + 1].hpThreshold) {
     currentPhase++;
+    phaseJustChanged = true;
     const phaseName = boss.phases[currentPhase].name;
-    log.push({ turn, text: `${boss.name} gaat over in fase: ${phaseName}!`, type: 'phase', icon: '⚠️' });
+    log.push({ turn, text: `⚠️ ${boss.name} gaat over in fase: ${phaseName}!`, type: 'phase', icon: '⚠️' });
     if (currentPhase === 1) {
       log.push({ turn, text: boss.dialogue.phase2, type: 'boss', icon: boss.icon });
     }
+    newRage += 20;
   }
 
   // Boss dead?
   if (newBossHP <= 0) {
     log.push({ turn, text: boss.dialogue.defeat, type: 'boss', icon: '💀' });
     log.push({ turn, text: `${boss.name} is verslagen!`, type: 'info', icon: '🏆' });
-    return { ...fight, bossHP: 0, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: true };
+    return { ...fight, bossHP: 0, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: true, cooldowns: newCooldowns, rage: 0, defendBuff: 0, phaseJustChanged: false };
   }
 
-  // Boss attacks
-  const phase = boss.phases[currentPhase];
-  const baseDmg = Math.floor((boss.damage + phase.attackBonus) * diffMult);
-  let bDmg: number;
-  const useSpecial = Math.random() < phase.specialAttack.chance;
-
-  if (useSpecial) {
-    bDmg = Math.floor(phase.specialAttack.damage * diffMult);
-    if (pDefending) bDmg = Math.floor(bDmg * 0.4);
-    else bDmg = Math.max(1, bDmg - playerArmor);
-    log.push({ turn, text: `${boss.name} gebruikt ${phase.specialAttack.name}! ${bDmg} schade! ${phase.specialAttack.effect}`, type: 'boss', icon: phase.specialAttack.icon });
-  } else {
-    bDmg = pDefending ? Math.floor(baseDmg * 0.4) : Math.max(1, baseDmg - playerArmor);
-    log.push({ turn, text: `${boss.name} valt aan voor ${bDmg} schade!`, type: 'boss', icon: '👊' });
+  // Boss rage super attack
+  let rageAttack = false;
+  if (newRage >= fight.rageMax) {
+    newRage = 0;
+    rageAttack = true;
+    const rageDmg = Math.floor(boss.damage * 2.5 * diffMult);
+    const finalRageDmg = pDefending ? Math.floor(rageDmg * 0.4) : pDodging ? 0 : Math.max(1, rageDmg - playerArmor);
+    if (pDodging && Math.random() < 0.6 + playerSpeed * 0.005) {
+      log.push({ turn, text: `${boss.name} ontketent RAZERNIJ! Maar je ontwijkt het!`, type: 'boss', icon: '🔥' });
+    } else if (pDodging) {
+      const partialDmg = Math.floor(finalRageDmg * 0.3);
+      log.push({ turn, text: `${boss.name} ontketent RAZERNIJ! Je ontwijkt deels — ${partialDmg} schade!`, type: 'boss', icon: '🔥' });
+      const newPHP = Math.max(0, fight.playerHP - partialDmg);
+      if (newPHP <= 0) {
+        log.push({ turn, text: boss.dialogue.playerDefeat, type: 'boss', icon: '💀' });
+        return { ...fight, playerHP: 0, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: false, cooldowns: newCooldowns, rage: 0, defendBuff: newDefendBuff, phaseJustChanged };
+      }
+    } else {
+      log.push({ turn, text: `${boss.name} ontketent RAZERNIJ! ${finalRageDmg} schade!`, type: 'boss', icon: '🔥' });
+      const newPHP = Math.max(0, fight.playerHP - finalRageDmg);
+      if (newPHP <= 0) {
+        log.push({ turn, text: boss.dialogue.playerDefeat, type: 'boss', icon: '💀' });
+        return { ...fight, playerHP: 0, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: false, cooldowns: newCooldowns, rage: 0, defendBuff: newDefendBuff, phaseJustChanged };
+      }
+      return { ...fight, bossHP: newBossHP, playerHP: newPHP, turn, currentPhase, log: [...fight.log, ...log], cooldowns: newCooldowns, rage: 0, defendBuff: newDefendBuff, phaseJustChanged };
+    }
   }
 
-  const newPlayerHP = Math.max(0, fight.playerHP - bDmg);
+  // Boss normal attacks (skip if rage already attacked)
+  if (!rageAttack) {
+    const phase = boss.phases[currentPhase];
+    const baseDmg = Math.floor((boss.damage + phase.attackBonus) * diffMult);
+    let bDmg: number;
+    const useSpecial = Math.random() < phase.specialAttack.chance;
 
-  // Player dead?
-  if (newPlayerHP <= 0) {
-    log.push({ turn, text: boss.dialogue.playerDefeat, type: 'boss', icon: '💀' });
-    log.push({ turn, text: 'Je bent verslagen...', type: 'info', icon: '☠️' });
-    return { ...fight, playerHP: 0, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: false };
+    if (pDodging) {
+      const dodgeChance = 0.55 + playerSpeed * 0.005;
+      if (Math.random() < dodgeChance) {
+        log.push({ turn, text: `Je ontwijkt de aanval van ${boss.name}!`, type: 'player', icon: '💨' });
+        return { ...fight, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], cooldowns: newCooldowns, rage: Math.min(fight.rageMax, newRage), defendBuff: newDefendBuff, phaseJustChanged };
+      }
+      // Partial dodge - take reduced damage
+      log.push({ turn, text: 'Ontwijking deels gelukt!', type: 'info', icon: '💫' });
+    }
+
+    if (useSpecial) {
+      bDmg = Math.floor(phase.specialAttack.damage * diffMult);
+      if (pDefending) bDmg = Math.floor(bDmg * 0.4);
+      else if (pDodging) bDmg = Math.floor(bDmg * 0.4);
+      else bDmg = Math.max(1, bDmg - playerArmor);
+      log.push({ turn, text: `${boss.name} gebruikt ${phase.specialAttack.name}! ${bDmg} schade! ${phase.specialAttack.effect}`, type: 'boss', icon: phase.specialAttack.icon });
+    } else {
+      bDmg = pDefending ? Math.floor(baseDmg * 0.4) : pDodging ? Math.floor(baseDmg * 0.4) : Math.max(1, baseDmg - playerArmor);
+      log.push({ turn, text: `${boss.name} valt aan voor ${bDmg} schade!`, type: 'boss', icon: '👊' });
+    }
+
+    const newPlayerHP = Math.max(0, fight.playerHP - bDmg);
+
+    // Player dead?
+    if (newPlayerHP <= 0) {
+      log.push({ turn, text: boss.dialogue.playerDefeat, type: 'boss', icon: '💀' });
+      log.push({ turn, text: 'Je bent verslagen...', type: 'info', icon: '☠️' });
+      return { ...fight, playerHP: 0, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], finished: true, won: false, cooldowns: newCooldowns, rage: Math.min(fight.rageMax, newRage), defendBuff: newDefendBuff, phaseJustChanged };
+    }
+
+    return { ...fight, bossHP: newBossHP, playerHP: newPlayerHP, turn, currentPhase, log: [...fight.log, ...log], cooldowns: newCooldowns, rage: Math.min(fight.rageMax, newRage), defendBuff: newDefendBuff, phaseJustChanged };
   }
 
-  return { ...fight, bossHP: newBossHP, playerHP: newPlayerHP, turn, currentPhase, log: [...fight.log, ...log] };
+  return { ...fight, bossHP: newBossHP, turn, currentPhase, log: [...fight.log, ...log], cooldowns: newCooldowns, rage: Math.min(fight.rageMax, newRage), defendBuff: newDefendBuff, phaseJustChanged };
 }
 
 export function generateBossLoot(
@@ -873,15 +959,55 @@ export function generateBossLoot(
   return { weapon, gear, money, accessory };
 }
 
-// ========== CAMPAIGN MISSION COMBAT ==========
+// ========== ENCOUNTER TYPE GENERATION ==========
+
+const ENCOUNTER_NARRATIVES: Record<EncounterType, { stealth: string[]; standard: string[]; aggressive: string[] }> = {
+  combat: {
+    stealth: ['Je sluipt langs de bewakers en schakelt ze stil uit.', 'Een stille eliminatie — niemand hoorde iets.', 'Je glijdt door de schaduwen als een geest.'],
+    standard: ['Je neemt de vijanden frontaal aan.', 'Een kort vuurgevecht, maar je wint.', 'De vijanden zijn uitgeschakeld.'],
+    aggressive: ['Je stormt binnen met brute kracht!', 'Een explosieve confrontatie — je laat niets heel.', 'Maximale chaos, maximale schade.'],
+  },
+  trap: {
+    stealth: ['Je ontdekt de val op tijd en omzeilt hem voorzichtig.', 'Een bijna onzichtbare tripwire — maar jij zag hem.'],
+    standard: ['Je triggert de val maar weet te ontwijken.', 'De val gaat af, maar je reactievermogen redt je.'],
+    aggressive: ['Je forceert de val en absorbeert de schade.', 'Dwars door de val heen — het doet pijn, maar je stopt niet.'],
+  },
+  npc: {
+    stealth: ['Je luistert mee vanuit de schaduwen en verkrijgt cruciale informatie.', 'De NPC merkt je niet op — je hoort alles.'],
+    standard: ['Een gesprek levert nuttige informatie op.', 'De NPC is bereid te helpen — tegen een prijs.'],
+    aggressive: ['Je dwingt de informatie af met geweld.', 'Intimidatie werkt, maar je maakt vijanden.'],
+  },
+  exploration: {
+    stealth: ['Je doorzoekt zorgvuldig en vindt een verborgen cache.', 'Geduld loont — je vindt een geheime doorgang.'],
+    standard: ['Je verkent het gebied en vindt bruikbare items.', 'Een grondige zoektocht levert resultaat op.'],
+    aggressive: ['Je breekt muren open en vindt verborgen kamers.', 'Geen subtiliteit, maar je vindt wat je zocht.'],
+  },
+};
+
+function generateEncounterTypes(count: number): EncounterType[] {
+  const types: EncounterType[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) { types.push('combat'); continue; }
+    if (i === count - 1) { types.push('combat'); continue; }
+    const r = Math.random();
+    if (r < 0.5) types.push('combat');
+    else if (r < 0.7) types.push('trap');
+    else if (r < 0.85) types.push('npc');
+    else types.push('exploration');
+  }
+  return types;
+}
 
 export function startCampaignMission(chapterId: string, missionId: string): ActiveCampaignMission {
   const mDef = getMissionDef(missionId)!;
+  const encounterTypes = generateEncounterTypes(mDef.encounters);
   return {
     chapterId,
     missionId,
     currentEncounter: 0,
     totalEncounters: mDef.encounters,
+    encounterTypes,
+    currentEncounterType: encounterTypes[0],
     log: [mDef.narrativeText[0] || `Missie gestart: ${mDef.title}`],
     rewards: {
       money: mDef.rewards.money[0] + Math.floor(Math.random() * (mDef.rewards.money[1] - mDef.rewards.money[0])),
@@ -892,43 +1018,84 @@ export function startCampaignMission(chapterId: string, missionId: string): Acti
     success: false,
     droppedWeapon: null,
     droppedGear: null,
+    choices: [],
+    totalHeatGain: 0,
+    hpLost: 0,
+    rating: 1,
   };
 }
 
-export function advanceCampaignMission(mission: ActiveCampaignMission, playerLevel: number, playerPower: number): ActiveCampaignMission {
+function getEncounterNarrative(type: EncounterType, choice: EncounterChoice): string {
+  const pool = ENCOUNTER_NARRATIVES[type][choice];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function calculateMissionRating(choices: EncounterChoice[], totalEncounters: number, success: boolean): number {
+  if (!success) return 1;
+  const aggressiveCount = choices.filter(c => c === 'aggressive').length;
+  const stealthCount = choices.filter(c => c === 'stealth').length;
+  // 3 stars: majority aggressive or all stealth (skilful play)
+  if (aggressiveCount >= Math.ceil(totalEncounters * 0.6)) return 3;
+  if (stealthCount >= Math.ceil(totalEncounters * 0.8)) return 3;
+  // 2 stars: mixed play or majority standard
+  if (aggressiveCount >= 1 || stealthCount >= 1) return 2;
+  return 1;
+}
+
+export function advanceCampaignMission(mission: ActiveCampaignMission, playerLevel: number, playerPower: number, choice: EncounterChoice = 'standard'): ActiveCampaignMission {
   const mDef = getMissionDef(mission.missionId)!;
   const encounter = mission.currentEncounter + 1;
+  const encType = mission.encounterTypes[mission.currentEncounter] || 'combat';
+
+  // Choice modifiers
+  const choiceMods = {
+    stealth: { successMod: 0.15, lootMod: 0.7, heatMod: 0 },
+    standard: { successMod: 0, lootMod: 1.0, heatMod: 2 },
+    aggressive: { successMod: -0.1, lootMod: 1.5, heatMod: 5 },
+  }[choice];
+
   const difficulty = 40 + encounter * 10 + playerLevel * 2;
-  const roll = Math.random() * 100 + playerPower * 0.5;
-  const success = roll > difficulty * 0.6;
+  const roll = Math.random() * 100 + playerPower * 0.5 + choiceMods.successMod * 100;
+
+  // Traps and NPCs are easier to pass
+  const typeMod = encType === 'trap' ? 0.8 : encType === 'npc' ? 0.7 : encType === 'exploration' ? 0.6 : 1.0;
+  const success = roll > difficulty * 0.6 * typeMod;
 
   const log = [...mission.log];
+  const typeLabel = encType === 'combat' ? '⚔️ Gevecht' : encType === 'trap' ? '🪤 Val' : encType === 'npc' ? '🗣️ Ontmoeting' : '🔍 Verkenning';
+  const narrative = getEncounterNarrative(encType, choice);
+
+  const newChoices = [...mission.choices, choice];
+  let newHeatGain = mission.totalHeatGain + choiceMods.heatMod;
+
   if (success) {
-    log.push(`Encounter ${encounter}/${mission.totalEncounters}: Succes! Je overwint de vijanden.`);
+    log.push(`${typeLabel} ${encounter}/${mission.totalEncounters}: ${narrative}`);
   } else {
-    log.push(`Encounter ${encounter}/${mission.totalEncounters}: Mislukt! De missie is gefaald.`);
-    return { ...mission, currentEncounter: encounter, log, finished: true, success: false };
+    log.push(`${typeLabel} ${encounter}/${mission.totalEncounters}: Mislukt! De missie is gefaald.`);
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: false, choices: newChoices, totalHeatGain: newHeatGain, rating: 1 };
   }
 
   if (encounter >= mission.totalEncounters) {
     // Mission complete — check weapon drop
     let droppedWeapon: GeneratedWeapon | null = null;
     let droppedGear: GeneratedGear | null = null;
-    if (Math.random() < mDef.weaponDropChance) {
+    const rating = calculateMissionRating(newChoices, mission.totalEncounters, true);
+    const dropBonus = rating === 3 ? 1.3 : rating === 2 ? 1.1 : 1.0;
+    if (Math.random() < mDef.weaponDropChance * dropBonus) {
       droppedWeapon = generateWeapon(playerLevel, undefined, mDef.weaponRarityFloor === 'epic' ? 'epic' : mDef.weaponRarityFloor === 'rare' ? 'rare' : 'uncommon');
     }
-    // 30% kans op gear drop (naast wapen)
-    if (Math.random() < mDef.weaponDropChance * 0.6) {
+    if (Math.random() < mDef.weaponDropChance * 0.6 * dropBonus) {
       const gearType: GearType = Math.random() < 0.5 ? 'armor' : 'gadget';
       const gearRarity = mDef.weaponRarityFloor === 'epic' ? 'epic' as const : mDef.weaponRarityFloor === 'rare' ? 'rare' as const : 'uncommon' as const;
       droppedGear = generateGear(playerLevel, gearType, gearRarity);
     }
     if (mDef.narrativeText[1]) log.push(mDef.narrativeText[1]);
-    log.push('Missie voltooid! 🎉');
-    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon, droppedGear };
+    log.push(`Missie voltooid! ${'⭐'.repeat(rating)} Rating!`);
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon, droppedGear, choices: newChoices, totalHeatGain: newHeatGain, rating };
   }
 
-  return { ...mission, currentEncounter: encounter, log };
+  const nextType = mission.encounterTypes[encounter] || 'combat';
+  return { ...mission, currentEncounter: encounter, currentEncounterType: nextType, log, choices: newChoices, totalHeatGain: newHeatGain };
 }
 
 // ========== CHAPTER BONUS HELPERS ==========

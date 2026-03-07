@@ -1,8 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { getChapterDef } from '@/game/campaign';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Swords, Shield, Zap, Trophy, X } from 'lucide-react';
+import { Swords, Shield, Zap, Trophy, X, Wind } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import { WeaponCard } from '../weapons/WeaponCard';
@@ -20,9 +19,10 @@ export function BossFightView() {
 
   const bossHPPercent = (fight.bossHP / fight.bossMaxHP) * 100;
   const playerHPPercent = (fight.playerHP / fight.playerMaxHP) * 100;
+  const ragePercent = (fight.rage / fight.rageMax) * 100;
   const currentPhaseName = boss.phases[fight.currentPhase]?.name || 'Standaard';
 
-  const handleAction = (action: 'attack' | 'heavy' | 'defend') => {
+  const handleAction = (action: 'attack' | 'heavy' | 'defend' | 'dodge') => {
     dispatch({ type: 'BOSS_FIGHT_ACTION', action });
   };
 
@@ -35,7 +35,7 @@ export function BossFightView() {
   };
 
   return (
-    <div className="space-y-3 pb-4">
+    <div className={`space-y-3 pb-4 ${fight.phaseJustChanged ? 'shake' : ''}`}>
       {/* Boss Header */}
       <div className="text-center p-3 bg-blood/10 border border-blood/30 rounded-lg">
         <div className="text-4xl mb-1">{boss.icon}</div>
@@ -65,6 +65,24 @@ export function BossFightView() {
           </div>
         </div>
 
+        {/* Rage Meter */}
+        <div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+            <span className="text-amber-400">🔥 Razernij</span>
+            <span className={ragePercent >= 80 ? 'text-blood font-bold animate-pulse' : ''}>{Math.floor(fight.rage)}/{fight.rageMax}</span>
+          </div>
+          <div className="h-2 rounded-full bg-muted/30 overflow-hidden border border-amber-400/20">
+            <motion.div
+              className={`h-full ${ragePercent >= 80 ? 'bg-gradient-to-r from-amber-500 to-blood' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
+              animate={{ width: `${ragePercent}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+          {ragePercent >= 80 && (
+            <p className="text-[9px] text-blood font-bold mt-0.5 animate-pulse">⚠️ Razernij bijna vol — super-aanval dreigt!</p>
+          )}
+        </div>
+
         {/* Player HP */}
         <div>
           <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
@@ -81,8 +99,15 @@ export function BossFightView() {
         </div>
       </div>
 
+      {/* Defend buff indicator */}
+      {fight.defendBuff > 0 && (
+        <div className="text-[10px] text-emerald bg-emerald/10 border border-emerald/30 rounded px-2 py-1 text-center">
+          🛡️ Verdedigingsbuff actief ({fight.defendBuff} beurten) — +10% aanval
+        </div>
+      )}
+
       {/* Combat Log */}
-      <div className="h-40 overflow-y-auto bg-muted/10 border border-border/40 rounded-lg p-2 text-xs space-y-1 game-scroll">
+      <div className="h-36 overflow-y-auto bg-muted/10 border border-border/40 rounded-lg p-2 text-xs space-y-1 game-scroll">
         {fight.log.map((entry, i) => (
           <div key={i} className={`flex items-start gap-1.5 ${
             entry.type === 'player' ? 'text-emerald' : 
@@ -100,26 +125,51 @@ export function BossFightView() {
 
       {/* Actions or Result */}
       {!fight.finished ? (
-        <div className="flex gap-2">
-          <Button onClick={() => handleAction('attack')} variant="secondary" className="flex-1 text-xs h-10">
-            <Swords className="w-4 h-4 mr-1" /> Aanval
+        <div className="grid grid-cols-4 gap-1.5">
+          <Button onClick={() => handleAction('attack')} variant="secondary" className="text-xs h-10 flex-col gap-0 p-1">
+            <Swords className="w-4 h-4" />
+            <span className="text-[9px]">Aanval</span>
           </Button>
-          <Button onClick={() => handleAction('heavy')} variant="default" className="flex-1 text-xs h-10">
-            <Zap className="w-4 h-4 mr-1" /> Zwaar
+          <Button
+            onClick={() => handleAction('heavy')}
+            variant="default"
+            className="text-xs h-10 flex-col gap-0 p-1"
+            disabled={fight.cooldowns.heavy > 0}
+          >
+            <Zap className="w-4 h-4" />
+            <span className="text-[9px]">
+              {fight.cooldowns.heavy > 0 ? `(${fight.cooldowns.heavy})` : 'Zwaar'}
+            </span>
           </Button>
-          <Button onClick={() => handleAction('defend')} variant="outline" className="flex-1 text-xs h-10">
-            <Shield className="w-4 h-4 mr-1" /> Verdedig
+          <Button onClick={() => handleAction('defend')} variant="outline" className="text-xs h-10 flex-col gap-0 p-1">
+            <Shield className="w-4 h-4" />
+            <span className="text-[9px]">Verdedig</span>
+          </Button>
+          <Button
+            onClick={() => handleAction('dodge')}
+            variant="outline"
+            className="text-xs h-10 flex-col gap-0 p-1"
+            disabled={fight.cooldowns.dodge > 0}
+          >
+            <Wind className="w-4 h-4" />
+            <span className="text-[9px]">
+              {fight.cooldowns.dodge > 0 ? `(${fight.cooldowns.dodge})` : 'Ontwijken'}
+            </span>
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
           {fight.won ? (
             <>
-              <div className="text-center p-3 bg-gold/10 border border-gold/30 rounded-lg">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center p-3 bg-gold/10 border border-gold/30 rounded-lg"
+              >
                 <Trophy className="w-8 h-8 text-gold mx-auto mb-1" />
                 <h3 className="text-lg font-black text-gold">OVERWINNING!</h3>
                 <p className="text-xs text-muted-foreground">{boss.name} verslagen in {fight.turn} beurten</p>
-              </div>
+              </motion.div>
 
               {/* Loot Display */}
               <div className="space-y-2">

@@ -1,69 +1,87 @@
 
 
-# Campagne Verbeterplan
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-## Huidige Situatie
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
-De campagne heeft 8 chapters, 27 missies en 8 bosses met een solide basis. De zwakke punten zijn:
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
-1. **Missies zijn monotoon** — elke missie is "klik Volgende Encounter" herhaaldelijk. Geen tactische keuzes, geen variatie.
-2. **Bossfights missen diepgang** — slechts 3 knoppen (Aanval/Zwaar/Verdedig) zonder strategie-laag.
-3. **Geen visuele flair** — alles is tekst in een log. Geen animaties, geen spanning.
-4. **Geen herhaalbaarheid** — missies klaar = klaar. Geen reden om terug te komen.
-5. **Missie-encounters zijn puur RNG** — speler heeft nul invloed op de uitkomst.
+---
 
-## Voorgestelde Verbeteringen
+## Plan: Arsenaal Acquisitie Systeem
 
-### 1. Tactische Missie-Keuzes
-Vervang de "klik volgende" encounters door keuze-momenten per encounter:
-- **3 aanpakken per encounter**: Stealth (laag risico, minder loot), Standaard, Agressief (hoog risico, meer loot + heat)
-- Elke keuze beïnvloedt slagingskans, beloningen en verhaaltext
-- Visuele encounter-kaarten met sfeer-iconen in plaats van een platte log
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-### 2. Verbeterde Boss UI
-- **Actie-cooldowns**: Zware aanval heeft 2-beurt cooldown, Verdedig geeft 1-beurt buff
-- **Nieuwe actie: Ontwijken** — kans om boss special volledig te ontwijken
-- **Boss rage meter** — visuele indicator die oploopt; bij vol doet de boss een super-aanval
-- **Fase-transities met animatie** — screen shake + flash bij nieuwe fase + boss dialogue popup
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
-### 3. Missie Rating Systeem
-- Na voltooiing: rating van ⭐ tot ⭐⭐⭐ (gebaseerd op keuzes, snelheid, HP-behoud)
-- Hogere rating = betere loot drops
-- 3 sterren op alle missies in een chapter = bonus beloning
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-### 4. Chapter Replay met Hogere Moeilijkheid  
-- Na voltooiing kun je een chapter herspelen op Hard of Nightmare
-- Hogere moeilijkheid = sterkere vijanden, betere loot, unieke dialoog
-- Difficulty-selector zichtbaar op voltooide chapters
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
-### 5. Encounter Variatie
-Voeg encounter-types toe naast "combat":
-- **Trap**: kies ontwijken of forceren (stat-check)
-- **NPC-ontmoeting**: dialoogkeuze die loot of informatie geeft
-- **Verkenning**: vind verborgen items of shortcuts
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
-## Technische Aanpak
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
-### Bestanden die wijzigen:
-- **`src/game/campaign.ts`**: encounter-types toevoegen aan missie-definitie, rating-berekening, cooldown-systeem voor boss
-- **`src/components/game/campaign/CampaignMissionView.tsx`**: volledige redesign met keuze-knoppen per encounter, encounter-type kaarten, rating-display
-- **`src/components/game/campaign/BossFightView.tsx`**: cooldown-indicators, ontwijken-knop, rage meter, fase-animaties
-- **`src/components/game/campaign/CampaignView.tsx`**: sterren-display per missie, difficulty-selector voor herspelen, chapter-bonus indicator
-- **`src/contexts/GameContext.tsx`**: nieuwe dispatch types voor encounter-keuzes en cooldowns
+---
 
-### Nieuwe types:
-```text
-EncounterType: 'combat' | 'trap' | 'npc' | 'exploration'
-EncounterChoice: 'stealth' | 'standard' | 'aggressive'  
-MissionRating: 1 | 2 | 3
-BossActionCooldown: { heavy: number, dodge: number }
-```
+## Technisch overzicht
 
-## Prioriteit
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-Ik raad aan om dit in twee fasen te doen:
-- **Fase 1**: Tactische missie-keuzes + rating systeem + encounter variatie (grootste impact op gameplay)
-- **Fase 2**: Boss UI verbeteringen + chapter replay
-
-Wil je dat ik alles in één keer implementeer of fase per fase?
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 
