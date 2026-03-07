@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { ViewWrapper } from '../ui/ViewWrapper';
-import { CAMPAIGN_CHAPTERS, canStartMission, canFightBoss, getChapterDef } from '@/game/campaign';
-import type { CampaignChapter, CampaignChapterProgress } from '@/game/campaign';
+import { CAMPAIGN_CHAPTERS, canStartMission, canFightBoss } from '@/game/campaign';
+import type { CampaignChapter, CampaignChapterProgress, CampaignDifficulty } from '@/game/campaign';
 import { Lock, Swords, CheckCircle2, Star, Trophy, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,8 +10,9 @@ import { Progress } from '@/components/ui/progress';
 import { BossFightView } from './BossFightView';
 import { CampaignMissionView } from './CampaignMissionView';
 
-const DIFFICULTY_LABELS = { normal: 'Normaal', hard: 'Moeilijk', nightmare: 'Nachtmerrie' };
-const DIFFICULTY_COLORS = { normal: 'text-emerald', hard: 'text-amber-400', nightmare: 'text-blood' };
+const DIFFICULTY_LABELS: Record<CampaignDifficulty, string> = { normal: 'Normaal', hard: 'Moeilijk', nightmare: 'Nachtmerrie' };
+const DIFFICULTY_COLORS: Record<CampaignDifficulty, string> = { normal: 'text-emerald', hard: 'text-amber-400', nightmare: 'text-blood' };
+const DIFFICULTIES: CampaignDifficulty[] = ['normal', 'hard', 'nightmare'];
 
 function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress: CampaignChapterProgress }) {
   const { state, dispatch } = useGame();
@@ -22,6 +23,14 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
   const totalMissions = chapter.missions.length;
   const allMissionsDone = completedMissions === totalMissions;
   const bossDefeated = progress.boss.killCount > 0;
+
+  // Count total stars
+  const totalStars = progress.missions.reduce((sum, m) => {
+    if (!m.bestRating) return sum;
+    return sum + m.bestRating.length; // '⭐' = 1, '⭐⭐' = 2, '⭐⭐⭐' = 3
+  }, 0);
+  const maxStars = totalMissions * 3;
+  const perfectChapter = totalStars >= maxStars;
 
   if (!progress.unlocked) {
     return (
@@ -53,6 +62,11 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
           <div className="flex items-center gap-2 mt-1">
             <Progress value={(completedMissions / totalMissions) * 100} className="h-1.5 flex-1" />
             <span className="text-[10px] text-muted-foreground">{completedMissions}/{totalMissions}</span>
+            {completedMissions > 0 && (
+              <span className="text-[10px] text-gold">
+                {'⭐'.repeat(Math.min(3, Math.floor(totalStars / totalMissions)))}
+              </span>
+            )}
             {bossDefeated && <Swords className="w-3 h-3 text-blood" />}
           </div>
         </div>
@@ -70,6 +84,28 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
           >
             <div className="px-4 pb-4 space-y-2">
               <p className="text-xs text-muted-foreground italic mb-3">{chapter.description}</p>
+
+              {/* Difficulty selector for completed chapters */}
+              {progress.completed && (
+                <div className="flex items-center gap-2 p-2 rounded bg-muted/20 border border-border/40 mb-2">
+                  <span className="text-[10px] text-muted-foreground">Moeilijkheid:</span>
+                  <div className="flex gap-1 flex-1">
+                    {DIFFICULTIES.map(d => (
+                      <button
+                        key={d}
+                        onClick={() => dispatch({ type: 'SET_CHAPTER_DIFFICULTY', chapterId: chapter.id, difficulty: d })}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-all ${
+                          progress.difficulty === d
+                            ? `${DIFFICULTY_COLORS[d]} border-current bg-current/10 font-bold`
+                            : 'text-muted-foreground border-border/40 hover:border-muted-foreground/40'
+                        }`}
+                      >
+                        {DIFFICULTY_LABELS[d]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Missions */}
               {chapter.missions.map((mission, i) => {
@@ -89,7 +125,7 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
                         <span>💰€{mission.rewards.money[0].toLocaleString()}-{mission.rewards.money[1].toLocaleString()}</span>
                       </div>
                     </div>
-                    {!mProgress.completed && canStart && (
+                    {canStart && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -97,15 +133,30 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
                         disabled={state.energy < mission.energyCost}
                         onClick={() => dispatch({ type: 'START_CAMPAIGN_MISSION', chapterId: chapter.id, missionId: mission.id })}
                       >
-                        <Zap className="w-3 h-3 mr-1" /> Start
+                        <Zap className="w-3 h-3 mr-1" /> {mProgress.completed ? 'Herspeel' : 'Start'}
                       </Button>
                     )}
                     {mProgress.completed && mProgress.bestRating && (
-                      <span className="text-xs font-bold text-gold">{mProgress.bestRating}</span>
+                      <div className="flex gap-0">
+                        {[1, 2, 3].map(s => (
+                          <Star key={s} className={`w-3 h-3 ${s <= (mProgress.bestRating?.length || 0) ? 'text-gold fill-gold' : 'text-muted-foreground/20'}`} />
+                        ))}
+                      </div>
                     )}
                   </div>
                 );
               })}
+
+              {/* Perfect chapter bonus */}
+              {perfectChapter && (
+                <div className="p-2 rounded bg-gold/10 border border-gold/30 flex items-center gap-2">
+                  <span className="text-lg">🌟</span>
+                  <div>
+                    <p className="text-xs font-bold text-gold">Perfect Chapter!</p>
+                    <p className="text-[10px] text-muted-foreground">Alle missies met 3 sterren voltooid</p>
+                  </div>
+                </div>
+              )}
 
               {/* Boss */}
               <div className={`mt-3 p-3 rounded-lg border-2 ${allMissionsDone ? 'border-blood/40 bg-blood/5' : 'border-border/30 opacity-40'}`}>
