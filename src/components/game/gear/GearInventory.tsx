@@ -15,6 +15,27 @@ type SortKey = 'defense' | 'rarity' | 'level' | 'name' | 'brains';
 
 const RARITY_ORDER: Record<GearRarity, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
 
+const ACCENT_STYLES = {
+  armor: {
+    iconBg: 'bg-ice/15 border-ice/40',
+    iconText: 'text-ice',
+    title: 'text-ice',
+    dot: 'bg-ice',
+    label: 'text-ice/80',
+    hoverText: 'hover:text-ice',
+    hoverBg: 'hover:bg-ice/10',
+  },
+  gadget: {
+    iconBg: 'bg-game-purple/15 border-game-purple/40',
+    iconText: 'text-game-purple',
+    title: 'text-game-purple',
+    dot: 'bg-game-purple',
+    label: 'text-game-purple/80',
+    hoverText: 'hover:text-game-purple',
+    hoverBg: 'hover:bg-game-purple/10',
+  },
+} as const;
+
 interface GearInventoryProps {
   gearType: GearType;
 }
@@ -34,7 +55,7 @@ export function GearInventory({ gearType }: GearInventoryProps) {
   const frames = isArmor ? ARMOR_FRAMES : GADGET_FRAMES;
   const title = isArmor ? 'Pantser Arsenaal' : 'Gadget Arsenaal';
   const HeaderIcon = isArmor ? Shield : Smartphone;
-  const accentColor = isArmor ? 'ice' : 'game-purple';
+  const accent = ACCENT_STYLES[gearType];
 
   const sortedGears = useMemo(() => {
     let filtered = filterFrame === 'all' ? [...gears] : gears.filter(g => g.frame === filterFrame);
@@ -98,8 +119,8 @@ export function GearInventory({ gearType }: GearInventoryProps) {
           onUpgrade={() => {
             dispatch({ type: 'UPGRADE_GEAR', gearId: selectedGear.id, gearType });
             showToast(`${selectedGear.name} geüpgraded!`);
-            const updated = gears.find(g => g.id === selectedGear.id);
-            if (updated) setSelectedGear(updated);
+            // Don't re-read stale state; close detail view so list re-renders with fresh data
+            setSelectedGear(null);
           }}
           onBack={() => setSelectedGear(null)}
         />
@@ -111,11 +132,11 @@ export function GearInventory({ gearType }: GearInventoryProps) {
     <ViewWrapper bg={arsenalBg}>
       {/* Cinematic header */}
       <div className="flex items-center gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-full bg-${accentColor}/15 border border-${accentColor}/40 flex items-center justify-center`}>
-          <HeaderIcon size={18} className={`text-${accentColor}`} />
+        <div className={`w-10 h-10 rounded-full ${accent.iconBg} flex items-center justify-center`}>
+          <HeaderIcon size={18} className={accent.iconText} />
         </div>
         <div className="flex-1">
-          <h2 className={`font-display text-lg text-${accentColor} uppercase tracking-widest font-bold`}>{title}</h2>
+          <h2 className={`font-display text-lg ${accent.title} uppercase tracking-widest font-bold`}>{title}</h2>
           <p className="text-[0.55rem] text-muted-foreground">{gears.length}/{MAX_GEAR_INVENTORY} items • Sorteer op {sortBy}</p>
         </div>
       </div>
@@ -124,8 +145,8 @@ export function GearInventory({ gearType }: GearInventoryProps) {
       {equippedGear && (
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full bg-${accentColor}`} />
-            <span className={`text-[0.5rem] uppercase tracking-wider text-${accentColor}/80 font-bold`}>Uitgerust</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+            <span className={`text-[0.5rem] uppercase tracking-wider ${accent.label} font-bold`}>Uitgerust</span>
           </div>
           <GearCard gear={equippedGear} onToggleLock={() => dispatch({ type: 'TOGGLE_GEAR_LOCK', gearId: equippedGear.id, gearType })} />
         </div>
@@ -139,7 +160,7 @@ export function GearInventory({ gearType }: GearInventoryProps) {
               const keys: SortKey[] = ['rarity', 'defense', 'brains', 'level', 'name'];
               setSortBy(keys[(keys.indexOf(sortBy) + 1) % keys.length]);
             }}
-            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-${accentColor} hover:bg-${accentColor}/10 transition-colors`}
+            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground ${accent.hoverText} ${accent.hoverBg} transition-colors`}
           >
             <ArrowDownUp size={8} /> {sortBy}
           </button>
@@ -148,7 +169,7 @@ export function GearInventory({ gearType }: GearInventoryProps) {
               const allFrames: (GearFrameId | 'all')[] = ['all', ...frames.map(f => f.id)];
               setFilterFrame(allFrames[(allFrames.indexOf(filterFrame) + 1) % allFrames.length]);
             }}
-            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-${accentColor} hover:bg-${accentColor}/10 transition-colors`}
+            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground ${accent.hoverText} ${accent.hoverBg} transition-colors`}
           >
             <Filter size={8} /> {filterFrame === 'all' ? 'Alle' : filterFrame}
           </button>

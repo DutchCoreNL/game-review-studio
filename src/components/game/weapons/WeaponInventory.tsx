@@ -98,9 +98,9 @@ export function WeaponInventory() {
               return;
             }
             dispatch({ type: 'UPGRADE_WEAPON', weaponId: selectedWeapon.id });
-            showToast(`${selectedWeapon.name} geüpgraded naar level ${selectedWeapon.level + 1}!`);
-            const updated = (state.weaponInventory || []).find(w => w.id === selectedWeapon.id);
-            if (updated) setSelectedWeapon(updated);
+            showToast(`${selectedWeapon.name} geüpgraded!`);
+            // Close detail view so list re-renders with fresh upgraded data
+            setSelectedWeapon(null);
           }}
           onBack={() => setSelectedWeapon(null)}
         />
