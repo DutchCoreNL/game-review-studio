@@ -310,6 +310,17 @@ export function pvpCombatTurn(
     playerDamage = Math.floor(playerDamage * (1 + s.attackerPvpDamageBonus));
   }
 
+  // Apply stance damage modifier
+  if (playerDamage > 0 && stanceMod.damageMod !== 1.0) {
+    playerDamage = Math.floor(playerDamage * stanceMod.damageMod);
+  }
+
+  // Stance crit bonus
+  if (playerDamage > 0 && stanceMod.critBonus > 0 && Math.random() < stanceMod.critBonus) {
+    playerDamage = Math.floor(playerDamage * 1.5);
+    s.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
+  }
+
   // Apply damage
   s.defenderHP = Math.max(0, s.defenderHP - playerDamage);
   s.damageDealt += playerDamage;
