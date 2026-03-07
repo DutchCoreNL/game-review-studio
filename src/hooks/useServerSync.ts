@@ -46,9 +46,9 @@ export function useServerSync(
     loading: false, syncing: false, lastSync: null, lastCloudSave: null, cloudSaveVersion: 0, error: null,
   });
   const initialSyncDone = useRef(false);
+  const cloudSaveLoadedRef = useRef(false);
   const cloudSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef<GameState | null>(null);
-
   // Keep a ref to the latest state for the auto-save timer
   const updateStateRef = useCallback((state: GameState) => {
     stateRef.current = state;
