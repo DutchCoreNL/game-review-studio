@@ -1,4 +1,20 @@
-import { CombatSkill, CombatBuff, PvPCombatState } from './types';
+import { CombatSkill, CombatBuff, PvPCombatState, CombatStance } from './types';
+
+// ========== STANCE DEFINITIONS ==========
+
+export const STANCE_MODIFIERS: Record<CombatStance, {
+  label: string;
+  icon: string;
+  desc: string;
+  damageMod: number;    // multiplier
+  defenseMod: number;   // multiplier (applied to enemy damage reduction)
+  critBonus: number;    // additive crit chance
+  healBonus: number;    // flat heal per turn (defensive only)
+}> = {
+  aggressive: { label: 'Agressief', icon: '🔥', desc: '+30% schade, +15% crit, -20% verdediging', damageMod: 1.3, defenseMod: 0.8, critBonus: 0.15, healBonus: 0 },
+  balanced:   { label: 'Gebalanceerd', icon: '⚖️', desc: 'Geen modifiers', damageMod: 1.0, defenseMod: 1.0, critBonus: 0, healBonus: 0 },
+  defensive:  { label: 'Defensief', icon: '🛡️', desc: '-25% schade, +50% verdediging, +5 HP/beurt', damageMod: 0.75, defenseMod: 1.5, critBonus: 0, healBonus: 5 },
+};
 
 // ========== COMBAT SKILL DEFINITIONS ==========
 
@@ -188,6 +204,7 @@ export function createPvPCombatState(
     damageTaken: 0,
     skillsUsed: 0,
     combosLanded: 0,
+    stance: 'balanced',
   };
 }
 
@@ -209,10 +226,17 @@ export function pvpCombatTurn(
   const hasDefenseBoost = hasActiveBuff(s.attackerBuffs, 'defense_boost');
   const hasDamageBoost = hasActiveBuff(s.attackerBuffs, 'damage_boost');
   const defenderStunned = hasActiveBuff(s.defenderBuffs, 'stun');
+  const stanceMod = STANCE_MODIFIERS[s.stance];
 
   let playerDamage = 0;
   let playerDefenseBonus = 0;
   let isAttackAction = false;
+
+  // Defensive stance heal-over-time
+  if (stanceMod.healBonus > 0) {
+    s.attackerHP = Math.min(s.attackerMaxHP, s.attackerHP + stanceMod.healBonus);
+    s.logs.push(`${stanceMod.icon} Defensieve houding: +${stanceMod.healBonus} HP`);
+  }
 
   switch (action) {
     case 'attack': {
@@ -286,6 +310,17 @@ export function pvpCombatTurn(
     playerDamage = Math.floor(playerDamage * (1 + s.attackerPvpDamageBonus));
   }
 
+  // Apply stance damage modifier
+  if (playerDamage > 0 && stanceMod.damageMod !== 1.0) {
+    playerDamage = Math.floor(playerDamage * stanceMod.damageMod);
+  }
+
+  // Stance crit bonus
+  if (playerDamage > 0 && stanceMod.critBonus > 0 && Math.random() < stanceMod.critBonus) {
+    playerDamage = Math.floor(playerDamage * 1.5);
+    s.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
+  }
+
   // Apply damage
   s.defenderHP = Math.max(0, s.defenderHP - playerDamage);
   s.damageDealt += playerDamage;
@@ -301,11 +336,26 @@ export function pvpCombatTurn(
   // Enemy turn (AI for snapshot/bot combat)
   if (!defenderStunned) {
     const enemyResult = enemyTurn(s);
-    s.attackerHP = enemyResult.newHP;
-    s.damageTaken += enemyResult.damage;
+    // Apply stance defense modifier to enemy damage
+    let actualDmg = enemyResult.damage;
+    if (stanceMod.defenseMod > 1.0 && actualDmg > 0) {
+      const reduction = Math.floor(actualDmg * (1 - 1 / stanceMod.defenseMod));
+      actualDmg = Math.max(1, actualDmg - reduction);
+    } else if (stanceMod.defenseMod < 1.0 && actualDmg > 0) {
+      const extra = Math.floor(actualDmg * (1 / stanceMod.defenseMod - 1));
+      actualDmg += extra;
+    }
+    const stanceReduction = enemyResult.damage - actualDmg;
+    s.attackerHP = Math.max(0, s.attackerHP - actualDmg);
+    s.damageTaken += actualDmg;
     s.logs.push(...enemyResult.logs);
-    if (playerDefenseBonus > 0 && enemyResult.damage > 0) {
-      const reduced = Math.floor(enemyResult.damage * playerDefenseBonus);
+    if (stanceReduction > 0) {
+      s.logs.push(`${stanceMod.icon} Stance verdediging: -${stanceReduction} schade`);
+    } else if (stanceReduction < 0) {
+      s.logs.push(`${stanceMod.icon} Agressieve houding: +${-stanceReduction} extra schade ontvangen`);
+    }
+    if (playerDefenseBonus > 0 && actualDmg > 0) {
+      const reduced = Math.floor(actualDmg * playerDefenseBonus);
       s.attackerHP = Math.min(s.attackerMaxHP, s.attackerHP + reduced);
       s.logs.push(`🛡️ Verdediging blokkeert ${reduced} schade.`);
     }

@@ -583,6 +583,7 @@ export function startNemesisCombat(state: GameState): import('./types').CombatSt
     skillCooldowns: {},
     comboCounter: 0,
     lastAction: null,
+    stance: 'balanced',
   };
 }
 

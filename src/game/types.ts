@@ -570,6 +570,8 @@ export interface ActiveContract {
   xp: number;
 }
 
+export type CombatStance = 'aggressive' | 'balanced' | 'defensive';
+
 export interface CombatState {
   idx: number;
   targetName: string;
@@ -593,6 +595,7 @@ export interface CombatState {
   skillCooldowns: Record<string, number>;
   comboCounter: number;
   lastAction: string | null;
+  stance: CombatStance;
 }
 
 // ========== COMBAT SKILL TYPES ==========
@@ -664,6 +667,7 @@ export interface PvPCombatState {
   skillsUsed: number;
   combosLanded: number;
   attackerPvpDamageBonus?: number;
+  stance: CombatStance;
 }
 
 export interface PvPPlayerInfo {

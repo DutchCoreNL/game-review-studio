@@ -117,6 +117,7 @@ type GameAction =
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'START_NEMESIS_COMBAT' }
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' | 'skill' | 'combo_finisher'; skillId?: string }
+  | { type: 'SET_COMBAT_STANCE'; stance: import('../game/types').CombatStance }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
@@ -273,6 +274,7 @@ type GameAction =
   // PvP Turn-Based Combat
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
   | { type: 'PVP_COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'skill' | 'combo_finisher'; skillId?: string }
+  | { type: 'SET_PVP_STANCE'; stance: import('../game/types').CombatStance }
   | { type: 'END_PVP_COMBAT' }
   // Property actions
   | { type: 'BUY_PROPERTY'; propertyId: string }
@@ -1135,6 +1137,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'COMBAT_ACTION': {
       if (!s.activeCombat) return s;
       handleCombatAction(s, action.action, action.skillId);
+      return s;
+    }
+
+    case 'SET_COMBAT_STANCE': {
+      if (s.activeCombat && !s.activeCombat.finished) {
+        s.activeCombat.stance = action.stance;
+      }
       return s;
     }
 
@@ -3259,6 +3268,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (newCombat.finished && newCombat.won) s.screenEffect = 'gold-flash';
       else if (newCombat.finished && !newCombat.won) s.screenEffect = 'blood-flash';
       else if (action.action === 'heavy') s.screenEffect = 'shake';
+      return s;
+    }
+
+    case 'SET_PVP_STANCE': {
+      if (s.activePvPCombat && !s.activePvPCombat.finished) {
+        s.activePvPCombat.stance = action.stance;
+      }
       return s;
     }
 
