@@ -5,10 +5,12 @@ import { CONTACT_IMAGES } from '@/assets/items';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, AlertTriangle, DollarSign, Users, Eye, Lock, Handshake, X } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useState } from 'react';
+import corruptionBg from '@/assets/corruption-bg.jpg';
 
 export function CorruptionView() {
   const { state, dispatch, showToast } = useGame();
@@ -48,10 +50,19 @@ export function CorruptionView() {
   };
 
   return (
-    <div>
+    <ViewWrapper bg={corruptionBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-police/15 border border-police/40 flex items-center justify-center">
+          <Handshake size={18} className="text-police" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-police uppercase tracking-widest font-bold">Connecties</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Corrupte contacten & bescherming</p>
+        </div>
+      </div>
+
       {/* Network Overview */}
-      <SectionHeader title="Corruptie Netwerk" icon={<Handshake size={12} />} />
-      
       {activeContacts.length > 0 && (
         <motion.div 
           className="game-card border-l-[3px] border-l-police mb-3"
@@ -119,7 +130,6 @@ export function CorruptionView() {
 
                     <p className="text-[0.5rem] text-muted-foreground mb-2">{def.desc}</p>
 
-                    {/* Loyalty bar */}
                     <div className="mb-2">
                       <div className="flex justify-between items-center mb-0.5">
                         <span className="text-[0.45rem] text-muted-foreground uppercase">Loyaliteit</span>
@@ -132,7 +142,6 @@ export function CorruptionView() {
                       />
                     </div>
 
-                    {/* Effects tags */}
                     <div className="flex flex-wrap gap-1 mb-2">
                       {def.effects.heatReduction && (
                         <EffectTag label={`-${def.effects.heatReduction} Heat/dag`} color="emerald" />
@@ -154,7 +163,6 @@ export function CorruptionView() {
                       )}
                     </div>
 
-                    {/* Payment info */}
                     <div className="flex justify-between items-center text-[0.5rem]">
                       <span className={paymentDue ? 'text-blood font-bold' : 'text-muted-foreground'}>
                         {paymentDue ? '⚠️ Betaling bijna verschuldigd!' : `Betaald ${daysSincePaid}d geleden`}
@@ -216,7 +224,6 @@ export function CorruptionView() {
                 </div>
               </div>
 
-              {/* Requirements */}
               {isLocked && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {!hasRep && (
@@ -232,7 +239,6 @@ export function CorruptionView() {
                 </div>
               )}
 
-              {/* Effects preview */}
               {!isLocked && !isRecruited && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {def.effects.heatReduction && <EffectTag label={`-${def.effects.heatReduction} Heat`} color="emerald" />}
@@ -244,7 +250,6 @@ export function CorruptionView() {
                 </div>
               )}
 
-              {/* Betrayal risk */}
               {!isLocked && !isRecruited && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-[0.45rem] text-muted-foreground flex items-center gap-1">
@@ -257,7 +262,6 @@ export function CorruptionView() {
                 </div>
               )}
 
-              {/* Action button */}
               {!isRecruited && !wasCompromised && (
                 <GameButton
                   variant={isLocked ? 'muted' : 'gold'}
@@ -314,7 +318,6 @@ export function CorruptionView() {
         </>
       )}
 
-      {/* Fire confirmation */}
       <ConfirmDialog
         open={!!confirmFire}
         title="Contact Ontslaan"
@@ -325,7 +328,7 @@ export function CorruptionView() {
         onConfirm={() => confirmFire && handleFire(confirmFire)}
         onCancel={() => setConfirmFire(null)}
       />
-    </div>
+    </ViewWrapper>
   );
 }
 

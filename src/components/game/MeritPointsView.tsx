@@ -1,8 +1,12 @@
 import { useGame } from '@/contexts/GameContext';
 import { MERIT_NODES, MERIT_CATEGORIES, canUnlockMeritNode, getMeritNodeLevel, MeritCategoryId, MeritNodeDef } from '@/game/meritSystem';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
+import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Lock, ChevronRight, Star, Sparkles } from 'lucide-react';
+import profileBg from '@/assets/profile-bg.jpg';
 
 export function MeritPointsView() {
   const { state, dispatch } = useGame();
@@ -21,29 +25,26 @@ export function MeritPointsView() {
   const categoryNodes = MERIT_NODES.filter(n => n.category === selectedCategory);
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-yellow-400" />
-            Merit Punten
-          </h2>
-          <p className="text-xs text-muted-foreground">Investeer in permanente passieve bonussen</p>
-        </div>
+    <ViewWrapper bg={profileBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
-            <span className="text-yellow-400 font-bold text-sm">⭐ {meritPoints}</span>
-            <span className="text-yellow-400/60 text-xs ml-1">beschikbaar</span>
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Sparkles size={18} className="text-gold" />
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
-            <span className="text-muted-foreground text-xs">{totalInvested} geïnvesteerd</span>
+          <div>
+            <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Verdiensten</h2>
+            <p className="text-[0.55rem] text-muted-foreground">Permanente passieve bonussen</p>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <GameBadge variant="gold" size="xs">⭐ {meritPoints}</GameBadge>
+          <span className="text-[0.45rem] text-muted-foreground">{totalInvested} geïnvesteerd</span>
         </div>
       </div>
 
       {/* Category tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3">
         {MERIT_CATEGORIES.map(cat => {
           const catNodes = MERIT_NODES.filter(n => n.category === cat.id);
           const investedInCat = catNodes.reduce((sum, n) => sum + getMeritNodeLevel(state, n.id), 0);
@@ -54,21 +55,21 @@ export function MeritPointsView() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? 'bg-primary/20 border border-primary/40 text-primary'
+                  ? 'bg-gold/20 border border-gold/40 text-gold'
                   : 'bg-muted/30 border border-border/50 text-muted-foreground hover:bg-muted/50'
               }`}
             >
               <span>{cat.icon}</span>
               <span>{cat.name}</span>
               {investedInCat > 0 && (
-                <span className="text-[10px] text-yellow-400 ml-0.5">{investedInCat}/{maxInCat}</span>
+                <span className="text-[10px] text-gold ml-0.5">{investedInCat}/{maxInCat}</span>
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Nodes grid */}
+      {/* Nodes */}
       <div className="space-y-2">
         <AnimatePresence mode="popLayout">
           {categoryNodes.map((node, i) => (
@@ -87,7 +88,7 @@ export function MeritPointsView() {
 
       {/* Active bonuses summary */}
       <ActiveBonusesSummary meritNodes={meritNodes} />
-    </div>
+    </ViewWrapper>
   );
 }
 
@@ -109,17 +110,17 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      className={`relative p-3 rounded-lg border transition-all ${
+      className={`relative game-card border-l-[3px] transition-all ${
         isMaxed
-          ? 'bg-yellow-500/10 border-yellow-500/30'
+          ? 'border-l-gold bg-gold/5'
           : isLocked
-          ? 'bg-muted/20 border-border/30 opacity-60'
-          : 'bg-card/50 border-border/50 hover:border-primary/30'
-      } ${flashing ? 'ring-2 ring-yellow-400/50' : ''}`}
+          ? 'border-l-border opacity-60'
+          : 'border-l-border'
+      } ${flashing ? 'ring-2 ring-gold/50' : ''}`}
     >
       {flashing && (
         <motion.div
-          className="absolute inset-0 rounded-lg bg-yellow-400/20"
+          className="absolute inset-0 rounded-lg bg-gold/20"
           initial={{ opacity: 1 }}
           animate={{ opacity: 0 }}
           transition={{ duration: 0.8 }}
@@ -127,22 +128,19 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
       )}
 
       <div className="flex items-start gap-3">
-        {/* Icon */}
         <div className={`text-2xl flex-shrink-0 ${isLocked ? 'grayscale opacity-50' : ''}`}>
           {isLocked ? <Lock className="w-6 h-6 text-muted-foreground" /> : node.icon}
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm text-foreground">{node.name}</span>
-            {/* Level pips */}
             <div className="flex gap-0.5">
               {Array.from({ length: node.maxLevel }).map((_, i) => (
                 <div
                   key={i}
                   className={`w-2 h-2 rounded-full ${
-                    i < currentLevel ? 'bg-yellow-400' : 'bg-muted-foreground/20'
+                    i < currentLevel ? 'bg-gold' : 'bg-muted-foreground/20'
                   }`}
                 />
               ))}
@@ -150,11 +148,10 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{node.desc}</p>
 
-          {/* Current bonus */}
           {currentLevel > 0 && (
             <div className="mt-1 flex items-center gap-1.5">
-              <Star className="w-3 h-3 text-yellow-400" />
-              <span className="text-xs text-yellow-400">
+              <Star className="w-3 h-3 text-gold" />
+              <span className="text-xs text-gold">
                 {node.bonusPerLevel.label.replace(/\+?\d+/, `+${totalBonus}`).replace(/-?\d+/, `-${totalBonus}`)}
               </span>
               {!isMaxed && (
@@ -168,26 +165,24 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
             </div>
           )}
 
-          {/* Requirements */}
           {!canUnlock.canUnlock && !isMaxed && canUnlock.reason && (
-            <p className="text-[10px] text-red-400/70 mt-1">{canUnlock.reason}</p>
+            <p className="text-[10px] text-blood/70 mt-1">{canUnlock.reason}</p>
           )}
           {node.minPlayerLevel && currentLevel === 0 && (
             <p className="text-[10px] text-muted-foreground/50 mt-0.5">Vereist level {node.minPlayerLevel}</p>
           )}
         </div>
 
-        {/* Upgrade button */}
         <div className="flex-shrink-0">
           {isMaxed ? (
-            <div className="px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 text-[10px] font-bold">MAX</div>
+            <GameBadge variant="gold" size="xs">MAX</GameBadge>
           ) : (
             <button
               onClick={onUpgrade}
               disabled={!canUnlock.canUnlock}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 canUnlock.canUnlock
-                  ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30 hover:border-yellow-500/50'
+                  ? 'bg-gold/20 hover:bg-gold/30 text-gold border border-gold/30 hover:border-gold/50'
                   : 'bg-muted/30 text-muted-foreground/50 border border-border/30 cursor-not-allowed'
               }`}
             >
@@ -213,13 +208,13 @@ function ActiveBonusesSummary({ meritNodes }: { meritNodes: Record<string, numbe
   if (activeBonuses.length === 0) return null;
 
   return (
-    <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-      <h3 className="text-xs font-bold text-muted-foreground mb-2">ACTIEVE BONUSSEN</h3>
+    <div className="game-card mt-4">
+      <SectionHeader title="Actieve Bonussen" icon={<Star size={12} />} />
       <div className="grid grid-cols-2 gap-1.5">
         {activeBonuses.map(b => (
           <div key={b.name} className="flex items-center gap-1.5 text-xs">
             <span>{b.icon}</span>
-            <span className="text-yellow-400 font-medium">
+            <span className="text-gold font-medium">
               {b.label.replace(/\+?\d+/, `+${b.total}`).replace(/-?\d+/, `-${b.total}`)}
             </span>
           </div>

@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
+import { GameButton } from './ui/GameButton';
+import { GameBadge } from './ui/GameBadge';
+import { StatBar } from './ui/StatBar';
 import { motion } from 'framer-motion';
 import { Briefcase, Clock, TrendingUp, Star, DollarSign } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
+import operationsBg from '@/assets/operations-bg.jpg';
 
 interface JobDef {
   id: string;
@@ -39,50 +44,31 @@ export function JobsView() {
     canWork: boolean;
   } | null>(null);
 
-  useEffect(() => {
-    loadJobState();
-  }, []);
+  useEffect(() => { loadJobState(); }, []);
 
   const loadJobState = async () => {
     const res = await gameApi.getJobs();
-    if (res.success && res.data) {
-      setJobState(res.data as any);
-    }
+    if (res.success && res.data) setJobState(res.data as any);
   };
 
   const handleApply = async (jobId: string) => {
     setLoading(true);
     const res = await gameApi.applyJob(jobId);
-    if (res.success) {
-      toast.success(res.message);
-      loadJobState();
-    } else {
-      toast.error(res.message);
-    }
+    if (res.success) { toast.success(res.message); loadJobState(); } else { toast.error(res.message); }
     setLoading(false);
   };
 
   const handleWork = async () => {
     setLoading(true);
     const res = await gameApi.workJob();
-    if (res.success) {
-      toast.success(res.message);
-      loadJobState();
-    } else {
-      toast.error(res.message);
-    }
+    if (res.success) { toast.success(res.message); loadJobState(); } else { toast.error(res.message); }
     setLoading(false);
   };
 
   const handleQuit = async () => {
     setLoading(true);
     const res = await gameApi.quitJob();
-    if (res.success) {
-      toast.success(res.message);
-      setJobState(prev => prev ? { ...prev, currentJob: null, daysWorked: 0, promotion: 0 } : null);
-    } else {
-      toast.error(res.message);
-    }
+    if (res.success) { toast.success(res.message); setJobState(prev => prev ? { ...prev, currentJob: null, daysWorked: 0, promotion: 0 } : null); } else { toast.error(res.message); }
     setLoading(false);
   };
 
@@ -91,13 +77,15 @@ export function JobsView() {
   const salary = currentJobDef ? Math.floor(currentJobDef.salary * (1 + promotionLevel * 0.2)) : 0;
 
   return (
-    <div className="space-y-4 pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Briefcase className="text-gold" size={24} />
+    <ViewWrapper bg={operationsBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Briefcase size={18} className="text-gold" />
+        </div>
         <div>
-          <h2 className="font-display text-lg text-foreground uppercase tracking-widest">Banen</h2>
-          <p className="text-xs text-muted-foreground">Kies een legitieme baan voor dagelijks inkomen en perks</p>
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Werkgelegenheid</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Kies een baan voor dagelijks inkomen en perks</p>
         </div>
       </div>
 
@@ -106,7 +94,7 @@ export function JobsView() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-gold/5 border border-gold/20 rounded-lg p-4"
+          className="game-card border-l-[3px] border-l-gold mb-3"
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -124,68 +112,70 @@ export function JobsView() {
             </div>
           </div>
 
-          {/* Promotion progress */}
           <div className="mb-3">
             <div className="flex justify-between text-[0.5rem] text-muted-foreground mb-1">
               <span>Promotie voortgang</span>
               <span>{(jobState?.daysWorked || 0) % 10}/10 dagen</span>
             </div>
-            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-gold"
-                animate={{ width: `${((jobState?.daysWorked || 0) % 10) * 10}%` }}
-              />
-            </div>
+            <StatBar value={(jobState?.daysWorked || 0) % 10} max={10} color="gold" height="sm" />
           </div>
 
           <div className="flex gap-2">
-            <Button
+            <GameButton
               size="sm"
-              className="flex-1 text-xs"
+              variant="gold"
+              fullWidth
               disabled={loading || !jobState?.canWork}
               onClick={handleWork}
             >
-              <Clock size={14} className="mr-1" />
+              <Clock size={14} />
               {jobState?.canWork ? 'Werken' : 'Al gewerkt vandaag'}
-            </Button>
-            <Button
+            </GameButton>
+            <GameButton
               size="sm"
-              variant="outline"
-              className="text-xs"
+              variant="blood"
               disabled={loading}
               onClick={handleQuit}
             >
               Ontslag
-            </Button>
+            </GameButton>
           </div>
         </motion.div>
       )}
 
       {/* Job listings */}
+      <SectionHeader title="Beschikbare Banen" icon={<Briefcase size={12} />} />
       <div className="space-y-2">
-        {JOBS.map(job => {
+        {JOBS.map((job, i) => {
           const isCurrentJob = jobState?.currentJob === job.id;
           const hasLevel = state.player.level >= job.reqLevel;
           const hasStat = !job.reqStat || (state.player.stats[job.reqStat.stat as 'muscle' | 'brains' | 'charm'] || 0) >= job.reqStat.value;
           const canApply = hasLevel && hasStat && !isCurrentJob && !jobState?.currentJob;
+          const locked = !hasLevel || !hasStat;
           
           return (
-            <div
+            <motion.div
               key={job.id}
-              className={`p-3 rounded-lg border transition-all ${
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className={`game-card ${
                 isCurrentJob 
-                  ? 'bg-gold/10 border-gold/30'
-                  : !hasLevel || !hasStat 
-                    ? 'bg-muted/5 border-border/30 opacity-60'
-                    : 'bg-card border-border hover:border-muted-foreground/30'
+                  ? 'border-l-[3px] border-l-gold'
+                  : locked 
+                    ? 'opacity-50'
+                    : ''
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="text-lg">{job.icon}</span>
                   <div>
-                    <div className="text-xs font-bold text-foreground">{job.name}</div>
-                    <div className="text-[0.55rem] text-muted-foreground">{job.desc}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground">{job.name}</span>
+                      {isCurrentJob && <GameBadge variant="gold" size="xs">ACTIEF</GameBadge>}
+                    </div>
+                    <p className="text-[0.55rem] text-muted-foreground">{job.desc}</p>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
@@ -199,32 +189,26 @@ export function JobsView() {
 
               <div className="flex items-center justify-between mt-2">
                 <div className="flex gap-2 text-[0.5rem] text-muted-foreground">
-                  <span>Lvl {job.reqLevel}</span>
+                  <span className={hasLevel ? '' : 'text-blood'}>Lvl {job.reqLevel}</span>
                   {job.reqStat && (
-                    <span>{job.reqStat.stat} ≥ {job.reqStat.value}</span>
+                    <span className={hasStat ? '' : 'text-blood'}>{job.reqStat.stat} ≥ {job.reqStat.value}</span>
                   )}
                 </div>
                 {!isCurrentJob && (
-                  <Button
+                  <GameButton
                     size="sm"
-                    variant="outline"
-                    className="h-6 text-[0.55rem] px-2"
+                    variant={canApply ? 'gold' : 'muted'}
                     disabled={!canApply || loading}
                     onClick={() => handleApply(job.id)}
                   >
-                    {!hasLevel ? 'Te laag level' : !hasStat ? 'Stats te laag' : jobState?.currentJob ? 'Neem eerst ontslag' : 'Solliciteren'}
-                  </Button>
-                )}
-                {isCurrentJob && (
-                  <span className="text-[0.55rem] text-gold font-bold flex items-center gap-1">
-                    <Star size={10} /> Huidige baan
-                  </span>
+                    {!hasLevel ? 'Te laag level' : !hasStat ? 'Stats te laag' : jobState?.currentJob ? 'Neem ontslag' : 'Solliciteren'}
+                  </GameButton>
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
-    </div>
+    </ViewWrapper>
   );
 }

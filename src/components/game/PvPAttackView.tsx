@@ -8,6 +8,7 @@ import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CooldownTimer } from './header/CooldownTimer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +17,7 @@ import { PlayerDetailPopup } from './PlayerDetailPopup';
 import { Mail } from 'lucide-react';
 import { MessagesComposePopup } from './MessagesComposePopup';
 import { PvPCombatView } from './PvPCombatView';
+import pvpBg from '@/assets/pvp-bg.jpg';
 
 interface PlayerTarget extends PvPPlayerInfo {}
 
@@ -95,9 +97,7 @@ function PreCombatPreview({ player, target, onFight, onClose, canAttack }: {
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
         </div>
 
-        {/* Fighter cards side by side */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          {/* Player */}
           <div className="bg-emerald/5 border border-emerald/20 rounded p-2">
             <div className="text-center mb-1.5">
               <span className="text-[0.5rem] text-emerald font-bold uppercase tracking-wider">JIJ</span>
@@ -114,7 +114,6 @@ function PreCombatPreview({ player, target, onFight, onClose, canAttack }: {
               <p>📱 {getGearName(player.loadout.gadget)}</p>
             </div>
           </div>
-          {/* Target */}
           <div className="bg-blood/5 border border-blood/20 rounded p-2">
             <div className="text-center mb-1.5">
               <span className="text-[0.5rem] text-blood font-bold uppercase tracking-wider">VIJAND</span>
@@ -133,14 +132,12 @@ function PreCombatPreview({ player, target, onFight, onClose, canAttack }: {
           </div>
         </div>
 
-        {/* Stats comparison */}
         <div className="space-y-1 mb-3">
           <StatCompareBar label="Kracht" icon="💪" playerVal={pStats.muscle} enemyVal={tStats.muscle} color="gold" />
           <StatCompareBar label="Vernuft" icon="🧠" playerVal={pStats.brains} enemyVal={tStats.brains} color="gold" />
           <StatCompareBar label="Charisma" icon="😎" playerVal={pStats.charm} enemyVal={tStats.charm} color="gold" />
         </div>
 
-        {/* Combat power */}
         <div className="flex items-center justify-between bg-muted/30 rounded p-2 mb-3">
           <div className="text-center">
             <span className="text-[0.45rem] text-muted-foreground uppercase">Jouw Power</span>
@@ -199,7 +196,6 @@ export function PvPAttackView() {
 
   useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
-  // If active PvP combat, show combat view
   if (state.activePvPCombat) {
     return <PvPCombatView />;
   }
@@ -212,13 +208,9 @@ export function PvPAttackView() {
       if (res.success && res.data) {
         setLastResult(res.data as AttackResult);
         showToast(res.message, !res.data.won);
-        // Re-fetch players list and sync state
         fetchPlayers();
         const stateRes = await gameApi.getState();
-        if (stateRes.success && stateRes.data) {
-          // Trigger a state merge (dispatch is not directly available here, but the
-          // serverSync hook in GameContext will handle this on next action)
-        }
+        if (stateRes.success && stateRes.data) {}
       } else {
         showToast(res.message, true);
       }
@@ -234,22 +226,34 @@ export function PvPAttackView() {
   const canAttack = !hasAttackCooldown && hasEnergy && hasNerve && !attacking;
 
   return (
-    <div>
-      <SectionHeader title="PvP Aanvallen" icon={<Swords size={12} />} />
-      <p className="text-[0.55rem] text-muted-foreground mb-3">
-        Val andere spelers in jouw district aan. Steel hun geld en hospitaliseer ze.
-      </p>
-
-      {/* Cooldown & resource display */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <CooldownTimer label="Aanval" until={state.attackCooldownUntil} icon={<Swords size={7} />} />
-        <div className="flex items-center gap-1 text-[0.5rem]">
-          <Zap size={8} className="text-gold" />
-          <span className={hasEnergy ? 'text-foreground' : 'text-blood'}>15 Energy</span>
+    <ViewWrapper bg={pvpBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-blood/15 border border-blood/40 flex items-center justify-center">
+          <Swords size={18} className="text-blood" />
         </div>
-        <div className="flex items-center gap-1 text-[0.5rem]">
-          <Brain size={8} className="text-blood" />
-          <span className={hasNerve ? 'text-foreground' : 'text-blood'}>10 Nerve</span>
+        <div>
+          <h2 className="font-display text-lg text-blood uppercase tracking-widest font-bold">Arena</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Val andere spelers in jouw district aan</p>
+        </div>
+      </div>
+
+      {/* Quick stats bar */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="game-card bg-blood/5 border border-blood/20 p-2 text-center">
+          <Swords size={12} className="text-blood mx-auto mb-0.5" />
+          <p className="text-[0.4rem] text-muted-foreground uppercase">Cooldown</p>
+          <CooldownTimer label="" until={state.attackCooldownUntil} icon={<Swords size={7} />} />
+        </div>
+        <div className="game-card bg-gold/5 border border-gold/20 p-2 text-center">
+          <Zap size={12} className="text-gold mx-auto mb-0.5" />
+          <p className="text-[0.4rem] text-muted-foreground uppercase">Energy</p>
+          <p className={`text-sm font-bold ${hasEnergy ? 'text-gold' : 'text-blood'}`}>{state.energy}/15</p>
+        </div>
+        <div className="game-card bg-blood/5 border border-blood/20 p-2 text-center">
+          <Brain size={12} className="text-blood mx-auto mb-0.5" />
+          <p className="text-[0.4rem] text-muted-foreground uppercase">Nerve</p>
+          <p className={`text-sm font-bold ${hasNerve ? 'text-foreground' : 'text-blood'}`}>{state.nerve}/10</p>
         </div>
       </div>
 
@@ -291,9 +295,7 @@ export function PvPAttackView() {
 
       {/* Player list header */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[0.5rem] text-muted-foreground font-bold uppercase tracking-wider">
-          Spelers in {state.loc ? state.loc.toUpperCase() : '???'}
-        </span>
+        <SectionHeader title={`Spelers in ${state.loc ? state.loc.toUpperCase() : '???'}`} icon={<User size={12} />} badge={`${players.length}`} badgeColor="blood" />
         <GameButton variant="muted" size="sm" onClick={fetchPlayers} disabled={loading}>
           <RefreshCw size={8} className={loading ? 'animate-spin' : ''} />
         </GameButton>
@@ -313,9 +315,7 @@ export function PvPAttackView() {
       ) : players.length === 0 ? (
         <div className="game-card text-center py-6">
           <Shield size={24} className="text-muted-foreground mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground italic">
-            Geen aanvalbare spelers in dit district.
-          </p>
+          <p className="text-xs text-muted-foreground italic">Geen aanvalbare spelers in dit district.</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -415,12 +415,10 @@ export function PvPAttackView() {
         onCancel={() => setConfirmTarget(null)}
       />
 
-      {/* Public Profile Popup */}
       {viewProfileId && (
         <PlayerDetailPopup userId={viewProfileId} onClose={() => setViewProfileId(null)} />
       )}
 
-      {/* Compose Message Popup */}
       {messageTarget && (
         <MessagesComposePopup
           targetUserId={messageTarget.userId}
@@ -428,6 +426,6 @@ export function PvPAttackView() {
           onClose={() => setMessageTarget(null)}
         />
       )}
-    </div>
+    </ViewWrapper>
   );
 }

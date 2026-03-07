@@ -244,7 +244,7 @@ export function ProfileView() {
 
       {profileTab === 'arcs' && <StoryArcsPanel />}
 
-      {profileTab === 'leaderboard' && <LeaderboardView />}
+      {profileTab === 'leaderboard' && <LeaderboardView embedded />}
 
       {profileTab === 'messages' && <MessagesView />}
 
