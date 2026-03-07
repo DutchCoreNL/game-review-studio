@@ -1,18 +1,30 @@
 import { useGame } from '@/contexts/GameContext';
 import { ViewWrapper } from '../ui/ViewWrapper';
-import { CAMPAIGN_CHAPTERS, canStartMission, canFightBoss } from '@/game/campaign';
+import { CAMPAIGN_CHAPTERS, canStartMission, canFightBoss, getDifficultySkullRating } from '@/game/campaign';
 import type { CampaignChapter, CampaignChapterProgress, CampaignDifficulty } from '@/game/campaign';
-import { Lock, Swords, CheckCircle2, Star, Trophy, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { BOSS_TROPHIES } from '@/game/campaignRewards';
+import { Lock, Swords, CheckCircle2, Star, Trophy, ChevronDown, ChevronRight, Zap, Skull, Target } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { BossFightView } from './BossFightView';
 import { CampaignMissionView } from './CampaignMissionView';
+import { TrophyVitrine } from './ChapterMap';
 
 const DIFFICULTY_LABELS: Record<CampaignDifficulty, string> = { normal: 'Normaal', hard: 'Moeilijk', nightmare: 'Nachtmerrie' };
 const DIFFICULTY_COLORS: Record<CampaignDifficulty, string> = { normal: 'text-emerald', hard: 'text-amber-400', nightmare: 'text-blood' };
 const DIFFICULTIES: CampaignDifficulty[] = ['normal', 'hard', 'nightmare'];
+
+function DifficultySkullsDisplay({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Skull key={i} className={`w-3 h-3 ${i <= rating ? 'text-blood' : 'text-muted-foreground/20'}`} />
+      ))}
+    </div>
+  );
+}
 
 function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress: CampaignChapterProgress }) {
   const { state, dispatch } = useGame();
@@ -24,10 +36,9 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
   const allMissionsDone = completedMissions === totalMissions;
   const bossDefeated = progress.boss.killCount > 0;
 
-  // Count total stars
   const totalStars = progress.missions.reduce((sum, m) => {
     if (!m.bestRating) return sum;
-    return sum + m.bestRating.length; // '⭐' = 1, '⭐⭐' = 2, '⭐⭐⭐' = 3
+    return sum + m.bestRating.length;
   }, 0);
   const maxStars = totalMissions * 3;
   const perfectChapter = totalStars >= maxStars;
@@ -85,7 +96,7 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
             <div className="px-4 pb-4 space-y-2">
               <p className="text-xs text-muted-foreground italic mb-3">{chapter.description}</p>
 
-              {/* Difficulty selector for completed chapters */}
+              {/* Difficulty selector */}
               {progress.completed && (
                 <div className="flex items-center gap-2 p-2 rounded bg-muted/20 border border-border/40 mb-2">
                   <span className="text-[10px] text-muted-foreground">Moeilijkheid:</span>
@@ -112,17 +123,24 @@ function ChapterCard({ chapter, progress }: { chapter: CampaignChapter; progress
                 const mProgress = progress.missions[i] || { completed: false, bestRating: null, completedAt: null, missionId: mission.id };
                 const canStart = canStartMission(campaignState, chapter.id, mission.id, state.player.level);
                 const isLocked = !canStart && !mProgress.completed;
+                const diffRating = getDifficultySkullRating(mission.minLevel, state.player.level);
 
                 return (
                   <div key={mission.id} className={`flex items-center gap-3 p-2 rounded border ${mProgress.completed ? 'border-emerald/30 bg-emerald/5' : isLocked ? 'border-border/30 opacity-40' : 'border-primary/20 bg-primary/5'}`}>
                     <span className="text-lg">{mProgress.completed ? '✅' : mission.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground">{mission.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-foreground">{mission.title}</p>
+                        {mission.difficultyRating && <DifficultySkullsDisplay rating={diffRating} />}
+                      </div>
                       <p className="text-[10px] text-muted-foreground">{mission.description}</p>
                       <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
                         <span>⚡{mission.energyCost}</span>
                         <span>Lvl {mission.minLevel}+</span>
                         <span>💰€{mission.rewards.money[0].toLocaleString()}-{mission.rewards.money[1].toLocaleString()}</span>
+                        {mission.bonusObjectives && mission.bonusObjectives.length > 0 && (
+                          <span className="text-gold"><Target className="w-3 h-3 inline" /> {mission.bonusObjectives.length}</span>
+                        )}
                       </div>
                     </div>
                     {canStart && (
@@ -209,18 +227,15 @@ export function CampaignView() {
   const { state } = useGame();
   const campaignState = state.campaign;
 
-  // If boss fight is active, show BossFightView
-  if (campaignState.activeBossFight) {
-    return <BossFightView />;
-  }
-
-  // If campaign mission is active, show CampaignMissionView
-  if (campaignState.activeCampaignMission) {
-    return <CampaignMissionView />;
-  }
+  if (campaignState.activeBossFight) return <BossFightView />;
+  if (campaignState.activeCampaignMission) return <CampaignMissionView />;
 
   const totalBossKills = campaignState.totalBossKills;
   const completedChapters = campaignState.chapters.filter(c => c.completed).length;
+
+  // Build boss name map for trophy vitrine
+  const bossNames: Record<string, { name: string; icon: string }> = {};
+  CAMPAIGN_CHAPTERS.forEach(ch => { bossNames[ch.boss.id] = { name: ch.boss.name, icon: ch.boss.icon }; });
 
   return (
     <ViewWrapper>
@@ -237,6 +252,11 @@ export function CampaignView() {
             {(campaignState.totalEncountersCompleted || 0) > 0 && <span>⚔️ {campaignState.totalEncountersCompleted} Encounters</span>}
           </div>
         </div>
+
+        {/* Trophy Vitrine */}
+        {campaignState.trophies && campaignState.trophies.length > 0 && (
+          <TrophyVitrine trophies={campaignState.trophies} bossNames={bossNames} />
+        )}
 
         {/* Chapters */}
         <div className="space-y-3">

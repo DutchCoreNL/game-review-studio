@@ -1,18 +1,19 @@
 import { useGame } from '@/contexts/GameContext';
-import { getMissionDef, type EncounterChoice, type EncounterType } from '@/game/campaign';
+import { getMissionDef, type EncounterChoice, type EncounterType, COMBAT_ITEMS } from '@/game/campaign';
 import { MISSION_BRIEFINGS, ENCOUNTER_TYPE_CONFIG } from '@/game/campaignNarratives';
 import { CHAPTER_DISTRICT_IMAGES } from '@/assets/items';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Trophy, X, Star, AlertTriangle } from 'lucide-react';
+import { Trophy, X, Star, Target } from 'lucide-react';
 import { WeaponCard } from '../weapons/WeaponCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
+import { EncounterCard } from './EncounterCard';
 
-const DEFAULT_CHOICE_INFO: Record<EncounterChoice, { label: string; desc: string; icon: string; color: string }> = {
-  stealth: { label: 'Stealth', desc: 'Laag risico, minder loot', icon: '👁️', color: 'bg-emerald/10 border-emerald text-emerald hover:bg-emerald/20' },
-  standard: { label: 'Standaard', desc: 'Gebalanceerd', icon: '⚔️', color: 'bg-primary/10 border-primary text-primary hover:bg-primary/20' },
-  aggressive: { label: 'Agressief', desc: 'Hoog risico, meer loot + heat', icon: '🔥', color: 'bg-blood/10 border-blood text-blood hover:bg-blood/20' },
+const DEFAULT_CHOICE_INFO: Record<EncounterChoice, { label: string; desc: string; icon: string }> = {
+  stealth: { label: 'Stealth', desc: 'Laag risico, minder loot', icon: '👁️' },
+  standard: { label: 'Standaard', desc: 'Gebalanceerd', icon: '⚔️' },
+  aggressive: { label: 'Agressief', desc: 'Hoog risico, meer loot + heat', icon: '🔥' },
 };
 
 function MoraleMeter({ morale }: { morale: number }) {
@@ -34,6 +35,7 @@ export function CampaignMissionView() {
   const [showBriefing, setShowBriefing] = useState(true);
   const [timerValue, setTimerValue] = useState(10);
   const [lastTimedEncounter, setLastTimedEncounter] = useState(-1);
+  const [choiceFeedback, setChoiceFeedback] = useState<EncounterChoice | null>(null);
 
   const mission = state.campaign.activeCampaignMission!;
   const mDef = getMissionDef(mission.missionId)!;
@@ -41,9 +43,7 @@ export function CampaignMissionView() {
   const chapterImage = CHAPTER_DISTRICT_IMAGES[mission.chapterId];
   const progress = (mission.currentEncounter / mission.totalEncounters) * 100;
   const encType = mission.currentEncounterType;
-  const encConfig = ENCOUNTER_TYPE_CONFIG[encType];
 
-  // Skip briefing if no data
   useEffect(() => {
     if (showBriefing && !briefing) setShowBriefing(false);
   }, [showBriefing, briefing]);
@@ -68,6 +68,8 @@ export function CampaignMissionView() {
   }, [encType, mission.currentEncounter, mission.finished, showBriefing, lastTimedEncounter, dispatch]);
 
   const handleChoice = useCallback((choice: EncounterChoice) => {
+    setChoiceFeedback(choice);
+    setTimeout(() => setChoiceFeedback(null), 600);
     dispatch({ type: 'ADVANCE_CAMPAIGN_MISSION', choice });
   }, [dispatch]);
 
@@ -100,6 +102,14 @@ export function CampaignMissionView() {
           <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded">
             <p className="text-xs text-primary font-semibold">🎯 Doel: {briefing.objective}</p>
           </div>
+          {mission.bonusObjectives.length > 0 && (
+            <div className="mt-1 p-2 bg-gold/5 border border-gold/20 rounded space-y-1">
+              <p className="text-[10px] font-bold text-gold flex items-center gap-1"><Target className="w-3 h-3" /> Bonus Doelen:</p>
+              {mission.bonusObjectives.map(obj => (
+                <p key={obj.id} className="text-[10px] text-muted-foreground">• {obj.description} → {obj.rewardLabel}</p>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2 text-[10px] text-muted-foreground mt-1">
             <span>⚡ {mDef.energyCost} energie</span>
             <span>🗡️ {mDef.encounters} encounters</span>
@@ -115,6 +125,22 @@ export function CampaignMissionView() {
 
   return (
     <div className="space-y-3 pb-4">
+      {/* Choice feedback flash */}
+      <AnimatePresence>
+        {choiceFeedback && (
+          <motion.div
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+            className={`fixed inset-0 z-[9990] pointer-events-none ${
+              choiceFeedback === 'stealth' ? 'bg-emerald/15' :
+              choiceFeedback === 'aggressive' ? 'bg-blood/20' : 'bg-primary/10'
+            }`}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center gap-2 p-2 bg-card/60 border border-border/40 rounded-lg">
         <span className="text-xl">{mDef.icon}</span>
@@ -125,28 +151,43 @@ export function CampaignMissionView() {
             <span className="text-[10px] text-muted-foreground">{mission.currentEncounter}/{mission.totalEncounters}</span>
           </div>
         </div>
+        {mission.isHiddenEncounter && (
+          <span className="text-[9px] text-purple-400 font-bold animate-pulse">🔮 VERBORGEN</span>
+        )}
       </div>
 
-      {/* Encounter type indicators */}
-      <div className="flex gap-1 justify-center">
+      {/* Encounter progress path */}
+      <div className="flex gap-0.5 justify-center items-center">
         {mission.encounterTypes.map((t, i) => {
           const info = ENCOUNTER_TYPE_CONFIG[t];
           const done = i < mission.currentEncounter;
           const current = i === mission.currentEncounter && !mission.finished;
           return (
-            <span
-              key={i}
-              className={`text-xs transition-all ${done ? 'opacity-30 scale-90' : current ? `${info.color} font-bold scale-110` : 'opacity-50'}`}
-              title={info.label}
-            >
-              {info.icon}
-            </span>
+            <div key={i} className="flex items-center">
+              <motion.div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] border transition-all ${
+                  done ? 'bg-emerald/20 border-emerald/40 opacity-60' :
+                  current ? `bg-card border-2 ${info.color.replace('text-', 'border-')} shadow-lg scale-110` :
+                  'bg-muted/10 border-border/30 opacity-40'
+                }`}
+                animate={current ? { scale: [1, 1.1, 1] } : {}}
+                transition={current ? { repeat: Infinity, duration: 2 } : {}}
+              >
+                {done ? '✓' : info.icon}
+              </motion.div>
+              {i < mission.encounterTypes.length - 1 && (
+                <div className={`w-2 h-0.5 ${done ? 'bg-emerald/40' : 'bg-border/20'}`} />
+              )}
+            </div>
           );
         })}
       </div>
 
-      {/* Morale */}
+      {/* Morale + carry-over info */}
       <MoraleMeter morale={mission.morale} />
+      {mission.carryOver.bonusLootMod > 1 && (
+        <p className="text-[9px] text-gold text-center font-bold">🔥 Loot bonus: +{Math.round((mission.carryOver.bonusLootMod - 1) * 100)}%</p>
+      )}
 
       {/* Log */}
       <div className="bg-muted/10 border border-border/40 rounded-lg p-3 space-y-1.5 max-h-28 overflow-y-auto game-scroll">
@@ -155,7 +196,7 @@ export function CampaignMissionView() {
             key={i}
             initial={i === mission.log.length - 1 ? { opacity: 0, x: -10 } : false}
             animate={{ opacity: 1, x: 0 }}
-            className={`text-xs ${entry.startsWith('🎲') ? 'text-gold font-semibold' : 'text-muted-foreground'}`}
+            className={`text-xs ${entry.startsWith('🎲') ? 'text-gold font-semibold' : entry.startsWith('🔮') ? 'text-purple-400 font-semibold' : entry.startsWith('🎯') ? 'text-gold' : 'text-muted-foreground'}`}
           >
             {entry}
           </motion.p>
@@ -165,69 +206,20 @@ export function CampaignMissionView() {
       {/* Actions / Result */}
       {!mission.finished ? (
         <AnimatePresence mode="wait">
-          <motion.div
+          <EncounterCard
             key={mission.currentEncounter}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-2"
-          >
-            <div className="p-3 rounded-lg border border-border/60 bg-card/50">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl">{encConfig.icon}</span>
-                <div className="flex-1">
-                  <p className={`text-sm font-bold ${encConfig.color}`}>
-                    {encConfig.label} — Encounter {mission.currentEncounter + 1}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{encConfig.description}</p>
-                </div>
-              </div>
-
-              {/* Timer for timed encounters */}
-              {encType === 'timed' && (
-                <div className="mb-2">
-                  <div className="flex justify-between text-[10px] mb-0.5">
-                    <span className="text-amber-400 font-bold animate-pulse">⏱️ TIJDSDRUK!</span>
-                    <span className={`font-bold ${timerValue <= 3 ? 'text-blood animate-pulse' : 'text-amber-400'}`}>{timerValue}s</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
-                    <motion.div
-                      className={`h-full ${timerValue <= 3 ? 'bg-blood' : 'bg-amber-400'}`}
-                      animate={{ width: `${(timerValue / 10) * 100}%` }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Ambush warning */}
-              {encType === 'ambush' && (
-                <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded bg-blood/10 border border-blood/30">
-                  <AlertTriangle className="w-3.5 h-3.5 text-blood" />
-                  <span className="text-[10px] text-blood font-bold">Stealth niet mogelijk bij hinderlaag!</span>
-                </div>
-              )}
-
-              {/* Choice buttons */}
-              <div className={`grid ${encType === 'ambush' ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
-                {(encType === 'ambush' ? ['standard', 'aggressive'] as EncounterChoice[] : ['stealth', 'standard', 'aggressive'] as EncounterChoice[]).map(choice => {
-                  const info = getChoiceInfo(encType, choice);
-                  return (
-                    <motion.button
-                      key={choice}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleChoice(choice)}
-                      className={`p-2 rounded border text-center transition-all ${info.color}`}
-                    >
-                      <div className="flex justify-center mb-0.5 text-sm">{info.icon}</div>
-                      <p className="text-xs font-bold">{info.label}</p>
-                      <p className="text-[9px] opacity-70">{info.desc}</p>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
+            type={encType}
+            encounterNum={mission.currentEncounter + 1}
+            totalEncounters={mission.totalEncounters}
+            timerValue={encType === 'timed' ? timerValue : undefined}
+            morale={mission.morale}
+            choices={(encType === 'ambush' ? ['standard', 'aggressive'] as EncounterChoice[] : ['stealth', 'standard', 'aggressive'] as EncounterChoice[]).map(choice => {
+              const info = getChoiceInfo(encType, choice);
+              return { choice, ...info };
+            })}
+            onChoice={handleChoice}
+            bonusObjective={mission.bonusObjectives[0]?.description}
+          />
         </AnimatePresence>
       ) : mission.success ? (
         <motion.div
@@ -260,6 +252,23 @@ export function CampaignMissionView() {
             )}
           </div>
 
+          {/* Bonus objectives */}
+          {mission.bonusObjectives.length > 0 && (
+            <div className="p-2 bg-gold/5 border border-gold/20 rounded space-y-1">
+              <p className="text-xs font-bold text-gold flex items-center gap-1"><Target className="w-3 h-3" /> Bonus Doelen</p>
+              {mission.bonusObjectives.map(obj => {
+                const completed = mission.bonusObjectivesCompleted.includes(obj.id);
+                return (
+                  <div key={obj.id} className={`flex items-center gap-2 text-[10px] ${completed ? 'text-gold' : 'text-muted-foreground/50'}`}>
+                    <span>{completed ? '✅' : '❌'}</span>
+                    <span>{obj.description}</span>
+                    {completed && <span className="ml-auto font-bold">{obj.rewardLabel}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Debriefing */}
           <div className="p-2 bg-muted/10 border border-border/40 rounded text-[10px] text-muted-foreground space-y-1">
             <p className="font-bold text-foreground text-xs">📊 Debriefing</p>
@@ -270,6 +279,8 @@ export function CampaignMissionView() {
             </div>
             <p>Moreel: {mission.morale >= 70 ? '🟢 Hoog' : mission.morale <= 30 ? '🔴 Laag' : '🟡 Stabiel'} ({mission.morale}%)</p>
             {mission.totalHeatGain > 0 && <p>🌡️ Heat opgebouwd: +{mission.totalHeatGain}</p>}
+            {mission.hiddenEncounterTriggered && <p className="text-purple-400">🔮 Verborgen encounter ontdekt!</p>}
+            {mission.carryOver.bonusLootMod > 1 && <p className="text-gold">🔥 Loot bonus: +{Math.round((mission.carryOver.bonusLootMod - 1) * 100)}%</p>}
           </div>
 
           {mission.droppedWeapon && (
