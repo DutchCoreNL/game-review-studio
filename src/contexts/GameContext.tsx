@@ -369,8 +369,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
   switch (action.type) {
     case 'SET_STATE': {
-      // Migrate old HQ upgrades to villa modules
+      // Preserve critical progression fields if cloud save has them as null
+      // but the current local state already has them set (prevents backstory re-selection)
       const loaded = action.state;
+      if (loaded.backstory === null && s.backstory !== null) {
+        loaded.backstory = s.backstory;
+      }
+      if (loaded.tutorialDone === false && s.tutorialDone === true) {
+        loaded.tutorialDone = true;
+      }
+      // Migrate old HQ upgrades to villa modules
       if (loaded.villa && loaded.hqUpgrades) {
         if (loaded.hqUpgrades.includes('garage') && !loaded.villa.modules.includes('garage_uitbreiding')) {
           loaded.villa.modules.push('garage_uitbreiding');
