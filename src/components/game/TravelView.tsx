@@ -243,8 +243,16 @@ export function TravelView() {
   // If abroad, show the abroad view
   if (travel?.status === 'abroad' && currentDest) {
     return (
-      <ViewWrapper>
-        <SectionHeader title={`${currentDest.flag} ${currentDest.name}`} />
+      <ViewWrapper bg={travelBg}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Globe size={18} className="text-gold" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">{currentDest.flag} {currentDest.name}</h2>
+            <p className="text-[0.55rem] text-muted-foreground">Koop goederen en smokkel ze terug</p>
+          </div>
+        </div>
         <AbroadView
           destination={currentDest}
           travel={travel}
@@ -272,8 +280,16 @@ export function TravelView() {
   // If traveling/returning, show progress
   if (travel && (travel.status === 'traveling' || travel.status === 'returning')) {
     return (
-      <ViewWrapper>
-        <SectionHeader title="Reizen" />
+      <ViewWrapper bg={travelBg}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Plane size={18} className="text-gold" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Onderweg</h2>
+            <p className="text-[0.55rem] text-muted-foreground">Je bent aan het reizen...</p>
+          </div>
+        </div>
         <TravelBanner
           travel={travel}
           hasArrived={!!hasArrived}
