@@ -226,10 +226,17 @@ export function pvpCombatTurn(
   const hasDefenseBoost = hasActiveBuff(s.attackerBuffs, 'defense_boost');
   const hasDamageBoost = hasActiveBuff(s.attackerBuffs, 'damage_boost');
   const defenderStunned = hasActiveBuff(s.defenderBuffs, 'stun');
+  const stanceMod = STANCE_MODIFIERS[s.stance];
 
   let playerDamage = 0;
   let playerDefenseBonus = 0;
   let isAttackAction = false;
+
+  // Defensive stance heal-over-time
+  if (stanceMod.healBonus > 0) {
+    s.attackerHP = Math.min(s.attackerMaxHP, s.attackerHP + stanceMod.healBonus);
+    s.logs.push(`${stanceMod.icon} Defensieve houding: +${stanceMod.healBonus} HP`);
+  }
 
   switch (action) {
     case 'attack': {
