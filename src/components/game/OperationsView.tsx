@@ -138,48 +138,53 @@ export function OperationsView() {
         <>
           <SectionHeader title="Solo Operaties" icon={<Crosshair size={12} />} />
           <p className="text-[0.55rem] text-muted-foreground mb-3">Werk alleen. Hoog risico, geen crew nodig.</p>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {SOLO_OPERATIONS.map(op => {
               const locked = state.player.level < op.level;
               const rewardRange = !locked ? calculateOperationRewardRange(op, state) : null;
               return (
-                <motion.div key={op.id} className={`game-card border-l-[3px] ${locked ? 'opacity-40 border-l-border' : 'border-l-gold'} overflow-hidden`}>
+                <motion.div key={op.id} className={`rounded-xl border overflow-hidden ${locked ? 'opacity-40 border-border/30' : 'border-border/50'}`}>
                   {/* Operation image banner */}
                   {SOLO_OP_IMAGES[op.id] && (
-                    <div className="relative -mx-3 -mt-3 mb-2.5 h-20 overflow-hidden">
+                    <div className="relative h-24 overflow-hidden">
                       <img src={SOLO_OP_IMAGES[op.id]} alt={op.name} className={`w-full h-full object-cover ${locked ? 'grayscale' : ''}`} />
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
-                      <div className="absolute bottom-1.5 left-2.5 right-2.5 flex items-end justify-between">
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/70 to-transparent" />
+                      <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between">
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-bold text-xs text-foreground drop-shadow-lg">{op.name}</h4>
                             {locked && <Lock size={10} className="text-muted-foreground" />}
                             {!locked && <GameBadge variant="muted" size="xs">Lvl {op.level}+</GameBadge>}
                           </div>
-                          <p className="text-[0.5rem] text-muted-foreground drop-shadow">{SOLO_OP_DISTRICT_DESC[op.id]?.[state.loc] || op.desc}</p>
+                          <p className="text-[0.45rem] text-muted-foreground drop-shadow">{SOLO_OP_DISTRICT_DESC[op.id]?.[state.loc] || op.desc}</p>
                         </div>
-                        <GameButton variant="gold" size="sm" disabled={locked}
-                          icon={<Crosshair size={12} />}
-                          onClick={() => setBriefingOp(op)}>GO</GameButton>
                       </div>
                     </div>
                   )}
-                  {/* Stats row */}
-                  <div className="flex gap-3 items-center">
-                    <span className="text-[0.5rem] text-blood font-semibold">⚡ {op.risk}%</span>
-                    {rewardRange ? (
-                      <span className="text-[0.5rem] text-gold font-semibold">
-                        €{rewardRange.min.toLocaleString()} - €{rewardRange.max.toLocaleString()}
+                  {/* Stats & launch button */}
+                  <div className="p-3 bg-card flex items-center justify-between gap-2">
+                    <div className="flex gap-2.5 items-center flex-wrap">
+                      <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
+                        <div className="w-4 h-4 rounded-full bg-blood/15 border border-blood/30 flex items-center justify-center"><Crosshair size={7} className="text-blood" /></div>
+                        {op.risk}%
                       </span>
-                    ) : (
-                      <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
-                    )}
-                    <span className="text-[0.5rem] text-muted-foreground">🔥 +{op.heat}</span>
+                      {rewardRange ? (
+                        <span className="text-[0.5rem] text-gold font-semibold">
+                          €{rewardRange.min.toLocaleString()}-€{rewardRange.max.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-[0.5rem] text-gold font-semibold">+€{op.reward.toLocaleString()}</span>
+                      )}
+                      <span className="text-[0.5rem] text-muted-foreground">🔥+{op.heat}</span>
+                    </div>
+                    <GameButton variant="gold" size="sm" disabled={locked}
+                      icon={<Crosshair size={12} />}
+                      onClick={() => setBriefingOp(op)}>GO</GameButton>
                   </div>
                   {rewardRange && rewardRange.bonuses.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
+                    <div className="flex flex-wrap gap-1 px-3 pb-2.5">
                       {rewardRange.bonuses.map((b, i) => (
-                        <span key={i} className="text-[0.4rem] font-bold px-1 py-0.5 rounded bg-gold/10 text-gold border border-gold/20 flex items-center gap-0.5">
+                        <span key={i} className="text-[0.4rem] font-bold px-1.5 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/20 flex items-center gap-0.5">
                           <TrendingUp size={7} /> {b.label} {b.value}
                         </span>
                       ))}
@@ -417,68 +422,72 @@ function ContractCard({ contract, crew, isExpanded, onToggle, onAssign, onDrop }
   const borderClass = CONTRACT_BORDER[contract.type] || 'border-l-border';
 
   return (
-    <motion.div className={`game-card border-l-[3px] ${borderClass} overflow-hidden`} layout>
+    <motion.div className={`rounded-xl border overflow-hidden ${borderClass.replace('border-l-', 'border-l-[3px] border-l-')} border-border/40`} layout>
       {/* Contract type banner */}
       {CONTRACT_TYPE_IMAGES[contract.type] && (
-        <div className="relative -mx-3 -mt-3 mb-2.5 h-16 overflow-hidden">
+        <div className="relative h-16 overflow-hidden">
           <img src={CONTRACT_TYPE_IMAGES[contract.type]} alt={contract.type} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
         </div>
       )}
-      <button onClick={onToggle} className="w-full text-left">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded bg-muted flex items-center justify-center ${color}`}>{icon}</div>
-            <div>
-              <h4 className="font-bold text-xs">{contract.name}</h4>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <GameBadge variant="muted" size="xs">{contract.type}</GameBadge>
-                <span className="text-[0.5rem] text-blood font-semibold">⚡{contract.risk}%</span>
-                <span className="text-[0.5rem] text-gold font-semibold">€{contract.reward.toLocaleString()}</span>
+      <div className="p-3">
+        <button onClick={onToggle} className="w-full text-left">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-9 h-9 rounded-full bg-muted/30 border border-border/40 flex items-center justify-center ${color}`}>{icon}</div>
+              <div>
+                <h4 className="font-bold text-xs">{contract.name}</h4>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <GameBadge variant="muted" size="xs">{contract.type}</GameBadge>
+                  <span className="text-[0.5rem] text-blood font-semibold">⚡{contract.risk}%</span>
+                  <span className="text-[0.5rem] text-gold font-semibold">€{contract.reward.toLocaleString()}</span>
+                </div>
               </div>
             </div>
+            {isExpanded ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
           </div>
-          {isExpanded ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
-        </div>
-      </button>
+        </button>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mt-2 pt-2 border-t border-border">
-            <p className="text-[0.5rem] text-muted-foreground mb-2">
-              Van: <span style={{ color: FAMILIES[contract.employer]?.color }}>{FAMILIES[contract.employer]?.name}</span> →
-              <span style={{ color: FAMILIES[contract.target]?.color }}> {FAMILIES[contract.target]?.name}</span>
-            </p>
-            {crew.length === 0 ? (
-              <p className="text-[0.55rem] text-muted-foreground italic">Geen crew beschikbaar.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {crew.map((c: any, i: number) => {
-                  const isIdeal = c.role === bestRole;
-                  const canAssign = c.hp > 0;
-                  return (
-                    <button key={i} onClick={() => canAssign && onAssign(i)} disabled={!canAssign}
-                      className={`w-full flex items-center justify-between py-1.5 px-2 rounded text-xs transition-all ${canAssign ? 'hover:bg-muted/50' : 'opacity-40'}`}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold">{c.name}</span>
-                        <span className="text-[0.45rem] text-muted-foreground">({c.role})</span>
-                        {isIdeal && <GameBadge variant="gold" size="xs">IDEAAL</GameBadge>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart size={8} className={c.hp < 30 ? 'text-blood' : 'text-emerald'} />
-                        <span className="text-[0.5rem]">{c.hp}%</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <button onClick={onDrop} className="w-full mt-2 py-1.5 px-2 rounded text-[0.5rem] font-bold text-blood border border-blood/30 hover:bg-blood/10 transition-colors flex items-center justify-center gap-1">
-              <Trash2 size={10} /> ANNULEER CONTRACT (rep penalty)
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mt-2 pt-2 border-t border-border/30">
+              <p className="text-[0.5rem] text-muted-foreground mb-2">
+                Van: <span style={{ color: FAMILIES[contract.employer]?.color }}>{FAMILIES[contract.employer]?.name}</span> →
+                <span style={{ color: FAMILIES[contract.target]?.color }}> {FAMILIES[contract.target]?.name}</span>
+              </p>
+              {crew.length === 0 ? (
+                <p className="text-[0.55rem] text-muted-foreground italic">Geen crew beschikbaar.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {crew.map((c: any, i: number) => {
+                    const isIdeal = c.role === bestRole;
+                    const canAssign = c.hp > 0;
+                    return (
+                      <button key={i} onClick={() => canAssign && onAssign(i)} disabled={!canAssign}
+                        className={`w-full flex items-center justify-between py-2 px-2.5 rounded-lg border transition-all ${
+                          canAssign ? 'border-border/30 hover:border-gold/40 hover:bg-gold/5' : 'opacity-40 border-border/20'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs">{c.name}</span>
+                          <span className="text-[0.45rem] text-muted-foreground">({c.role})</span>
+                          {isIdeal && <GameBadge variant="gold" size="xs">IDEAAL</GameBadge>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart size={8} className={c.hp < 30 ? 'text-blood' : 'text-emerald'} />
+                          <span className="text-[0.5rem]">{c.hp}%</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <button onClick={onDrop} className="w-full mt-2 py-1.5 px-2 rounded-lg text-[0.5rem] font-bold text-blood border border-blood/30 hover:bg-blood/10 transition-colors flex items-center justify-center gap-1">
+                <Trash2 size={10} /> ANNULEER CONTRACT
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
