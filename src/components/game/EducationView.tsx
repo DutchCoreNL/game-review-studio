@@ -5,9 +5,12 @@ import { COURSES, formatDuration, formatTimeRemaining, Course } from '@/game/edu
 import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
+import { GameBadge } from './ui/GameBadge';
+import { StatBar } from './ui/StatBar';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Clock, CheckCircle2, BookOpen, Lock } from 'lucide-react';
+import educationBg from '@/assets/education-bg.jpg';
 
 function CourseCard({ course, completed, active, activeCourse, onEnroll, onComplete, level }: {
   course: Course;
@@ -50,14 +53,14 @@ function CourseCard({ course, completed, active, activeCourse, onEnroll, onCompl
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative rounded-lg border p-4 transition-all ${
+      className={`game-card border-l-[3px] transition-all ${
         completed
-          ? 'border-emerald-500/30 bg-emerald-500/5'
+          ? 'border-l-emerald'
           : active
-          ? 'border-gold/30 bg-gold/5'
+          ? 'border-l-gold'
           : locked
-          ? 'border-border/30 bg-muted/5 opacity-60'
-          : 'border-border bg-card hover:border-gold/20'
+          ? 'border-l-border opacity-60'
+          : 'border-l-border'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -65,7 +68,7 @@ function CourseCard({ course, completed, active, activeCourse, onEnroll, onCompl
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-sm text-foreground">{course.name}</h3>
-            {completed && <CheckCircle2 size={14} className="text-emerald-400" />}
+            {completed && <CheckCircle2 size={14} className="text-emerald" />}
             {locked && <Lock size={12} className="text-muted-foreground" />}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{course.description}</p>
@@ -84,10 +87,10 @@ function CourseCard({ course, completed, active, activeCourse, onEnroll, onCompl
               <Progress value={progress} className="h-2 bg-muted" />
               <div className="flex items-center justify-between text-[0.6rem]">
                 <span className="text-muted-foreground">{Math.round(progress)}%</span>
-                <span className={isReady ? 'text-emerald-400 font-bold' : 'text-gold'}>{timeLeft}</span>
+                <span className={isReady ? 'text-emerald font-bold' : 'text-gold'}>{timeLeft}</span>
               </div>
               {isReady && (
-                <GameButton size="sm" onClick={() => onComplete(activeCourse.id)} className="w-full mt-1">
+                <GameButton size="sm" onClick={() => onComplete(activeCourse.id)} fullWidth>
                   <CheckCircle2 size={14} /> Afronden
                 </GameButton>
               )}
@@ -116,11 +119,7 @@ export function EducationView() {
   const [toast, setToast] = useState<string | null>(null);
 
   const handleEnroll = async (courseId: string, dur: number) => {
-    const hasActive = !!activeCourse;
-    if (hasActive) {
-      setToast('Je volgt al een cursus!');
-      return;
-    }
+    if (!!activeCourse) { setToast('Je volgt al een cursus!'); return; }
     const res = await enrollCourse(courseId, dur);
     setToast(res.message);
   };
@@ -139,50 +138,59 @@ export function EducationView() {
   ];
 
   return (
-    <ViewWrapper>
-      <SectionHeader title="Educatie" />
+    <ViewWrapper bg={educationBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <GraduationCap size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Academie</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Ontgrendel permanente perks via cursussen</p>
+        </div>
+      </div>
 
       {/* Active course banner */}
       {activeCourse && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-4 p-3 rounded-lg bg-gold/10 border border-gold/20 flex items-center gap-3"
+          className="game-card border-l-[3px] border-l-gold mb-3"
         >
-          <GraduationCap size={20} className="text-gold" />
-          <div className="flex-1">
-            <p className="text-xs font-bold text-gold">Actieve cursus</p>
-            <p className="text-[0.65rem] text-muted-foreground">
-              {COURSES.find(c => c.id === activeCourse.course_id)?.name || activeCourse.course_id}
-            </p>
+          <div className="flex items-center gap-3">
+            <GraduationCap size={20} className="text-gold" />
+            <div className="flex-1">
+              <p className="text-xs font-bold text-gold">Actieve cursus</p>
+              <p className="text-[0.65rem] text-muted-foreground">
+                {COURSES.find(c => c.id === activeCourse.course_id)?.name || activeCourse.course_id}
+              </p>
+            </div>
           </div>
         </motion.div>
       )}
 
       {/* Stats */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1 rounded-lg bg-card border border-border p-3 text-center">
-          <p className="text-lg font-bold text-foreground">{completedCourseIds.length}</p>
-          <p className="text-[0.6rem] text-muted-foreground uppercase tracking-wider">Afgerond</p>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="game-card text-center">
+          <p className="text-lg font-bold text-emerald">{completedCourseIds.length}</p>
+          <p className="text-[0.5rem] text-muted-foreground uppercase">Afgerond</p>
         </div>
-        <div className="flex-1 rounded-lg bg-card border border-border p-3 text-center">
-          <p className="text-lg font-bold text-foreground">{COURSES.length - completedCourseIds.length}</p>
-          <p className="text-[0.6rem] text-muted-foreground uppercase tracking-wider">Beschikbaar</p>
+        <div className="game-card text-center">
+          <p className="text-lg font-bold text-gold">{COURSES.length - completedCourseIds.length}</p>
+          <p className="text-[0.5rem] text-muted-foreground uppercase">Beschikbaar</p>
         </div>
       </div>
 
       {loading ? (
         <p className="text-center text-muted-foreground text-sm py-8">Laden...</p>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {categories.map(cat => {
             const catCourses = COURSES.filter(c => c.category === cat.key);
             if (catCourses.length === 0) return null;
             return (
               <div key={cat.key}>
-                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <span>{cat.icon}</span> {cat.label}
-                </h2>
+                <SectionHeader title={cat.label} icon={<span>{cat.icon}</span>} />
                 <div className="space-y-2">
                   {catCourses.map(course => (
                     <CourseCard

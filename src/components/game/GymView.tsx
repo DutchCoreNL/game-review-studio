@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
+import { GameButton } from './ui/GameButton';
+import { GameBadge } from './ui/GameBadge';
 import { motion } from 'framer-motion';
 import { Dumbbell, Shield, Zap, Target, Lock, Crown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
+import gymBg from '@/assets/gym-bg.jpg';
 
 interface GymDef {
   id: string;
@@ -70,18 +74,21 @@ export function GymView() {
   };
 
   return (
-    <div className="space-y-4 pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Dumbbell className="text-gold" size={24} />
+    <ViewWrapper bg={gymBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-blood/15 border border-blood/40 flex items-center justify-center">
+          <Dumbbell size={18} className="text-blood" />
+        </div>
         <div>
-          <h2 className="font-display text-lg text-foreground uppercase tracking-widest">Gym</h2>
-          <p className="text-xs text-muted-foreground">Train je stats — kost {ENERGY_COST} energy per sessie</p>
+          <h2 className="font-display text-lg text-blood uppercase tracking-widest font-bold">Trainingskamp</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Train je stats — kost {ENERGY_COST} energy per sessie</p>
         </div>
       </div>
 
       {/* Gym selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <SectionHeader title="Locaties" icon={<Dumbbell size={12} />} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
         {GYMS.map(gym => {
           const isSelected = selectedGym === gym.id;
           const locked = state.player.level < gym.reqLevel;
@@ -116,7 +123,7 @@ export function GymView() {
       </div>
 
       {/* Current gym info */}
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className="game-card mb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-sm font-bold text-foreground">{currentGym.icon} {currentGym.name}</div>
@@ -125,13 +132,11 @@ export function GymView() {
             </div>
           </div>
           {!inCorrectDistrict && (
-            <div className="text-[0.6rem] text-blood bg-blood/10 px-2 py-1 rounded font-semibold">
-              Reis naar {currentGym.district}
-            </div>
+            <GameBadge variant="blood" size="xs">Reis naar {currentGym.district}</GameBadge>
           )}
         </div>
 
-        {/* Stat training buttons */}
+        {/* Stat training */}
         <div className="grid grid-cols-2 gap-3">
           {STATS.map(stat => {
             const value = gymStats[stat.id] || 1;
@@ -153,7 +158,6 @@ export function GymView() {
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground">{stat.label}</span>
                 </div>
                 
-                {/* Stat value */}
                 <div className="flex items-baseline gap-1 mb-1">
                   <span className={`text-xl font-display font-bold ${stat.color}`}>{value}</span>
                   {lastResult?.stat === stat.id && (
@@ -168,7 +172,6 @@ export function GymView() {
                 </div>
                 <p className="text-[0.5rem] text-muted-foreground mb-2">{stat.desc}</p>
                 
-                {/* Progress bar */}
                 <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
                   <motion.div
                     className={`h-full rounded-full ${
@@ -182,15 +185,15 @@ export function GymView() {
                   />
                 </div>
                 
-                <Button
+                <GameButton
                   size="sm"
-                  variant={isFocus ? "default" : "outline"}
-                  className="w-full text-[0.6rem] h-7"
+                  variant={isFocus ? 'gold' : 'muted'}
+                  fullWidth
                   disabled={training || !hasEnergy || !inCorrectDistrict || !hasLevel}
                   onClick={() => handleTrain(stat.id)}
                 >
                   {training ? '...' : `Train (${ENERGY_COST}⚡)`}
-                </Button>
+                </GameButton>
               </motion.div>
             );
           })}
@@ -199,7 +202,7 @@ export function GymView() {
 
       {/* Status messages */}
       {!hasEnergy && (
-        <div className="text-xs text-blood bg-blood/10 border border-blood/20 rounded-lg p-3 text-center">
+        <div className="game-card text-center text-xs text-blood border-l-[3px] border-l-blood">
           ⚡ Niet genoeg energy om te trainen
         </div>
       )}
@@ -208,11 +211,11 @@ export function GymView() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-center"
+          className="game-card text-center border-l-[3px] border-l-emerald"
         >
-          <p className="text-xs text-emerald-400 font-semibold">{lastResult.message}</p>
+          <p className="text-xs text-emerald font-semibold">{lastResult.message}</p>
         </motion.div>
       )}
-    </div>
+    </ViewWrapper>
   );
 }

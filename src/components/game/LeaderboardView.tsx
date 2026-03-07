@@ -3,10 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, Skull, Shield, Flame } from 'lucide-react';
 import { PrestigeBadge } from './ui/PrestigeBadge';
 import { GameBadge } from './ui/GameBadge';
+import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
 import { SectionHeader } from './ui/SectionHeader';
 import { SubTabBar } from './ui/SubTabBar';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
+import leaderboardBg from '@/assets/leaderboard-bg.jpg';
 
 type SortField = 'rep' | 'cash' | 'day' | 'districts_owned';
 type LeaderboardTab = 'global' | 'legends';
@@ -28,7 +30,7 @@ interface LeaderboardEntry {
   is_hardcore?: boolean;
 }
 
-export function LeaderboardView() {
+export function LeaderboardView({ embedded }: { embedded?: boolean }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortField>('rep');
@@ -57,14 +59,12 @@ export function LeaderboardView() {
       .limit(TARGET_COUNT);
 
     if (tab === 'legends') {
-      // Hall of Legends: players who reached endgame (level >= 15 and high rep)
       query = query.gte('level', 15).order('rep', { ascending: false });
     }
 
     const { data: realData } = await query;
     const realEntries = (realData as LeaderboardEntry[]) || [];
 
-    // Fill with bots only for global tab
     if (tab === 'global') {
       const botsNeeded = Math.max(0, TARGET_COUNT - realEntries.length);
       if (botsNeeded > 0) {
@@ -115,8 +115,8 @@ export function LeaderboardView() {
   const myEntry = entries.find(e => e.user_id === currentUserId);
   const myRank = myEntry ? entries.indexOf(myEntry) + 1 : null;
 
-  return (
-    <div>
+  const content = (
+    <>
       {/* Tab bar */}
       <SubTabBar
         tabs={[
@@ -127,7 +127,6 @@ export function LeaderboardView() {
         onChange={(t) => setTab(t as LeaderboardTab)}
       />
 
-      {/* Tab header */}
       {tab === 'legends' ? (
         <div className="game-card border-2 border-blood bg-blood/5 mb-3 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
@@ -137,9 +136,7 @@ export function LeaderboardView() {
           </div>
           <p className="text-[0.5rem] text-muted-foreground">Spelers die het eindspel bereikten — één leven, geen tweede kans.</p>
         </div>
-      ) : (
-        <SectionHeader title="Online Ranking" icon={<Trophy size={12} />} />
-      )}
+      ) : null}
 
       {/* Sort pills */}
       <div className="flex gap-1.5 mb-3">
@@ -204,7 +201,6 @@ export function LeaderboardView() {
                   isMe ? 'border-gold/50 bg-gold/5' : ''
                 } ${isLegend && rank <= 3 ? 'border-blood/40 bg-blood/5' : ''}`}
               >
-                {/* Rank */}
                 <span className={`w-7 text-center font-bold text-xs ${
                   isLegend
                     ? rank === 1 ? 'text-blood' : rank <= 3 ? 'text-blood/70' : 'text-muted-foreground'
@@ -216,7 +212,6 @@ export function LeaderboardView() {
                   }
                 </span>
 
-                {/* Name + level */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <span className={`text-xs font-bold truncate ${isMe ? 'text-gold' : isLegend ? 'text-blood' : ''}`}>{entry.username}</span>
@@ -232,7 +227,6 @@ export function LeaderboardView() {
                   </div>
                 </div>
 
-                {/* Sort value */}
                 <div className="text-right">
                   <span className={`text-xs font-bold ${isLegend ? 'text-blood' : 'text-gold'}`}>
                     {sortBy === 'cash' ? `€${entry.cash.toLocaleString()}` : entry[sortBy]}
@@ -252,6 +246,25 @@ export function LeaderboardView() {
           onClose={() => setSelectedPlayer(null)}
         />
       )}
-    </div>
+    </>
+  );
+
+  // When embedded (e.g. inside ProfileView), don't wrap in ViewWrapper
+  if (embedded) return <div>{content}</div>;
+
+  return (
+    <ViewWrapper bg={leaderboardBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Trophy size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Hall of Fame</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Online ranking & legendes</p>
+        </div>
+      </div>
+      {content}
+    </ViewWrapper>
   );
 }

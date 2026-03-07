@@ -73,12 +73,22 @@ export function WarView() {
   const warReportCount = (state as any).warResults?.length || 0;
   const pendingWar = state.pendingWarEvent;
 
-  // District war threat level
   const allDistricts = (['port', 'crown', 'iron', 'low', 'neon'] as DistrictId[]);
   const ownedDistricts = allDistricts.filter(d => state.ownedDistricts?.includes(d) || state.districtDefenses[d]?.upgrades?.length > 0);
 
   return (
     <ViewWrapper bg={warBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-blood/15 border border-blood/40 flex items-center justify-center">
+          <Flame size={18} className="text-blood" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-blood uppercase tracking-widest font-bold">Oorlog</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Gang Wars & District verdediging</p>
+        </div>
+      </div>
+
       <SubTabBar
         tabs={[
           { id: 'overview', label: 'Overzicht', icon: <Swords size={10} /> },
@@ -110,7 +120,6 @@ export function WarView() {
 function OverviewTab({ activeWars, gangName, gangTag, pendingWar, loading, state, warReportCount }: any) {
   return (
     <div className="space-y-3">
-      {/* Pending war event alert */}
       {pendingWar && (
         <div className="game-card border-2 border-blood bg-blood/5">
           <div className="flex items-center gap-2 mb-1">
@@ -124,7 +133,6 @@ function OverviewTab({ activeWars, gangName, gangTag, pendingWar, loading, state
         </div>
       )}
 
-      {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2">
         <div className="game-card text-center">
           <Swords size={14} className="mx-auto text-blood mb-1" />
@@ -143,7 +151,6 @@ function OverviewTab({ activeWars, gangName, gangTag, pendingWar, loading, state
         </div>
       </div>
 
-      {/* Active gang wars */}
       <SectionHeader title="Actieve Gang Wars" icon={<Flame size={12} />} badge={`${activeWars.length}`} badgeColor="blood" />
 
       {loading ? (
@@ -206,7 +213,6 @@ function OverviewTab({ activeWars, gangName, gangTag, pendingWar, loading, state
         </div>
       )}
 
-      {/* Faction threat levels */}
       <SectionHeader title="Factie Dreiging" icon={<Skull size={12} />} />
       <div className="space-y-1.5">
         {Object.entries(FAMILIES).map(([id, fam]) => {
@@ -284,7 +290,6 @@ function DefenseTab({ state, ownedDistricts, allDistricts, setView }: any) {
         </div>
       )}
 
-      {/* Undefended districts */}
       {allDistricts.filter((d: DistrictId) => !ownedDistricts.includes(d)).length > 0 && (
         <>
           <SectionHeader title="Onverdedigd" icon={<AlertTriangle size={12} />} />
