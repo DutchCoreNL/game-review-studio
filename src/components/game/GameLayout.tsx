@@ -202,14 +202,14 @@ export function GameLayout() {
 
   useEffect(() => {
     if (state.tutorialDone) {
+      setForceTutorialOverlay(false);
+    } else {
+      // Only re-show tutorial if user hasn't completed it this session
       const completedInSession = typeof window !== 'undefined' && sessionStorage.getItem('noxhaven_tutorial_completed') === '1';
-      if (tutorialInitiallyDoneRef.current || completedInSession) {
-        setForceTutorialOverlay(false);
+      if (!completedInSession) {
+        setForceTutorialOverlay(true);
       }
-      return;
     }
-
-    setForceTutorialOverlay(true);
   }, [state.tutorialDone]);
 
   // Music scene management
