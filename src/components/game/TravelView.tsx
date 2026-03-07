@@ -12,8 +12,9 @@ import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Clock, ShieldAlert, Package, ArrowLeft, MapPin,
-  AlertTriangle, CheckCircle2, Anchor, ChevronRight,
+  AlertTriangle, CheckCircle2, Anchor, ChevronRight, Globe,
 } from 'lucide-react';
+import travelBg from '@/assets/travel-bg.jpg';
 
 // ─── Destination Card ───
 function DestinationCard({ dest, level, onSelect }: {
@@ -242,8 +243,16 @@ export function TravelView() {
   // If abroad, show the abroad view
   if (travel?.status === 'abroad' && currentDest) {
     return (
-      <ViewWrapper>
-        <SectionHeader title={`${currentDest.flag} ${currentDest.name}`} />
+      <ViewWrapper bg={travelBg}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Globe size={18} className="text-gold" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">{currentDest.flag} {currentDest.name}</h2>
+            <p className="text-[0.55rem] text-muted-foreground">Koop goederen en smokkel ze terug</p>
+          </div>
+        </div>
         <AbroadView
           destination={currentDest}
           travel={travel}
@@ -271,8 +280,16 @@ export function TravelView() {
   // If traveling/returning, show progress
   if (travel && (travel.status === 'traveling' || travel.status === 'returning')) {
     return (
-      <ViewWrapper>
-        <SectionHeader title="Reizen" />
+      <ViewWrapper bg={travelBg}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+            <Plane size={18} className="text-gold" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Onderweg</h2>
+            <p className="text-[0.55rem] text-muted-foreground">Je bent aan het reizen...</p>
+          </div>
+        </div>
         <TravelBanner
           travel={travel}
           hasArrived={!!hasArrived}
@@ -337,12 +354,19 @@ export function TravelView() {
   const detailDest = selectedDest ? DESTINATIONS.find(d => d.id === selectedDest) : null;
 
   return (
-    <ViewWrapper>
-      <SectionHeader title="Reizen" />
-      <p className="text-xs text-muted-foreground mb-4">
-        Reis naar buitenlandse steden, koop exclusieve goederen en smokkel ze terug naar Noxhaven.
-        {hasHelipad && <span className="text-gold ml-1">🚁 Helipad: -50% reistijd!</span>}
-      </p>
+    <ViewWrapper bg={travelBg}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Globe size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Reizen</h2>
+          <p className="text-[0.55rem] text-muted-foreground">
+            Smokkel goederen uit buitenlandse steden
+            {hasHelipad && <span className="text-gold ml-1">🚁 -50% reistijd!</span>}
+          </p>
+        </div>
+      </div>
 
       {/* Destination detail */}
       <AnimatePresence mode="wait">
