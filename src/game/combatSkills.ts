@@ -336,11 +336,26 @@ export function pvpCombatTurn(
   // Enemy turn (AI for snapshot/bot combat)
   if (!defenderStunned) {
     const enemyResult = enemyTurn(s);
-    s.attackerHP = enemyResult.newHP;
-    s.damageTaken += enemyResult.damage;
+    // Apply stance defense modifier
+    let actualDmg = enemyResult.damage;
+    if (stanceMod.defenseMod !== 1.0 && actualDmg > 0) {
+      const reduction = Math.floor(actualDmg * (1 - 1 / stanceMod.defenseMod));
+      actualDmg = Math.max(0, actualDmg - reduction);
+    }
+    s.attackerHP = Math.max(0, s.attackerHP - actualDmg + enemyResult.damage - actualDmg); // recalc
+    s.attackerHP = enemyResult.newHP; // base calc
+    // Re-apply with stance
+    s.attackerHP = Math.max(0, state.attackerHP - actualDmg); // use pre-turn HP
+    // Simpler approach: adjust from enemyResult
+    const stanceReduction = enemyResult.damage - actualDmg;
+    s.attackerHP = Math.min(s.attackerMaxHP, enemyResult.newHP + stanceReduction);
+    s.damageTaken += actualDmg;
     s.logs.push(...enemyResult.logs);
-    if (playerDefenseBonus > 0 && enemyResult.damage > 0) {
-      const reduced = Math.floor(enemyResult.damage * playerDefenseBonus);
+    if (stanceReduction > 0) {
+      s.logs.push(`${stanceMod.icon} Stance verdediging: -${stanceReduction} schade`);
+    }
+    if (playerDefenseBonus > 0 && actualDmg > 0) {
+      const reduced = Math.floor(actualDmg * playerDefenseBonus);
       s.attackerHP = Math.min(s.attackerMaxHP, s.attackerHP + reduced);
       s.logs.push(`🛡️ Verdediging blokkeert ${reduced} schade.`);
     }
