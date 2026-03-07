@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { PvPCombatState, CombatBuff } from '@/game/types';
-import { COMBAT_SKILLS, COMBO_THRESHOLD, getAvailableSkills, isSkillOnCooldown, BUFF_DEFS } from '@/game/combatSkills';
+import { PvPCombatState, CombatBuff, CombatStance } from '@/game/types';
+import { COMBAT_SKILLS, COMBO_THRESHOLD, getAvailableSkills, isSkillOnCooldown, BUFF_DEFS, STANCE_MODIFIERS } from '@/game/combatSkills';
 import { GEAR, AMMO_TYPE_LABELS } from '@/game/constants';
 import { WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import { SectionHeader } from './ui/SectionHeader';
