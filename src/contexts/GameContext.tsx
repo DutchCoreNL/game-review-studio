@@ -312,13 +312,14 @@ type GameAction =
   | { type: 'CRAFT_SALVAGE'; recipeId: string }
   // Campaign actions
   | { type: 'START_CAMPAIGN_MISSION'; chapterId: string; missionId: string }
-  | { type: 'ADVANCE_CAMPAIGN_MISSION' }
+  | { type: 'ADVANCE_CAMPAIGN_MISSION'; choice: import('../game/campaign').EncounterChoice }
   | { type: 'COLLECT_CAMPAIGN_MISSION_REWARDS' }
   | { type: 'END_CAMPAIGN_MISSION' }
   | { type: 'START_BOSS_FIGHT_CAMPAIGN'; chapterId: string }
-  | { type: 'BOSS_FIGHT_ACTION'; action: 'attack' | 'heavy' | 'defend' }
+  | { type: 'BOSS_FIGHT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'dodge' }
   | { type: 'COLLECT_BOSS_LOOT' }
-  | { type: 'END_BOSS_FIGHT' };
+  | { type: 'END_BOSS_FIGHT' }
+  | { type: 'SET_CHAPTER_DIFFICULTY'; chapterId: string; difficulty: import('../game/campaign').CampaignDifficulty };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -2447,9 +2448,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'ADVANCE_CAMPAIGN_MISSION': {
       if (!s.campaign?.activeCampaignMission) return s;
-      if (!s.campaign?.activeCampaignMission) return s;
       const playerPower = Engine.getPlayerStat(s, 'muscle') + Engine.getPlayerStat(s, 'brains');
-      s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower);
+      s.campaign.activeCampaignMission = advanceCampaignMission(s.campaign.activeCampaignMission, s.player.level, playerPower, action.choice);
       return s;
     }
 
@@ -2457,10 +2457,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.campaign?.activeCampaignMission) return s;
       const m = s.campaign.activeCampaignMission;
       if (!m.finished || !m.success) return s;
-      s.money += m.rewards.money;
-      s.stats.totalEarned += m.rewards.money;
-      s.rep += m.rewards.rep;
-      Engine.gainXp(s, m.rewards.xp);
+      const ratingMult = m.rating === 3 ? 1.5 : m.rating === 2 ? 1.2 : 1.0;
+      const finalMoney = Math.floor(m.rewards.money * ratingMult);
+      const finalRep = Math.floor(m.rewards.rep * ratingMult);
+      const finalXp = Math.floor(m.rewards.xp * ratingMult);
+      s.money += finalMoney;
+      s.stats.totalEarned += finalMoney;
+      s.rep += finalRep;
+      Engine.gainXp(s, finalXp);
+      s.heat = Math.min(100, s.heat + (m.totalHeatGain || 0));
       // Mark mission completed
       const chProgress = s.campaign.chapters.find(c => c.chapterId === m.chapterId);
       if (chProgress) {
@@ -2468,7 +2473,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (mProgress) {
           mProgress.completed = true;
           mProgress.completedAt = s.day;
-          mProgress.bestRating = 'A';
+          const ratingStr = '⭐'.repeat(m.rating || 1);
+          if (!mProgress.bestRating || (m.rating || 1) > (mProgress.bestRating === '⭐⭐⭐' ? 3 : mProgress.bestRating === '⭐⭐' ? 2 : 1)) {
+            mProgress.bestRating = ratingStr;
+          }
         }
       }
       // Add dropped weapon
@@ -2503,10 +2511,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BOSS_FIGHT_ACTION': {
       if (!s.campaign?.activeBossFight) return s;
-      if (!s.campaign?.activeBossFight) return s;
       const pDmg = Engine.getPlayerStat(s, 'muscle') + Math.floor(s.player.level * 2);
       const pArmor = Math.floor(Engine.getPlayerStat(s, 'brains') * 0.5);
-      s.campaign.activeBossFight = bossFightTurn(s.campaign.activeBossFight, action.action, pDmg, pArmor);
+      const pSpeed = Engine.getPlayerStat(s, 'brains') + Math.floor(s.player.level * 0.5);
+      s.campaign.activeBossFight = bossFightTurn(s.campaign.activeBossFight, action.action, pDmg, pArmor, pSpeed);
       // Sync player HP back
       if (s.campaign.activeBossFight.finished && !s.campaign.activeBossFight.won) {
         s.playerHP = Math.max(1, Math.floor(s.playerMaxHP * 0.1));
@@ -2574,6 +2582,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'END_BOSS_FIGHT': {
       if (s.campaign) s.campaign.activeBossFight = null;
+      return s;
+    }
+
+    case 'SET_CHAPTER_DIFFICULTY': {
+      if (!s.campaign) return s;
+      const chP = s.campaign.chapters.find(c => c.chapterId === action.chapterId);
+      if (chP && chP.completed) {
+        chP.difficulty = action.difficulty;
+      }
       return s;
     }
 
