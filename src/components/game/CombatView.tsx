@@ -455,7 +455,7 @@ function ActiveCombat() {
 
         {/* Player info - bottom left */}
         <div className="absolute bottom-2 left-2.5">
-          <p className="text-[0.6rem] font-bold text-foreground">{state.player.username || 'Jij'}</p>
+          <p className="text-[0.6rem] font-bold text-foreground">Jij</p>
           <p className="text-[0.45rem] text-muted-foreground">Lvl {state.player.level} • {weaponName}</p>
           <div className="flex gap-1.5 mt-0.5">
             <span className="text-[0.4rem] text-blood font-bold">💪{state.player.stats.muscle}</span>
