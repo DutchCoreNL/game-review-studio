@@ -55,18 +55,19 @@ export function useServerSync(
   }, []);
 
   // Fetch server state on mount (if logged in)
+  // When cloudSaveLoaded is true, only merge MMO/cooldown fields, NOT economy fields
   const fetchServerState = useCallback(async () => {
     if (!user) return;
     setSyncState(s => ({ ...s, loading: true, error: null }));
     try {
       const result = await invokeGameAction('get_state');
       if (result.success && result.data) {
-        mergeServerState(localDispatch, result.data);
+        mergeServerState(localDispatch, result.data, cloudSaveLoadedRef.current);
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else if (!result.success && result.message?.includes('Geen spelerstaat')) {
         const initResult = await invokeGameAction('init_player');
         if (initResult.success && initResult.data) {
-          mergeServerState(localDispatch, initResult.data);
+          mergeServerState(localDispatch, initResult.data, cloudSaveLoadedRef.current);
         }
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else {
