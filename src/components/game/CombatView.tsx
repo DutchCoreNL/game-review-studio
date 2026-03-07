@@ -17,6 +17,50 @@ import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, pla
 import { getAvailableSkills, isSkillOnCooldown, COMBO_THRESHOLD, BUFF_DEFS, STANCE_MODIFIERS } from '@/game/combatSkills';
 import { RARITY_COLORS, RARITY_BG, getStreakLabel } from '@/game/combatLoot';
 
+// ========== Stance Selector ==========
+
+const STANCES: CombatStance[] = ['aggressive', 'balanced', 'defensive'];
+const STANCE_COLORS: Record<CombatStance, string> = {
+  aggressive: 'border-blood text-blood bg-blood/10',
+  balanced: 'border-gold text-gold bg-gold/10',
+  defensive: 'border-emerald text-emerald bg-emerald/10',
+};
+const STANCE_ACTIVE_COLORS: Record<CombatStance, string> = {
+  aggressive: 'border-blood bg-blood text-primary-foreground',
+  balanced: 'border-gold bg-gold text-background',
+  defensive: 'border-emerald bg-emerald text-primary-foreground',
+};
+
+function StanceSelector({ current, onChange, disabled }: {
+  current: CombatStance;
+  onChange: (s: CombatStance) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex gap-1.5 mb-3 justify-center">
+      {STANCES.map(s => {
+        const mod = STANCE_MODIFIERS[s];
+        const isActive = current === s;
+        return (
+          <motion.button
+            key={s}
+            onClick={() => !disabled && onChange(s)}
+            disabled={disabled}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded border text-[0.5rem] font-bold transition-all ${
+              isActive ? STANCE_ACTIVE_COLORS[s] : `${STANCE_COLORS[s]} opacity-60 hover:opacity-100`
+            } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+            whileTap={disabled ? {} : { scale: 0.95 }}
+            title={mod.desc}
+          >
+            <span>{mod.icon}</span>
+            <span className="uppercase tracking-wider">{mod.label}</span>
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ========== Floating Damage Number ==========
 
 interface DamagePopupData {
