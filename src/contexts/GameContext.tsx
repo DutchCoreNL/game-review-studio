@@ -3271,6 +3271,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'SET_PVP_STANCE': {
+      if (s.activePvPCombat && !s.activePvPCombat.finished) {
+        s.activePvPCombat.stance = action.stance;
+      }
+      return s;
+    }
+
     case 'END_PVP_COMBAT': {
       if (s.activePvPCombat) {
         if (s.activePvPCombat.won) {
