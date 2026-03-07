@@ -1147,6 +1147,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'END_COMBAT': {
       // Persist remaining HP back to state
       if (s.activeCombat) {
         if (s.activeCombat.won) {
