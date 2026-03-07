@@ -2066,6 +2066,14 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
     }
+    // Apply stance defense modifier
+    if (stanceMod.defenseMod > 1.0) {
+      const reduction = Math.floor(enemyDamage * (1 - 1 / stanceMod.defenseMod));
+      enemyDamage = Math.max(1, enemyDamage - reduction);
+    } else if (stanceMod.defenseMod < 1.0) {
+      const extra = Math.floor(enemyDamage * (1 / stanceMod.defenseMod - 1));
+      enemyDamage += extra;
+    }
     const armorBonus = getVehicleUpgradeBonus(state, 'armor');
     if (armorBonus > 0) {
       const armorReduction = armorBonus * 0.06;
