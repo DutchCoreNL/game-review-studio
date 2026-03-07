@@ -4,13 +4,12 @@ import { GeneratedWeapon, WEAPON_RARITY_LABEL, MAX_WEAPON_INVENTORY, WeaponRarit
 import { getUpgradeCost, canUpgradeWeapon, getAccessorySwapCost, getAvailableAccessories, canFuseWeapons, getMasteryProgress } from '@/game/weaponUpgrade';
 import { WeaponCard } from './WeaponCard';
 import { WeaponCompare } from './WeaponCompare';
-import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { ViewWrapper } from '../ui/ViewWrapper';
 import { GameBadge } from '../ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sword, Filter, ArrowDownUp, Trash2, Merge, ShoppingBag } from 'lucide-react';
-import profileBg from '@/assets/profile-bg.jpg';
+import arsenalBg from '@/assets/arsenal-bg.jpg';
 
 type SortKey = 'damage' | 'rarity' | 'level' | 'name' | 'dps';
 
@@ -40,7 +39,6 @@ export function WeaponInventory() {
     }
   }, [weapons, sortBy, filterFrame]);
 
-  // Handle fusion selection
   const handleFusionToggle = (weaponId: string) => {
     if (fusionSelection.includes(weaponId)) {
       setFusionSelection(fusionSelection.filter(id => id !== weaponId));
@@ -61,7 +59,6 @@ export function WeaponInventory() {
     }
   };
 
-  // Bulk sell
   const handleBulkSell = (maxRarity: WeaponRarity) => {
     const toSell = weapons.filter(w => !w.equipped && !w.locked && RARITY_ORDER[w.rarity] <= RARITY_ORDER[maxRarity]);
     if (toSell.length === 0) {
@@ -74,10 +71,9 @@ export function WeaponInventory() {
     setBulkSellRarity(null);
   };
 
-  // Show compare view
   if (selectedWeapon) {
     return (
-      <ViewWrapper bg={profileBg}>
+      <ViewWrapper bg={arsenalBg}>
         <WeaponCompare
           weapon={selectedWeapon}
           currentWeapon={equippedWeapon || null}
@@ -103,7 +99,6 @@ export function WeaponInventory() {
             }
             dispatch({ type: 'UPGRADE_WEAPON', weaponId: selectedWeapon.id });
             showToast(`${selectedWeapon.name} geüpgraded naar level ${selectedWeapon.level + 1}!`);
-            // Refresh the selected weapon
             const updated = (state.weaponInventory || []).find(w => w.id === selectedWeapon.id);
             if (updated) setSelectedWeapon(updated);
           }}
@@ -114,81 +109,88 @@ export function WeaponInventory() {
   }
 
   return (
-    <ViewWrapper bg={profileBg}>
-      <SectionHeader title="Wapenarsenaal" icon={<Sword size={12} />} />
+    <ViewWrapper bg={arsenalBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Sword size={18} className="text-gold" />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Wapenarsenaal</h2>
+          <p className="text-[0.55rem] text-muted-foreground">{weapons.length}/{MAX_WEAPON_INVENTORY} wapens • Sorteer op {sortBy === 'dps' ? 'DPS' : sortBy}</p>
+        </div>
+      </div>
 
-      {/* Equipped weapon */}
+      {/* Equipped weapon highlight */}
       {equippedWeapon && (
         <div className="mb-3">
-          <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Huidig wapen</div>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-gold" />
+            <span className="text-[0.5rem] uppercase tracking-wider text-gold/80 font-bold">Uitgerust</span>
+          </div>
           <WeaponCard weapon={equippedWeapon} onToggleLock={() => {
             dispatch({ type: 'TOGGLE_WEAPON_LOCK', weaponId: equippedWeapon.id });
           }} />
         </div>
       )}
 
-      {/* Capacity + Controls */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[0.5rem] text-muted-foreground">{weapons.length}/{MAX_WEAPON_INVENTORY} wapens</span>
+      {/* Controls bar */}
+      <div className="game-card p-2 mb-3 flex items-center justify-between">
         <div className="flex gap-1">
-          {/* Sort */}
           <button
             onClick={() => {
               const keys: SortKey[] = ['rarity', 'damage', 'level', 'name', 'dps'];
               const idx = keys.indexOf(sortBy);
               setSortBy(keys[(idx + 1) % keys.length]);
             }}
-            className="text-[0.45rem] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
           >
             <ArrowDownUp size={8} /> {sortBy === 'dps' ? 'DPS' : sortBy}
           </button>
-          {/* Frame filter */}
           <button
             onClick={() => {
               const frames: (FrameId | 'all')[] = ['all', 'pistol', 'smg', 'shotgun', 'rifle', 'blade', 'lmg', 'launcher'];
               const idx = frames.indexOf(filterFrame);
               setFilterFrame(frames[(idx + 1) % frames.length]);
             }}
-            className="text-[0.45rem] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
           >
             <Filter size={8} /> {filterFrame === 'all' ? 'Alle' : filterFrame}
           </button>
         </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-1.5 mb-3">
-        <GameButton
-          variant={fusionMode ? 'gold' : 'muted'}
-          size="sm"
-          onClick={() => { setFusionMode(!fusionMode); setFusionSelection([]); }}
-        >
-          <Merge size={10} /> {fusionMode ? 'Stop Fusie' : 'Fusie'}
-        </GameButton>
-        {bulkSellRarity === null ? (
-          <GameButton variant="muted" size="sm" onClick={() => setBulkSellRarity('common')}>
-            <ShoppingBag size={10} /> Bulk Verkoop
+        <div className="flex gap-1">
+          <GameButton
+            variant={fusionMode ? 'gold' : 'muted'}
+            size="sm"
+            onClick={() => { setFusionMode(!fusionMode); setFusionSelection([]); }}
+          >
+            <Merge size={10} /> {fusionMode ? 'Stop' : 'Fusie'}
           </GameButton>
-        ) : (
-          <div className="flex gap-1 items-center">
-            <span className="text-[0.45rem] text-muted-foreground">Verkoop t/m:</span>
-            {(['common', 'uncommon', 'rare'] as WeaponRarity[]).map(r => (
-              <button
-                key={r}
-                onClick={() => handleBulkSell(r)}
-                className="text-[0.45rem] px-1.5 py-0.5 rounded bg-muted hover:bg-blood/20 hover:text-blood transition-colors"
-              >
-                {WEAPON_RARITY_LABEL[r]}
-              </button>
-            ))}
-            <button onClick={() => setBulkSellRarity(null)} className="text-[0.45rem] text-muted-foreground hover:text-foreground">✕</button>
-          </div>
-        )}
+          {bulkSellRarity === null ? (
+            <GameButton variant="muted" size="sm" onClick={() => setBulkSellRarity('common')}>
+              <ShoppingBag size={10} /> Verkoop
+            </GameButton>
+          ) : (
+            <div className="flex gap-1 items-center">
+              <span className="text-[0.45rem] text-muted-foreground">t/m:</span>
+              {(['common', 'uncommon', 'rare'] as WeaponRarity[]).map(r => (
+                <button
+                  key={r}
+                  onClick={() => handleBulkSell(r)}
+                  className="text-[0.45rem] px-1.5 py-0.5 rounded bg-muted hover:bg-blood/20 hover:text-blood transition-colors"
+                >
+                  {WEAPON_RARITY_LABEL[r]}
+                </button>
+              ))}
+              <button onClick={() => setBulkSellRarity(null)} className="text-[0.45rem] text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Fusion info */}
       {fusionMode && (
-        <div className="game-card p-2 mb-3 border border-gold/30 bg-gold/5">
+        <div className="game-card p-2.5 mb-3 border border-gold/30 bg-gold/5">
           <p className="text-[0.5rem] text-gold font-semibold mb-1">🔥 Fusie Modus — Selecteer 3 wapens van dezelfde rarity</p>
           <p className="text-[0.45rem] text-muted-foreground">Combineer 3 wapens → 1 wapen van hogere rarity</p>
           <div className="flex items-center gap-2 mt-1.5">
@@ -258,9 +260,12 @@ export function WeaponInventory() {
       </div>
 
       {weapons.length === 0 && (
-        <p className="text-muted-foreground text-xs italic py-6 text-center">
-          Geen wapens. Vecht om procedurele wapens te verdienen!
-        </p>
+        <div className="game-card p-6 text-center">
+          <Sword size={24} className="text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-muted-foreground text-xs italic">
+            Geen wapens. Vecht om procedurele wapens te verdienen!
+          </p>
+        </div>
       )}
     </ViewWrapper>
   );

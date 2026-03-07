@@ -3,10 +3,9 @@ import { WEAPON_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { canUpgradeWeapon, getUpgradeCost, getAccessorySwapCost, getAvailableAccessories, getEffectiveStats, getMasteryProgress, getMasteryTitle } from '@/game/weaponUpgrade';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
-import { SectionHeader } from '../ui/SectionHeader';
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Crosshair, Target, Flame, Zap, ArrowUp, ArrowDown, Wrench, Star, Sparkles } from 'lucide-react';
+import { ArrowLeft, Crosshair, Target, Flame, Zap, ArrowUp, ArrowDown, Wrench, Star, Sparkles, Sword } from 'lucide-react';
 import { useState } from 'react';
 
 interface WeaponCompareProps {
@@ -65,29 +64,38 @@ export function WeaponCompare({ weapon, currentWeapon, onEquip, onSell, onUpgrad
 
   return (
     <div>
-      <button onClick={onBack} className="flex items-center gap-1 text-[0.55rem] text-muted-foreground hover:text-foreground mb-3 transition-colors">
+      {/* Back button */}
+      <button onClick={onBack} className="flex items-center gap-1.5 text-[0.55rem] text-muted-foreground hover:text-gold mb-3 transition-colors">
         <ArrowLeft size={12} /> Terug naar arsenaal
       </button>
 
-      <SectionHeader title={weapon.name} />
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Sword size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className={`font-display text-base ${WEAPON_RARITY_COLORS[weapon.rarity]} uppercase tracking-widest font-bold`}>{weapon.name}</h2>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={`text-[0.45rem] ${brand.color}`}>{brand.icon} {brand.name}</span>
+            <GameBadge variant={weapon.rarity === 'legendary' ? 'gold' : weapon.rarity === 'epic' ? 'purple' : weapon.rarity === 'rare' ? 'ice' : weapon.rarity === 'uncommon' ? 'emerald' : 'muted'} size="xs">
+              {WEAPON_RARITY_LABEL[weapon.rarity]}
+            </GameBadge>
+            {weapon.isUnique && <GameBadge variant="purple" size="xs">UNIEK</GameBadge>}
+          </div>
+        </div>
+      </div>
 
       {/* Weapon display */}
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`game-card p-4 mb-3 text-center border ${weapon.rarity === 'legendary' ? 'border-gold' : weapon.rarity === 'epic' ? 'border-game-purple' : 'border-border'} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
+        className={`game-card p-4 mb-3 text-center border ${weapon.rarity === 'legendary' ? 'border-gold/50' : weapon.rarity === 'epic' ? 'border-game-purple/50' : 'border-border'} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
       >
-        <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-16 h-16 object-contain mx-auto mb-2" />
-        <h3 className={`text-sm font-bold font-display ${WEAPON_RARITY_COLORS[weapon.rarity]}`}>{weapon.name}</h3>
-        <div className="flex items-center justify-center gap-2 mt-1">
-          <span className={`text-[0.5rem] ${brand.color}`}>{brand.icon} {brand.name}</span>
-          <GameBadge variant={weapon.rarity === 'legendary' ? 'gold' : weapon.rarity === 'epic' ? 'purple' : weapon.rarity === 'rare' ? 'ice' : weapon.rarity === 'uncommon' ? 'emerald' : 'muted'} size="sm">
-            {WEAPON_RARITY_LABEL[weapon.rarity]}
-          </GameBadge>
-          {weapon.isUnique && <GameBadge variant="purple" size="sm">UNIEK</GameBadge>}
-        </div>
+        <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-20 h-20 object-contain mx-auto mb-2 drop-shadow-lg" />
+        <div className="text-[0.5rem] text-muted-foreground">Level {weapon.level} • {frame.name}</div>
         {weapon.lore && (
-          <p className="text-[0.45rem] italic text-muted-foreground mt-2">"{weapon.lore}"</p>
+          <p className="text-[0.45rem] italic text-muted-foreground mt-2 max-w-xs mx-auto">"{weapon.lore}"</p>
         )}
       </motion.div>
 
