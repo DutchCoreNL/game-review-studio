@@ -103,6 +103,7 @@ export function createBossPhase(state: GameState, phase: number): CombatState {
       skillCooldowns: {},
       comboCounter: 0,
       lastAction: null,
+      stance: 'balanced',
     };
   }
 
@@ -136,6 +137,7 @@ export function createBossPhase(state: GameState, phase: number): CombatState {
     skillCooldowns: {},
     comboCounter: 0,
     lastAction: null,
+    stance: 'balanced',
   };
 }
 

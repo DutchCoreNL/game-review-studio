@@ -188,6 +188,7 @@ export function createPvPCombatState(
     damageTaken: 0,
     skillsUsed: 0,
     combosLanded: 0,
+    stance: 'balanced',
   };
 }
 

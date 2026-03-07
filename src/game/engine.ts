@@ -1731,6 +1731,7 @@ export function startConquestPhase(state: GameState, familyId: FamilyId, phase: 
     skillCooldowns: {},
     comboCounter: 0,
     lastAction: null,
+    stance: 'balanced',
   };
 }
 
@@ -1798,6 +1799,7 @@ export function startCombat(state: GameState, familyId: FamilyId): CombatState |
     skillCooldowns: {},
     comboCounter: 0,
     lastAction: null,
+    stance: 'balanced',
   };
 }
 
