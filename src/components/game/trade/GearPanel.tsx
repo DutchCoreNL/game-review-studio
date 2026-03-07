@@ -1,57 +1,15 @@
 import { useGame } from '@/contexts/GameContext';
-import { GEAR, FAMILIES, AMMO_PACKS, SPECIAL_AMMO, SPECIAL_AMMO_PACKS, MAX_AMMO } from '@/game/constants';
-import { GearSlot } from '@/game/types';
-import { getDailyDeal } from '@/game/engine';
+import { AMMO_PACKS, SPECIAL_AMMO, SPECIAL_AMMO_PACKS, MAX_AMMO } from '@/game/constants';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
-import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Swords, Shield, Cpu, Zap, Lock, Sparkles, Crosshair } from 'lucide-react';
+import { ShieldCheck, Crosshair, Zap, Sword, Shield, Smartphone, ShoppingBag, Hammer } from 'lucide-react';
 import { useState } from 'react';
-import { GEAR_IMAGES } from '@/assets/items';
-
-type GearFilter = 'all' | 'weapon' | 'armor' | 'gadget';
-
-const FILTER_LABELS: Record<GearFilter, { label: string; icon: React.ReactNode }> = {
-  all: { label: 'ALLES', icon: <ShieldCheck size={11} /> },
-  weapon: { label: 'WAPENS', icon: <Swords size={11} /> },
-  armor: { label: 'ARMOR', icon: <Shield size={11} /> },
-  gadget: { label: 'GADGETS', icon: <Cpu size={11} /> },
-};
-
-const SLOT_ICONS: Record<string, React.ReactNode> = {
-  weapon: <Swords size={14} />,
-  armor: <Shield size={14} />,
-  gadget: <Cpu size={14} />,
-};
-
-const STAT_COLORS: Record<string, 'blood' | 'gold' | 'emerald' | 'ice' | 'purple'> = {
-  muscle: 'blood',
-  brains: 'ice',
-  charm: 'gold',
-};
-
-const STAT_LABELS: Record<string, string> = {
-  muscle: 'Kracht',
-  brains: 'Vernuft',
-  charm: 'Charisma',
-};
 
 export function GearPanel() {
-  const { state, dispatch, showToast } = useGame();
-  const [filter, setFilter] = useState<GearFilter>('all');
-  const dailyDeal = getDailyDeal(state);
-
-  const filteredGear = GEAR.filter(g => filter === 'all' || g.type === filter);
+  const { state, dispatch, showToast, setView } = useGame();
   const currentAmmo = state.ammo || 0;
-
-  const getEquippedStat = (slot: GearSlot, statKey: string): number => {
-    const equippedId = state.player.loadout[slot];
-    if (!equippedId) return 0;
-    const item = GEAR.find(g => g.id === equippedId);
-    return item?.stats[statKey as keyof typeof item.stats] || 0;
-  };
 
   return (
     <div>
@@ -160,180 +118,86 @@ export function GearPanel() {
         🔫 Universele kogels — Nodig voor gevechten, huurmoorden en PvP
       </div>
 
-      <SectionHeader title="Zwarte Markt" icon={<ShieldCheck size={12} />} />
+      {/* Arsenal Navigation */}
+      <SectionHeader title="Arsenaal" icon={<ShieldCheck size={12} />} />
 
-      {/* Daily Deal */}
-      {dailyDeal && (
-        <motion.div
-          className="game-card p-3 mb-4 border-l-[3px] border-l-gold bg-gradient-to-r from-gold/5 to-transparent"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+      <div className="space-y-2">
+        <motion.button
+          onClick={() => setView('weapons' as any)}
+          className="w-full game-card p-3 flex items-center gap-3 hover:border-blood/40 transition-all"
+          whileTap={{ scale: 0.98 }}
         >
-          <div className="flex items-center gap-1.5 mb-2">
-            <Sparkles size={12} className="text-gold" />
-            <span className="text-[0.6rem] font-bold text-gold uppercase tracking-wider">Deal van de Dag</span>
-            <GameBadge variant="gold" size="xs">-{Math.floor(dailyDeal.discount * 100)}%</GameBadge>
+          <div className="w-10 h-10 rounded bg-blood/10 flex items-center justify-center flex-shrink-0">
+            <Sword size={18} className="text-blood" />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded bg-gold/10 flex items-center justify-center flex-shrink-0">
-              {SLOT_ICONS[dailyDeal.item.type]}
-            </div>
-            <div className="flex-1">
-              <h4 className="font-bold text-xs">{dailyDeal.item.name}</h4>
-              <p className="text-[0.5rem] text-muted-foreground">{dailyDeal.item.desc}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[0.55rem] text-muted-foreground line-through">€{dailyDeal.item.cost.toLocaleString()}</span>
-                <span className="text-xs font-bold text-gold">€{dailyDeal.discountedPrice.toLocaleString()}</span>
-              </div>
-            </div>
-            <GameButton
-              variant="gold"
-              size="sm"
-              glow
-              disabled={state.ownedGear.includes(dailyDeal.item.id) || state.money < dailyDeal.discountedPrice}
-              onClick={() => {
-                dispatch({ type: 'BUY_GEAR_DEAL', id: dailyDeal.item.id, price: dailyDeal.discountedPrice });
-                showToast(`${dailyDeal.item.name} gekocht met korting!`);
-              }}
-            >
-              {state.ownedGear.includes(dailyDeal.item.id) ? 'BEZIT' : 'KOOP'}
-            </GameButton>
+          <div className="flex-1 text-left">
+            <h4 className="font-bold text-xs">Wapenarsenaal</h4>
+            <p className="text-[0.5rem] text-muted-foreground">Bekijk, upgrade en equip je wapens</p>
           </div>
-        </motion.div>
-      )}
+          <span className="text-[0.55rem] text-muted-foreground">{state.weaponInventory?.length || 0}/20</span>
+        </motion.button>
 
-      {/* Category Filters */}
-      <div className="flex gap-1 mb-4">
-        {(Object.keys(FILTER_LABELS) as GearFilter[]).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`flex-1 py-1.5 rounded text-[0.5rem] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-              filter === f ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted text-muted-foreground border border-border'
-            }`}
-          >
-            {FILTER_LABELS[f].icon} {FILTER_LABELS[f].label}
-          </button>
-        ))}
-      </div>
+        <motion.button
+          onClick={() => setView('armor-arsenal' as any)}
+          className="w-full game-card p-3 flex items-center gap-3 hover:border-ice/40 transition-all"
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="w-10 h-10 rounded bg-ice/10 flex items-center justify-center flex-shrink-0">
+            <Shield size={18} className="text-ice" />
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="font-bold text-xs">Pantser Arsenaal</h4>
+            <p className="text-[0.5rem] text-muted-foreground">Armor en beschermende uitrusting</p>
+          </div>
+          <span className="text-[0.55rem] text-muted-foreground">{state.armorInventory?.length || 0}/20</span>
+        </motion.button>
 
-      {/* Gear List */}
-      <div className="space-y-2.5">
-        {filteredGear.map(item => {
-          const owned = state.ownedGear.includes(item.id);
-          const isDeal = dailyDeal?.item.id === item.id;
-          const price = isDeal ? dailyDeal.discountedPrice : (state.heat > 50 ? Math.floor(item.cost * 1.2) : item.cost);
-          const canBuy = !owned && state.money >= price;
-          const reqMet = !item.reqRep || (state.familyRel[item.reqRep.f] || 0) >= item.reqRep.val;
-          const prestigeMet = !item.reqPrestige || (state.prestigeLevel || 0) >= item.reqPrestige;
-          const isEquipped = Object.values(state.player.loadout).includes(item.id);
+        <motion.button
+          onClick={() => setView('gadget-arsenal' as any)}
+          className="w-full game-card p-3 flex items-center gap-3 hover:border-game-purple/40 transition-all"
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="w-10 h-10 rounded bg-game-purple/10 flex items-center justify-center flex-shrink-0">
+            <Smartphone size={18} className="text-game-purple" />
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="font-bold text-xs">Gadget Arsenaal</h4>
+            <p className="text-[0.5rem] text-muted-foreground">Tech, hacking tools en gadgets</p>
+          </div>
+          <span className="text-[0.55rem] text-muted-foreground">{state.gadgetInventory?.length || 0}/20</span>
+        </motion.button>
 
-          return (
-            <motion.div
-              key={item.id}
-              className={`game-card p-3 ${owned ? 'border-l-[3px] border-l-emerald' : (!reqMet || !prestigeMet) ? 'opacity-60' : ''}`}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: (!reqMet || !prestigeMet) ? 0.6 : 1, y: 0 }}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center flex-shrink-0 ${
-                  !GEAR_IMAGES[item.id] ? (owned ? 'bg-emerald/10' : 'bg-muted') : ''
-                }`}>
-                  {GEAR_IMAGES[item.id] ? (
-                    <img src={GEAR_IMAGES[item.id]} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    !reqMet ? <Lock size={14} className="text-muted-foreground" /> : SLOT_ICONS[item.type]
-                  )}
-                </div>
+        <motion.button
+          onClick={() => setView('black-market' as any)}
+          className="w-full game-card p-3 flex items-center gap-3 hover:border-gold/40 transition-all border-l-[3px] border-l-gold"
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="w-10 h-10 rounded bg-gold/10 flex items-center justify-center flex-shrink-0">
+            <ShoppingBag size={18} className="text-gold" />
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="font-bold text-xs text-gold">Zwarte Markt</h4>
+            <p className="text-[0.5rem] text-muted-foreground">Koop procedurele wapens, armor & gadgets</p>
+          </div>
+        </motion.button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <h4 className="font-bold text-xs">{item.name}</h4>
-                    <GameBadge variant={owned ? 'emerald' : 'muted'} size="xs">
-                      {item.type === 'weapon' ? 'WAPEN' : item.type === 'armor' ? 'ARMOR' : 'GADGET'}
-                    </GameBadge>
-                    {isEquipped && <GameBadge variant="gold" size="xs">ACTIEF</GameBadge>}
-                    {isDeal && !owned && <GameBadge variant="gold" size="xs">DEAL</GameBadge>}
-                  </div>
-                  <p className="text-[0.5rem] text-muted-foreground mb-1">{item.desc}</p>
-                  {item.type === 'weapon' && (
-                    <div className="flex items-center gap-1 mb-1">
-                      {item.ammoType === null ? (
-                        <GameBadge variant="gold" size="xs">⚔️ MELEE</GameBadge>
-                      ) : item.ammoType ? (
-                        <>
-                          <GameBadge variant="ice" size="xs">🔫 {item.ammoType}</GameBadge>
-                          <GameBadge variant="muted" size="xs">{item.clipSize} rounds</GameBadge>
-                        </>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {/* Stat Bars */}
-                  <div className="space-y-1">
-                    {Object.entries(item.stats).map(([stat, val]) => {
-                      const currentEquipped = getEquippedStat(item.type, stat);
-                      const diff = (val || 0) - currentEquipped;
-                      return (
-                        <div key={stat} className="flex items-center gap-1.5">
-                          <span className="text-[0.45rem] text-muted-foreground w-12 uppercase">{STAT_LABELS[stat] || stat}</span>
-                          <div className="flex-1">
-                            <StatBar value={val || 0} max={10} color={STAT_COLORS[stat] || 'gold'} height="xs" />
-                          </div>
-                          <span className="text-[0.5rem] font-bold w-6 text-right">+{val}</span>
-                          {!owned && currentEquipped > 0 && (
-                            <span className={`text-[0.45rem] font-bold ${diff > 0 ? 'text-emerald' : diff < 0 ? 'text-blood' : 'text-muted-foreground'}`}>
-                              ({diff > 0 ? '+' : ''}{diff})
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Requirement */}
-                  {item.reqRep && !reqMet && (
-                    <div className="flex items-center gap-1 mt-1.5 text-[0.45rem] text-blood">
-                      <Lock size={8} />
-                      <span>Vereist: {FAMILIES[item.reqRep.f]?.name} relatie {item.reqRep.val}+</span>
-                    </div>
-                  )}
-                  {item.reqPrestige && !prestigeMet && (
-                    <div className="flex items-center gap-1 mt-1.5 text-[0.45rem] text-game-purple">
-                      <Lock size={8} />
-                      <span>Vereist: Prestige {item.reqPrestige}+</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-end">
-                  <GameButton
-                    variant={owned ? 'muted' : 'gold'}
-                    size="sm"
-                    disabled={owned || !canBuy || !reqMet || !prestigeMet}
-                    onClick={() => {
-                      if (isDeal) {
-                        dispatch({ type: 'BUY_GEAR_DEAL', id: item.id, price: dailyDeal!.discountedPrice });
-                      } else {
-                        dispatch({ type: 'BUY_GEAR', id: item.id });
-                      }
-                      showToast(`${item.name} gekocht!`);
-                    }}
-                  >
-                    {owned ? 'BEZIT' : `€${price.toLocaleString()}`}
-                  </GameButton>
-                  {isDeal && !owned && (
-                    <span className="text-[0.4rem] text-muted-foreground line-through mt-0.5">€{item.cost.toLocaleString()}</span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
+        <motion.button
+          onClick={() => setView('salvage' as any)}
+          className="w-full game-card p-3 flex items-center gap-3 hover:border-emerald/40 transition-all"
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="w-10 h-10 rounded bg-emerald/10 flex items-center justify-center flex-shrink-0">
+            <Hammer size={18} className="text-emerald" />
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="font-bold text-xs">Salvage & Craft</h4>
+            <p className="text-[0.5rem] text-muted-foreground">Ontmantel gear voor scrap en craft nieuwe items</p>
+          </div>
+        </motion.button>
       </div>
 
       <p className="text-[0.5rem] text-muted-foreground text-center mt-4">
-        Equip gear via je Profiel tab.
+        ⚔️ Alle gear is procedureel gegenereerd — vind unieke combinaties!
       </p>
     </div>
   );
