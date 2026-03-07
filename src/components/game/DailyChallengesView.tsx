@@ -3,6 +3,7 @@ import { getChallengeTemplate, CHALLENGE_CATEGORIES } from '@/game/dailyChalleng
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
+import { ViewWrapper } from './ui/ViewWrapper';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Gift, Check, Clock, Trophy, Star } from 'lucide-react';
 import challengesBg from '@/assets/items/daily-challenges-bg.jpg';
@@ -25,14 +26,15 @@ export function DailyChallengesView() {
   };
 
   return (
-    <div>
-      {/* Banner */}
-      <div className="relative h-28 overflow-hidden rounded-lg mb-3 -mx-1">
-        <img src={challengesBg} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-        <div className="absolute bottom-2 left-3 flex items-center gap-2">
-          <Target size={12} className="text-gold" />
-          <span className="font-display text-sm font-bold text-gold uppercase tracking-wider gold-text-glow">Dagelijkse Uitdagingen</span>
+    <ViewWrapper bg={challengesBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+          <Target size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="font-display text-lg text-gold uppercase tracking-widest font-bold">Dagelijkse Uitdagingen</h2>
+          <p className="text-[0.55rem] text-muted-foreground">Voltooi taken voor extra beloningen</p>
         </div>
       </div>
 
@@ -182,6 +184,6 @@ export function DailyChallengesView() {
           </div>
         </div>
       </div>
-    </div>
+    </ViewWrapper>
   );
 }
