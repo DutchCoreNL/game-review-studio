@@ -1,87 +1,123 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Gevecht & Missie UI Overhaul — Noir Cinematic Layout
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
-
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Geïnspireerd door de referentie-afbeelding: een immersieve layout met scène-illustratie, info-paneel, en gecategoriseerde actieknoppen als kaarten. Aangepast aan ons noir-thema en mobiel-eerst ontwerp.
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+## Huidige Staat vs. Gewenst
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
-
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
-
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
-
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+**Nu**: Verticale lijst van HP bars → combat log → knoppen. Functioneel maar vlak.
+**Straks**: Cinematic layout met sfeer-header, vijandinfo-paneel, en gestylede actie-kaarten gegroepeerd per categorie.
 
 ---
 
-## Technisch overzicht
+## 1. Combat Scene Header (vervangt huidige portrait + scene text)
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+Grotere, immersieve header-sectie met district-achtergrond:
+- District-afbeelding als achtergrond (opacity-30, grotere hoogte: h-36)
+- **Speler info** overlay linksboven: naam, level, stats (muscle/brains/charm), uitgerust wapen
+- **Vijand info** overlay rechtsboven: naam, HP, stance/type indicator
+- **Missie/scene tekst** overlay onderaan: de typewriter scenePhrase
+- Bij boss fights: boss portret centraal met fase-indicator
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+**Bestand**: `CombatView.tsx` — `ActiveCombat` component, regels 414-462
+
+---
+
+## 2. HP & Status Panel (compacter, meer visueel)
+
+Herstructureer HP bars tot een compact paneel met:
+- HP bars naast elkaar (links = speler, rechts = vijand) in plaats van gestapeld
+- Stance indicator als badge naast de HP bar
+- Actieve buffs/debuffs inline onder de HP bars
+- Combo meter geïntegreerd als subtiele balk onder het paneel
+
+**Bestand**: `CombatView.tsx` — regels 464-513
+
+---
+
+## 3. Gecategoriseerde Actie-Kaarten (kernwijziging)
+
+Vervang de huidige grid van knoppen door **4 categorieën** zoals in de referentie:
+
+```text
+┌─────────────┬──────────────┬──────────────┬──────────────┐
+│ DIRECTE      │ TACTISCH     │ STRATEGISCH  │ SPECIAAL     │
+│ ACTIE        │              │              │              │
+├─────────────┼──────────────┼──────────────┼──────────────┤
+│ [Aanval]     │ [Verdedig]   │ [Stance]     │ [Combo       │
+│ ⚔️ Betrouw- │ 🛡️ Block +  │ Wissel       │  Finisher]   │
+│ baar, -1🔫  │ Heal         │ stance       │ 🔥 Als combo │
+│              │              │              │ vol is       │
+├─────────────┼──────────────┼──────────────┤              │
+│ [Zware Klap] │ [Omgeving]   │ [Tactisch]   │ [Skills]     │
+│ ⚡ Krachtig  │ 🗺️ Stun     │ 🎯 Stat      │ Toon skill   │
+│              │ kans         │ check        │ menu         │
+└─────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+Elke kaart krijgt:
+- Icoon linksboven (klein, in een cirkel met kleur-achtergrond)
+- Naam **bold** als titel
+- Korte beschrijving (cost, effect)
+- Kleur-gecodeerde rand per categorie (blood/emerald/gold/purple)
+
+**Bestand**: `CombatView.tsx` — regels 515-670, nieuw `ActionCategory` component
+
+---
+
+## 4. Combat Log Verbetering
+
+- Grotere log-sectie met betere visuele scheiding
+- "MISSIE TEKST" label boven de log (zoals in referentie)
+- Log entries met meer contrast: vijand-berichten rechts-aligned met rode rand
+
+**Bestand**: `CombatView.tsx` — regels 508-513
+
+---
+
+## 5. Campaign Mission View Polish
+
+Dezelfde behandeling voor `CampaignMissionView.tsx`:
+- Grotere header met chapter-afbeelding als scene
+- Objectives panel rechts (mobiel: boven de acties)
+- Encounter keuzes als gestylede kaarten met icoon-cirkels
+- Mission text sectie met briefing-stijl
+
+**Bestand**: `CampaignMissionView.tsx` + `EncounterCard.tsx`
+
+---
+
+## 6. Boss Fight View Polish
+
+- Boss portret banner groter (h-36) met stats overlay
+- Fase, rage, debuffs als compacte badges
+- Actieknoppen als kaarten i.p.v. kleine buttons
+- Counter-warning prominenter
+
+**Bestand**: `BossFightView.tsx`
+
+---
+
+## 7. "UITVOEREN" Knop
+
+Zoals in de referentie: een prominente execute-knop rechtsonder voor de primaire actie. In ons geval wordt dit de combo finisher / primaire aanval-knop die altijd zichtbaar is als een grote, glowing knop.
+
+---
+
+## Technisch Overzicht
+
+| Wijziging | Bestand | Type |
+|-----------|---------|------|
+| Cinematic combat header | `CombatView.tsx` | Herstructurering |
+| Actie-kaart categorieën | `CombatView.tsx` | Nieuw component |
+| Compacte HP/status panel | `CombatView.tsx` | Herstructurering |
+| Verbeterde combat log | `CombatView.tsx` | Uitbreiding |
+| Campaign mission polish | `CampaignMissionView.tsx` | Uitbreiding |
+| Encounter card upgrade | `EncounterCard.tsx` | Uitbreiding |
+| Boss fight UI upgrade | `BossFightView.tsx` | Herstructurering |
+
+Alle wijzigingen zijn puur visueel/UI — geen gameplay-logica veranderingen. Framer Motion animaties behouden. Volledig mobiel-responsief (het spel draait in een mobiel-breedte paneel).
 
