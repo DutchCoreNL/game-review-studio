@@ -117,6 +117,7 @@ type GameAction =
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'START_NEMESIS_COMBAT' }
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' | 'skill' | 'combo_finisher'; skillId?: string }
+  | { type: 'SET_COMBAT_STANCE'; stance: import('../game/types').CombatStance }
   | { type: 'END_COMBAT' }
   | { type: 'FACTION_ACTION'; familyId: FamilyId; actionType: FactionActionType }
   | { type: 'CONQUER_FACTION'; familyId: FamilyId }
