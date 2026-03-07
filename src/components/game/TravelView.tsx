@@ -12,8 +12,9 @@ import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Clock, ShieldAlert, Package, ArrowLeft, MapPin,
-  AlertTriangle, CheckCircle2, Anchor, ChevronRight,
+  AlertTriangle, CheckCircle2, Anchor, ChevronRight, Globe,
 } from 'lucide-react';
+import travelBg from '@/assets/travel-bg.jpg';
 
 // ─── Destination Card ───
 function DestinationCard({ dest, level, onSelect }: {
