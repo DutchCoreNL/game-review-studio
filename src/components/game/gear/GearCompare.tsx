@@ -3,10 +3,9 @@ import { GEAR_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { canUpgradeGear, getGearUpgradeCost, getGearModSwapCost, getAvailableMods, getEffectiveGearStats, getGearMasteryProgress, getGearMasteryTitle } from '@/game/gearUpgrade';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
-import { SectionHeader } from '../ui/SectionHeader';
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, Brain, Heart, Sparkles, ArrowUp, ArrowDown, Wrench, Star } from 'lucide-react';
+import { ArrowLeft, Shield, Brain, Heart, Sparkles, ArrowUp, ArrowDown, Wrench, Star, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 
 interface GearCompareProps {
@@ -53,6 +52,10 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
   const oldStats = currentGear ? getEffectiveGearStats(currentGear) : { defense: 0, brains: 0, charm: 0, bonusHP: 0 };
   const upgradeCheck = canUpgradeGear(gear, state.money);
 
+  const isArmor = gearType === 'armor';
+  const HeaderIcon = isArmor ? Shield : Smartphone;
+  const accentColor = isArmor ? 'ice' : 'game-purple';
+
   const handleModSwap = (modId: GearModId) => {
     const cost = getGearModSwapCost();
     if (state.money < cost) { showToast('Niet genoeg geld!'); return; }
@@ -63,28 +66,40 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
 
   return (
     <div>
-      <button onClick={onBack} className="flex items-center gap-1 text-[0.55rem] text-muted-foreground hover:text-foreground mb-3 transition-colors">
+      {/* Back button */}
+      <button onClick={onBack} className="flex items-center gap-1.5 text-[0.55rem] text-muted-foreground hover:text-gold mb-3 transition-colors">
         <ArrowLeft size={12} /> Terug naar arsenaal
       </button>
 
-      <SectionHeader title={gear.name} />
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`w-10 h-10 rounded-full bg-${accentColor}/15 border border-${accentColor}/40 flex items-center justify-center`}>
+          <HeaderIcon size={18} className={`text-${accentColor}`} />
+        </div>
+        <div>
+          <h2 className={`font-display text-base ${GEAR_RARITY_COLORS[gear.rarity]} uppercase tracking-widest font-bold`}>{gear.name}</h2>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={`text-[0.45rem] ${brand.color}`}>{brand.icon} {brand.name}</span>
+            <GameBadge variant={gear.rarity === 'legendary' ? 'gold' : gear.rarity === 'epic' ? 'purple' : gear.rarity === 'rare' ? 'ice' : gear.rarity === 'uncommon' ? 'emerald' : 'muted'} size="xs">
+              {GEAR_RARITY_LABEL[gear.rarity]}
+            </GameBadge>
+            {gear.isUnique && <GameBadge variant="purple" size="xs">UNIEK</GameBadge>}
+          </div>
+        </div>
+      </div>
 
+      {/* Gear display */}
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`game-card p-4 mb-3 text-center border ${gear.rarity === 'legendary' ? 'border-gold' : gear.rarity === 'epic' ? 'border-game-purple' : 'border-border'} ${gear.isUnique ? gear.uniqueGlow || '' : ''}`}
+        className={`game-card p-4 mb-3 text-center border ${gear.rarity === 'legendary' ? 'border-gold/50' : gear.rarity === 'epic' ? 'border-game-purple/50' : 'border-border'} ${gear.isUnique ? gear.uniqueGlow || '' : ''}`}
       >
-        <img src={GEAR_FRAME_IMAGES[gear.frame]} alt={frame.name} className="w-16 h-16 object-contain mx-auto mb-2" />
-        <h3 className={`text-sm font-bold font-display ${GEAR_RARITY_COLORS[gear.rarity]}`}>{gear.name}</h3>
-        <div className="flex items-center justify-center gap-2 mt-1">
-          <span className={`text-[0.5rem] ${brand.color}`}>{brand.icon} {brand.name}</span>
-          <GameBadge variant={gear.rarity === 'legendary' ? 'gold' : gear.rarity === 'epic' ? 'purple' : gear.rarity === 'rare' ? 'ice' : gear.rarity === 'uncommon' ? 'emerald' : 'muted'} size="sm">
-            {GEAR_RARITY_LABEL[gear.rarity]}
-          </GameBadge>
-        </div>
-        {gear.lore && <p className="text-[0.45rem] italic text-muted-foreground mt-2">"{gear.lore}"</p>}
+        <img src={GEAR_FRAME_IMAGES[gear.frame]} alt={frame.name} className="w-20 h-20 object-contain mx-auto mb-2 drop-shadow-lg" />
+        <div className="text-[0.5rem] text-muted-foreground">Level {gear.level} • {frame.name}</div>
+        {gear.lore && <p className="text-[0.45rem] italic text-muted-foreground mt-2 max-w-xs mx-auto">"{gear.lore}"</p>}
       </motion.div>
 
+      {/* Mastery */}
       {(gear.masteryXp || 0) > 0 && (
         <div className="game-card p-3 mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -102,6 +117,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         </div>
       )}
 
+      {/* Stat comparison */}
       <div className="game-card p-3 mb-3">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
           {currentGear ? 'Vergelijking met huidig' : 'Statistieken'}
@@ -112,6 +128,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         <ComparisonStat label="Bonus HP" newVal={stats.bonusHP} oldVal={oldStats.bonusHP} icon={<Heart size={10} className="text-blood" />} />
       </div>
 
+      {/* Special effect */}
       {gear.specialEffect && (
         <div className="game-card p-3 mb-3">
           <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Speciaal effect</div>
@@ -119,6 +136,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         </div>
       )}
 
+      {/* Upgrade section */}
       <div className="game-card p-3 mb-3">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
           <Wrench size={8} className="inline mr-1" /> Verbeteren
@@ -143,6 +161,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         )}
       </div>
 
+      {/* Actions */}
       <div className="flex gap-2">
         <GameButton variant="gold" size="lg" fullWidth glow onClick={onEquip}>
           {gear.equipped ? 'AL UITGERUST' : 'UITRUSTEN'}

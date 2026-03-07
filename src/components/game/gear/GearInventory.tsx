@@ -4,13 +4,12 @@ import { GeneratedGear, GEAR_RARITY_LABEL, MAX_GEAR_INVENTORY, GearRarity, GearF
 import { canFuseGear } from '@/game/gearUpgrade';
 import { GearCard } from './GearCard';
 import { GearCompare } from './GearCompare';
-import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { ViewWrapper } from '../ui/ViewWrapper';
 import { GameBadge } from '../ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Smartphone, Filter, ArrowDownUp, Trash2, Merge, ShoppingBag } from 'lucide-react';
-import profileBg from '@/assets/profile-bg.jpg';
+import arsenalBg from '@/assets/arsenal-bg.jpg';
 
 type SortKey = 'defense' | 'rarity' | 'level' | 'name' | 'brains';
 
@@ -34,7 +33,8 @@ export function GearInventory({ gearType }: GearInventoryProps) {
   const equippedGear = gears.find(g => g.equipped);
   const frames = isArmor ? ARMOR_FRAMES : GADGET_FRAMES;
   const title = isArmor ? 'Pantser Arsenaal' : 'Gadget Arsenaal';
-  const icon = isArmor ? <Shield size={12} /> : <Smartphone size={12} />;
+  const HeaderIcon = isArmor ? Shield : Smartphone;
+  const accentColor = isArmor ? 'ice' : 'game-purple';
 
   const sortedGears = useMemo(() => {
     let filtered = filterFrame === 'all' ? [...gears] : gears.filter(g => g.frame === filterFrame);
@@ -79,7 +79,7 @@ export function GearInventory({ gearType }: GearInventoryProps) {
 
   if (selectedGear) {
     return (
-      <ViewWrapper bg={profileBg}>
+      <ViewWrapper bg={arsenalBg}>
         <GearCompare
           gear={selectedGear}
           currentGear={equippedGear || null}
@@ -108,27 +108,38 @@ export function GearInventory({ gearType }: GearInventoryProps) {
   }
 
   return (
-    <ViewWrapper bg={profileBg}>
-      <SectionHeader title={title} icon={icon} />
+    <ViewWrapper bg={arsenalBg}>
+      {/* Cinematic header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-10 h-10 rounded-full bg-${accentColor}/15 border border-${accentColor}/40 flex items-center justify-center`}>
+          <HeaderIcon size={18} className={`text-${accentColor}`} />
+        </div>
+        <div className="flex-1">
+          <h2 className={`font-display text-lg text-${accentColor} uppercase tracking-widest font-bold`}>{title}</h2>
+          <p className="text-[0.55rem] text-muted-foreground">{gears.length}/{MAX_GEAR_INVENTORY} items • Sorteer op {sortBy}</p>
+        </div>
+      </div>
 
+      {/* Equipped gear highlight */}
       {equippedGear && (
         <div className="mb-3">
-          <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">
-            Huidig {isArmor ? 'pantser' : 'gadget'}
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full bg-${accentColor}`} />
+            <span className={`text-[0.5rem] uppercase tracking-wider text-${accentColor}/80 font-bold`}>Uitgerust</span>
           </div>
           <GearCard gear={equippedGear} onToggleLock={() => dispatch({ type: 'TOGGLE_GEAR_LOCK', gearId: equippedGear.id, gearType })} />
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[0.5rem] text-muted-foreground">{gears.length}/{MAX_GEAR_INVENTORY}</span>
+      {/* Controls bar */}
+      <div className="game-card p-2 mb-3 flex items-center justify-between">
         <div className="flex gap-1">
           <button
             onClick={() => {
               const keys: SortKey[] = ['rarity', 'defense', 'brains', 'level', 'name'];
               setSortBy(keys[(keys.indexOf(sortBy) + 1) % keys.length]);
             }}
-            className="text-[0.45rem] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-${accentColor} hover:bg-${accentColor}/10 transition-colors`}
           >
             <ArrowDownUp size={8} /> {sortBy}
           </button>
@@ -137,36 +148,36 @@ export function GearInventory({ gearType }: GearInventoryProps) {
               const allFrames: (GearFrameId | 'all')[] = ['all', ...frames.map(f => f.id)];
               setFilterFrame(allFrames[(allFrames.indexOf(filterFrame) + 1) % allFrames.length]);
             }}
-            className="text-[0.45rem] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className={`text-[0.45rem] flex items-center gap-0.5 px-2 py-1 rounded bg-muted/50 text-muted-foreground hover:text-${accentColor} hover:bg-${accentColor}/10 transition-colors`}
           >
             <Filter size={8} /> {filterFrame === 'all' ? 'Alle' : filterFrame}
           </button>
         </div>
-      </div>
-
-      <div className="flex gap-1.5 mb-3">
-        <GameButton variant={fusionMode ? 'gold' : 'muted'} size="sm" onClick={() => { setFusionMode(!fusionMode); setFusionSelection([]); }}>
-          <Merge size={10} /> {fusionMode ? 'Stop Fusie' : 'Fusie'}
-        </GameButton>
-        {bulkSellRarity === null ? (
-          <GameButton variant="muted" size="sm" onClick={() => setBulkSellRarity('common')}>
-            <ShoppingBag size={10} /> Bulk Verkoop
+        <div className="flex gap-1">
+          <GameButton variant={fusionMode ? 'gold' : 'muted'} size="sm" onClick={() => { setFusionMode(!fusionMode); setFusionSelection([]); }}>
+            <Merge size={10} /> {fusionMode ? 'Stop' : 'Fusie'}
           </GameButton>
-        ) : (
-          <div className="flex gap-1 items-center">
-            <span className="text-[0.45rem] text-muted-foreground">Verkoop t/m:</span>
-            {(['common', 'uncommon', 'rare'] as GearRarity[]).map(r => (
-              <button key={r} onClick={() => handleBulkSell(r)} className="text-[0.45rem] px-1.5 py-0.5 rounded bg-muted hover:bg-blood/20 hover:text-blood transition-colors">
-                {GEAR_RARITY_LABEL[r]}
-              </button>
-            ))}
-            <button onClick={() => setBulkSellRarity(null)} className="text-[0.45rem] text-muted-foreground hover:text-foreground">✕</button>
-          </div>
-        )}
+          {bulkSellRarity === null ? (
+            <GameButton variant="muted" size="sm" onClick={() => setBulkSellRarity('common')}>
+              <ShoppingBag size={10} /> Verkoop
+            </GameButton>
+          ) : (
+            <div className="flex gap-1 items-center">
+              <span className="text-[0.45rem] text-muted-foreground">t/m:</span>
+              {(['common', 'uncommon', 'rare'] as GearRarity[]).map(r => (
+                <button key={r} onClick={() => handleBulkSell(r)} className="text-[0.45rem] px-1.5 py-0.5 rounded bg-muted hover:bg-blood/20 hover:text-blood transition-colors">
+                  {GEAR_RARITY_LABEL[r]}
+                </button>
+              ))}
+              <button onClick={() => setBulkSellRarity(null)} className="text-[0.45rem] text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Fusion info */}
       {fusionMode && (
-        <div className="game-card p-2 mb-3 border border-gold/30 bg-gold/5">
+        <div className="game-card p-2.5 mb-3 border border-gold/30 bg-gold/5">
           <p className="text-[0.5rem] text-gold font-semibold mb-1">🔥 Fusie Modus — Selecteer 3 items van dezelfde rarity</p>
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-[0.45rem] text-muted-foreground">Geselecteerd: {fusionSelection.length}/3</span>
@@ -179,6 +190,7 @@ export function GearInventory({ gearType }: GearInventoryProps) {
         </div>
       )}
 
+      {/* Gear list */}
       <div className="space-y-2">
         <AnimatePresence>
           {sortedGears.map(gear => (
@@ -214,9 +226,12 @@ export function GearInventory({ gearType }: GearInventoryProps) {
       </div>
 
       {gears.length === 0 && (
-        <p className="text-muted-foreground text-xs italic py-6 text-center">
-          Geen {isArmor ? 'pantser' : 'gadgets'}. Vecht om procedurele gear te verdienen!
-        </p>
+        <div className="game-card p-6 text-center">
+          <HeaderIcon size={24} className="text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-muted-foreground text-xs italic">
+            Geen {isArmor ? 'pantser' : 'gadgets'}. Vecht om procedurele gear te verdienen!
+          </p>
+        </div>
       )}
     </ViewWrapper>
   );
