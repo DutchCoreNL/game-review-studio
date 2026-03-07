@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Crown, Shield, MapPin, Swords, MessageSquare, Plus, Coins, RefreshCw, Loader2, Star, Trash2, UserPlus, LogOut, ChevronUp, Send, ArrowLeft, TrendingUp, Zap, Eye, DoorOpen, BookOpen, Handshake } from 'lucide-react';
+import { ViewWrapper } from './ui/ViewWrapper';
+import gangBg from '@/assets/gang-bg.jpg';
 import { gameApi } from '@/lib/gameApi';
 import { useAuth } from '@/hooks/useAuth';
 import { GameButton } from './ui/GameButton';
