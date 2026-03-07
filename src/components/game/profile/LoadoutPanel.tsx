@@ -5,6 +5,9 @@ import { WeaponCard } from '../weapons/WeaponCard';
 import { GearCard } from '../gear/GearCard';
 import { motion } from 'framer-motion';
 import { Sword, Shield, Smartphone, Crosshair } from 'lucide-react';
+import { MAX_WEAPON_INVENTORY } from '@/game/weaponGenerator';
+import { MAX_GEAR_INVENTORY } from '@/game/gearGenerator';
+import { GameView } from '@/game/types';
 import arsenalBg from '@/assets/arsenal-bg.jpg';
 
 export function LoadoutPanel() {
@@ -40,7 +43,7 @@ export function LoadoutPanel() {
             <WeaponCard weapon={equippedWeapon} compact />
           ) : (
             <motion.button
-              onClick={() => setView('weapons' as any)}
+              onClick={() => setView('weapons' as GameView)}
               className="w-full rounded-lg flex items-center gap-3 p-3 transition-all border border-dashed border-gold/20 bg-gold/5 text-muted-foreground hover:border-gold/40 hover:bg-gold/10"
               whileTap={{ scale: 0.98 }}
             >
@@ -65,7 +68,7 @@ export function LoadoutPanel() {
             <GearCard gear={equippedArmor} compact />
           ) : (
             <motion.button
-              onClick={() => setView('armor-arsenal' as any)}
+              onClick={() => setView('armor-arsenal' as GameView)}
               className="w-full rounded-lg flex items-center gap-3 p-3 transition-all border border-dashed border-ice/20 bg-ice/5 text-muted-foreground hover:border-ice/40 hover:bg-ice/10"
               whileTap={{ scale: 0.98 }}
             >
@@ -90,7 +93,7 @@ export function LoadoutPanel() {
             <GearCard gear={equippedGadget} compact />
           ) : (
             <motion.button
-              onClick={() => setView('gadget-arsenal' as any)}
+              onClick={() => setView('gadget-arsenal' as GameView)}
               className="w-full rounded-lg flex items-center gap-3 p-3 transition-all border border-dashed border-game-purple/20 bg-game-purple/5 text-muted-foreground hover:border-game-purple/40 hover:bg-game-purple/10"
               whileTap={{ scale: 0.98 }}
             >
@@ -109,14 +112,14 @@ export function LoadoutPanel() {
       {/* Arsenal navigation */}
       <div className="game-card p-3 space-y-2">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Arsenaal</div>
-        <GameButton variant="gold" size="sm" fullWidth onClick={() => setView('weapons' as any)}>
-          <Sword size={12} /> Wapenarsenaal ({state.weaponInventory?.length || 0}/20)
+        <GameButton variant="gold" size="sm" fullWidth onClick={() => setView('weapons')}>
+          <Sword size={12} /> Wapenarsenaal ({state.weaponInventory?.length || 0}/{MAX_WEAPON_INVENTORY})
         </GameButton>
-        <GameButton variant="muted" size="sm" fullWidth onClick={() => setView('armor-arsenal' as any)}>
-          <Shield size={12} /> Pantser Arsenaal ({state.armorInventory?.length || 0}/20)
+        <GameButton variant="muted" size="sm" fullWidth onClick={() => setView('armor-arsenal')}>
+          <Shield size={12} /> Pantser Arsenaal ({state.armorInventory?.length || 0}/{MAX_GEAR_INVENTORY})
         </GameButton>
-        <GameButton variant="muted" size="sm" fullWidth onClick={() => setView('gadget-arsenal' as any)}>
-          <Smartphone size={12} /> Gadget Arsenaal ({state.gadgetInventory?.length || 0}/20)
+        <GameButton variant="muted" size="sm" fullWidth onClick={() => setView('gadget-arsenal')}>
+          <Smartphone size={12} /> Gadget Arsenaal ({state.gadgetInventory?.length || 0}/{MAX_GEAR_INVENTORY})
         </GameButton>
       </div>
     </ViewWrapper>

@@ -8,6 +8,17 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, Brain, Heart, Sparkles, ArrowUp, ArrowDown, Wrench, Star, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 
+const ACCENT_STYLES = {
+  armor: {
+    iconBg: 'bg-ice/15 border-ice/40',
+    iconText: 'text-ice',
+  },
+  gadget: {
+    iconBg: 'bg-game-purple/15 border-game-purple/40',
+    iconText: 'text-game-purple',
+  },
+} as const;
+
 interface GearCompareProps {
   gear: GeneratedGear;
   currentGear: GeneratedGear | null;
@@ -54,7 +65,7 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
 
   const isArmor = gearType === 'armor';
   const HeaderIcon = isArmor ? Shield : Smartphone;
-  const accentColor = isArmor ? 'ice' : 'game-purple';
+  const accent = ACCENT_STYLES[gearType];
 
   const handleModSwap = (modId: GearModId) => {
     const cost = getGearModSwapCost();
@@ -73,8 +84,8 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
 
       {/* Cinematic header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className={`w-10 h-10 rounded-full bg-${accentColor}/15 border border-${accentColor}/40 flex items-center justify-center`}>
-          <HeaderIcon size={18} className={`text-${accentColor}`} />
+        <div className={`w-10 h-10 rounded-full ${accent.iconBg} flex items-center justify-center`}>
+          <HeaderIcon size={18} className={accent.iconText} />
         </div>
         <div>
           <h2 className={`font-display text-base ${GEAR_RARITY_COLORS[gear.rarity]} uppercase tracking-widest font-bold`}>{gear.name}</h2>
