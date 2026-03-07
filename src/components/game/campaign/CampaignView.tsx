@@ -229,9 +229,12 @@ export function CampaignView() {
         <div className="text-center space-y-1">
           <h1 className="text-xl font-black text-foreground tracking-tight">⚔️ CAMPAGNE</h1>
           <p className="text-xs text-muted-foreground">Speel het verhaal van Noxhaven op jouw tempo</p>
-          <div className="flex justify-center gap-4 text-[10px] text-muted-foreground mt-1">
+          <div className="flex justify-center gap-4 text-[10px] text-muted-foreground mt-1 flex-wrap">
             <span>📖 {completedChapters}/{CAMPAIGN_CHAPTERS.length} Chapters</span>
             <span>💀 {totalBossKills} Boss kills</span>
+            {(campaignState.trophies?.length || 0) > 0 && <span className="text-gold">🏆 {campaignState.trophies!.length} Trofeeën</span>}
+            {(campaignState.missionStreak || 0) >= 3 && <span className="text-gold font-bold">🔥 {campaignState.missionStreak}x Streak!</span>}
+            {(campaignState.totalEncountersCompleted || 0) > 0 && <span>⚔️ {campaignState.totalEncountersCompleted} Encounters</span>}
           </div>
         </div>
 

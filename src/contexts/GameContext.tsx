@@ -2479,6 +2479,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
         }
       }
+      // Streak tracking
+      if (!s.campaign.missionStreak) s.campaign.missionStreak = 0;
+      if (m.rating >= 3) {
+        s.campaign.missionStreak++;
+      } else {
+        s.campaign.missionStreak = 0;
+      }
+      // Track total encounters
+      if (!s.campaign.totalEncountersCompleted) s.campaign.totalEncountersCompleted = 0;
+      s.campaign.totalEncountersCompleted += m.totalEncounters;
       // Add dropped weapon
       if (m.droppedWeapon) {
         if (!s.weaponInventory) s.weaponInventory = [];
@@ -2551,6 +2561,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (!s[gInv]) (s as any)[gInv] = [];
         if ((s as any)[gInv].length < 20) (s as any)[gInv].push(fight.gearLoot);
       }
+      // Add boss trophy
+      if (!s.campaign.trophies) s.campaign.trophies = [];
+      if (!s.campaign.trophies.includes(fight.bossId)) {
+        s.campaign.trophies.push(fight.bossId);
+      }
       // Update boss progress
       const chProgress = s.campaign.chapters.find(c => c.chapterId === fight.chapterId);
       if (chProgress) {
@@ -2565,11 +2580,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (allMissionsDone && chProgress.boss.killCount >= 1 && !chProgress.completed) {
           chProgress.completed = true;
           chProgress.completedAt = s.day;
-          // Collect chapter bonus
           if (!s.campaign.chapterBonuses.includes(fight.chapterId)) {
             s.campaign.chapterBonuses.push(fight.chapterId);
           }
-          // Unlock next chapter
           const chIdx = s.campaign.chapters.findIndex(c => c.chapterId === fight.chapterId);
           if (chIdx >= 0 && chIdx < s.campaign.chapters.length - 1) {
             s.campaign.chapters[chIdx + 1].unlocked = true;

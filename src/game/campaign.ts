@@ -2,12 +2,13 @@
 
 import { generateWeapon, type GeneratedWeapon, type WeaponRarity, type BrandId } from './weaponGenerator';
 import { generateGear, type GeneratedGear, type GearRarity, type GearType } from './gearGenerator';
+import { getEncounterNarrative, getRandomEvent } from './campaignNarratives';
 
 // ========== TYPES ==========
 
 export type CampaignDifficulty = 'normal' | 'hard' | 'nightmare';
 export type EncounterChoice = 'stealth' | 'standard' | 'aggressive';
-export type EncounterType = 'combat' | 'trap' | 'npc' | 'exploration';
+export type EncounterType = 'combat' | 'trap' | 'npc' | 'exploration' | 'timed' | 'puzzle' | 'ambush';
 
 export interface CampaignMission {
   id: string;
@@ -119,7 +120,10 @@ export interface CampaignState {
   activeBossFight: ActiveBossFight | null;
   activeCampaignMission: ActiveCampaignMission | null;
   totalBossKills: number;
-  chapterBonuses: string[]; // collected chapter completion bonus IDs
+  chapterBonuses: string[];
+  trophies: string[];
+  missionStreak: number;
+  totalEncountersCompleted: number;
 }
 
 export interface ActiveBossFight {
@@ -160,11 +164,12 @@ export interface ActiveCampaignMission {
   success: boolean;
   droppedWeapon: GeneratedWeapon | null;
   droppedGear: GeneratedGear | null;
-  // Tactical choices
   choices: EncounterChoice[];
   totalHeatGain: number;
   hpLost: number;
-  rating: number; // 1-3 stars
+  rating: number;
+  morale: number;
+  lastRandomEvent: string | null;
 }
 
 export interface BossFightLogEntry {
@@ -662,7 +667,7 @@ export function createInitialCampaignState(): CampaignState {
   return {
     chapters: CAMPAIGN_CHAPTERS.map((ch, i) => ({
       chapterId: ch.id,
-      unlocked: i === 0, // only chapter 1 unlocked
+      unlocked: i === 0,
       missions: ch.missions.map(m => ({
         missionId: m.id,
         completed: false,
@@ -683,6 +688,9 @@ export function createInitialCampaignState(): CampaignState {
     activeCampaignMission: null,
     totalBossKills: 0,
     chapterBonuses: [],
+    trophies: [],
+    missionStreak: 0,
+    totalEncountersCompleted: 0,
   };
 }
 
@@ -961,39 +969,19 @@ export function generateBossLoot(
 
 // ========== ENCOUNTER TYPE GENERATION ==========
 
-const ENCOUNTER_NARRATIVES: Record<EncounterType, { stealth: string[]; standard: string[]; aggressive: string[] }> = {
-  combat: {
-    stealth: ['Je sluipt langs de bewakers en schakelt ze stil uit.', 'Een stille eliminatie — niemand hoorde iets.', 'Je glijdt door de schaduwen als een geest.'],
-    standard: ['Je neemt de vijanden frontaal aan.', 'Een kort vuurgevecht, maar je wint.', 'De vijanden zijn uitgeschakeld.'],
-    aggressive: ['Je stormt binnen met brute kracht!', 'Een explosieve confrontatie — je laat niets heel.', 'Maximale chaos, maximale schade.'],
-  },
-  trap: {
-    stealth: ['Je ontdekt de val op tijd en omzeilt hem voorzichtig.', 'Een bijna onzichtbare tripwire — maar jij zag hem.'],
-    standard: ['Je triggert de val maar weet te ontwijken.', 'De val gaat af, maar je reactievermogen redt je.'],
-    aggressive: ['Je forceert de val en absorbeert de schade.', 'Dwars door de val heen — het doet pijn, maar je stopt niet.'],
-  },
-  npc: {
-    stealth: ['Je luistert mee vanuit de schaduwen en verkrijgt cruciale informatie.', 'De NPC merkt je niet op — je hoort alles.'],
-    standard: ['Een gesprek levert nuttige informatie op.', 'De NPC is bereid te helpen — tegen een prijs.'],
-    aggressive: ['Je dwingt de informatie af met geweld.', 'Intimidatie werkt, maar je maakt vijanden.'],
-  },
-  exploration: {
-    stealth: ['Je doorzoekt zorgvuldig en vindt een verborgen cache.', 'Geduld loont — je vindt een geheime doorgang.'],
-    standard: ['Je verkent het gebied en vindt bruikbare items.', 'Een grondige zoektocht levert resultaat op.'],
-    aggressive: ['Je breekt muren open en vindt verborgen kamers.', 'Geen subtiliteit, maar je vindt wat je zocht.'],
-  },
-};
-
 function generateEncounterTypes(count: number): EncounterType[] {
   const types: EncounterType[] = [];
   for (let i = 0; i < count; i++) {
     if (i === 0) { types.push('combat'); continue; }
     if (i === count - 1) { types.push('combat'); continue; }
     const r = Math.random();
-    if (r < 0.5) types.push('combat');
-    else if (r < 0.7) types.push('trap');
-    else if (r < 0.85) types.push('npc');
-    else types.push('exploration');
+    if (r < 0.35) types.push('combat');
+    else if (r < 0.48) types.push('trap');
+    else if (r < 0.60) types.push('npc');
+    else if (r < 0.72) types.push('exploration');
+    else if (r < 0.82) types.push('timed');
+    else if (r < 0.92) types.push('puzzle');
+    else types.push('ambush');
   }
   return types;
 }
@@ -1022,22 +1010,19 @@ export function startCampaignMission(chapterId: string, missionId: string): Acti
     totalHeatGain: 0,
     hpLost: 0,
     rating: 1,
+    morale: 50,
+    lastRandomEvent: null,
   };
 }
 
-function getEncounterNarrative(type: EncounterType, choice: EncounterChoice): string {
-  const pool = ENCOUNTER_NARRATIVES[type][choice];
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function calculateMissionRating(choices: EncounterChoice[], totalEncounters: number, success: boolean): number {
+function calculateMissionRating(choices: EncounterChoice[], totalEncounters: number, success: boolean, morale: number): number {
   if (!success) return 1;
   const aggressiveCount = choices.filter(c => c === 'aggressive').length;
   const stealthCount = choices.filter(c => c === 'stealth').length;
-  // 3 stars: majority aggressive or all stealth (skilful play)
+  const moraleBonus = morale >= 70 ? 1 : 0;
   if (aggressiveCount >= Math.ceil(totalEncounters * 0.6)) return 3;
   if (stealthCount >= Math.ceil(totalEncounters * 0.8)) return 3;
-  // 2 stars: mixed play or majority standard
+  if (moraleBonus && (aggressiveCount >= 2 || stealthCount >= 2)) return 3;
   if (aggressiveCount >= 1 || stealthCount >= 1) return 2;
   return 1;
 }
@@ -1047,39 +1032,63 @@ export function advanceCampaignMission(mission: ActiveCampaignMission, playerLev
   const encounter = mission.currentEncounter + 1;
   const encType = mission.encounterTypes[mission.currentEncounter] || 'combat';
 
-  // Choice modifiers
+  // For ambush encounters, force aggressive/standard (no stealth)
+  const effectiveChoice = encType === 'ambush' && choice === 'stealth' ? 'standard' : choice;
+
+  // Morale effects
+  let newMorale = mission.morale;
+  if (effectiveChoice === 'stealth') newMorale = Math.min(100, newMorale + 8);
+  else if (effectiveChoice === 'aggressive') newMorale = Math.max(0, newMorale - 5);
+  else newMorale = Math.min(100, newMorale + 2);
+
   const choiceMods = {
     stealth: { successMod: 0.15, lootMod: 0.7, heatMod: 0 },
     standard: { successMod: 0, lootMod: 1.0, heatMod: 2 },
     aggressive: { successMod: -0.1, lootMod: 1.5, heatMod: 5 },
-  }[choice];
+  }[effectiveChoice];
 
+  const moraleMod = newMorale >= 70 ? 0.1 : newMorale <= 30 ? -0.1 : 0;
   const difficulty = 40 + encounter * 10 + playerLevel * 2;
-  const roll = Math.random() * 100 + playerPower * 0.5 + choiceMods.successMod * 100;
+  const roll = Math.random() * 100 + playerPower * 0.5 + (choiceMods.successMod + moraleMod) * 100;
 
-  // Traps and NPCs are easier to pass
-  const typeMod = encType === 'trap' ? 0.8 : encType === 'npc' ? 0.7 : encType === 'exploration' ? 0.6 : 1.0;
+  const typeModMap: Record<EncounterType, number> = {
+    combat: 1.0, trap: 0.8, npc: 0.7, exploration: 0.6,
+    timed: 0.9, puzzle: 0.75, ambush: 1.1,
+  };
+  const typeMod = typeModMap[encType] || 1.0;
   const success = roll > difficulty * 0.6 * typeMod;
 
   const log = [...mission.log];
-  const typeLabel = encType === 'combat' ? '⚔️ Gevecht' : encType === 'trap' ? '🪤 Val' : encType === 'npc' ? '🗣️ Ontmoeting' : '🔍 Verkenning';
-  const narrative = getEncounterNarrative(encType, choice);
+  const narrative = getEncounterNarrative(encType, effectiveChoice);
 
-  const newChoices = [...mission.choices, choice];
+  const typeLabels: Record<EncounterType, string> = {
+    combat: '⚔️ Gevecht', trap: '🪤 Val', npc: '🗣️ Ontmoeting', exploration: '🔍 Verkenning',
+    timed: '⏱️ Tijdsdruk', puzzle: '🧩 Puzzel', ambush: '💥 Hinderlaag',
+  };
+  const typeLabel = typeLabels[encType];
+
+  const newChoices = [...mission.choices, effectiveChoice];
   let newHeatGain = mission.totalHeatGain + choiceMods.heatMod;
+
+  // Random event (20% chance on success)
+  let randomEvent: string | null = null;
+  if (Math.random() < 0.2 && success) {
+    const event = getRandomEvent();
+    randomEvent = event.text;
+    log.push(`🎲 ${event.text}`);
+  }
 
   if (success) {
     log.push(`${typeLabel} ${encounter}/${mission.totalEncounters}: ${narrative}`);
   } else {
     log.push(`${typeLabel} ${encounter}/${mission.totalEncounters}: Mislukt! De missie is gefaald.`);
-    return { ...mission, currentEncounter: encounter, log, finished: true, success: false, choices: newChoices, totalHeatGain: newHeatGain, rating: 1 };
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: false, choices: newChoices, totalHeatGain: newHeatGain, rating: 1, morale: newMorale, lastRandomEvent: randomEvent };
   }
 
   if (encounter >= mission.totalEncounters) {
-    // Mission complete — check weapon drop
     let droppedWeapon: GeneratedWeapon | null = null;
     let droppedGear: GeneratedGear | null = null;
-    const rating = calculateMissionRating(newChoices, mission.totalEncounters, true);
+    const rating = calculateMissionRating(newChoices, mission.totalEncounters, true, newMorale);
     const dropBonus = rating === 3 ? 1.3 : rating === 2 ? 1.1 : 1.0;
     if (Math.random() < mDef.weaponDropChance * dropBonus) {
       droppedWeapon = generateWeapon(playerLevel, undefined, mDef.weaponRarityFloor === 'epic' ? 'epic' : mDef.weaponRarityFloor === 'rare' ? 'rare' : 'uncommon');
@@ -1091,11 +1100,11 @@ export function advanceCampaignMission(mission: ActiveCampaignMission, playerLev
     }
     if (mDef.narrativeText[1]) log.push(mDef.narrativeText[1]);
     log.push(`Missie voltooid! ${'⭐'.repeat(rating)} Rating!`);
-    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon, droppedGear, choices: newChoices, totalHeatGain: newHeatGain, rating };
+    return { ...mission, currentEncounter: encounter, log, finished: true, success: true, droppedWeapon, droppedGear, choices: newChoices, totalHeatGain: newHeatGain, rating, morale: newMorale, lastRandomEvent: randomEvent };
   }
 
   const nextType = mission.encounterTypes[encounter] || 'combat';
-  return { ...mission, currentEncounter: encounter, currentEncounterType: nextType, log, choices: newChoices, totalHeatGain: newHeatGain };
+  return { ...mission, currentEncounter: encounter, currentEncounterType: nextType, log, choices: newChoices, totalHeatGain: newHeatGain, morale: newMorale, lastRandomEvent: randomEvent };
 }
 
 // ========== CHAPTER BONUS HELPERS ==========
