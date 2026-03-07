@@ -274,6 +274,7 @@ type GameAction =
   // PvP Turn-Based Combat
   | { type: 'START_PVP_COMBAT'; target: import('../game/types').PvPPlayerInfo }
   | { type: 'PVP_COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'skill' | 'combo_finisher'; skillId?: string }
+  | { type: 'SET_PVP_STANCE'; stance: import('../game/types').CombatStance }
   | { type: 'END_PVP_COMBAT' }
   // Property actions
   | { type: 'BUY_PROPERTY'; propertyId: string }
