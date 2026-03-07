@@ -515,6 +515,12 @@ function ActiveCombat() {
       {/* Actions */}
       {!combat.finished ? (
         <>
+          {/* Stance Selector */}
+          <StanceSelector
+            current={combat.stance}
+            onChange={(s) => dispatch({ type: 'SET_COMBAT_STANCE', stance: s })}
+            disabled={combat.finished}
+          />
           {(() => {
             const procWeapon = state.weaponInventory?.find(w => w.equipped);
             const legacyWeaponId = state.player.loadout.weapon;
