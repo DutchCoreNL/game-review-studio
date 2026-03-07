@@ -46,27 +46,28 @@ export function useServerSync(
     loading: false, syncing: false, lastSync: null, lastCloudSave: null, cloudSaveVersion: 0, error: null,
   });
   const initialSyncDone = useRef(false);
+  const cloudSaveLoadedRef = useRef(false);
   const cloudSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef<GameState | null>(null);
-
   // Keep a ref to the latest state for the auto-save timer
   const updateStateRef = useCallback((state: GameState) => {
     stateRef.current = state;
   }, []);
 
   // Fetch server state on mount (if logged in)
+  // When cloudSaveLoaded is true, only merge MMO/cooldown fields, NOT economy fields
   const fetchServerState = useCallback(async () => {
     if (!user) return;
     setSyncState(s => ({ ...s, loading: true, error: null }));
     try {
       const result = await invokeGameAction('get_state');
       if (result.success && result.data) {
-        mergeServerState(localDispatch, result.data);
+        mergeServerState(localDispatch, result.data, cloudSaveLoadedRef.current);
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else if (!result.success && result.message?.includes('Geen spelerstaat')) {
         const initResult = await invokeGameAction('init_player');
         if (initResult.success && initResult.data) {
-          mergeServerState(localDispatch, initResult.data);
+          mergeServerState(localDispatch, initResult.data, cloudSaveLoadedRef.current);
         }
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else {
@@ -122,6 +123,7 @@ export function useServerSync(
         if (cloudIsNewer) {
           // Load cloud save
           localDispatch({ type: 'SET_STATE', state: cloudState });
+          cloudSaveLoadedRef.current = true;
           showToast('☁️ Cloud save geladen — welkom terug!');
           setSyncState(s => ({
             ...s, loading: false, lastCloudSave: new Date(cloudTime),
@@ -200,22 +202,39 @@ export function useServerSync(
   return { serverDispatch, syncState, fetchServerState, saveToCloud, loadFromCloud, updateStateRef };
 }
 
-/** Merge server get_state response into local GameState via MERGE_SERVER_STATE dispatch */
-function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>) {
+/** Merge server get_state response into local GameState via MERGE_SERVER_STATE dispatch.
+ *  When skipEconomy is true (cloud save already loaded), we skip money/dirtyMoney/debt/rep/karma/day
+ *  to prevent overwriting the more recent cloud-save values with stale player_state data. */
+function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>, skipEconomy = false) {
   const ps = data.playerState || data;
 
   dispatch({
     type: 'MERGE_SERVER_STATE',
     serverState: {
-      money: ps.money ?? undefined,
-      dirtyMoney: ps.dirty_money ?? undefined,
-      debt: ps.debt ?? undefined,
-      rep: ps.rep ?? undefined,
+      // Economy fields: only merge if cloud save wasn't loaded
+      ...(skipEconomy ? {} : {
+        money: ps.money ?? undefined,
+        dirtyMoney: ps.dirty_money ?? undefined,
+        debt: ps.debt ?? undefined,
+        rep: ps.rep ?? undefined,
+        karma: ps.karma ?? undefined,
+        day: ps.day ?? undefined,
+        washUsedToday: ps.wash_used_today ?? undefined,
+        playerHP: ps.hp ?? undefined,
+        playerMaxHP: ps.max_hp ?? undefined,
+        endgamePhase: ps.endgame_phase ?? undefined,
+        player: {
+          level: ps.level ?? undefined,
+          xp: ps.xp ?? undefined,
+          nextXp: ps.next_xp ?? undefined,
+          skillPoints: ps.skill_points ?? undefined,
+          stats: ps.stats ?? undefined,
+          loadout: ps.loadout ?? undefined,
+        },
+      }),
+      // Always merge these MMO/cooldown/location fields
       heat: ps.heat ?? undefined,
       personalHeat: ps.personal_heat ?? undefined,
-      playerHP: ps.hp ?? undefined,
-      playerMaxHP: ps.max_hp ?? undefined,
-      karma: ps.karma ?? undefined,
       loc: ps.loc ?? undefined,
       policeRel: ps.police_rel ?? undefined,
       energy: ps.energy ?? 100,
@@ -228,17 +247,6 @@ function mergeServerState(dispatch: (action: any) => void, data: Record<string, 
       crimeCooldownUntil: ps.crime_cooldown_until ?? null,
       attackCooldownUntil: ps.attack_cooldown_until ?? null,
       heistCooldownUntil: ps.heist_cooldown_until ?? null,
-      day: ps.day ?? undefined,
-      washUsedToday: ps.wash_used_today ?? undefined,
-      endgamePhase: ps.endgame_phase ?? undefined,
-      player: {
-        level: ps.level ?? undefined,
-        xp: ps.xp ?? undefined,
-        nextXp: ps.next_xp ?? undefined,
-        skillPoints: ps.skill_points ?? undefined,
-        stats: ps.stats ?? undefined,
-        loadout: ps.loadout ?? undefined,
-      },
       allDistricts: data.allDistricts ?? undefined,
       gangDistricts: data.gangDistricts ?? undefined,
       serverSynced: true,
