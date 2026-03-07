@@ -11,6 +11,7 @@ import { GameButton } from './ui/GameButton';
 import { SOLO_OP_IMAGES } from '@/assets/items';
 import encounterBg from '@/assets/items/encounter-bg.jpg';
 import { MapPin, Swords, Brain, Heart, Flame, Trophy, Skull, Star, Zap, CloudRain, CloudFog, Sun, CloudLightning, Users, Car, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+
 const STAT_ICONS: Record<StatId, React.ReactNode> = {
   muscle: <Swords size={12} />,
   brains: <Brain size={12} />,
@@ -21,6 +22,24 @@ const STAT_COLORS: Record<StatId, string> = {
   muscle: 'text-blood',
   brains: 'text-ice',
   charm: 'text-gold',
+};
+
+const STAT_BG: Record<StatId, string> = {
+  muscle: 'bg-blood/20 border-blood/40',
+  brains: 'bg-ice/20 border-ice/40',
+  charm: 'bg-gold/20 border-gold/40',
+};
+
+const STAT_CARD_BORDER: Record<StatId, string> = {
+  muscle: 'border-blood/30 hover:border-blood/60',
+  brains: 'border-ice/30 hover:border-ice/60',
+  charm: 'border-gold/30 hover:border-gold/60',
+};
+
+const STAT_CARD_BG: Record<StatId, string> = {
+  muscle: 'bg-blood/5 hover:bg-blood/10',
+  brains: 'bg-ice/5 hover:bg-ice/10',
+  charm: 'bg-gold/5 hover:bg-gold/10',
 };
 
 const STAT_LABELS: Record<StatId, string> = {
@@ -55,7 +74,6 @@ export function MissionEncounterView() {
   const [feedbackFlash, setFeedbackFlash] = useState<'success' | 'partial' | 'fail' | null>(null);
   const [activeStatCheck, setActiveStatCheck] = useState<{ stat: StatId; statValue: number; difficulty: number; choiceId: string; label: string } | null>(null);
 
-  // Clear flash after animation
   useEffect(() => {
     if (feedbackFlash) {
       const t = setTimeout(() => setFeedbackFlash(null), 800);
@@ -74,8 +92,6 @@ export function MissionEncounterView() {
   const text = getEncounterText(encounter, state.loc);
   const districtName = DISTRICTS[state.loc].name;
   const opBg = mission.type === 'solo' ? SOLO_OP_IMAGES[mission.missionId] : null;
-
-  // No more minigame selection - all choices are stat-checks
 
   const handleChoice = (choiceId: string, forceResult?: 'success' | 'partial' | 'fail') => {
     dispatch({ type: 'MISSION_CHOICE', choiceId, forceResult });
@@ -116,68 +132,75 @@ export function MissionEncounterView() {
         )}
       </AnimatePresence>
 
-      {/* Banner Header with op-specific bg */}
-      <div className="flex-none relative h-32 overflow-hidden">
+      {/* ═══ CINEMATIC BANNER HEADER ═══ */}
+      <div className="flex-none relative h-36 overflow-hidden">
         <img src={opBg || encounterBg} alt="" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
-          {/* Phase label */}
-          {encounter.phase && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-2 mb-1.5"
-            >
-              <span className="text-[0.5rem] font-bold text-gold uppercase tracking-[0.2em] bg-gold/10 border border-gold/30 px-2 py-0.5 rounded">
-                FASE {mission.currentEncounter + 1}: {encounter.phase}
-              </span>
-            </motion.div>
-          )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MapPin size={14} className="text-gold" />
-              <span className="text-[0.6rem] text-gold font-bold uppercase tracking-widest">{districtName}</span>
-              {mission.approach && mission.approach !== 'standard' && (
-                <span className={`text-[0.45rem] font-bold px-1.5 py-0.5 rounded border ${
-                  mission.approach === 'cautious' ? 'text-ice border-ice/30 bg-ice/10' : 'text-blood border-blood/30 bg-blood/10'
-                }`}>
-                  {mission.approach === 'cautious' ? '🛡️ VOORZICHTIG' : '🔥 AGRESSIEF'}
-                </span>
-              )}
-            </div>
-            {/* Phase progress dots */}
-            <div className="flex items-center gap-2">
-              <span className="text-[0.55rem] text-muted-foreground">
-                {mission.currentEncounter + 1}/{mission.encounters.length}
-              </span>
-              <div className="flex gap-1">
-                {mission.encounters.map((enc, i) => (
-                  <div key={i} className="flex flex-col items-center gap-0.5">
-                    <div className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      i < mission.currentEncounter ? 'bg-gold' :
-                      i === mission.currentEncounter ? 'bg-gold animate-pulse ring-2 ring-gold/30' : 'bg-muted'
-                    }`} />
-                    {enc.phase && (
-                      <span className={`text-[0.35rem] uppercase tracking-wider ${
-                        i <= mission.currentEncounter ? 'text-gold' : 'text-muted-foreground/50'
-                      }`}>
-                        {enc.phase.slice(0, 4)}
-                      </span>
-                    )}
-                  </div>
-                ))}
+        {/* Phase badge - top left */}
+        {encounter.phase && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-3 left-3"
+          >
+            <span className="text-[0.45rem] font-bold text-gold uppercase tracking-[0.15em] bg-gold/15 border border-gold/30 px-2 py-0.5 rounded-full backdrop-blur-sm">
+              FASE {mission.currentEncounter + 1}: {encounter.phase}
+            </span>
+          </motion.div>
+        )}
+
+        {/* Approach badge - top right */}
+        {mission.approach && mission.approach !== 'standard' && (
+          <div className="absolute top-3 right-3">
+            <span className={`text-[0.45rem] font-bold px-2 py-0.5 rounded-full border backdrop-blur-sm ${
+              mission.approach === 'cautious' ? 'text-ice border-ice/30 bg-ice/15' : 'text-blood border-blood/30 bg-blood/15'
+            }`}>
+              {mission.approach === 'cautious' ? '🛡️ VOORZICHTIG' : '🔥 AGRESSIEF'}
+            </span>
+          </div>
+        )}
+
+        {/* Bottom overlay info */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <MapPin size={12} className="text-gold" />
+                <span className="text-[0.5rem] text-gold font-bold uppercase tracking-widest">{districtName}</span>
               </div>
+              <h2 className="font-display text-sm text-foreground uppercase tracking-wider">
+                {mission.type === 'solo' ? 'Solo Operatie' : 'Contract Missie'}
+                {mission.crewName && <span className="text-gold ml-2">— {mission.crewName}</span>}
+              </h2>
+            </div>
+
+            {/* Encounter progress */}
+            <div className="flex items-center gap-1.5">
+              {mission.encounters.map((enc, i) => (
+                <div key={i} className="flex flex-col items-center gap-0.5">
+                  <div className={`w-3 h-3 rounded-full transition-all border ${
+                    i < mission.currentEncounter
+                      ? 'bg-gold/80 border-gold/60'
+                      : i === mission.currentEncounter
+                      ? 'bg-gold border-gold ring-2 ring-gold/30 animate-pulse'
+                      : 'bg-muted/30 border-border/40'
+                  }`} />
+                  {enc.phase && (
+                    <span className={`text-[0.3rem] uppercase tracking-wider ${
+                      i <= mission.currentEncounter ? 'text-gold' : 'text-muted-foreground/40'
+                    }`}>
+                      {enc.phase.slice(0, 3)}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-          <h2 className="font-display text-sm text-foreground mt-1 uppercase tracking-wider">
-            {mission.type === 'solo' ? 'Solo Operatie' : 'Contract Missie'}
-            {mission.crewName && <span className="text-gold ml-2">— {mission.crewName}</span>}
-          </h2>
         </div>
       </div>
 
-      {/* Story content */}
+      {/* ═══ CONTENT ═══ */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 game-scroll">
         {/* Mission log (previous encounters) */}
         {mission.log.length > 0 && (
@@ -227,78 +250,81 @@ export function MissionEncounterView() {
               </p>
             </div>
 
-            {/* Choices */}
+            {/* ═══ CHOICE CARDS ═══ */}
             <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="h-px flex-1 bg-border/40" />
+                <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest">Kies je actie</span>
+                <div className="h-px flex-1 bg-border/40" />
+              </div>
               {encounter.choices.map((choice, idx) => {
                 const statVal = getPlayerStat(state, choice.stat);
-                const statColor = STAT_COLORS[choice.stat];
+                const { difficulty: effDiff, weatherMod, crewMod } = getEffectiveDifficulty(state, choice, mission);
+                const effLabel = DIFFICULTY_LABELS(effDiff);
 
                 return (
-                  <motion.div
+                  <motion.button
                     key={choice.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.1 + 0.3 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setActiveStatCheck({
+                        stat: choice.stat,
+                        statValue: statVal,
+                        difficulty: effDiff,
+                        choiceId: choice.id,
+                        label: choice.label,
+                      });
+                    }}
+                    className={`w-full p-3.5 rounded-xl border ${STAT_CARD_BORDER[choice.stat]} ${STAT_CARD_BG[choice.stat]} text-left transition-all`}
                   >
-                    <button
-                      onClick={() => {
-                        const { difficulty: effDiff } = getEffectiveDifficulty(state, choice, mission);
-                        setActiveStatCheck({
-                          stat: choice.stat,
-                          statValue: statVal,
-                          difficulty: effDiff,
-                          choiceId: choice.id,
-                          label: choice.label,
-                        });
-                      }}
-                      className="w-full game-card-interactive p-3 text-left"
-                    >
-                      {(() => {
-                        const { difficulty: effDiff, weatherMod, crewMod } = getEffectiveDifficulty(state, choice, mission);
-                        const effLabel = DIFFICULTY_LABELS(effDiff);
-                        return (
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-bold text-xs uppercase tracking-wider text-foreground">
-                                  {choice.label}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <div className={`flex items-center gap-1 text-[0.55rem] font-bold ${statColor}`}>
-                                  {STAT_ICONS[choice.stat]}
-                                  <span>{STAT_LABELS[choice.stat]}</span>
-                                  <span className="text-foreground ml-0.5">({statVal})</span>
-                                </div>
-                                <span className={`text-[0.5rem] font-bold ${effLabel.color}`}>{effLabel.label}</span>
-                                {weatherMod !== 0 && (
-                                  <span className={`text-[0.5rem] font-semibold flex items-center gap-0.5 ${weatherMod > 0 ? 'text-blood' : 'text-emerald'}`}>
-                                    {WEATHER_ICONS[state.weather] || null}
-                                    {weatherMod > 0 ? `+${weatherMod}` : `${weatherMod}`}
-                                  </span>
-                                )}
-                                {crewMod !== 0 && (
-                                  <span className="text-[0.5rem] font-semibold flex items-center gap-0.5 text-ice">
-                                    <Users size={8} />
-                                    {crewMod}
-                                  </span>
-                                )}
-                                {choice.effects.bonusReward > 0 && (
-                                  <span className="text-[0.5rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
-                                )}
-                                {choice.effects.heat > 5 && (
-                                  <span className="text-[0.5rem] text-blood font-semibold flex items-center gap-0.5">
-                                    <Flame size={8} /> +{choice.effects.heat}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <Zap size={16} className="text-muted-foreground mt-1" />
-                          </div>
-                        );
-                      })()}
-                    </button>
-                  </motion.div>
+                    <div className="flex items-start gap-3">
+                      {/* Icon circle */}
+                      <div className={`w-9 h-9 rounded-full border ${STAT_BG[choice.stat]} flex items-center justify-center shrink-0`}>
+                        <span className={STAT_COLORS[choice.stat]}>{STAT_ICONS[choice.stat]}</span>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-xs text-foreground">{choice.label}</span>
+                          <span className={`text-[0.45rem] font-bold ${effLabel.color} bg-muted/30 px-1.5 py-0.5 rounded-full`}>
+                            {effLabel.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[0.5rem] font-bold ${STAT_COLORS[choice.stat]}`}>
+                            {STAT_LABELS[choice.stat]} ({statVal})
+                          </span>
+                          {weatherMod !== 0 && (
+                            <span className={`text-[0.45rem] font-semibold flex items-center gap-0.5 ${weatherMod > 0 ? 'text-blood' : 'text-emerald'}`}>
+                              {WEATHER_ICONS[state.weather] || null}
+                              {weatherMod > 0 ? `+${weatherMod}` : `${weatherMod}`}
+                            </span>
+                          )}
+                          {crewMod !== 0 && (
+                            <span className="text-[0.45rem] font-semibold flex items-center gap-0.5 text-ice">
+                              <Users size={8} /> {crewMod}
+                            </span>
+                          )}
+                          {choice.effects.bonusReward > 0 && (
+                            <span className="text-[0.45rem] text-gold font-semibold">+€{choice.effects.bonusReward}</span>
+                          )}
+                          {choice.effects.heat > 5 && (
+                            <span className="text-[0.45rem] text-blood font-semibold flex items-center gap-0.5">
+                              <Flame size={7} /> +{choice.effects.heat}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Arrow indicator */}
+                      <Zap size={14} className="text-muted-foreground/40 mt-2 shrink-0" />
+                    </div>
+                  </motion.button>
                 );
               })}
             </div>
@@ -337,6 +363,7 @@ export function MissionEncounterView() {
           )}
         </div>
       </div>
+
       {/* Stat check animation overlay */}
       {activeStatCheck && (
         <StatCheckAnimation
@@ -392,8 +419,8 @@ function MissionResult() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-              className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 ${
-                mission.success ? 'bg-gold/20' : 'bg-blood/20'
+              className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 border-2 ${
+                mission.success ? 'bg-gold/15 border-gold/40' : 'bg-blood/15 border-blood/40'
               }`}
             >
               {mission.success ? (
@@ -416,18 +443,29 @@ function MissionResult() {
             )}
           </div>
 
-          {/* Stats */}
-          <div className="game-card p-4 mb-4 space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Resultaat</span>
-              <div className="flex gap-2">
-                <span className="text-emerald font-bold">✓ {successCount}</span>
-                <span className="text-gold font-bold">△ {partialCount}</span>
-                <span className="text-blood font-bold">✗ {failCount}</span>
-              </div>
+          {/* Stats as cards */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="p-2.5 rounded-lg bg-emerald/5 border border-emerald/20 text-center">
+              <CheckCircle size={14} className="text-emerald mx-auto mb-0.5" />
+              <p className="text-lg font-black text-emerald">{successCount}</p>
+              <p className="text-[0.4rem] text-muted-foreground uppercase">Geslaagd</p>
             </div>
+            <div className="p-2.5 rounded-lg bg-gold/5 border border-gold/20 text-center">
+              <AlertCircle size={14} className="text-gold mx-auto mb-0.5" />
+              <p className="text-lg font-black text-gold">{partialCount}</p>
+              <p className="text-[0.4rem] text-muted-foreground uppercase">Gedeeltelijk</p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-blood/5 border border-blood/20 text-center">
+              <XCircle size={14} className="text-blood mx-auto mb-0.5" />
+              <p className="text-lg font-black text-blood">{failCount}</p>
+              <p className="text-[0.4rem] text-muted-foreground uppercase">Mislukt</p>
+            </div>
+          </div>
+
+          {/* Rewards */}
+          <div className="game-card p-3 mb-4 space-y-2">
             {mission.totalReward > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground">Bonus Beloning</span>
                 <span className="text-gold font-bold">+€{mission.totalReward}</span>
               </div>
@@ -440,11 +478,11 @@ function MissionResult() {
               const personalHeatPart = totalHeat - vehicleHeatPart;
               return (
                 <>
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground flex items-center gap-1"><Car size={10} className="text-ice" /> Voertuig Heat</span>
                     <span className="text-ice font-bold">+{vehicleHeatPart}</span>
                   </div>
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground flex items-center gap-1"><Flame size={10} className="text-blood" /> Persoonlijke Heat</span>
                     <span className="text-blood font-bold">+{personalHeatPart}</span>
                   </div>
@@ -452,16 +490,20 @@ function MissionResult() {
               );
             })()}
             {mission.totalCrewDamage > 0 && (
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground">Crew Schade</span>
                 <span className="text-blood font-bold">-{mission.totalCrewDamage} HP</span>
               </div>
             )}
           </div>
 
-          {/* Timeline of choices */}
+          {/* Timeline */}
           <div className="game-card p-3 mb-5 max-h-44 overflow-y-auto game-scroll">
-            <h4 className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider mb-2">TIJDLIJN</h4>
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="h-px flex-1 bg-border/40" />
+              <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest">Tijdlijn</span>
+              <div className="h-px flex-1 bg-border/40" />
+            </div>
             <div className="space-y-2">
               {mission.encounters.map((enc, i) => {
                 const result = mission.choiceResults?.[i];
@@ -474,7 +516,6 @@ function MissionResult() {
                     transition={{ delay: i * 0.1 }}
                     className="flex items-start gap-2"
                   >
-                    {/* Phase indicator */}
                     <div className="flex flex-col items-center gap-0.5 flex-shrink-0 mt-0.5">
                       {result ? RESULT_ICONS[result] : <div className="w-3.5 h-3.5 rounded-full bg-muted" />}
                       {i < mission.encounters.length - 1 && (
