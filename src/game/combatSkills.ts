@@ -336,23 +336,23 @@ export function pvpCombatTurn(
   // Enemy turn (AI for snapshot/bot combat)
   if (!defenderStunned) {
     const enemyResult = enemyTurn(s);
-    // Apply stance defense modifier
+    // Apply stance defense modifier to enemy damage
     let actualDmg = enemyResult.damage;
-    if (stanceMod.defenseMod !== 1.0 && actualDmg > 0) {
+    if (stanceMod.defenseMod > 1.0 && actualDmg > 0) {
       const reduction = Math.floor(actualDmg * (1 - 1 / stanceMod.defenseMod));
-      actualDmg = Math.max(0, actualDmg - reduction);
+      actualDmg = Math.max(1, actualDmg - reduction);
+    } else if (stanceMod.defenseMod < 1.0 && actualDmg > 0) {
+      const extra = Math.floor(actualDmg * (1 / stanceMod.defenseMod - 1));
+      actualDmg += extra;
     }
-    s.attackerHP = Math.max(0, s.attackerHP - actualDmg + enemyResult.damage - actualDmg); // recalc
-    s.attackerHP = enemyResult.newHP; // base calc
-    // Re-apply with stance
-    s.attackerHP = Math.max(0, state.attackerHP - actualDmg); // use pre-turn HP
-    // Simpler approach: adjust from enemyResult
     const stanceReduction = enemyResult.damage - actualDmg;
-    s.attackerHP = Math.min(s.attackerMaxHP, enemyResult.newHP + stanceReduction);
+    s.attackerHP = Math.max(0, s.attackerHP - actualDmg);
     s.damageTaken += actualDmg;
     s.logs.push(...enemyResult.logs);
     if (stanceReduction > 0) {
       s.logs.push(`${stanceMod.icon} Stance verdediging: -${stanceReduction} schade`);
+    } else if (stanceReduction < 0) {
+      s.logs.push(`${stanceMod.icon} Agressieve houding: +${-stanceReduction} extra schade ontvangen`);
     }
     if (playerDefenseBonus > 0 && actualDmg > 0) {
       const reduced = Math.floor(actualDmg * playerDefenseBonus);
