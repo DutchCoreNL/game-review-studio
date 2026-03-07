@@ -84,7 +84,32 @@ function DamagePopup({ value, type }: { value: number; type: 'dealt' | 'taken' |
   );
 }
 
-// ========== Combat Action Button ==========
+// ========== Action Card (Categorized) ==========
+
+function ActionCard({ icon, title, desc, borderColor, bgColor, onClick, glow }: {
+  icon: React.ReactNode; title: string; desc: string; borderColor: string; bgColor: string; onClick: () => void; glow?: boolean;
+}) {
+  return (
+    <motion.button
+      onClick={onClick}
+      className={`w-full p-2 rounded-lg border ${borderColor} ${bgColor} text-left transition-all group relative overflow-hidden ${glow ? 'shadow-lg shadow-gold/20 animate-pulse' : ''}`}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <div className="flex items-start gap-2">
+        <div className="w-6 h-6 rounded-full bg-background/60 border border-border/40 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[0.55rem] font-bold text-foreground leading-tight">{title}</p>
+          <p className="text-[0.4rem] text-muted-foreground leading-tight">{desc}</p>
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+// ========== Combat Action Button (legacy) ==========
 
 function CombatAction({ icon, label, sub, onClick, variant }: {
   icon: React.ReactNode; label: string; sub: string; onClick: () => void; variant: string;
@@ -411,74 +436,99 @@ function ActiveCombat() {
 
   const bgSrc = DISTRICT_IMAGES[state.loc] || DISTRICT_IMAGES.neon;
 
+  const procWeapon = state.weaponInventory?.find(w => w.equipped);
+  const legacyWeaponId = state.player.loadout.weapon;
+  const legacyWeapon = legacyWeaponId ? (GEAR.find(g => g.id === legacyWeaponId) ?? null) : null;
+  const isMeleeWeapon = procWeapon ? procWeapon.frame === 'blade' : (legacyWeapon?.ammoType === null);
+  const weaponName = procWeapon?.name || legacyWeapon?.name || 'Vuisten';
+
   return (
     <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      <img src={bgSrc} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30 pointer-events-none" />
+      <img src={bgSrc} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40 pointer-events-none" />
       <div className="relative z-10">
-      {/* Streak indicator */}
-      <StreakIndicator streak={state.combatStreak || 0} />
 
-      {/* Boss phase indicator */}
-      {isBossFight && phaseData && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 text-center"
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-blood/10 border border-blood/30">
-            <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>
-              <AlertTriangle size={10} className="text-blood" />
-            </motion.div>
-            <span className="text-[0.55rem] font-bold text-blood tracking-wider uppercase">
-              {phaseData.title}
-            </span>
-            {combat.bossPhase === 1 && (
-              <span className="text-[0.45rem] text-muted-foreground">→ Fase 2 volgt</span>
-            )}
+      {/* ═══ CINEMATIC SCENE HEADER ═══ */}
+      <div className="relative rounded-xl overflow-hidden border border-border/40 mb-3">
+        <img src={bgSrc} alt="" className="w-full h-36 object-cover opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+
+        {/* Player info - bottom left */}
+        <div className="absolute bottom-2 left-2.5">
+          <p className="text-[0.6rem] font-bold text-foreground">Jij</p>
+          <p className="text-[0.45rem] text-muted-foreground">Lvl {state.player.level} • {weaponName}</p>
+          <div className="flex gap-1.5 mt-0.5">
+            <span className="text-[0.4rem] text-blood font-bold">💪{state.player.stats.muscle}</span>
+            <span className="text-[0.4rem] text-primary font-bold">🧠{state.player.stats.brains}</span>
+            <span className="text-[0.4rem] text-gold font-bold">✨{state.player.stats.charm}</span>
           </div>
-        </motion.div>
-      )}
+        </div>
 
-      <SectionHeader title={isBossFight ? "EINDBAAS GEVECHT" : "GEVECHT"} icon={<Swords size={12} />} />
-
-      {/* Turn indicator */}
-      <TurnIndicator turn={combat.turn} />
-
-      {/* Scene description with typewriter */}
-      {scenePhrase && (
-        <motion.div
-          key={combat.turn}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="game-card mb-3 p-2.5 border-l-2 border-gold/40"
-        >
-          <TypewriterText
-            text={scenePhrase}
-            speed={18}
-            className="text-[0.55rem] italic text-muted-foreground leading-relaxed"
-          />
-        </motion.div>
-      )}
-
-      {/* Enemy portrait + HP Bars */}
-      <div className="relative">
-        {(combat.isBoss || isBossFight) && (
-          <div className="flex justify-center mb-3">
-            <div className="w-16 h-16 rounded-full border-2 border-blood overflow-hidden shadow-lg shadow-blood/30">
-              <img
-                src={isBossFight
-                  ? (combat.bossPhase === 2 ? BOSS_IMAGES.decker : BOSS_IMAGES.voss)
-                  : BOSS_IMAGES[combat.familyId || '']
-                }
-                alt={combat.targetName}
-                className="w-full h-full object-cover"
-              />
+        {/* Enemy info - bottom right */}
+        <div className="absolute bottom-2 right-2.5 text-right">
+          {(combat.isBoss || isBossFight) && BOSS_IMAGES[isBossFight ? (combat.bossPhase === 2 ? 'decker' : 'voss') : (combat.familyId || '')] && (
+            <div className="w-10 h-10 rounded-full border-2 border-blood overflow-hidden shadow-lg shadow-blood/30 ml-auto mb-1">
+              <img src={BOSS_IMAGES[isBossFight ? (combat.bossPhase === 2 ? 'decker' : 'voss') : (combat.familyId || '')]} alt="" className="w-full h-full object-cover" />
             </div>
+          )}
+          <p className="text-[0.6rem] font-bold text-blood">{combat.targetName}</p>
+          <p className="text-[0.45rem] text-muted-foreground">HP {combat.targetHP}/{combat.enemyMaxHP}</p>
+        </div>
+
+        {/* Scene text overlay - top center */}
+        {scenePhrase && (
+          <div className="absolute top-2 left-3 right-3">
+            <TypewriterText
+              text={scenePhrase}
+              speed={18}
+              className="text-[0.5rem] italic text-muted-foreground/80 leading-relaxed"
+              key={combat.turn}
+            />
           </div>
         )}
 
-        {/* Floating damage popups on enemy */}
+        {/* Boss phase badge - top right */}
+        {isBossFight && phaseData && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-blood/20 border border-blood/40">
+            <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1, repeat: Infinity }}>
+              <AlertTriangle size={8} className="text-blood" />
+            </motion.div>
+            <span className="text-[0.45rem] font-bold text-blood uppercase">{phaseData.title}</span>
+          </div>
+        )}
+
+        {/* Streak badge - top left */}
+        {(state.combatStreak || 0) >= 3 && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/20 border border-gold/40">
+            <Flame size={8} className="text-gold" />
+            <span className="text-[0.45rem] font-bold text-gold">{getStreakLabel(state.combatStreak || 0)} ×{state.combatStreak}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ TURN INDICATOR ═══ */}
+      <TurnIndicator turn={combat.turn} />
+
+      {/* ═══ SIDE-BY-SIDE HP BARS ═══ */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {/* Player HP */}
+        <div className="relative">
+          <AnimatePresence>
+            {damagePopups.filter(p => p.type === 'taken' || p.type === 'heal').map(popup => (
+              <div key={popup.id} className="absolute top-0 left-1/2 -translate-x-1/2 z-50">
+                <DamagePopup value={popup.value} type={popup.type} />
+              </div>
+            ))}
+          </AnimatePresence>
+          <AnimatedHPBar label="Jij" current={combat.playerHP} max={combat.playerMaxHP} color="emerald" flashColor="blood" />
+          <div className="flex items-center gap-1 mt-1">
+            <span className={`text-[0.4rem] font-bold px-1.5 py-0.5 rounded-full border ${STANCE_ACTIVE_COLORS[combat.stance]}`}>
+              {STANCE_MODIFIERS[combat.stance].icon} {STANCE_MODIFIERS[combat.stance].label}
+            </span>
+          </div>
+        </div>
+
+        {/* Enemy HP */}
         <div className="relative">
           <AnimatePresence>
             {damagePopups.filter(p => p.type === 'dealt' || p.type === 'crit').map(popup => (
@@ -489,186 +539,177 @@ function ActiveCombat() {
           </AnimatePresence>
           <AnimatedHPBar label={combat.targetName} current={combat.targetHP} max={combat.enemyMaxHP} color="blood" flashColor="gold" />
         </div>
+      </div>
 
-        <div className="h-2" />
+      {/* Combo meter inline */}
+      {combat.comboCounter > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-0.5">
+            <Flame size={9} className="text-gold" />
+            <span className="text-[0.45rem] font-bold text-gold uppercase tracking-wider">
+              Combo {combat.comboCounter}/{COMBO_THRESHOLD}
+            </span>
+          </div>
+          <div className="relative h-1.5 bg-muted rounded overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold to-blood rounded"
+              animate={{ width: `${Math.min(100, (combat.comboCounter / COMBO_THRESHOLD) * 100)}%` }}
+              transition={{ type: 'spring', stiffness: 200 }}
+            />
+          </div>
+        </div>
+      )}
 
-        {/* Floating damage popups on player */}
-        <div className="relative">
-          <AnimatePresence>
-            {damagePopups.filter(p => p.type === 'taken' || p.type === 'heal').map(popup => (
-              <div key={popup.id} className="absolute top-0 left-1/2 -translate-x-1/2 z-50">
-                <DamagePopup value={popup.value} type={popup.type} />
-              </div>
-            ))}
-          </AnimatePresence>
-          <AnimatedHPBar label="Jij" current={combat.playerHP} max={combat.playerMaxHP} color="emerald" flashColor="blood" />
+      {/* Active Buffs inline */}
+      {combat.activeBuffs.length > 0 && (
+        <div className="flex gap-1 mb-3 flex-wrap">
+          {combat.activeBuffs.map((buff, i) => (
+            <motion.div
+              key={`${buff.id}-${i}`}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-gold/10 border border-gold/30"
+            >
+              <span className="text-[0.45rem]">{BUFF_DEFS[buff.id]?.icon || '✨'}</span>
+              <span className="text-[0.4rem] text-gold font-bold">{buff.duration}t</span>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ COMBAT LOG ═══ */}
+      <div className="mb-3">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="h-px flex-1 bg-border/40" />
+          <span className="text-[0.45rem] font-bold text-muted-foreground uppercase tracking-widest">Gevechtslog</span>
+          <div className="h-px flex-1 bg-border/40" />
+        </div>
+        <div className="game-card max-h-28 overflow-y-auto game-scroll p-2.5 space-y-0.5">
+          {combat.logs.slice(-6).map((log, i) => (
+            <CombatLogEntry key={`${combat.turn}-${i}`} log={log} index={i} turn={combat.turn} />
+          ))}
         </div>
       </div>
 
-      {/* Enhanced Combat Log */}
-      <div className="game-card mb-4 max-h-32 overflow-y-auto game-scroll p-3 mt-3">
-        {combat.logs.slice(-6).map((log, i) => (
-          <CombatLogEntry key={`${combat.turn}-${i}`} log={log} index={i} turn={combat.turn} />
-        ))}
-      </div>
-
-      {/* Actions */}
+      {/* ═══ ACTIONS ═══ */}
       {!combat.finished ? (
-        <>
-          {/* Stance Selector */}
-          <StanceSelector
-            current={combat.stance}
-            onChange={(s) => dispatch({ type: 'SET_COMBAT_STANCE', stance: s })}
-            disabled={combat.finished}
-          />
-          {(() => {
-            const procWeapon = state.weaponInventory?.find(w => w.equipped);
-            const legacyWeaponId = state.player.loadout.weapon;
-            const legacyWeapon = legacyWeaponId ? (GEAR.find(g => g.id === legacyWeaponId) ?? null) : null;
-            const isMeleeWeapon = procWeapon ? procWeapon.frame === 'blade' : (legacyWeapon?.ammoType === null);
-            
-            if (procWeapon) {
-              return (
-                <div className="text-center mb-2 space-y-0.5">
-                  <div className={`text-[0.55rem] font-bold ${WEAPON_RARITY_COLORS[procWeapon.rarity]}`}>
-                    {procWeapon.name} ({WEAPON_RARITY_LABEL[procWeapon.rarity]})
-                  </div>
-                  <div className="text-[0.45rem] text-muted-foreground flex items-center justify-center gap-2">
-                    <span>⚔️ {procWeapon.damage} DMG</span>
-                    <span>🎯 {procWeapon.accuracy} ACC</span>
-                    <span>💥 {procWeapon.critChance}% CRIT</span>
-                    {procWeapon.specialEffect && <span>{procWeapon.specialEffect}</span>}
-                  </div>
-                  {!isMeleeWeapon && (
-                    <div className={`text-[0.5rem] font-bold ${(state.ammo || 0) <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
-                      🔫 Kogels: {state.ammo || 0}/500 {(state.ammo || 0) === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50%)</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            
-            if (isMeleeWeapon) {
-              return (
-                <div className="text-center mb-2 text-[0.55rem] font-bold text-gold">
-                  ⚔️ {legacyWeapon?.name || 'Melee'} — Geen munitie nodig
-                </div>
-              );
-            }
-            const totalAmmo = state.ammo || 0;
-            return (
-              <div className={`text-center mb-2 text-[0.55rem] font-bold ${totalAmmo <= 10 ? 'text-blood' : 'text-muted-foreground'}`}>
-                🔫 Kogels: {totalAmmo}/500 {legacyWeapon?.clipSize ? `| Clip: ${legacyWeapon.clipSize}` : ''} {state.activeSpecialAmmo ? `| ${state.activeSpecialAmmo === 'armor_piercing' ? '🔩 AP' : state.activeSpecialAmmo === 'hollowpoints' ? '💥 HP' : '✨ Tracer'}` : ''} {totalAmmo === 0 && <span className="text-blood animate-pulse">— MELEE MODUS (50% schade)</span>}
-              </div>
-            );
-          })()}
-          <div className="grid grid-cols-2 gap-2">
-            <CombatAction
-              icon={<Swords size={14} />}
-              label={env?.actions.attack.label || "AANVAL"}
-              sub={env?.actions.attack.desc || `Betrouwbaar${((state.ammo || 0) > 0) ? ' (-1 🔫)' : ' (melee)'}`}
-              onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }}
-              variant="blood"
-            />
-            <CombatAction
-              icon={<Zap size={14} />}
-              label={env?.actions.heavy.label || "ZWARE KLAP"}
-              sub={env?.actions.heavy.desc || `Krachtig`}
-              onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'heavy' }); }}
-              variant="gold"
-            />
-            <CombatAction
-              icon={<Shield size={14} />}
-              label={env?.actions.defend.label || "VERDEDIG"}
-              sub={env?.actions.defend.desc || "Block + Heal"}
-              onClick={() => { playDefendSound(); dispatch({ type: 'COMBAT_ACTION', action: 'defend' }); }}
-              variant="muted"
-            />
-            <CombatAction
-              icon={<MapPin size={14} />}
-              label={env?.actions.environment.label || "OMGEVING"}
-              sub={env?.actions.environment.desc || "Stun kans"}
-              onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'environment' }); }}
-              variant="purple"
-            />
-          </div>
-          {/* 5th tactical button - full width */}
-          {env && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mt-2"
-            >
-              <CombatAction
-                icon={<Crosshair size={14} />}
-                label={env.actions.tactical.label}
-                sub={`${env.actions.tactical.desc} (${env.actions.tactical.stat.toUpperCase()} check)`}
-                onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'tactical' }); }}
-                variant="ice"
-              />
-            </motion.div>
-          )}
-
-          {/* Combo Meter */}
-          {combat.comboCounter > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-3"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Flame size={10} className="text-gold" />
-                <span className="text-[0.5rem] font-bold text-gold uppercase tracking-wider">
-                  Combo {combat.comboCounter}/{COMBO_THRESHOLD}
-                </span>
-              </div>
-              <div className="relative h-2 bg-muted rounded overflow-hidden">
-                <motion.div
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold to-blood rounded"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (combat.comboCounter / COMBO_THRESHOLD) * 100)}%` }}
-                  transition={{ type: 'spring', stiffness: 200 }}
-                />
-              </div>
-              {combat.comboCounter >= COMBO_THRESHOLD && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mt-2"
-                >
-                  <CombatAction
-                    icon={<Flame size={14} />}
-                    label="COMBO FINISHER"
-                    sub="Massieve schade + stun kans"
-                    onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
-                    variant="gold"
-                  />
-                </motion.div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Active Buffs */}
-          {combat.activeBuffs.length > 0 && (
-            <div className="flex gap-1 mt-2 flex-wrap">
-              {combat.activeBuffs.map((buff, i) => (
-                <motion.div
-                  key={`${buff.id}-${i}`}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold/10 border border-gold/30"
-                >
-                  <span className="text-[0.5rem]">{BUFF_DEFS[buff.id]?.icon || '✨'}</span>
-                  <span className="text-[0.45rem] text-gold font-bold">{buff.duration}t</span>
-                </motion.div>
-              ))}
+        <div className="space-y-2">
+          {/* Weapon info compact */}
+          {procWeapon && (
+            <div className="flex items-center justify-center gap-3 text-[0.45rem] text-muted-foreground">
+              <span className={`font-bold ${WEAPON_RARITY_COLORS[procWeapon.rarity]}`}>{procWeapon.name}</span>
+              <span>⚔️{procWeapon.damage}</span>
+              <span>🎯{procWeapon.accuracy}</span>
+              <span>💥{procWeapon.critChance}%</span>
+              {!isMeleeWeapon && <span className={(state.ammo || 0) <= 10 ? 'text-blood font-bold' : ''}>🔫{state.ammo || 0}</span>}
             </div>
           )}
 
+          {/* ═══ CATEGORIZED ACTION CARDS ═══ */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {/* DIRECTE ACTIE */}
+            <div className="space-y-1.5">
+              <p className="text-[0.4rem] font-bold text-blood uppercase tracking-widest flex items-center gap-1">
+                <Swords size={7} /> Direct
+              </p>
+              <ActionCard
+                icon={<Swords size={12} className="text-blood" />}
+                title={env?.actions.attack.label || "Aanval"}
+                desc={env?.actions.attack.desc || "Betrouwbaar"}
+                borderColor="border-blood/40"
+                bgColor="bg-blood/5 hover:bg-blood/15"
+                onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }}
+              />
+              <ActionCard
+                icon={<Zap size={12} className="text-gold" />}
+                title={env?.actions.heavy.label || "Zware Klap"}
+                desc={env?.actions.heavy.desc || "Krachtig"}
+                borderColor="border-gold/40"
+                bgColor="bg-gold/5 hover:bg-gold/15"
+                onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'heavy' }); }}
+              />
+            </div>
+
+            {/* TACTISCH */}
+            <div className="space-y-1.5">
+              <p className="text-[0.4rem] font-bold text-emerald uppercase tracking-widest flex items-center gap-1">
+                <Shield size={7} /> Tactisch
+              </p>
+              <ActionCard
+                icon={<Shield size={12} className="text-emerald" />}
+                title={env?.actions.defend.label || "Verdedig"}
+                desc={env?.actions.defend.desc || "Block + Heal"}
+                borderColor="border-emerald/40"
+                bgColor="bg-emerald/5 hover:bg-emerald/15"
+                onClick={() => { playDefendSound(); dispatch({ type: 'COMBAT_ACTION', action: 'defend' }); }}
+              />
+              <ActionCard
+                icon={<MapPin size={12} className="text-game-purple" />}
+                title={env?.actions.environment.label || "Omgeving"}
+                desc={env?.actions.environment.desc || "Stun kans"}
+                borderColor="border-game-purple/40"
+                bgColor="bg-game-purple/5 hover:bg-game-purple/15"
+                onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'environment' }); }}
+              />
+            </div>
+          </div>
+
+          {/* STRATEGISCH row */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <p className="text-[0.4rem] font-bold text-ice uppercase tracking-widest flex items-center gap-1 mb-1.5">
+                <Crosshair size={7} /> Strategisch
+              </p>
+              {env && (
+                <ActionCard
+                  icon={<Crosshair size={12} className="text-ice" />}
+                  title={env.actions.tactical.label}
+                  desc={`${env.actions.tactical.desc} (${env.actions.tactical.stat.toUpperCase()})`}
+                  borderColor="border-ice/40"
+                  bgColor="bg-ice/5 hover:bg-ice/15"
+                  onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'tactical' }); }}
+                />
+              )}
+            </div>
+
+            {/* SPECIAAL */}
+            <div>
+              <p className="text-[0.4rem] font-bold text-gold uppercase tracking-widest flex items-center gap-1 mb-1.5">
+                <Flame size={7} /> Speciaal
+              </p>
+              {combat.comboCounter >= COMBO_THRESHOLD ? (
+                <ActionCard
+                  icon={<Flame size={12} className="text-gold" />}
+                  title="Combo Finisher"
+                  desc="Massieve schade + stun"
+                  borderColor="border-gold/40"
+                  bgColor="bg-gold/10 hover:bg-gold/20"
+                  glow
+                  onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
+                />
+              ) : (
+                <div className="p-2 rounded-lg border border-border/30 bg-muted/5 text-center opacity-40">
+                  <Flame size={12} className="text-muted-foreground mx-auto mb-0.5" />
+                  <p className="text-[0.45rem] text-muted-foreground">Combo nodig</p>
+                  <p className="text-[0.4rem] text-muted-foreground/60">{combat.comboCounter}/{COMBO_THRESHOLD}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stance Selector */}
+          <div>
+            <p className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 text-center">Houding</p>
+            <StanceSelector
+              current={combat.stance}
+              onChange={(s) => dispatch({ type: 'SET_COMBAT_STANCE', stance: s })}
+              disabled={combat.finished}
+            />
+          </div>
+
           {/* Skill Buttons */}
           <SkillButtons combat={combat} dispatch={dispatch} playerLevel={state.player.level} />
-        </>
+        </div>
       ) : (
         <CombatResult />
       )}
