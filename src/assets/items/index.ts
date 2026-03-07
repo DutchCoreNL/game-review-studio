@@ -322,6 +322,28 @@ export const BOSS_IMAGES: Record<string, string> = {
   decker: bossDecker,
 };
 
+export const CAMPAIGN_BOSS_IMAGES: Record<string, string> = {
+  boss_viktor: bossHammer,
+  boss_vasari: bossWu,
+  boss_carmela: bossSerpiente,
+  boss_decker: bossDecker,
+  boss_architect: bossVoss,
+  boss_oracle: bossWu,
+  boss_phoenix: bossSerpiente,
+  boss_noxhaven: bossVoss,
+};
+
+export const CHAPTER_DISTRICT_IMAGES: Record<string, string> = {
+  ch1: districtPort,
+  ch2: districtCrown,
+  ch3: districtIron,
+  ch4: districtNeon,
+  ch5: districtLow,
+  ch6: districtPort,
+  ch7: districtIron,
+  ch8: districtCrown,
+};
+
 export const DISTRICT_IMAGES: Record<string, string> = {
   port: districtPort,
   crown: districtCrown,
