@@ -9,9 +9,10 @@ import { HighLowGame } from './casino/HighLowGame';
 import { RussianRouletteGame } from './casino/RussianRouletteGame';
 import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino/casinoUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair } from 'lucide-react';
+import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair, DollarSign } from 'lucide-react';
 import casinoBg from '@/assets/casino-bg.png';
 import { CASINO_GAME_IMAGES, MINIGAME_IMAGES } from '@/assets/items/index';
+import { ViewWrapper } from './ui/ViewWrapper';
 
 export function CasinoView() {
   const { state, dispatch, showToast } = useGame();
@@ -45,30 +46,46 @@ export function CasinoView() {
   // Storm blocker
   if (isStorm) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <CloudLightning size={48} className="text-game-purple mx-auto mb-4" />
-          <h2 className="font-display text-xl text-foreground mb-2 uppercase tracking-wider">CASINO GESLOTEN</h2>
-          <p className="text-muted-foreground text-sm mb-1">Wegens stormweer is The Velvet Room</p>
-          <p className="text-muted-foreground text-sm">tijdelijk gesloten.</p>
-          <p className="text-[0.55rem] text-muted-foreground mt-4 italic">"Zelfs het geluk schuilt voor de bliksem."</p>
-        </motion.div>
-      </div>
+      <ViewWrapper bg={casinoBg}>
+        <div className="flex flex-col items-center justify-center py-16">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <CloudLightning size={48} className="text-game-purple mx-auto mb-4" />
+            <h2 className="font-display text-xl text-foreground mb-2 uppercase tracking-wider">CASINO GESLOTEN</h2>
+            <p className="text-muted-foreground text-sm mb-1">Wegens stormweer is The Velvet Room</p>
+            <p className="text-muted-foreground text-sm">tijdelijk gesloten.</p>
+            <p className="text-[0.55rem] text-muted-foreground mt-4 italic">"Zelfs het geluk schuilt voor de bliksem."</p>
+          </motion.div>
+        </div>
+      </ViewWrapper>
     );
   }
 
   return (
-    <div className="relative min-h-[70vh] -mx-3 -mt-2 px-3 pt-2">
-      {/* Background */}
-      <img src={casinoBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
-      
-      <div className="relative z-10">
-      <SectionHeader title="THE VELVET ROOM" icon={<Gem size={12} />} />
+    <ViewWrapper bg={casinoBg}>
+      {/* Cinematic Header */}
+      <div className="relative -mx-3 lg:-mx-4 -mt-2 mb-4 h-36 overflow-hidden">
+        <img src={casinoBg} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-game-purple/20 to-transparent" />
+        <div className="absolute bottom-3 left-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Gem size={14} className="text-game-purple" />
+            <span className="text-[0.5rem] uppercase tracking-[0.3em] text-game-purple/80 font-bold">Noxhaven</span>
+          </div>
+          <h2 className="font-display text-xl uppercase tracking-wider text-foreground drop-shadow-lg">THE VELVET ROOM</h2>
+          <p className="text-[0.5rem] text-muted-foreground italic mt-0.5">"Het huis wint altijd... tenzij jij vals speelt."</p>
+        </div>
+        <div className="absolute bottom-3 right-4 text-right">
+          <div className="flex items-center gap-1 justify-end">
+            <DollarSign size={12} className="text-gold" />
+            <span className="text-lg font-bold text-gold drop-shadow-lg">€{state.money.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
 
       {/* VIP Status */}
       {vipBonuses.length > 0 && !activeGame && (
@@ -89,26 +106,30 @@ export function CasinoView() {
 
       {/* Session Stats */}
       {!activeGame && (sessionStats.sessionWins > 0 || sessionStats.sessionLosses > 0) && (
-        <div className="flex gap-3 justify-center mb-3 text-[0.55rem]">
-          <span className="text-emerald font-bold flex items-center gap-0.5">
-            <TrendingUp size={10} /> {sessionStats.sessionWins}W
-          </span>
-          <span className="text-blood font-bold flex items-center gap-0.5">
-            <TrendingDown size={10} /> {sessionStats.sessionLosses}L
-          </span>
-          <span className={`font-bold ${sessionStats.sessionProfit >= 0 ? 'text-emerald' : 'text-blood'}`}>
-            {sessionStats.sessionProfit >= 0 ? '+' : ''}€{sessionStats.sessionProfit.toLocaleString()}
-          </span>
-          {sessionStats.bestStreak > 1 && (
-            <span className="text-gold font-bold">🔥 Best: {sessionStats.bestStreak}</span>
-          )}
+        <div className="game-card bg-muted/30 p-2.5 mb-3">
+          <div className="text-[0.5rem] text-muted-foreground uppercase tracking-wider font-bold mb-1.5">Sessie Stats</div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div>
+              <div className="text-lg font-bold text-emerald">{sessionStats.sessionWins}</div>
+              <div className="text-[0.45rem] text-muted-foreground">Gewonnen</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-blood">{sessionStats.sessionLosses}</div>
+              <div className="text-[0.45rem] text-muted-foreground">Verloren</div>
+            </div>
+            <div>
+              <div className={`text-lg font-bold ${sessionStats.sessionProfit >= 0 ? 'text-emerald' : 'text-blood'}`}>
+                {sessionStats.sessionProfit >= 0 ? '+' : ''}€{sessionStats.sessionProfit.toLocaleString()}
+              </div>
+              <div className="text-[0.45rem] text-muted-foreground">Winst</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-gold">{sessionStats.bestStreak > 1 ? `🔥${sessionStats.bestStreak}` : '—'}</div>
+              <div className="text-[0.45rem] text-muted-foreground">Streak</div>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="text-center mb-4">
-        <p className="text-muted-foreground text-[0.6rem] italic">"Het huis wint altijd... tenzij jij vals speelt."</p>
-        <p className="text-gold text-sm font-bold mt-1">€{state.money.toLocaleString()}</p>
-      </div>
 
       <AnimatePresence mode="wait">
         {!activeGame ? (
@@ -139,12 +160,11 @@ export function CasinoView() {
 
       {activeGame && (
         <button onClick={() => setActiveGame(null)}
-          className="w-full mt-4 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground">
-          TERUG NAAR MENU
+          className="w-full mt-4 py-2 rounded text-xs font-semibold bg-muted border border-border text-muted-foreground hover:bg-muted/80 transition-colors">
+          ← TERUG NAAR MENU
         </button>
       )}
-    </div>
-    </div>
+    </ViewWrapper>
   );
 }
 
@@ -154,7 +174,7 @@ function GameCard({ icon, name, sub, onClick, color, image }: { icon: React.Reac
       className="game-card-interactive flex flex-col items-center gap-0 bg-gradient-to-b from-card to-background overflow-hidden"
       whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
       {image && (
-        <div className="relative w-full h-20 overflow-hidden">
+        <div className="relative w-full h-24 overflow-hidden">
           <img src={image} alt={name} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
           <div className={`absolute bottom-1 left-0 right-0 flex justify-center ${color ? `text-${color}` : 'text-gold'} gold-text-glow`}>
