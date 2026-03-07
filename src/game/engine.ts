@@ -1,4 +1,5 @@
-import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType, ConquestPhaseData } from './types';
+import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType, ConquestPhaseData, CombatStance } from './types';
+import { STANCE_MODIFIERS } from './combatSkills';
 import { generateCliffhanger } from './cliffhangers';
 import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_COOLDOWN, CONQUEST_COMBAT_OVERRIDES } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
@@ -1980,6 +1981,22 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       playerDamage += pierceBonus;
       combat.logs.push(`🔩 Armor Pierce: +${pierceBonus} extra schade`);
     }
+  }
+
+  // Apply stance modifiers
+  const stanceMod = STANCE_MODIFIERS[combat.stance];
+  if (playerDamage > 0 && stanceMod.damageMod !== 1.0) {
+    playerDamage = Math.floor(playerDamage * stanceMod.damageMod);
+  }
+  // Stance crit bonus
+  if (playerDamage > 0 && stanceMod.critBonus > 0 && Math.random() < stanceMod.critBonus) {
+    playerDamage = Math.floor(playerDamage * 1.5);
+    combat.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
+  }
+  // Defensive stance heal-over-time
+  if (stanceMod.healBonus > 0) {
+    combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + stanceMod.healBonus);
+    combat.logs.push(`${stanceMod.icon} Defensieve houding: +${stanceMod.healBonus} HP`);
   }
 
   combat.targetHP = Math.max(0, combat.targetHP - playerDamage);
