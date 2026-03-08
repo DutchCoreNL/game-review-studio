@@ -258,11 +258,25 @@ export function handleEndCombat(s: GameState): void {
       s.lastCombatLoot = loot;
       s.lastCombatStats = stats;
     } else {
-      // Universal permadeath: death = game over
-      s.gameOver = true;
-      s.playerHP = 0;
+      // Knockout system: PvE loss = knocked out, not permadeath
+      // Exception: final boss combat is still lethal
+      const isFinalBoss = combat.bossPhase !== undefined;
+      if (isFinalBoss) {
+        s.gameOver = true;
+        s.playerHP = 0;
+      } else {
+        // Knocked out — recover with penalties
+        s.playerHP = Math.max(1, Math.floor((s.playerMaxHP || 100) * 0.25));
+        const moneyLost = Math.floor(s.money * 0.15);
+        s.money -= moneyLost;
+        s.rep = Math.max(0, s.rep - 10);
+        addPhoneMessage(s, 'anonymous',
+          `Je bent knocked out door ${combat.targetName}. Je verloor €${moneyLost.toLocaleString()} en wat reputatie terwijl je bewusteloos was.`,
+          'warning'
+        );
+      }
       s.hospitalizations = (s.hospitalizations || 0) + 1;
-      s.combatStreak = 0; // Reset streak on loss
+      s.combatStreak = 0;
       s.lastCombatRating = null;
       s.lastCombatLoot = null;
       s.lastCombatStats = null;
