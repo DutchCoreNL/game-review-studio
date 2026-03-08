@@ -7,13 +7,14 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar, Users, Target } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar, Users, Target, Package } from 'lucide-react';
 import { WEEK_EVENTS } from '@/game/weekEvents';
 import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { AdminGangsTab } from './admin/AdminGangsTab';
 import { AdminFactionsTab } from './admin/AdminFactionsTab';
 import { AdminContentTab } from './admin/AdminContentTab';
+import { AdminPlayerDetailPopup } from './admin/AdminPlayerDetailPopup';
 
 // ====== TYPES ======
 
