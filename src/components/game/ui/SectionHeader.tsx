@@ -1,5 +1,6 @@
 interface SectionHeaderProps {
   title: string;
+  subtitle?: string;
   icon?: React.ReactNode;
   badge?: string;
   badgeColor?: 'blood' | 'gold' | 'emerald' | 'purple';
@@ -12,18 +13,24 @@ const BADGE_STYLES: Record<string, string> = {
   purple: 'bg-game-purple/20 text-game-purple border-game-purple/30',
 };
 
-export function SectionHeader({ title, icon, badge, badgeColor = 'gold' }: SectionHeaderProps) {
+export function SectionHeader({ title, subtitle, icon, badge, badgeColor = 'gold' }: SectionHeaderProps) {
   return (
-    <div className="flex items-center gap-1.5 mt-4 mb-2">
-      {icon && <span className="text-gold/80">{icon}</span>}
-      <span className="text-[0.5rem] uppercase tracking-wider text-gold/80 font-bold">
-        {title}
-      </span>
-      {badge && (
-        <span className={`text-[0.4rem] px-1.5 py-0.5 rounded border font-bold uppercase ${BADGE_STYLES[badgeColor]}`}>
-          {badge}
+    <div className="mt-4 mb-2">
+      <div className="flex items-center gap-1.5">
+        {icon && <span className="text-gold/80">{icon}</span>}
+        <span className="text-[0.6rem] uppercase tracking-wider text-gold/80 font-bold">
+          {title}
         </span>
+        {badge && (
+          <span className={`text-[0.4rem] px-1.5 py-0.5 rounded border font-bold uppercase ${BADGE_STYLES[badgeColor]}`}>
+            {badge}
+          </span>
+        )}
+      </div>
+      {subtitle && (
+        <p className="text-[0.5rem] text-muted-foreground mt-0.5 ml-[calc(12px+0.375rem)]">{subtitle}</p>
       )}
+      <div className="mt-1.5 h-px bg-gradient-to-r from-gold/30 via-gold/10 to-transparent" />
     </div>
   );
 }

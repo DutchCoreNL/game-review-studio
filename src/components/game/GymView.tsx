@@ -5,8 +5,8 @@ import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
-import { motion } from 'framer-motion';
-import { Dumbbell, Shield, Zap, Target, Lock, Crown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Dumbbell, Shield, Zap, Target, Lock, Star } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
 import gymBg from '@/assets/gym-bg.jpg';
@@ -34,6 +34,30 @@ const GYMS: GymDef[] = [
 
 const ENERGY_COST = 5;
 
+function TierStars({ tier }: { tier: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Star key={i} size={8} className={i < tier ? 'text-gold fill-gold' : 'text-muted-foreground/30'} />
+      ))}
+    </div>
+  );
+}
+
+function StatBoostOverlay({ gain, color }: { gain: number; color: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 0, y: -40, scale: 1.5 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.2, ease: 'easeOut' }}
+      className={`absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20 font-display font-bold text-xl ${color}`}
+    >
+      +{gain}
+    </motion.div>
+  );
+}
+
 export function GymView() {
   const { state } = useGame();
   const { t } = useLanguage();
@@ -42,12 +66,13 @@ export function GymView() {
     GYMS.find(g => g.district === state.loc)?.id || GYMS[0].id
   );
   const [lastResult, setLastResult] = useState<{ stat: string; gain: number; message: string } | null>(null);
+  const [boostAnim, setBoostAnim] = useState<{ stat: string; gain: number } | null>(null);
 
   const STATS = [
-    { id: 'strength', label: t.gym.strength, icon: Dumbbell, color: 'text-blood', desc: t.gym.strengthDesc },
-    { id: 'defense', label: t.gym.defense, icon: Shield, color: 'text-ice', desc: t.gym.defenseDesc },
-    { id: 'speed', label: t.gym.speed, icon: Zap, color: 'text-gold', desc: t.gym.speedDesc },
-    { id: 'dexterity', label: t.gym.dexterity, icon: Target, color: 'text-emerald', desc: t.gym.dexterityDesc },
+    { id: 'strength', label: t.gym.strength, icon: Dumbbell, color: 'text-blood', bgColor: 'bg-blood', desc: t.gym.strengthDesc },
+    { id: 'defense', label: t.gym.defense, icon: Shield, color: 'text-ice', bgColor: 'bg-ice', desc: t.gym.defenseDesc },
+    { id: 'speed', label: t.gym.speed, icon: Zap, color: 'text-gold', bgColor: 'bg-gold', desc: t.gym.speedDesc },
+    { id: 'dexterity', label: t.gym.dexterity, icon: Target, color: 'text-emerald', bgColor: 'bg-emerald-500', desc: t.gym.dexterityDesc },
   ];
 
   const gymStats: Record<string, number> = (state as any).gymStats || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
@@ -60,11 +85,15 @@ export function GymView() {
     if (training || !hasEnergy || !inCorrectDistrict || !hasLevel) return;
     setTraining(true);
     setLastResult(null);
+    setBoostAnim(null);
     try {
       const res = await gameApi.gymTrain(statId, selectedGym);
       if (res.success) {
-        setLastResult({ stat: statId, gain: res.data?.gain || 0, message: res.message });
+        const gain = res.data?.gain || 0;
+        setLastResult({ stat: statId, gain, message: res.message });
+        setBoostAnim({ stat: statId, gain });
         toast.success(res.message);
+        setTimeout(() => setBoostAnim(null), 1500);
       } else {
         toast.error(res.message);
       }
@@ -87,7 +116,7 @@ export function GymView() {
         </div>
       </div>
 
-      <SectionHeader title={t.gym.locations} icon={<Dumbbell size={12} />} />
+      <SectionHeader title={t.gym.locations} subtitle="Kies een trainingslocatie in Noxhaven" icon={<Dumbbell size={12} />} />
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
         {GYMS.map(gym => {
           const isSelected = selectedGym === gym.id;
@@ -96,15 +125,17 @@ export function GymView() {
           return (
             <button key={gym.id} onClick={() => !locked && setSelectedGym(gym.id)}
               className={`relative p-3 rounded-lg border text-left transition-all ${
-                isSelected ? 'bg-gold/10 border-gold/40 text-gold' : locked ? 'bg-muted/5 border-border/30 text-muted-foreground/50 cursor-not-allowed' : 'bg-card border-border hover:border-muted-foreground/40 text-foreground'
+                isSelected ? 'bg-gold/10 border-gold/40 text-gold shadow-[0_0_12px_hsl(var(--gold)/0.15)]' : locked ? 'bg-muted/5 border-border/30 text-muted-foreground/50 cursor-not-allowed' : 'bg-card border-border hover:border-muted-foreground/40 text-foreground'
               }`}>
               {locked && <Lock size={12} className="absolute top-2 right-2 text-muted-foreground/50" />}
-              <div className="text-lg mb-1">{gym.icon}</div>
+              <div className="flex items-center justify-between mb-1">
+                <TierStars tier={gym.tier} />
+                {isLocal && !locked && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={t.onlinePlayers.here} />}
+              </div>
               <div className="text-[0.65rem] font-bold uppercase tracking-wider">{gym.name}</div>
               <div className="text-[0.55rem] text-muted-foreground mt-0.5">
                 {locked ? `Lvl ${gym.reqLevel} ${t.education.levelRequired}` : `${gym.focus} • x${gym.gainMultiplier}`}
               </div>
-              {isLocal && !locked && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" title={t.onlinePlayers.here} />}
               {gym.costPerMonth > 0 && !locked && (
                 <div className="text-[0.5rem] text-muted-foreground mt-1">€{gym.costPerMonth.toLocaleString()}/mo</div>
               )}
@@ -116,7 +147,10 @@ export function GymView() {
       <div className="game-card mb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="text-sm font-bold text-foreground">{currentGym.icon} {currentGym.name}</div>
+            <div className="text-sm font-bold text-foreground flex items-center gap-2">
+              {currentGym.name}
+              <TierStars tier={currentGym.tier} />
+            </div>
             <div className="text-xs text-muted-foreground">
               {t.gym.focus}: {currentGym.focus} • {t.gym.multiplier}: x{currentGym.gainMultiplier}
             </div>
@@ -131,9 +165,19 @@ export function GymView() {
             const value = gymStats[stat.id] || 1;
             const isFocus = currentGym.focusStat === stat.id || currentGym.focusStat === 'all';
             const StatIcon = stat.icon;
+            const pct = Math.min(100, (value / 100) * 100);
             return (
-              <motion.div key={stat.id} className={`relative p-3 rounded-lg border transition-all ${isFocus ? 'border-gold/30 bg-gold/5' : 'border-border bg-card'}`} whileHover={{ scale: 1.02 }}>
-                {isFocus && <Crown size={10} className="absolute top-1.5 right-1.5 text-gold" />}
+              <motion.div key={stat.id} className={`relative p-3 rounded-lg border transition-all overflow-hidden ${isFocus ? 'border-gold/30 bg-gold/5' : 'border-border bg-card'}`} whileHover={{ scale: 1.02 }}>
+                {isFocus && (
+                  <div className="absolute top-1.5 right-1.5 flex gap-0.5">
+                    <Star size={10} className="text-gold fill-gold" />
+                  </div>
+                )}
+                <AnimatePresence>
+                  {boostAnim?.stat === stat.id && (
+                    <StatBoostOverlay gain={boostAnim.gain} color={stat.color} />
+                  )}
+                </AnimatePresence>
                 <div className="flex items-center gap-2 mb-2">
                   <StatIcon size={16} className={stat.color} />
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground">{stat.label}</span>
@@ -145,10 +189,16 @@ export function GymView() {
                   )}
                 </div>
                 <p className="text-[0.5rem] text-muted-foreground mb-2">{stat.desc}</p>
-                <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
-                  <motion.div className={`h-full rounded-full ${stat.id === 'strength' ? 'bg-blood' : stat.id === 'defense' ? 'bg-ice' : stat.id === 'speed' ? 'bg-gold' : 'bg-emerald-500'}`}
-                    initial={{ width: 0 }} animate={{ width: `${Math.min(100, (value / 100) * 100)}%` }} transition={{ duration: 0.5 }} />
+                <div className="h-2 bg-muted/20 rounded-full overflow-hidden mb-2 relative">
+                  <motion.div
+                    className={`h-full rounded-full ${stat.bgColor}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
                 </div>
+                <div className="text-[0.45rem] text-muted-foreground mb-2 text-right">{value}/100</div>
                 <GameButton size="sm" variant={isFocus ? 'gold' : 'muted'} fullWidth disabled={training || !hasEnergy || !inCorrectDistrict || !hasLevel}
                   onClick={() => handleTrain(stat.id)}>
                   {training ? '...' : `${t.gym.train} (${ENERGY_COST}⚡)`}
