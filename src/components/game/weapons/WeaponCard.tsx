@@ -3,7 +3,11 @@ import { getMasteryProgress, getMasteryTitle, getEffectiveStats } from '@/game/w
 import { WEAPON_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { GameBadge } from '../ui/GameBadge';
 import { motion } from 'framer-motion';
-import { Crosshair, Flame, Zap, Shield, Target, Lock, Star } from 'lucide-react';
+import { Crosshair, Flame, Zap, Shield, Target, Lock, Star, Wrench, Gem, Trophy } from 'lucide-react';
+import { getDurabilityStatus, getDurabilityMultiplier, DURABILITY_PENALTY_THRESHOLD } from '@/game/durability';
+import { getEnchantmentDef } from '@/game/enchantments';
+import { getSkinDef } from '@/game/weaponSkins';
+import { getCompletedChallengeCount, WEAPON_CHALLENGES } from '@/game/weaponChallenges';
 
 interface WeaponCardProps {
   weapon: GeneratedWeapon;
@@ -58,17 +62,43 @@ function MasteryBar({ weapon }: { weapon: GeneratedWeapon }) {
   );
 }
 
+function DurabilityBar({ durability }: { durability: number }) {
+  const status = getDurabilityStatus(durability);
+  const pct = Math.min(100, durability);
+  return (
+    <div className="flex items-center gap-1.5">
+      <Wrench size={8} className={status.color} />
+      <span className="text-[0.45rem] text-muted-foreground w-12 shrink-0">Conditie</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          className={`h-full rounded-full ${
+            durability >= 80 ? 'bg-emerald' : durability >= 50 ? 'bg-gold' : durability >= 25 ? 'bg-orange-400' : 'bg-blood'
+          }`}
+        />
+      </div>
+      <span className={`text-[0.5rem] font-bold w-5 text-right ${status.color}`}>{durability}%</span>
+    </div>
+  );
+}
+
 export function WeaponCard({ weapon, compact = false, onClick, actions, highlight = false, onToggleLock }: WeaponCardProps) {
   const brand = getBrandDef(weapon.brand);
   const frame = getFrameDef(weapon.frame);
   const effectiveStats = getEffectiveStats(weapon);
+  const durability = weapon.durability ?? 100;
+  const enchantment = weapon.enchantmentId ? getEnchantmentDef(weapon.enchantmentId) : null;
+  const skin = weapon.skinId ? getSkinDef(weapon.skinId) : null;
+  const challengeCount = getCompletedChallengeCount(weapon.challenges || []);
+  const skinGlow = skin ? skin.glowClass : '';
 
   if (compact) {
     return (
       <motion.div
         whileTap={onClick ? { scale: 0.97 } : undefined}
         onClick={onClick}
-        className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-all ${WEAPON_RARITY_BG[weapon.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
+        className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-all ${WEAPON_RARITY_BG[weapon.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''} ${skinGlow}`}
       >
         <img src={WEAPON_FRAME_IMAGES[weapon.frame]} alt={frame.name} className="w-8 h-8 object-contain rounded" />
         <div className="flex-1 min-w-0">
@@ -82,8 +112,17 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
             <span className="text-[0.45rem] text-muted-foreground">DMG {effectiveStats.damage}</span>
             <span className="text-[0.45rem] text-muted-foreground">ACC {effectiveStats.accuracy}</span>
             <span className={`text-[0.45rem] ${brand.color}`}>{brand.icon} {brand.name}</span>
+            {enchantment && (
+              <span className={`text-[0.4rem] ${enchantment.color}`}>{enchantment.icon}</span>
+            )}
+            {durability < DURABILITY_PENALTY_THRESHOLD && (
+              <span className="text-[0.4rem] text-blood">🔧{durability}%</span>
+            )}
             {(weapon.masteryXp || 0) > 0 && (
               <span className="text-[0.4rem] text-gold">⭐{getMasteryProgress(weapon.masteryXp || 0).level}</span>
+            )}
+            {challengeCount > 0 && (
+              <span className="text-[0.4rem] text-amber-400">🏆{challengeCount}</span>
             )}
           </div>
         </div>
@@ -102,7 +141,7 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
       layout
       whileTap={onClick ? { scale: 0.97 } : undefined}
       onClick={onClick}
-      className={`game-card p-3 rounded border transition-all ${WEAPON_RARITY_BG[weapon.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${onClick ? 'cursor-pointer' : ''} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''}`}
+      className={`game-card p-3 rounded border transition-all ${WEAPON_RARITY_BG[weapon.rarity]} ${highlight ? 'ring-1 ring-gold' : ''} ${onClick ? 'cursor-pointer' : ''} ${weapon.isUnique ? weapon.uniqueGlow || '' : ''} ${skinGlow}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
@@ -122,6 +161,7 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
               </GameBadge>
               {weapon.equipped && <GameBadge variant="gold" size="xs">DRAAG</GameBadge>}
               {weapon.isUnique && <GameBadge variant="purple" size="xs">UNIEK</GameBadge>}
+              {skin && <GameBadge variant="muted" size="xs">{skin.icon} {skin.name}</GameBadge>}
             </div>
           </div>
         </div>
@@ -148,6 +188,7 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
         {!frame.isMelee && (
           <StatBar label="Clip" value={effectiveStats.clipSize} max={60} icon={<Zap size={8} />} color="text-emerald" />
         )}
+        <DurabilityBar durability={durability} />
       </div>
 
       {/* Extra stats */}
@@ -161,7 +202,22 @@ export function WeaponCard({ weapon, compact = false, onClick, actions, highligh
         {weapon.specialEffect && (
           <span className="text-[0.45rem] text-game-purple bg-game-purple/10 px-1.5 py-0.5 rounded">{weapon.specialEffect}</span>
         )}
+        {enchantment && (
+          <span className={`text-[0.45rem] ${enchantment.color} bg-muted/30 px-1.5 py-0.5 rounded border border-current/20`}>
+            <Gem size={7} className="inline mr-0.5" />{enchantment.icon} {enchantment.name}: {enchantment.description}
+          </span>
+        )}
       </div>
+
+      {/* Challenges progress */}
+      {challengeCount > 0 && (
+        <div className="flex items-center gap-1 mb-1.5">
+          <Trophy size={8} className="text-amber-400" />
+          <span className="text-[0.4rem] text-amber-400 font-semibold">
+            {challengeCount}/{WEAPON_CHALLENGES.length} uitdagingen voltooid
+          </span>
+        </div>
+      )}
 
       {/* Mastery */}
       <MasteryBar weapon={weapon} />

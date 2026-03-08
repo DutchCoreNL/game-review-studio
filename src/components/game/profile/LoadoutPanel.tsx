@@ -4,11 +4,118 @@ import { ViewWrapper } from '../ui/ViewWrapper';
 import { WeaponCard } from '../weapons/WeaponCard';
 import { GearCard } from '../gear/GearCard';
 import { motion } from 'framer-motion';
-import { Sword, Shield, Smartphone, Crosshair } from 'lucide-react';
+import { Sword, Shield, Smartphone, Crosshair, Save, Play, Trash2, Pencil, Sparkles } from 'lucide-react';
 import { MAX_WEAPON_INVENTORY } from '@/game/weaponGenerator';
 import { MAX_GEAR_INVENTORY } from '@/game/gearGenerator';
 import { GameView } from '@/game/types';
+import { detectSetBonuses } from '@/game/arsenalSets';
+import { GameBadge } from '../ui/GameBadge';
 import arsenalBg from '@/assets/arsenal-bg.jpg';
+import { useState } from 'react';
+
+function SetBonusDisplay({ equippedWeapon, equippedArmor, equippedGadget }: {
+  equippedWeapon: any; equippedArmor: any; equippedGadget: any;
+}) {
+  const bonuses = detectSetBonuses(equippedWeapon, equippedArmor, equippedGadget);
+  if (bonuses.length === 0) return null;
+
+  return (
+    <div className="game-card p-2.5 mb-3">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Sparkles size={10} className="text-gold" />
+        <span className="text-[0.5rem] uppercase tracking-wider text-gold font-bold">Set Bonussen</span>
+      </div>
+      {bonuses.map(bonus => (
+        <div key={bonus.def.familyId} className="flex items-center justify-between py-1 border-t border-border/50">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs">{bonus.def.icon}</span>
+            <span className={`text-[0.5rem] font-bold ${bonus.def.color}`}>{bonus.def.name}</span>
+            <GameBadge variant="gold" size="xs">{bonus.matchedPieces}/3</GameBadge>
+          </div>
+          {bonus.activeTier && (
+            <span className="text-[0.4rem] text-gold/80">{bonus.activeTier.label}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LoadoutPresets() {
+  const { state, dispatch, showToast } = useGame();
+  const presets = state.loadoutPresets || [];
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const handleSave = () => {
+    if (presets.length >= 5) {
+      showToast('Maximum 5 presets bereikt', 'error');
+      return;
+    }
+    dispatch({ type: 'SAVE_LOADOUT_PRESET', name: `Loadout ${presets.length + 1}` });
+    showToast('Loadout opgeslagen!', 'success');
+  };
+
+  const handleLoad = (presetId: string) => {
+    dispatch({ type: 'LOAD_LOADOUT_PRESET', presetId });
+    showToast('Loadout geladen!', 'success');
+  };
+
+  const handleDelete = (presetId: string) => {
+    dispatch({ type: 'DELETE_LOADOUT_PRESET', presetId });
+  };
+
+  const handleRename = (presetId: string) => {
+    if (editName.trim()) {
+      dispatch({ type: 'RENAME_LOADOUT_PRESET', presetId, name: editName.trim() });
+      setEditingId(null);
+    }
+  };
+
+  return (
+    <div className="game-card p-2.5 mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Save size={10} className="text-ice" />
+          <span className="text-[0.5rem] uppercase tracking-wider text-ice font-bold">Presets</span>
+        </div>
+        <GameButton variant="muted" size="sm" onClick={handleSave} disabled={presets.length >= 5}>
+          <Save size={10} /> Opslaan
+        </GameButton>
+      </div>
+      {presets.length === 0 && (
+        <p className="text-[0.45rem] text-muted-foreground italic">Geen presets opgeslagen</p>
+      )}
+      <div className="space-y-1">
+        {presets.map((preset: any) => (
+          <div key={preset.id} className="flex items-center gap-1.5 py-1 border-t border-border/50">
+            {editingId === preset.id ? (
+              <input
+                className="flex-1 text-[0.5rem] bg-muted/50 rounded px-1.5 py-0.5 border border-border"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleRename(preset.id)}
+                onBlur={() => handleRename(preset.id)}
+                autoFocus
+              />
+            ) : (
+              <span className="flex-1 text-[0.5rem] font-semibold truncate">{preset.name}</span>
+            )}
+            <button onClick={() => handleLoad(preset.id)} className="p-0.5 rounded hover:bg-muted/50">
+              <Play size={8} className="text-emerald" />
+            </button>
+            <button onClick={() => { setEditingId(preset.id); setEditName(preset.name); }} className="p-0.5 rounded hover:bg-muted/50">
+              <Pencil size={8} className="text-muted-foreground" />
+            </button>
+            <button onClick={() => handleDelete(preset.id)} className="p-0.5 rounded hover:bg-muted/50">
+              <Trash2 size={8} className="text-blood" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function LoadoutPanel() {
   const { state, dispatch, showToast, setView } = useGame();
@@ -30,6 +137,9 @@ export function LoadoutPanel() {
           <p className="text-[0.55rem] text-muted-foreground">{totalItems} items in arsenaal</p>
         </div>
       </div>
+
+      {/* Set Bonus Display */}
+      <SetBonusDisplay equippedWeapon={equippedWeapon} equippedArmor={equippedArmor} equippedGadget={equippedGadget} />
 
       {/* Equipped slots */}
       <div className="space-y-3 mb-4">
@@ -108,6 +218,9 @@ export function LoadoutPanel() {
           )}
         </div>
       </div>
+
+      {/* Loadout Presets */}
+      <LoadoutPresets />
 
       {/* Arsenal navigation */}
       <div className="game-card p-3 space-y-2">
