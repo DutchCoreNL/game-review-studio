@@ -233,7 +233,7 @@ export function checkCodexUnlocks(
         unlocked = (c.min === undefined || state.karma >= c.min) && (c.max === undefined || state.karma <= c.max);
         break;
       case 'day':
-        unlocked = state.day >= c.day;
+        unlocked = (state.stats?.daysPlayed || 0) >= c.day;
         break;
     }
 

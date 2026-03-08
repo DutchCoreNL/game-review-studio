@@ -164,8 +164,9 @@ export const WEEK_EVENTS: WeekEvent[] = [
 
 /** Check if a week event should trigger (called during end_turn) */
 export function checkWeekEvent(state: GameState): ActiveWeekEvent | null {
-  // Only trigger on multiples of 7
-  if (state.day < 7 || state.day % 7 !== 0) return null;
+  // Only trigger on multiples of 7 based on days played
+  const dp = state.stats?.daysPlayed || 0;
+  if (dp < 7 || dp % 7 !== 0) return null;
   // Don't overlap with existing event
   if ((state as any).activeWeekEvent?.daysLeft > 0) return null;
 
