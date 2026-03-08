@@ -750,6 +750,364 @@ serve(async (req) => {
       return ok({ ok: true, message: 'All chat messages deleted' });
     }
 
+    // ============ PLAYER SEARCH ============
+
+    if (action === 'search_players') {
+      const { query } = body;
+      if (!query || query.length < 2) return bad('query (min 2 chars) required');
+      const { data } = await adminClient.from('leaderboard_entries')
+        .select('*').ilike('username', `%${query}%`).order('rep', { ascending: false }).limit(50);
+      return ok({ ok: true, entries: data || [] });
+    }
+
+    // ============ PLAYER DETAIL DATA ============
+
+    if (action === 'get_player_inventory') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_inventory').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, inventory: data || [] });
+    }
+
+    if (action === 'get_player_gear') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_gear').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, gear: data || [] });
+    }
+
+    if (action === 'get_player_vehicles') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_vehicles').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, vehicles: data || [] });
+    }
+
+    if (action === 'get_player_skills') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_skills').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, skills: data || [] });
+    }
+
+    if (action === 'get_player_crew') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_crew').select('*').eq('user_id', targetUserId).order('slot_index');
+      return ok({ ok: true, crew: data || [] });
+    }
+
+    if (action === 'get_player_businesses') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_businesses').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, businesses: data || [] });
+    }
+
+    if (action === 'get_player_safehouses') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_safehouses').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, safehouses: data || [] });
+    }
+
+    if (action === 'get_player_villa') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_villa').select('*').eq('user_id', targetUserId).maybeSingle();
+      return ok({ ok: true, villa: data });
+    }
+
+    if (action === 'get_player_titles') {
+      if (!targetUserId) return bad('userId required');
+      const { data } = await adminClient.from('player_titles').select('*').eq('user_id', targetUserId);
+      return ok({ ok: true, titles: data || [] });
+    }
+
+    if (action === 'get_player_full_detail') {
+      if (!targetUserId) return bad('userId required');
+      const [inv, gear, veh, skills, crew, biz, safe, villa, titles, edu, nemesis] = await Promise.all([
+        adminClient.from('player_inventory').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_gear').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_vehicles').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_skills').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_crew').select('*').eq('user_id', targetUserId).order('slot_index'),
+        adminClient.from('player_businesses').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_safehouses').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_villa').select('*').eq('user_id', targetUserId).maybeSingle(),
+        adminClient.from('player_titles').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_education').select('*').eq('user_id', targetUserId),
+        adminClient.from('player_nemesis').select('*').eq('player_id', targetUserId),
+      ]);
+      return ok({
+        ok: true,
+        detail: {
+          inventory: inv.data || [],
+          gear: gear.data || [],
+          vehicles: veh.data || [],
+          skills: skills.data || [],
+          crew: crew.data || [],
+          businesses: biz.data || [],
+          safehouses: safe.data || [],
+          villa: villa.data,
+          titles: titles.data || [],
+          education: edu.data || [],
+          nemesis: nemesis.data || [],
+        }
+      });
+    }
+
+    if (action === 'delete_player_item') {
+      const { table, itemId } = body;
+      const allowedTables = ['player_inventory', 'player_gear', 'player_vehicles', 'player_skills', 'player_crew', 'player_businesses', 'player_safehouses', 'player_titles', 'player_education'];
+      if (!allowedTables.includes(table)) return bad('Invalid table');
+      if (!itemId) return bad('itemId required');
+      await adminClient.from(table).delete().eq('id', itemId);
+      await logAction('delete_player_item', { table, itemId, targetUserId });
+      return ok({ ok: true, message: `Item deleted from ${table}` });
+    }
+
+    if (action === 'delete_player_villa') {
+      if (!targetUserId) return bad('userId required');
+      await adminClient.from('player_villa').delete().eq('user_id', targetUserId);
+      await logAction('delete_player_villa', { targetUserId });
+      return ok({ ok: true, message: 'Villa deleted' });
+    }
+
+    // ============ TRIBUNAL MANAGEMENT ============
+
+    if (action === 'get_tribunal_cases') {
+      const { data } = await adminClient.from('tribunal_cases').select('*').order('created_at', { ascending: false }).limit(50);
+      return ok({ ok: true, cases: data || [] });
+    }
+
+    if (action === 'resolve_tribunal_case') {
+      const { caseId, verdict: caseVerdict } = body;
+      if (!caseId || !caseVerdict) return bad('caseId and verdict required');
+      await adminClient.from('tribunal_cases').update({
+        status: 'resolved', verdict: caseVerdict, resolved_at: new Date().toISOString(),
+      }).eq('id', caseId);
+      await logAction('resolve_tribunal_case', { caseId, verdict: caseVerdict });
+      return ok({ ok: true, message: 'Case resolved' });
+    }
+
+    if (action === 'delete_tribunal_case') {
+      const { caseId } = body;
+      if (!caseId) return bad('caseId required');
+      await adminClient.from('tribunal_votes').delete().eq('case_id', caseId);
+      await adminClient.from('tribunal_cases').delete().eq('id', caseId);
+      await logAction('delete_tribunal_case', { caseId });
+      return ok({ ok: true, message: 'Case and votes deleted' });
+    }
+
+    // ============ TRADE OFFERS ============
+
+    if (action === 'get_trade_offers') {
+      const { data } = await adminClient.from('trade_offers').select('*').order('created_at', { ascending: false }).limit(50);
+      return ok({ ok: true, offers: data || [] });
+    }
+
+    if (action === 'cancel_trade_offer') {
+      const { offerId } = body;
+      if (!offerId) return bad('offerId required');
+      await adminClient.from('trade_offers').update({ status: 'cancelled' }).eq('id', offerId);
+      await logAction('cancel_trade_offer', { offerId });
+      return ok({ ok: true, message: 'Trade offer cancelled' });
+    }
+
+    // ============ MARKET LISTINGS ============
+
+    if (action === 'get_market_listings') {
+      const { data } = await adminClient.from('market_listings').select('*').order('created_at', { ascending: false }).limit(100);
+      return ok({ ok: true, listings: data || [] });
+    }
+
+    if (action === 'delete_market_listing') {
+      const { listingId } = body;
+      if (!listingId) return bad('listingId required');
+      await adminClient.from('market_listings').delete().eq('id', listingId);
+      await logAction('delete_market_listing', { listingId });
+      return ok({ ok: true, message: 'Listing deleted' });
+    }
+
+    // ============ ONLINE PLAYERS ============
+
+    if (action === 'get_online_players') {
+      const { data } = await adminClient.from('player_online_status')
+        .select('*').eq('is_online', true).order('last_seen_at', { ascending: false }).limit(100);
+      return ok({ ok: true, players: data || [] });
+    }
+
+    // ============ ACTIVITY FEED ============
+
+    if (action === 'get_activity_feed') {
+      const { data } = await adminClient.from('activity_feed').select('*').order('created_at', { ascending: false }).limit(100);
+      return ok({ ok: true, activities: data || [] });
+    }
+
+    if (action === 'clear_activity_feed') {
+      await adminClient.from('activity_feed').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('clear_activity_feed');
+      return ok({ ok: true, message: 'Activity feed cleared' });
+    }
+
+    // ============ DISTRICT INFLUENCE ============
+
+    if (action === 'get_district_influence') {
+      const { data } = await adminClient.from('district_influence').select('*').order('influence', { ascending: false }).limit(200);
+      // Get gang names
+      const gangIds = new Set<string>();
+      for (const d of (data || [])) gangIds.add(d.gang_id);
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const g of (gangs || [])) nameMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, influence: (data || []).map(d => ({ ...d, gang_name: nameMap[d.gang_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'reset_district_influence') {
+      const { districtId } = body;
+      if (districtId) {
+        await adminClient.from('district_influence').delete().eq('district_id', districtId);
+      } else {
+        await adminClient.from('district_influence').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      await logAction('reset_district_influence', { districtId: districtId || 'all' });
+      return ok({ ok: true, message: `District influence reset: ${districtId || 'all'}` });
+    }
+
+    // ============ UNDERCOVER MISSIONS ============
+
+    if (action === 'get_undercover_missions') {
+      const { data } = await adminClient.from('undercover_missions').select('*').order('created_at', { ascending: false }).limit(50);
+      const userIds = new Set<string>();
+      for (const m of (data || [])) userIds.add(m.user_id);
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, missions: (data || []).map(m => ({ ...m, username: nameMap[m.user_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'cancel_undercover_mission') {
+      const { missionId } = body;
+      if (!missionId) return bad('missionId required');
+      await adminClient.from('undercover_missions').update({ status: 'cancelled', completed_at: new Date().toISOString() }).eq('id', missionId);
+      await logAction('cancel_undercover_mission', { missionId });
+      return ok({ ok: true, message: 'Mission cancelled' });
+    }
+
+    // ============ HEIST SESSIONS ============
+
+    if (action === 'get_heist_sessions') {
+      const { data } = await adminClient.from('heist_sessions').select('*').order('created_at', { ascending: false }).limit(50);
+      const gangIds = new Set<string>();
+      for (const h of (data || [])) gangIds.add(h.gang_id);
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const g of (gangs || [])) nameMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, sessions: (data || []).map(h => ({ ...h, gang_name: nameMap[h.gang_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'cancel_heist_session') {
+      const { sessionId } = body;
+      if (!sessionId) return bad('sessionId required');
+      await adminClient.from('heist_sessions').update({ status: 'cancelled', completed_at: new Date().toISOString() }).eq('id', sessionId);
+      await logAction('cancel_heist_session', { sessionId });
+      return ok({ ok: true, message: 'Heist cancelled' });
+    }
+
+    // ============ ORGANIZED CRIMES ============
+
+    if (action === 'get_organized_crimes') {
+      const { data } = await adminClient.from('organized_crimes').select('*').order('created_at', { ascending: false }).limit(50);
+      const gangIds = new Set<string>();
+      for (const o of (data || [])) gangIds.add(o.gang_id);
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const g of (gangs || [])) nameMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, crimes: (data || []).map(o => ({ ...o, gang_name: nameMap[o.gang_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'cancel_organized_crime') {
+      const { crimeId } = body;
+      if (!crimeId) return bad('crimeId required');
+      await adminClient.from('organized_crimes').update({ status: 'cancelled' }).eq('id', crimeId);
+      await logAction('cancel_organized_crime', { crimeId });
+      return ok({ ok: true, message: 'Organized crime cancelled' });
+    }
+
+    // ============ NPC MOOD ============
+
+    if (action === 'get_npc_moods') {
+      const { data } = await adminClient.from('npc_district_mood').select('*').order('district_id');
+      return ok({ ok: true, moods: data || [] });
+    }
+
+    if (action === 'reset_npc_moods') {
+      await adminClient.from('npc_district_mood').update({ collective_score: 0, interaction_count: 0, status: 'neutral' }).neq('id', '00000000-0000-0000-0000-000000000000');
+      await logAction('reset_npc_moods');
+      return ok({ ok: true, message: 'NPC moods reset to neutral' });
+    }
+
+    // ============ PERSONAL STORY EVENTS ============
+
+    if (action === 'get_story_events') {
+      const { data } = await adminClient.from('personal_story_events').select('*').order('created_at', { ascending: false }).limit(50);
+      const userIds = new Set<string>();
+      for (const s of (data || [])) userIds.add(s.user_id);
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, events: (data || []).map(s => ({ ...s, username: nameMap[s.user_id] || 'Onbekend' })) });
+    }
+
+    if (action === 'delete_story_event') {
+      const { eventId } = body;
+      if (!eventId) return bad('eventId required');
+      await adminClient.from('personal_story_events').delete().eq('id', eventId);
+      await logAction('delete_story_event', { eventId });
+      return ok({ ok: true, message: 'Story event deleted' });
+    }
+
+    // ============ DEATH LEGACY ============
+
+    if (action === 'get_death_legacies') {
+      const { data } = await adminClient.from('death_legacy').select('*').order('death_count', { ascending: false }).limit(50);
+      const userIds = new Set<string>();
+      for (const d of (data || [])) userIds.add(d.user_id);
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, legacies: (data || []).map(d => ({ ...d, username: nameMap[d.user_id] || 'Onbekend' })) });
+    }
+
+    // ============ PVP SESSIONS ============
+
+    if (action === 'get_pvp_sessions') {
+      const { data } = await adminClient.from('pvp_combat_sessions').select('*').order('created_at', { ascending: false }).limit(50);
+      const userIds = new Set<string>();
+      for (const s of (data || [])) { userIds.add(s.attacker_id); userIds.add(s.defender_id); }
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      return ok({ ok: true, sessions: (data || []).map(s => ({ ...s, attacker_name: nameMap[s.attacker_id] || 'Onbekend', defender_name: nameMap[s.defender_id] || 'Onbekend' })) });
+    }
+
+    // ============ GANG MOLES ============
+
+    if (action === 'get_gang_moles') {
+      const { data } = await adminClient.from('gang_moles').select('*').order('created_at', { ascending: false }).limit(50);
+      const userIds = new Set<string>();
+      const gangIds = new Set<string>();
+      for (const m of (data || [])) { userIds.add(m.player_id); gangIds.add(m.player_gang_id); gangIds.add(m.target_gang_id); }
+      const { data: profiles } = await adminClient.from('profiles').select('id, username').in('id', Array.from(userIds));
+      const { data: gangs } = await adminClient.from('gangs').select('id, name, tag').in('id', Array.from(gangIds));
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles || [])) nameMap[p.id] = p.username;
+      const gangMap: Record<string, string> = {};
+      for (const g of (gangs || [])) gangMap[g.id] = `[${g.tag}] ${g.name}`;
+      return ok({ ok: true, moles: (data || []).map(m => ({ ...m, player_name: nameMap[m.player_id], player_gang_name: gangMap[m.player_gang_id], target_gang_name: gangMap[m.target_gang_id] })) });
+    }
+
+    if (action === 'delete_gang_mole') {
+      const { moleId } = body;
+      if (!moleId) return bad('moleId required');
+      await adminClient.from('gang_moles').delete().eq('id', moleId);
+      await logAction('delete_gang_mole', { moleId });
+      return ok({ ok: true, message: 'Mole deleted' });
+    }
+
     return bad('Unknown action');
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

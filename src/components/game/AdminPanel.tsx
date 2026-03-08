@@ -7,13 +7,14 @@ import { GameBadge } from './ui/GameBadge';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SubTabBar } from './ui/SubTabBar';
 import { useGame } from '@/contexts/GameContext';
-import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar, Users, Target } from 'lucide-react';
+import { Shield, Trash2, RotateCcw, Ban, RefreshCw, AlertTriangle, Filter, MessageCircleWarning, VolumeX, X, History, ScrollText, Pencil, Bot, Globe, Send, TrendingUp, User, MapPin, Shuffle, Plus, Search, Zap, CloudRain, Heart, DollarSign, Bomb, Newspaper, Swords, Clock, Calendar, Users, Target, Package } from 'lucide-react';
 import { WEEK_EVENTS } from '@/game/weekEvents';
 import type { ActiveWeekEvent } from '@/game/weekEvents';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { AdminGangsTab } from './admin/AdminGangsTab';
 import { AdminFactionsTab } from './admin/AdminFactionsTab';
 import { AdminContentTab } from './admin/AdminContentTab';
+import { AdminPlayerDetailPopup } from './admin/AdminPlayerDetailPopup';
 
 // ====== TYPES ======
 
@@ -103,6 +104,12 @@ export function AdminPanel() {
   // Player state detail
   const [playerStatePopup, setPlayerStatePopup] = useState<{ entry: LeaderboardEntry; state: Record<string, unknown> | null } | null>(null);
   const [playerStateEdits, setPlayerStateEdits] = useState<Record<string, unknown>>({});
+  // Player full detail
+  const [playerDetailPopup, setPlayerDetailPopup] = useState<{ entry: LeaderboardEntry; detail: Record<string, unknown[]> | null } | null>(null);
+  // Player search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<LeaderboardEntry[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // -- Economy tab state --
   const [prices, setPrices] = useState<MarketPrice[]>([]);
@@ -229,6 +236,25 @@ export function AdminPanel() {
     } catch (e: any) { showToast(`❌ ${e.message}`, true); }
   };
 
+  const searchPlayers = async () => {
+    if (searchQuery.length < 2) return;
+    setSearchLoading(true);
+    try {
+      const d = await adminCall('search_players', { query: searchQuery });
+      setSearchResults(d.entries || []);
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setSearchLoading(false);
+  };
+
+  const openPlayerFullDetail = async (entry: LeaderboardEntry) => {
+    setActionLoading(entry.id);
+    try {
+      const d = await adminCall('get_player_full_detail', { userId: entry.user_id });
+      setPlayerDetailPopup({ entry, detail: d.detail });
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setActionLoading(null);
+  };
+
   // ====== RENDER ======
   return (
     <ViewWrapper>
@@ -253,7 +279,31 @@ export function AdminPanel() {
       {/* ======== SPELERS TAB ======== */}
       {tab === 'players' && (
         <>
-          <div className="flex items-center justify-between mb-3 mt-2">
+          {/* Search bar */}
+          <div className="mt-2 mb-3">
+            <div className="flex gap-1.5">
+              <input
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); if (e.target.value.length < 2) setSearchResults(null); }}
+                onKeyDown={e => e.key === 'Enter' && searchPlayers()}
+                placeholder="🔍 Zoek speler op naam..."
+                className="flex-1 bg-background border border-border rounded px-2 py-1.5 text-xs"
+              />
+              <GameButton variant="emerald" size="sm" icon={<Search size={10} />} onClick={searchPlayers} disabled={searchQuery.length < 2 || searchLoading}>
+                {searchLoading ? '...' : 'ZOEK'}
+              </GameButton>
+              {searchResults && (
+                <GameButton variant="muted" size="sm" onClick={() => { setSearchResults(null); setSearchQuery(''); }}>
+                  <X size={10} />
+                </GameButton>
+              )}
+            </div>
+            {searchResults && (
+              <p className="text-[0.5rem] text-muted-foreground mt-1">{searchResults.length} resultaten voor "{searchQuery}"</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <p className="text-[0.55rem] text-muted-foreground">{entries.length} spelers</p>
               {suspiciousCount > 0 && <GameBadge variant="gold" size="xs"><AlertTriangle size={8} /> {suspiciousCount} verdacht</GameBadge>}
@@ -265,7 +315,7 @@ export function AdminPanel() {
           </div>
           {loading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
             <div className="space-y-1.5">
-              {displayEntries.map((entry, i) => {
+              {(searchResults || displayEntries).map((entry, i) => {
                 const reasons = suspicionMap.get(entry.id);
                 const isSuspicious = !!reasons;
                 return (
@@ -285,6 +335,7 @@ export function AdminPanel() {
                       </div>
                       <div className="flex gap-1 flex-wrap justify-end">
                         <button onClick={() => openPlayerState(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50" title="Player State"><Search size={10} /></button>
+                        <button onClick={() => openPlayerFullDetail(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-purple/10 border border-purple/30 text-purple hover:bg-purple/20 transition-colors disabled:opacity-50" title="Volledige Details"><Package size={10} /></button>
                         <button onClick={() => { setEditPopup(entry); setEditStats({ username: entry.username, rep: entry.rep, cash: entry.cash, day: entry.day, level: entry.level, districts_owned: entry.districts_owned, crew_size: entry.crew_size, karma: entry.karma }); }} disabled={!!actionLoading} className="p-1.5 rounded bg-emerald/10 border border-emerald/30 text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-50" title="Bewerk"><Pencil size={10} /></button>
                         <button onClick={() => { setSanctionPopup({ entry, mode: 'warn' }); setSanctionReason(''); }} disabled={!!actionLoading} className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Waarschuwing"><MessageCircleWarning size={10} /></button>
                         <button onClick={() => { setSanctionPopup({ entry, mode: 'mute' }); setSanctionReason(''); setMuteDuration(24); }} disabled={!!actionLoading} className="p-1.5 rounded bg-ice/10 border border-ice/30 text-ice hover:bg-ice/20 transition-colors disabled:opacity-50" title="Mute"><VolumeX size={10} /></button>
@@ -298,7 +349,7 @@ export function AdminPanel() {
                   </div>
                 );
               })}
-              {displayEntries.length === 0 && <div className="text-center py-6 text-muted-foreground text-xs">{filterSuspicious ? 'Geen verdachte spelers 🎉' : 'Geen entries'}</div>}
+              {(searchResults || displayEntries).length === 0 && <div className="text-center py-6 text-muted-foreground text-xs">{searchResults ? 'Geen resultaten' : filterSuspicious ? 'Geen verdachte spelers 🎉' : 'Geen entries'}</div>}
             </div>
           )}
         </>
@@ -1002,6 +1053,16 @@ export function AdminPanel() {
             }}>TELEPORTEER</GameButton>
           </div>
         </div>
+      )}
+
+      {/* Player Full Detail Popup */}
+      {playerDetailPopup && playerDetailPopup.detail && (
+        <AdminPlayerDetailPopup
+          entry={playerDetailPopup.entry}
+          detail={playerDetailPopup.detail}
+          onClose={() => setPlayerDetailPopup(null)}
+          showToast={showToast}
+        />
       )}
     </ViewWrapper>
   );
