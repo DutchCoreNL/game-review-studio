@@ -5,6 +5,7 @@ import { gameApi } from '@/lib/gameApi';
 import { GameButton } from '../ui/GameButton';
 import { SectionHeader } from '../ui/SectionHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TribunalCase {
   id: string;
@@ -38,6 +39,8 @@ const CHARGES_EN = [
 
 export function TribunalPanel() {
   const { user } = useAuth();
+  const { lang } = useLanguage();
+  const CHARGES = lang === 'en' ? CHARGES_EN : CHARGES_NL;
   const [cases, setCases] = useState<TribunalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
