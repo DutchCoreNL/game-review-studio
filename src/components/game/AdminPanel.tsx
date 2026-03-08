@@ -103,6 +103,12 @@ export function AdminPanel() {
   // Player state detail
   const [playerStatePopup, setPlayerStatePopup] = useState<{ entry: LeaderboardEntry; state: Record<string, unknown> | null } | null>(null);
   const [playerStateEdits, setPlayerStateEdits] = useState<Record<string, unknown>>({});
+  // Player full detail
+  const [playerDetailPopup, setPlayerDetailPopup] = useState<{ entry: LeaderboardEntry; detail: Record<string, unknown[]> | null } | null>(null);
+  // Player search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<LeaderboardEntry[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // -- Economy tab state --
   const [prices, setPrices] = useState<MarketPrice[]>([]);
