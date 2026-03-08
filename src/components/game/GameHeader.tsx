@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getRankTitle, getActiveVehicleHeat, getActiveAmmoType } from '@/game/engine';
 import { WEATHER_EFFECTS, AMMO_TYPE_LABELS } from '@/game/constants';
 import { ENDGAME_PHASES } from '@/game/endgame';
@@ -45,6 +46,7 @@ interface GameHeaderProps {
 
 export function GameHeader({ onMenuOpen }: GameHeaderProps) {
   const { state, dispatch } = useGame();
+  const { t } = useLanguage();
   const worldState = useWorldState();
   const [popup, setPopup] = useState<PopupType>(null);
   const [nextPhaseCountdown, setNextPhaseCountdown] = useState<string>('');
@@ -55,12 +57,12 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
       if (!worldState.nextCycleAt) { setNextPhaseCountdown('--:--'); return; }
       const diff = new Date(worldState.nextCycleAt).getTime() - Date.now();
       if (diff <= 0) {
-        setNextPhaseCountdown('nu');
+        setNextPhaseCountdown(t.header.now);
       } else {
         const hours = Math.floor(diff / 3600000);
         const mins = Math.floor((diff % 3600000) / 60000);
         if (hours > 0) {
-          setNextPhaseCountdown(`${hours}u ${mins}m`);
+          setNextPhaseCountdown(`${hours}h ${mins}m`);
         } else {
           const secs = Math.floor((diff % 60000) / 1000);
           setNextPhaseCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
@@ -145,7 +147,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
               {TIME_OF_DAY_ICONS[worldState.timeOfDay]}
             </span>
             <span>📅 {formatGameDate()}</span>
-            <span className="text-muted-foreground/60 tabular-nums" title={`Volgende fase: ${TIME_OF_DAY_LABELS[worldState.timeOfDay]}`}>⏱{nextPhaseCountdown}</span>
+            <span className="text-muted-foreground/60 tabular-nums" title={`${t.header.nextPhase}: ${TIME_OF_DAY_LABELS[worldState.timeOfDay]}`}>⏱{nextPhaseCountdown}</span>
             <span className={`flex items-center gap-0.5 ${WEATHER_COLORS[activeWeather]}`} title={weatherDef?.desc}>
               {WEATHER_ICONS[activeWeather]}
             </span>
@@ -193,13 +195,13 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
           color={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : state.playerHP < state.playerMaxHP * 0.6 ? 'text-gold' : 'text-emerald'}
           icon={<Heart size={8} className={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : 'text-emerald'} />}
           pulse={state.playerHP < state.playerMaxHP * 0.3}
-          tooltip="Jouw gezondheid. Genees bij het ziekenhuis in Crown Heights."
+          tooltip={t.header.healthTooltip}
           onTap={() => setPopup('hp')}
         />
 
         <div className="relative">
           <ResourceTile label="LVL" value={state.player.level} color="text-gold"
-            tooltip="Je level stijgt door XP te verdienen." onTap={() => setPopup('level')} />
+            tooltip={t.header.levelTooltip} onTap={() => setPopup('level')} />
           <div className="absolute -bottom-0.5 left-1 right-1">
             <Progress value={xpPct} className="h-[2px] bg-muted/30" />
           </div>
@@ -212,7 +214,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
         </div>
 
         <ResourceTile label="REP" value={state.rep} color="text-gold"
-          tooltip="Reputatie bepaalt je rang in de onderwereld." onTap={() => setPopup('rep')} />
+          tooltip={t.header.repTooltip} onTap={() => setPopup('rep')} />
 
         {/* Separator */}
         <div className="w-px bg-border/50 my-1 flex-shrink-0" />
@@ -226,13 +228,13 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
           color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
           icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
           pulse={ammo <= 3}
-          tooltip={`${ammoLabel} munitie voor je actieve wapen.`}
+          tooltip={`${ammoLabel} ${t.header.ammoTooltip}`}
           onTap={() => setPopup('ammo')}
         />
 
         {isHiding && (
           <ResourceTile label="" value={`🫥${state.hidingDays}d`} color="text-ice"
-            tooltip="Je zit ondergedoken." />
+            tooltip={t.header.hidingTooltip} />
         )}
 
         {isGoldenHour && (
@@ -251,10 +253,10 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
 
       {/* Row 4: Active cooldowns */}
       <div className="flex items-center gap-1 mt-1 overflow-x-auto no-scrollbar">
-        <CooldownTimer label="Reis" until={state.travelCooldownUntil} icon={<MapPin size={7} />} />
-        <CooldownTimer label="Crime" until={state.crimeCooldownUntil} icon={<Crosshair size={7} />} />
-        <CooldownTimer label="Aanval" until={state.attackCooldownUntil} icon={<Swords size={7} />} />
-        <CooldownTimer label="Heist" until={state.heistCooldownUntil} icon={<Crosshair size={7} />} />
+        <CooldownTimer label={t.header.cooldownTravel} until={state.travelCooldownUntil} icon={<MapPin size={7} />} />
+        <CooldownTimer label={t.header.cooldownCrime} until={state.crimeCooldownUntil} icon={<Crosshair size={7} />} />
+        <CooldownTimer label={t.header.cooldownAttack} until={state.attackCooldownUntil} icon={<Swords size={7} />} />
+        <CooldownTimer label={t.header.cooldownHeist} until={state.heistCooldownUntil} icon={<Crosshair size={7} />} />
       </div>
 
       {/* Resource detail popup */}

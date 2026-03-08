@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap, Skull } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
 interface MainMenuProps {
@@ -21,19 +22,10 @@ const CREDITS = [
   { role: 'Narrative', name: 'Noxhaven Writers Room' },
 ];
 
-const HOW_TO_PLAY = [
-  { title: 'Handelen', desc: 'Koop laag, verkoop hoog. Elk district heeft andere prijzen.' },
-  { title: 'Missies', desc: 'Solo operaties en contracten leveren geld, XP en reputatie op.' },
-  { title: 'Crew', desc: 'Rekruteer specialisten: Chauffeurs, Enforcers, Hackers en Smokkelaars.' },
-  { title: 'Imperium', desc: 'Koop districten, bouw bedrijven, en verdedig je territorium.' },
-  { title: 'Heat', desc: 'Criminele activiteit trekt politie-aandacht. Beheer je heat of ga onderduiken.' },
-  { title: 'Villa', desc: 'Bouw een villa met labs, kluizen en verdedigingswerken.' },
-  { title: 'Einddoel', desc: 'Versla alle facties en word de onbetwiste heerser van Noxhaven.' },
-];
-
 type SubScreen = 'settings' | 'credits' | 'howto' | null;
 
 export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginClick, onLogoutClick }: MainMenuProps) {
+  const { t, lang, setLang } = useLanguage();
   const [show, setShow] = useState(false);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -42,9 +34,19 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
   const [nickError, setNickError] = useState('');
   const [nickLoading, setNickLoading] = useState(false);
 
+  const HOW_TO_PLAY = [
+    t.howToPlay.trading,
+    t.howToPlay.missions,
+    t.howToPlay.crew,
+    t.howToPlay.empire,
+    t.howToPlay.heat,
+    t.howToPlay.villa,
+    t.howToPlay.goal,
+  ];
+
   useEffect(() => {
-    const t = setTimeout(() => setShow(true), 100);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => setShow(true), 100);
+    return () => clearTimeout(tm);
   }, []);
 
   const handleNewGame = () => {
@@ -57,11 +59,11 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
 
   const handleQuickNewGame = async () => {
     if (!nickname.trim() || nickname.trim().length < 3) {
-      setNickError('Nickname moet minimaal 3 tekens zijn');
+      setNickError(t.menu.nickMin);
       return;
     }
     if (nickname.trim().length > 20) {
-      setNickError('Nickname mag maximaal 20 tekens zijn');
+      setNickError(t.menu.nickMax);
       return;
     }
     setNickLoading(true);
@@ -78,7 +80,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
         .from('profiles')
         .insert({ id: data.user.id, username: nickname.trim() });
       if (profileError) {
-        setNickError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : profileError.message);
+        setNickError(profileError.message.includes('duplicate') ? t.menu.nickTaken : profileError.message);
         setNickLoading(false);
         return;
       }
@@ -87,16 +89,11 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
     onNewGame();
   };
 
-
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-background">
       {/* Background */}
       <div className="absolute inset-0">
-        <img
-          src={menuBg}
-          alt=""
-          className="w-full h-full object-cover opacity-30"
-        />
+        <img src={menuBg} alt="" className="w-full h-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-background" />
       </div>
@@ -145,7 +142,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                 transition={{ delay: 1.2 }}
                 className="mt-2 text-xs tracking-[0.3em] uppercase text-muted-foreground font-ui"
               >
-                Elke nacht heeft zijn prijs
+                {t.menu.subtitle}
               </motion.p>
             </motion.div>
 
@@ -157,12 +154,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
               className="flex flex-col gap-3 w-full"
             >
               {hasSave && (
-                <MenuButton
-                  icon={<Play size={18} />}
-                  label="DOORGAAN"
-                  accent
-                  onClick={onContinue}
-                />
+                <MenuButton icon={<Play size={18} />} label={t.menu.continue} accent onClick={onContinue} />
               )}
 
               {/* Nickname input for non-logged-in users */}
@@ -170,7 +162,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
-                    placeholder="Kies je nickname (min. 3 tekens)"
+                    placeholder={t.menu.nickPlaceholder}
                     value={nickname}
                     onChange={e => { setNickname(e.target.value); setNickError(''); }}
                     className="w-full px-4 py-3 rounded border border-border bg-card/80 text-sm font-ui text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-gold/50"
@@ -181,29 +173,16 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
 
               {confirmNew ? (
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs text-center text-blood font-ui">
-                    Je bestaande save wordt overschreven. Weet je het zeker?
-                  </p>
+                  <p className="text-xs text-center text-blood font-ui">{t.menu.confirmOverwrite}</p>
                   <div className="flex gap-2">
-                    <MenuButton
-                      icon={<Play size={16} />}
-                      label="JA, NIEUW SPEL"
-                      accent
-                      onClick={isLoggedIn ? onNewGame : handleQuickNewGame}
-                      className="flex-1"
-                    />
-                    <MenuButton
-                      icon={<RotateCcw size={16} />}
-                      label="ANNULEER"
-                      onClick={() => setConfirmNew(false)}
-                      className="flex-1"
-                    />
+                    <MenuButton icon={<Play size={16} />} label={t.menu.yesNewGame} accent onClick={isLoggedIn ? onNewGame : handleQuickNewGame} className="flex-1" />
+                    <MenuButton icon={<RotateCcw size={16} />} label={t.menu.cancel} onClick={() => setConfirmNew(false)} className="flex-1" />
                   </div>
                 </div>
               ) : (
                 <MenuButton
                   icon={isLoggedIn ? <Play size={18} /> : <Zap size={18} />}
-                  label={nickLoading ? 'LADEN...' : 'NIEUW SPEL'}
+                  label={nickLoading ? t.menu.loading : t.menu.newGame}
                   accent={!hasSave}
                   onClick={isLoggedIn ? handleNewGame : (hasSave ? handleNewGame : handleQuickNewGame)}
                 />
@@ -211,47 +190,26 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
 
               {/* Permadeath indicator */}
               <div className="flex items-center justify-center gap-2 py-1.5 text-[0.6rem] text-blood/70 font-ui">
-                <Skull size={12} /> PERMADEATH — Dood = opnieuw beginnen
+                <Skull size={12} /> {t.menu.permadeath}
               </div>
 
               <div className="h-px bg-border/50 my-1" />
 
-              <MenuButton
-                icon={<BookOpen size={18} />}
-                label="HOE TE SPELEN"
-                onClick={() => setSubScreen('howto')}
-              />
-              <MenuButton
-                icon={<Settings size={18} />}
-                label="INSTELLINGEN"
-                onClick={() => setSubScreen('settings')}
-              />
-              <MenuButton
-                icon={<Users size={18} />}
-                label="CREDITS"
-                onClick={() => setSubScreen('credits')}
-              />
+              <MenuButton icon={<BookOpen size={18} />} label={t.menu.howToPlay} onClick={() => setSubScreen('howto')} />
+              <MenuButton icon={<Settings size={18} />} label={t.menu.settings} onClick={() => setSubScreen('settings')} />
+              <MenuButton icon={<Users size={18} />} label={t.menu.credits} onClick={() => setSubScreen('credits')} />
 
               <div className="h-px bg-border/50 my-1" />
 
               {isLoggedIn ? (
                 <div className="flex gap-2">
                   <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded border border-emerald/30 bg-emerald/5 text-emerald text-xs font-ui font-semibold">
-                    <Wifi size={14} /> ONLINE
+                    <Wifi size={14} /> {t.menu.online}
                   </div>
-                  <MenuButton
-                    icon={<LogOut size={16} />}
-                    label="UITLOGGEN"
-                    onClick={() => onLogoutClick?.()}
-                    className="flex-1"
-                  />
+                  <MenuButton icon={<LogOut size={16} />} label={t.menu.logout} onClick={() => onLogoutClick?.()} className="flex-1" />
                 </div>
               ) : (
-                <MenuButton
-                  icon={<WifiOff size={18} />}
-                  label="INLOGGEN / REGISTREREN"
-                  onClick={() => onLoginClick?.()}
-                />
+                <MenuButton icon={<WifiOff size={18} />} label={t.menu.login} onClick={() => onLoginClick?.()} />
               )}
             </motion.div>
 
@@ -262,11 +220,11 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
               transition={{ delay: 1.5 }}
               className="text-[0.6rem] text-muted-foreground font-ui tracking-widest"
             >
-              v1.0 — 2026
+              {t.menu.version}
             </motion.p>
           </motion.div>
         ) : subScreen === 'howto' ? (
-          <SubPanel key="howto" title="HOE TE SPELEN" onBack={() => setSubScreen(null)}>
+          <SubPanel key="howto" title={t.menu.howToPlay} onBack={() => setSubScreen(null)} backLabel={t.menu.back}>
             <div className="flex flex-col gap-3">
               {HOW_TO_PLAY.map((item, i) => (
                 <motion.div
@@ -283,22 +241,43 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
             </div>
           </SubPanel>
         ) : subScreen === 'settings' ? (
-          <SubPanel key="settings" title="INSTELLINGEN" onBack={() => setSubScreen(null)}>
+          <SubPanel key="settings" title={t.menu.settings} onBack={() => setSubScreen(null)} backLabel={t.menu.back}>
             <div className="flex flex-col gap-4">
+              {/* Language switcher */}
+              <div className="game-card">
+                <p className="text-[0.6rem] text-muted-foreground uppercase tracking-widest mb-2 font-bold">{t.menu.language}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setLang('nl')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded border text-xs font-ui font-semibold tracking-wider transition-all ${
+                      lang === 'nl' ? 'border-gold/50 bg-gold/10 text-gold' : 'border-border bg-card/80 text-muted-foreground hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    🇳🇱 NL
+                  </button>
+                  <button
+                    onClick={() => setLang('en')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded border text-xs font-ui font-semibold tracking-wider transition-all ${
+                      lang === 'en' ? 'border-gold/50 bg-gold/10 text-gold' : 'border-border bg-card/80 text-muted-foreground hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    🇬🇧 EN
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={() => setMuted(!muted)}
                 className="game-card-interactive flex items-center gap-3"
               >
                 {muted ? <VolumeX size={18} className="text-blood" /> : <Volume2 size={18} className="text-emerald" />}
-                <span className="text-sm font-ui">{muted ? 'Geluid uit' : 'Geluid aan'}</span>
+                <span className="text-sm font-ui">{muted ? t.menu.soundOff : t.menu.soundOn}</span>
               </button>
-              <p className="text-[0.65rem] text-muted-foreground">
-                Meer audio-instellingen zijn beschikbaar in het PROFIEL-tabblad in het spel.
-              </p>
+              <p className="text-[0.65rem] text-muted-foreground">{t.menu.moreAudio}</p>
             </div>
           </SubPanel>
         ) : subScreen === 'credits' ? (
-          <SubPanel key="credits" title="CREDITS" onBack={() => setSubScreen(null)}>
+          <SubPanel key="credits" title={t.menu.credits} onBack={() => setSubScreen(null)} backLabel={t.menu.back}>
             <div className="flex flex-col gap-4">
               {CREDITS.map((c, i) => (
                 <motion.div
@@ -344,10 +323,11 @@ function MenuButton({ icon, label, accent, onClick, className }: {
   );
 }
 
-function SubPanel({ title, children, onBack }: {
+function SubPanel({ title, children, onBack, backLabel }: {
   title: string;
   children: React.ReactNode;
   onBack: () => void;
+  backLabel?: string;
 }) {
   return (
     <motion.div
@@ -358,11 +338,8 @@ function SubPanel({ title, children, onBack }: {
       className="relative z-10 flex flex-col gap-4 px-6 max-w-[400px] w-full max-h-[70vh]"
     >
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Terug
+        <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
+          {backLabel || '← Back'}
         </button>
         <h2 className="font-display text-lg font-bold tracking-wider text-gold">{title}</h2>
       </div>

@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
 import {
   Map, Dices, Heart, Home, Building2, Wrench, Zap,
@@ -24,97 +25,9 @@ interface Category {
   items: { id: GameView; label: string; icon: LucideIcon }[];
 }
 
-const CATEGORIES: Category[] = [
-  {
-    label: 'STAD', icon: '🗺',
-    items: [
-      { id: 'city', label: 'Kaart', icon: Map },
-      { id: 'travel', label: 'Reizen', icon: Plane },
-      { id: 'chat', label: 'Chat', icon: MessageCircle },
-      { id: 'casino', label: 'Casino', icon: Dices },
-      { id: 'hospital', label: 'Ziekenhuis', icon: Heart },
-      { id: 'safehouse', label: 'Safehouse', icon: Home },
-      { id: 'villa', label: 'Villa', icon: Building2 },
-      { id: 'chopshop', label: 'Chop Shop', icon: Wrench },
-      
-    ],
-  },
-  {
-    label: 'ACTIES', icon: '⚔',
-    items: [
-      { id: 'campaign', label: 'Campagne', icon: BookOpen },
-      { id: 'ops', label: 'Operaties', icon: Crosshair },
-      { id: 'contracts', label: 'Contracten', icon: FileText },
-      { id: 'heists', label: 'Heists', icon: Target },
-      { id: 'bounties', label: 'Bounties', icon: Skull },
-      { id: 'pvp', label: 'PvP', icon: Swords },
-      { id: 'challenges', label: 'Dagelijks', icon: Calendar },
-      { id: 'hits', label: 'Hits', icon: Award },
-      { id: 'wanted', label: 'Most Wanted', icon: ShieldAlert },
-      { id: 'raids', label: 'Raids', icon: Flame },
-    ],
-  },
-  {
-    label: 'HANDEL', icon: '💰',
-    items: [
-      { id: 'market', label: 'Markt', icon: ShoppingBag },
-      { id: 'analysis', label: 'Analyse', icon: BarChart3 },
-      { id: 'auction', label: 'Veiling', icon: Gavel },
-      { id: 'stocks', label: 'Beurs', icon: TrendingUp },
-      { id: 'launder', label: 'Witwassen', icon: Droplets },
-      { id: 'gear', label: 'Gear', icon: ShieldCheck },
-      { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
-      { id: 'salvage', label: 'Salvage', icon: Wrench },
-      { id: 'loot-boxes', label: 'Loot Boxes', icon: Package },
-    ],
-  },
-  {
-    label: 'CREW & OORLOG', icon: '👥',
-    items: [
-      { id: 'crew', label: 'Crew', icon: Users },
-      { id: 'families', label: 'Facties', icon: Users },
-      { id: 'gang', label: 'Gang', icon: Skull },
-      { id: 'organized-crimes', label: 'Organized Crime', icon: Waypoints },
-      { id: 'war', label: 'Oorlog', icon: Swords },
-      { id: 'corruption', label: 'Corruptie', icon: Handshake },
-    ],
-  },
-  {
-    label: 'IMPERIUM', icon: '🏛',
-    items: [
-      { id: 'business', label: 'Business', icon: Store },
-      { id: 'garage', label: 'Garage', icon: Car },
-      { id: 'districts', label: 'Wijken', icon: MapPin },
-      { id: 'properties', label: 'Vastgoed', icon: Home },
-    ],
-  },
-  {
-    label: 'PROFIEL', icon: '👤',
-    items: [
-      { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
-      { id: 'merit', label: 'Merit Punten', icon: Sparkles },
-      { id: 'gym', label: 'Gym', icon: Award },
-      { id: 'jobs', label: 'Banen', icon: Star },
-      { id: 'education', label: 'Educatie', icon: GraduationCap },
-      { id: 'loadout', label: 'Loadout', icon: Shield },
-      { id: 'weapons', label: 'Wapenarsenaal', icon: Sword },
-      { id: 'armor-arsenal', label: 'Pantser Arsenaal', icon: Shield },
-      { id: 'gadget-arsenal', label: 'Gadget Arsenaal', icon: Smartphone },
-      { id: 'contacts', label: 'NPC Relaties', icon: Users },
-      { id: 'reputation', label: 'Reputatie', icon: Star },
-      { id: 'arcs', label: 'Story Arcs', icon: Target },
-      { id: 'codex', label: 'Codex', icon: BookOpen },
-      { id: 'trophies', label: 'Trofeeën', icon: Trophy },
-      { id: 'leaderboard', label: 'Leaderboard', icon: CrownIcon },
-      { id: 'messages', label: 'Berichten', icon: Mail },
-      { id: 'settings', label: 'Instellingen', icon: Settings },
-    ],
-  },
-];
-
 // Map view to category label for auto-expand
-function getCategoryForView(v: string): string | null {
-  for (const cat of CATEGORIES) {
+function getCategoryForView(v: string, cats: Category[]): string | null {
+  for (const cat of cats) {
     if (cat.items.some(i => i.id === v)) return cat.label;
   }
   return null;
@@ -123,19 +36,105 @@ function getCategoryForView(v: string): string | null {
 export function DesktopSidebar() {
   const { view, setView, state, dispatch } = useGame();
   const { isAdmin } = useAdmin();
+  const { t } = useLanguage();
   const { digest, refetchLast } = useDailyDigest();
   const [showDigest, setShowDigest] = useState(false);
 
-  const allCategories = useMemo(() => {
-    const cats = [...CATEGORIES];
+  const allCategories = useMemo<Category[]>(() => {
+    const cats: Category[] = [
+      {
+        label: t.sidebar.city, icon: '🗺',
+        items: [
+          { id: 'city', label: t.sidebar.map, icon: Map },
+          { id: 'travel', label: t.sidebar.travel, icon: Plane },
+          { id: 'chat', label: t.sidebar.chat, icon: MessageCircle },
+          { id: 'casino', label: t.sidebar.casino, icon: Dices },
+          { id: 'hospital', label: t.sidebar.hospital, icon: Heart },
+          { id: 'safehouse', label: t.sidebar.safehouse, icon: Home },
+          { id: 'villa', label: t.sidebar.villa, icon: Building2 },
+          { id: 'chopshop', label: t.sidebar.chopShop, icon: Wrench },
+        ],
+      },
+      {
+        label: t.sidebar.actions, icon: '⚔',
+        items: [
+          { id: 'campaign', label: t.sidebar.campaign, icon: BookOpen },
+          { id: 'ops', label: t.sidebar.operations, icon: Crosshair },
+          { id: 'contracts', label: t.sidebar.contracts, icon: FileText },
+          { id: 'heists', label: t.sidebar.heists, icon: Target },
+          { id: 'bounties', label: t.sidebar.bounties, icon: Skull },
+          { id: 'pvp', label: t.sidebar.pvp, icon: Swords },
+          { id: 'challenges', label: t.sidebar.daily, icon: Calendar },
+          { id: 'hits', label: t.sidebar.hits, icon: Award },
+          { id: 'wanted', label: t.sidebar.mostWanted, icon: ShieldAlert },
+          { id: 'raids', label: t.sidebar.raids, icon: Flame },
+        ],
+      },
+      {
+        label: t.sidebar.trade, icon: '💰',
+        items: [
+          { id: 'market', label: t.sidebar.market, icon: ShoppingBag },
+          { id: 'analysis', label: t.sidebar.analysis, icon: BarChart3 },
+          { id: 'auction', label: t.sidebar.auction, icon: Gavel },
+          { id: 'stocks', label: t.sidebar.stocks, icon: TrendingUp },
+          { id: 'launder', label: t.sidebar.launder, icon: Droplets },
+          { id: 'gear', label: t.sidebar.gear, icon: ShieldCheck },
+          { id: 'black-market', label: t.sidebar.blackMarket, icon: Skull },
+          { id: 'salvage', label: t.sidebar.salvage, icon: Wrench },
+          { id: 'loot-boxes', label: t.sidebar.lootBoxes, icon: Package },
+        ],
+      },
+      {
+        label: t.sidebar.crewWar, icon: '👥',
+        items: [
+          { id: 'crew', label: t.sidebar.crew, icon: Users },
+          { id: 'families', label: t.sidebar.factions, icon: Users },
+          { id: 'gang', label: t.sidebar.gang, icon: Skull },
+          { id: 'organized-crimes', label: t.sidebar.organizedCrime, icon: Waypoints },
+          { id: 'war', label: t.sidebar.war, icon: Swords },
+          { id: 'corruption', label: t.sidebar.corruption, icon: Handshake },
+        ],
+      },
+      {
+        label: t.sidebar.imperium, icon: '🏛',
+        items: [
+          { id: 'business', label: t.sidebar.business, icon: Store },
+          { id: 'garage', label: t.sidebar.garage, icon: Car },
+          { id: 'districts', label: t.sidebar.districts, icon: MapPin },
+          { id: 'properties', label: t.sidebar.properties, icon: Home },
+        ],
+      },
+      {
+        label: t.sidebar.profile, icon: '👤',
+        items: [
+          { id: 'profile', label: t.sidebar.statsSkills, icon: BarChart3 },
+          { id: 'merit', label: t.sidebar.meritPoints, icon: Sparkles },
+          { id: 'gym', label: t.sidebar.gym, icon: Award },
+          { id: 'jobs', label: t.sidebar.jobs, icon: Star },
+          { id: 'education', label: t.sidebar.education, icon: GraduationCap },
+          { id: 'loadout', label: t.sidebar.loadout, icon: Shield },
+          { id: 'weapons', label: t.sidebar.weaponArsenal, icon: Sword },
+          { id: 'armor-arsenal', label: t.sidebar.armorArsenal, icon: Shield },
+          { id: 'gadget-arsenal', label: t.sidebar.gadgetArsenal, icon: Smartphone },
+          { id: 'contacts', label: t.sidebar.npcRelations, icon: Users },
+          { id: 'reputation', label: t.sidebar.reputation, icon: Star },
+          { id: 'arcs', label: t.sidebar.storyArcs, icon: Target },
+          { id: 'codex', label: t.sidebar.codex, icon: BookOpen },
+          { id: 'trophies', label: t.sidebar.trophies, icon: Trophy },
+          { id: 'leaderboard', label: t.sidebar.leaderboard, icon: CrownIcon },
+          { id: 'messages', label: t.sidebar.messages, icon: Mail },
+          { id: 'settings', label: t.sidebar.settings, icon: Settings },
+        ],
+      },
+    ];
     if (isAdmin) {
-      cats.push({ label: 'ADMIN', icon: '🛡', items: [{ id: 'admin', label: 'Admin Panel', icon: ShieldAlert }] });
+      cats.push({ label: t.sidebar.admin, icon: '🛡', items: [{ id: 'admin', label: t.sidebar.adminPanel, icon: ShieldAlert }] });
     }
     return cats;
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
-  const activeCat = getCategoryForView(view);
-  const [openCats, setOpenCats] = useState<Set<string>>(new Set(activeCat ? [activeCat] : ['STAD']));
+  const activeCat = getCategoryForView(view, allCategories);
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set(activeCat ? [activeCat] : [allCategories[0]?.label]));
 
   const toggleCat = (label: string) => {
     setOpenCats(prev => {
@@ -226,7 +225,7 @@ export function DesktopSidebar() {
             className="w-full flex items-center gap-3 px-3 py-2 rounded text-xs bg-gold/10 border border-gold/20 hover:bg-gold/20 transition-all cursor-pointer"
           >
             <Newspaper size={16} className="text-gold" />
-            <span className="font-semibold tracking-wider text-gold">DIGEST</span>
+            <span className="font-semibold tracking-wider text-gold">{t.sidebar.digest}</span>
             <motion.span
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
@@ -244,7 +243,7 @@ export function DesktopSidebar() {
           className="w-full flex items-center gap-3 px-3 py-2 rounded text-xs text-muted-foreground hover:text-gold hover:bg-muted/30 transition-all relative"
         >
           <Phone size={16} />
-          <span className="font-semibold tracking-wider">BERICHTEN</span>
+          <span className="font-semibold tracking-wider">{t.sidebar.messages}</span>
           {state.phone.unread > 0 && (
             <motion.span
               initial={{ scale: 0 }}

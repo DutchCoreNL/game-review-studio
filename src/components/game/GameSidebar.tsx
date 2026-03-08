@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useMemo } from 'react';
@@ -32,104 +33,105 @@ interface GameSidebarProps {
 export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
   const { view, setView, state } = useGame();
   const { isAdmin } = useAdmin();
+  const { t } = useLanguage();
 
   const categories = useMemo<SidebarCategory[]>(() => {
     const cats: SidebarCategory[] = [
       {
-        label: 'STAD', icon: '🗺',
+        label: t.sidebar.city, icon: '🗺',
         items: [
-          { id: 'city', label: 'Kaart', icon: Map },
-          { id: 'travel', label: 'Reizen', icon: Plane },
-          { id: 'chat', label: 'Chat', icon: MessageCircle },
-          { id: 'casino', label: 'Casino', icon: Dices },
-          { id: 'hospital', label: 'Ziekenhuis', icon: Heart },
-          { id: 'safehouse', label: 'Safehouse', icon: Home },
-          { id: 'villa', label: 'Villa', icon: Building2 },
-          { id: 'chopshop', label: 'Chop Shop', icon: Wrench },
+          { id: 'city', label: t.sidebar.map, icon: Map },
+          { id: 'travel', label: t.sidebar.travel, icon: Plane },
+          { id: 'chat', label: t.sidebar.chat, icon: MessageCircle },
+          { id: 'casino', label: t.sidebar.casino, icon: Dices },
+          { id: 'hospital', label: t.sidebar.hospital, icon: Heart },
+          { id: 'safehouse', label: t.sidebar.safehouse, icon: Home },
+          { id: 'villa', label: t.sidebar.villa, icon: Building2 },
+          { id: 'chopshop', label: t.sidebar.chopShop, icon: Wrench },
         ],
       },
       {
-        label: 'ACTIES', icon: '⚔',
+        label: t.sidebar.actions, icon: '⚔',
         items: [
-          { id: 'campaign', label: 'Campagne', icon: BookOpen },
-          { id: 'ops', label: 'Operaties', icon: Crosshair, badge: (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0) },
-          { id: 'contracts', label: 'Contracten', icon: FileText },
-          { id: 'heists', label: 'Heists', icon: Target },
-          { id: 'bounties', label: 'Bounties', icon: Skull },
-          { id: 'pvp', label: 'PvP', icon: Swords },
-          { id: 'challenges', label: 'Dagelijks', icon: Calendar },
-          { id: 'hits', label: 'Hits', icon: Award },
-          { id: 'wanted', label: 'Most Wanted', icon: ShieldAlert },
-          { id: 'raids', label: 'Raids', icon: Flame, badge: state.activeDungeon ? 1 : 0 },
+          { id: 'campaign', label: t.sidebar.campaign, icon: BookOpen },
+          { id: 'ops', label: t.sidebar.operations, icon: Crosshair, badge: (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0) },
+          { id: 'contracts', label: t.sidebar.contracts, icon: FileText },
+          { id: 'heists', label: t.sidebar.heists, icon: Target },
+          { id: 'bounties', label: t.sidebar.bounties, icon: Skull },
+          { id: 'pvp', label: t.sidebar.pvp, icon: Swords },
+          { id: 'challenges', label: t.sidebar.daily, icon: Calendar },
+          { id: 'hits', label: t.sidebar.hits, icon: Award },
+          { id: 'wanted', label: t.sidebar.mostWanted, icon: ShieldAlert },
+          { id: 'raids', label: t.sidebar.raids, icon: Flame, badge: state.activeDungeon ? 1 : 0 },
         ],
       },
       {
-        label: 'HANDEL', icon: '💰',
+        label: t.sidebar.trade, icon: '💰',
         items: [
-          { id: 'market', label: 'Markt', icon: ShoppingBag },
-          { id: 'analysis', label: 'Analyse', icon: BarChart3 },
-          { id: 'auction', label: 'Veiling', icon: Gavel, badge: state.auctionItems?.length || 0 },
-          { id: 'stocks', label: 'Beurs', icon: TrendingUp, badge: !!state.pendingInsiderTip },
-          { id: 'launder', label: 'Witwassen', icon: Droplets },
-          { id: 'gear', label: 'Gear', icon: ShieldCheck },
-          { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
-          { id: 'salvage', label: 'Salvage', icon: Hammer },
-          { id: 'loot-boxes', label: 'Loot Boxes', icon: Package },
+          { id: 'market', label: t.sidebar.market, icon: ShoppingBag },
+          { id: 'analysis', label: t.sidebar.analysis, icon: BarChart3 },
+          { id: 'auction', label: t.sidebar.auction, icon: Gavel, badge: state.auctionItems?.length || 0 },
+          { id: 'stocks', label: t.sidebar.stocks, icon: TrendingUp, badge: !!state.pendingInsiderTip },
+          { id: 'launder', label: t.sidebar.launder, icon: Droplets },
+          { id: 'gear', label: t.sidebar.gear, icon: ShieldCheck },
+          { id: 'black-market', label: t.sidebar.blackMarket, icon: Skull },
+          { id: 'salvage', label: t.sidebar.salvage, icon: Hammer },
+          { id: 'loot-boxes', label: t.sidebar.lootBoxes, icon: Package },
         ],
       },
       {
-        label: 'CREW & OORLOG', icon: '👥',
+        label: t.sidebar.crewWar, icon: '👥',
         items: [
-          { id: 'crew', label: 'Crew', icon: Users, badge: state.crew?.filter(c => c.hp < 100).length || 0 },
-          { id: 'families', label: 'Facties', icon: Users },
-          { id: 'gang', label: 'Gang', icon: Skull },
-          { id: 'organized-crimes', label: 'Organized Crime', icon: Waypoints },
-          { id: 'war', label: 'Oorlog', icon: Swords },
-          { id: 'corruption', label: 'Corruptie', icon: Handshake },
+          { id: 'crew', label: t.sidebar.crew, icon: Users, badge: state.crew?.filter(c => c.hp < 100).length || 0 },
+          { id: 'families', label: t.sidebar.factions, icon: Users },
+          { id: 'gang', label: t.sidebar.gang, icon: Skull },
+          { id: 'organized-crimes', label: t.sidebar.organizedCrime, icon: Waypoints },
+          { id: 'war', label: t.sidebar.war, icon: Swords },
+          { id: 'corruption', label: t.sidebar.corruption, icon: Handshake },
         ],
       },
       {
-        label: 'IMPERIUM', icon: '🏛',
+        label: t.sidebar.imperium, icon: '🏛',
         items: [
-          { id: 'business', label: 'Business', icon: Store },
-          { id: 'garage', label: 'Garage', icon: Car, badge: state.carOrders?.filter(o => state.day >= o.deadline).length || 0 },
-          { id: 'districts', label: 'Wijken', icon: MapPin },
-          { id: 'properties', label: 'Vastgoed', icon: Home },
+          { id: 'business', label: t.sidebar.business, icon: Store },
+          { id: 'garage', label: t.sidebar.garage, icon: Car, badge: state.carOrders?.filter(o => state.day >= o.deadline).length || 0 },
+          { id: 'districts', label: t.sidebar.districts, icon: MapPin },
+          { id: 'properties', label: t.sidebar.properties, icon: Home },
         ],
       },
       {
-        label: 'PROFIEL', icon: '👤',
+        label: t.sidebar.profile, icon: '👤',
         items: [
-          { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
-          { id: 'merit', label: 'Merit Punten', icon: Sparkles },
-          { id: 'gym', label: 'Gym', icon: Award },
-          { id: 'jobs', label: 'Banen', icon: Star },
-          { id: 'education', label: 'Educatie', icon: GraduationCap },
-          { id: 'loadout', label: 'Loadout', icon: Shield },
-          { id: 'weapons', label: 'Wapenarsenaal', icon: Sword, badge: state.weaponInventory?.length || 0 },
-          { id: 'armor-arsenal', label: 'Pantser', icon: Shield, badge: state.armorInventory?.length || 0 },
-          { id: 'gadget-arsenal', label: 'Gadgets', icon: Smartphone, badge: state.gadgetInventory?.length || 0 },
-          { id: 'contacts', label: 'NPC Relaties', icon: Users },
-          { id: 'reputation', label: 'Reputatie', icon: Star },
-          { id: 'arcs', label: 'Story Arcs', icon: Target },
-          { id: 'codex', label: 'Codex', icon: BookOpen },
-          { id: 'trophies', label: 'Trofeeën', icon: Trophy },
-          { id: 'leaderboard', label: 'Leaderboard', icon: CrownIcon },
-          { id: 'messages', label: 'Berichten', icon: Mail, badge: state.phone?.unread || 0 },
-          { id: 'settings', label: 'Instellingen', icon: Settings },
+          { id: 'profile', label: t.sidebar.statsSkills, icon: BarChart3 },
+          { id: 'merit', label: t.sidebar.meritPoints, icon: Sparkles },
+          { id: 'gym', label: t.sidebar.gym, icon: Award },
+          { id: 'jobs', label: t.sidebar.jobs, icon: Star },
+          { id: 'education', label: t.sidebar.education, icon: GraduationCap },
+          { id: 'loadout', label: t.sidebar.loadout, icon: Shield },
+          { id: 'weapons', label: t.sidebar.weaponArsenal, icon: Sword, badge: state.weaponInventory?.length || 0 },
+          { id: 'armor-arsenal', label: t.sidebar.armorArsenal, icon: Shield, badge: state.armorInventory?.length || 0 },
+          { id: 'gadget-arsenal', label: t.sidebar.gadgetArsenal, icon: Smartphone, badge: state.gadgetInventory?.length || 0 },
+          { id: 'contacts', label: t.sidebar.npcRelations, icon: Users },
+          { id: 'reputation', label: t.sidebar.reputation, icon: Star },
+          { id: 'arcs', label: t.sidebar.storyArcs, icon: Target },
+          { id: 'codex', label: t.sidebar.codex, icon: BookOpen },
+          { id: 'trophies', label: t.sidebar.trophies, icon: Trophy },
+          { id: 'leaderboard', label: t.sidebar.leaderboard, icon: CrownIcon },
+          { id: 'messages', label: t.sidebar.messages, icon: Mail, badge: state.phone?.unread || 0 },
+          { id: 'settings', label: t.sidebar.settings, icon: Settings },
         ],
       },
     ];
 
     if (isAdmin) {
       cats.push({
-        label: 'ADMIN', icon: '🛡',
-        items: [{ id: 'admin', label: 'Admin Panel', icon: ShieldAlert }],
+        label: t.sidebar.admin, icon: '🛡',
+        items: [{ id: 'admin', label: t.sidebar.adminPanel, icon: ShieldAlert }],
       });
     }
 
     return cats;
-  }, [isAdmin, state.activeContracts, state.hitContracts, state.crew, state.carOrders, state.day, state.auctionItems, state.pendingInsiderTip, state.phone?.unread]);
+  }, [isAdmin, t, state.activeContracts, state.hitContracts, state.crew, state.carOrders, state.day, state.auctionItems, state.pendingInsiderTip, state.phone?.unread]);
 
   const handleSelect = (id: GameView) => {
     playNavClick();
