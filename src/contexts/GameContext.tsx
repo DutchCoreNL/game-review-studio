@@ -41,6 +41,10 @@ import { CRAFT_RECIPES as VILLA_CRAFT_RECIPES, canCraft as villaCanCraft } from 
 import { createPvPCombatState, pvpCombatTurn } from '../game/combatSkills';
 import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
+import { createInitialArmsNetwork, generateContact, getContactRecruitCost, processDelivery, getNetworkUpgradeCost, getWeeklyCapacity } from '../game/armsDealing';
+import { createStashHouse, getStashUsed, getStashRemaining, getStashUpgradeCost, getStashPurchaseCost } from '../game/stashHouses';
+import { LAUNDER_METHODS, isMethodUnlocked, getMethodCapacity } from '../game/launderMethods';
+import { rollMarketModifier, processModifierTick, generateInsiderTip } from '../game/marketFluctuations';
 
 export interface CatchUpReportData {
   ticksProcessed: number;
