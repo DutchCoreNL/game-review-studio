@@ -260,7 +260,7 @@ export interface SmuggleRoute {
   level: number; // 1-3
   specialization: GoodId | null; // specialized good for +50% profit
   escort: string | null; // crew member name assigned as escort
-  escortRole: import('./types').CrewRole | null;
+  escortRole: CrewRole | null;
 }
 
 export interface PhoneMessage {
