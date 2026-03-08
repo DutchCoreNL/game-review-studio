@@ -1,87 +1,75 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# MMO Systeem Verbeteringen — Analyse & Plan
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+## Huidige MMO Staat
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Het MMO-systeem bevat:
+- **World Raids** — Co-op bossfights met gedeelde HP, damage leaderboard, 48u reset
+- **Activity Feed** — Realtime stream van speler-acties per district
+- **Online Players** — Heartbeat-systeem met 60s interval, weergave per district
+- **Smuggle Routes** — Gang-smokkelroutes met capaciteit en risico
+- **Gang Alliances** — Diplomatieke pact-systeem met gedeelde verdediging
+- **Chat** — 4 kanalen (Global, Trade, Gang, District) met realtime sync
+- **Tribunal** — Speler-gerund rechtssysteem
+- **Undercover** — Factie-infiltratie met cover integrity
+- **Mollen** — Spionage in rivaliserende gangs
+- **Player Titles** — 10 titels met achievement-vereisten
+- **Co-op Heists** — Sessie-gebaseerde gang-heists met rolverdeling
 
----
+## Verbetermogelijkheden
 
-## Plan: Arsenaal Acquisitie Systeem
+### 1. Territory War Heatmap (Visueel)
+De CityMap toont gang-territoria maar mist dynamiek. Een live heatmap die gang-activiteit, aanvallen en invloed visueel toont per district — met kleurintensiteit die verandert op basis van recente acties.
+- Gloeiende randen rond betwiste districten
+- Pulse-animaties bij actieve oorlogen
+- Kleur-codering per dominante gang
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+### 2. Bounty Hunter Leaderboard
+Er is een Most Wanted systeem maar geen dedicated "koppensneller" ranking. Voeg een leaderboard toe voor spelers die de meeste bounties claimen, met wekelijkse resets en exclusieve titels.
+- Top 3 krijgen "Koppensneller" titel en bonus
+- Wekelijkse reset met seizoens-tracking
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+### 3. Cross-Gang Events (Seizoensgebonden)
+Huidige wekelijkse events zijn simpele modifiers. Voeg grotere seizoensgebonden competities toe waar alle gangs strijden om een gezamenlijk doel — bijv. "De Haven Blokkade" (alle gangs moeten samenwerken of concurreren om Port Nero).
+- Seizoens-timer (7-14 dagen)
+- Gang-scoreboard per event
+- Unieke beloningen per seizoen
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+### 4. Reputation Echo Visualisatie
+Het Reputation Echo systeem bestaat server-side maar mist een visuele UI-component. Toon per district hoe NPCs op de speler reageren op basis van eerdere acties — met visuele indicatoren (vijandig, neutraal, gerespecteerd).
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
+### 5. Live Duel Arena
+PvP bestaat maar is asynchroon. Voeg een real-time duel arena toe waar spelers elkaar kunnen uitdagen voor directe 1v1 gevechten met toeschouwers.
+- Uitdagingssysteem via chat
+- Live turn-based combat met realtime updates
+- Toeschouwers kunnen wedden
 
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
+### 6. Gang HQ Dashboard Upgrade
+Gang management mist een centraal overzicht. Voeg een HQ dashboard toe met:
+- Live member status (online/offline/in gevecht)
+- Treasury grafiek (inkomsten/uitgaven over tijd)
+- Gezamenlijke doelen/quests tracker
+- War room met strategische kaart
 
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+### 7. Market Notification System
+De markt mist prijswaarschuwingen. Laat spelers alerts instellen voor specifieke goederen wanneer prijzen boven/onder een drempel komen.
+- Push-notificaties in de activity feed
+- Max 5 actieve alerts per speler
 
 ---
 
-## Technisch overzicht
+## Aanbevolen Prioritering
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+| # | Feature | Impact | Complexiteit |
+|---|---------|--------|-------------|
+| 4 | Rep Echo Visualisatie | Hoog — bestaand systeem zichtbaar maken | Laag |
+| 1 | Territory War Heatmap | Hoog — visuele verbetering kaart | Medium |
+| 6 | Gang HQ Dashboard | Hoog — centraal gang-overzicht | Medium |
+| 2 | Bounty Hunter Board | Medium — extra competitie | Laag-Medium |
+| 7 | Market Notifications | Medium — QoL handelen | Medium |
+| 3 | Cross-Gang Seizoenen | Hoog — langetermijn engagement | Hoog |
+| 5 | Live Duel Arena | Hoog — real-time PvP | Hoog |
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Alle UI-wijzigingen zijn client-side. Territory Heatmap en Rep Echo gebruiken bestaande data. Cross-Gang Events en Live Duels vereisen server-side uitbreidingen (edge functions + database).
 
