@@ -15,7 +15,7 @@ export type GameView =
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
-  | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes';
+  | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes' | 'raids';
 
 // ========== VILLA TYPES ==========
 
@@ -1216,7 +1216,11 @@ export interface GameState {
   lootBoxesOpened: number;
   lastLootBoxResult: import('../game/lootBoxes').LootBoxResult | null;
 
-  // ========== ARSENAL ENHANCEMENT STATE ==========
+  // ========== DUNGEON / RAID STATE ==========
+  activeDungeon: import('../game/dungeons').ActiveDungeonRun | null;
+  lastDungeonResult: import('../game/dungeons').DungeonRunResult | null;
+  dungeonsCompleted: number;
+
   enchantmentInventory: import('../game/enchantments').EnchantmentItem[];
   skinInventory: import('../game/weaponSkins').SkinItem[];
   blueprintInventory: import('../game/blueprints').BlueprintItem[];

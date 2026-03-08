@@ -8,7 +8,7 @@ import {
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen, Sword, Smartphone,
   ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
-  Package,
+  Package, Flame,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
@@ -51,6 +51,7 @@ const CATEGORIES: Category[] = [
       { id: 'challenges', label: 'Dagelijks', icon: Calendar },
       { id: 'hits', label: 'Hits', icon: Award },
       { id: 'wanted', label: 'Most Wanted', icon: ShieldAlert },
+      { id: 'raids', label: 'Raids', icon: Flame },
     ],
   },
   {
