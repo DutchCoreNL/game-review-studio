@@ -40,14 +40,14 @@ export function PlayerTitleBadge({ userId, className = '' }: Props) {
 
 // Title definitions for reference
 export const TITLE_DEFINITIONS = [
-  { id: 'street_rat', name: 'Straatrat', icon: '🐀', req: 'Level 5' },
-  { id: 'enforcer', name: 'Enforcer', icon: '💪', req: '50 PvP wins' },
-  { id: 'drug_baron', name: 'Drugsbaron', icon: '💊', req: 'Drug Empire Tier 3' },
-  { id: 'kingpin', name: 'Kingpin', icon: '👑', req: 'Eigen 3+ districten' },
-  { id: 'shadow', name: 'Schaduw', icon: '🌑', req: '100+ stealth operaties' },
-  { id: 'tycoon', name: 'Tycoon', icon: '💎', req: '€1M+ verdiend' },
-  { id: 'warlord', name: 'Oorlogsheer', icon: '⚔️', req: '10 gangoorlogen gewonnen' },
-  { id: 'legend', name: 'Legende', icon: '🏆', req: 'Prestige Level 3+' },
-  { id: 'ghost', name: 'Spook', icon: '👻', req: 'Verdwijn 10x van Most Wanted' },
-  { id: 'philanthropist', name: 'Filantroop', icon: '🕊️', req: 'Karma 80+' },
+  { id: 'street_rat', name: 'Straatrat', nameEn: 'Street Rat', icon: '🐀', req: 'Level 5', reqEn: 'Level 5' },
+  { id: 'enforcer', name: 'Enforcer', nameEn: 'Enforcer', icon: '💪', req: '50 PvP wins', reqEn: '50 PvP wins' },
+  { id: 'drug_baron', name: 'Drugsbaron', nameEn: 'Drug Baron', icon: '💊', req: 'Drug Empire Tier 3', reqEn: 'Drug Empire Tier 3' },
+  { id: 'kingpin', name: 'Kingpin', nameEn: 'Kingpin', icon: '👑', req: 'Eigen 3+ districten', reqEn: 'Own 3+ districts' },
+  { id: 'shadow', name: 'Schaduw', nameEn: 'Shadow', icon: '🌑', req: '100+ stealth operaties', reqEn: '100+ stealth operations' },
+  { id: 'tycoon', name: 'Tycoon', nameEn: 'Tycoon', icon: '💎', req: '€1M+ verdiend', reqEn: '€1M+ earned' },
+  { id: 'warlord', name: 'Oorlogsheer', nameEn: 'Warlord', icon: '⚔️', req: '10 gangoorlogen gewonnen', reqEn: '10 gang wars won' },
+  { id: 'legend', name: 'Legende', nameEn: 'Legend', icon: '🏆', req: 'Prestige Level 3+', reqEn: 'Prestige Level 3+' },
+  { id: 'ghost', name: 'Spook', nameEn: 'Ghost', icon: '👻', req: 'Verdwijn 10x van Most Wanted', reqEn: 'Disappear 10x from Most Wanted' },
+  { id: 'philanthropist', name: 'Filantroop', nameEn: 'Philanthropist', icon: '🕊️', req: 'Karma 80+', reqEn: 'Karma 80+' },
 ];
