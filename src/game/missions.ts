@@ -1,6 +1,6 @@
 import { MissionEncounter, MissionChoice, ActiveMission, GameState, DistrictId, StatId, WeatherType } from './types';
 import { SOLO_OPERATIONS, DISTRICTS } from './constants';
-import { getPlayerStat, splitHeat } from './engine';
+import { getPlayerStat, splitHeat, gainXp } from './engine';
 
 // ========== ENCOUNTER DATABASE — SOLO ==========
 
@@ -1166,16 +1166,9 @@ export function completeMission(state: GameState, mission: ActiveMission): { mes
     state.familyRel[fid] = Math.max(-100, Math.min(100, (state.familyRel[fid] || 0) + change));
   });
 
-  // XP for player
+  // XP for player — use unified gainXp to handle level-up, stat points, merit points, etc.
   const xpGain = overallSuccess ? 20 + Math.floor(successRate * 30) : 5;
-  let xp = state.player.xp + xpGain;
-  if (xp >= state.player.nextXp) {
-    xp -= state.player.nextXp;
-    state.player.level++;
-    state.player.nextXp = Math.floor(state.player.nextXp * 1.4);
-    state.player.skillPoints += 2;
-  }
-  state.player.xp = xp;
+  gainXp(state, xpGain, 'mission');
 
   // Remove contract if it was a contract mission
   if (mission.type === 'contract' && mission.contractId !== undefined) {

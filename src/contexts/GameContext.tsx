@@ -2512,7 +2512,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     // ========== DAILY LOGIN REWARD ACTIONS ==========
     case 'CLAIM_DAILY_LOGIN_REWARD': {
       if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
-      if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
       let streak = s.dailyRewardStreak || 0;
       if (shouldResetStreak(s.lastDailyRewardClaim)) streak = 0;
       streak += 1;
