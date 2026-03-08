@@ -32,7 +32,7 @@ import { upgradeGear, getGearUpgradeCost, swapGearMod, getGearModSwapCost, canFu
 import { generateBlackMarketStock, shouldRefreshStock } from '../game/blackMarket';
 import { openCrate, getCrateDef } from '../game/lootCrates';
 import { openLootBox, getLootBoxDef, type LootBoxTier } from '../game/lootBoxes';
-import { startDungeonRun, resolveDungeonRun, getDungeonTierDef, type DungeonId, type DungeonTier } from '../game/dungeons';
+import { startDungeonRun, resolveDungeonRun, getDungeonTierDef, isDungeonComplete, type DungeonId, type DungeonTier } from '../game/dungeons';
 import { canClaimDailyReward, shouldResetStreak, claimDailyReward } from '../game/dailyRewards';
 import { getWeaponScrapValue, getGearScrapValue, CRAFT_RECIPES as SALVAGE_RECIPES, executeCraft } from '../game/salvage';
 import { startCampaignMission, canStartMission, getMissionDef, advanceCampaignMission, startBossFight, canFightBoss, bossFightTurn, generateBossLoot } from '../game/campaign';
@@ -2448,13 +2448,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.scrapMaterials = (s.scrapMaterials || 0) + reward.value;
         } else if (reward.type === 'weapon' && reward.weapon) {
           if (!s.weaponInventory) s.weaponInventory = [];
-          s.weaponInventory.push(reward.weapon);
+          if (s.weaponInventory.length < 50) s.weaponInventory.push(reward.weapon);
         } else if (reward.type === 'armor' && reward.gear) {
           if (!s.armorInventory) s.armorInventory = [];
-          s.armorInventory.push(reward.gear);
+          if (s.armorInventory.length < 50) s.armorInventory.push(reward.gear);
         } else if (reward.type === 'gadget' && reward.gear) {
           if (!s.gadgetInventory) s.gadgetInventory = [];
-          s.gadgetInventory.push(reward.gear);
+          if (s.gadgetInventory.length < 50) s.gadgetInventory.push(reward.gear);
         }
       }
       return s;
@@ -2474,6 +2474,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'COLLECT_DUNGEON': {
       if (!s.activeDungeon) return s;
+      if (!isDungeonComplete(s.activeDungeon)) return s;
       const dungResult = resolveDungeonRun(s.activeDungeon, s.player?.level || 1, 0);
       s.lastDungeonResult = dungResult;
       s.activeDungeon = null;
@@ -2494,15 +2495,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           else if (reward.type === 'scrap') { s.scrapMaterials = (s.scrapMaterials || 0) + reward.value; }
           else if (reward.type === 'weapon' && reward.weapon) {
             if (!s.weaponInventory) s.weaponInventory = [];
-            s.weaponInventory.push(reward.weapon);
+            if (s.weaponInventory.length < 50) s.weaponInventory.push(reward.weapon);
           }
           else if (reward.type === 'armor' && reward.gear) {
             if (!s.armorInventory) s.armorInventory = [];
-            s.armorInventory.push(reward.gear);
+            if (s.armorInventory.length < 50) s.armorInventory.push(reward.gear);
           }
           else if (reward.type === 'gadget' && reward.gear) {
             if (!s.gadgetInventory) s.gadgetInventory = [];
-            s.gadgetInventory.push(reward.gear);
+            if (s.gadgetInventory.length < 50) s.gadgetInventory.push(reward.gear);
           }
         }
       }
@@ -2534,7 +2535,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== SALVAGE/CRAFTING ACTIONS ==========
     case 'SALVAGE_WEAPON': {
-      if (!s.weaponInventory) return s;
       if (!s.weaponInventory) return s;
       const wpn = s.weaponInventory.find(w => w.id === action.weaponId);
       if (!wpn || wpn.equipped || wpn.locked) return s;
@@ -3629,9 +3629,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.lastRewardAmount = stolen;
           Engine.gainXp(s, 50);
         } else {
-          // PvP is permadeath — you lose, you die
-          s.playerHP = 0;
-          s.gameOver = true;
+          // PvP knockout — same as PvE: recover with penalties
+          s.playerHP = Math.max(1, Math.floor((s.playerMaxHP || 100) * 0.25));
+          const pvpMoneyLost = Math.floor(s.money * 0.20);
+          s.money -= pvpMoneyLost;
+          s.rep = Math.max(0, s.rep - 15);
+          s.hospitalizations = (s.hospitalizations || 0) + 1;
         }
         s.activePvPCombat = null;
       }
@@ -3646,23 +3649,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'ADD_MARKET_ALERT': {
       const alert = action.alert as import('@/game/types').MarketAlert;
-      return { ...s, marketAlerts: [...s.marketAlerts, alert] };
+      s.marketAlerts.push(alert);
+      return s;
     }
 
     case 'REMOVE_MARKET_ALERT': {
-      return { ...s, marketAlerts: s.marketAlerts.filter(a => a.id !== action.id) };
+      s.marketAlerts = s.marketAlerts.filter(a => a.id !== action.id);
+      return s;
     }
 
     case 'CLEAR_TRIGGERED_ALERTS': {
-      return { ...s, triggeredAlerts: [] };
+      s.triggeredAlerts = [];
+      return s;
     }
 
     case 'TOGGLE_SMART_ALARM': {
-      return { ...s, smartAlarmEnabled: !s.smartAlarmEnabled };
+      s.smartAlarmEnabled = !s.smartAlarmEnabled;
+      return s;
     }
 
     case 'SET_SMART_ALARM_THRESHOLD': {
-      return { ...s, smartAlarmThreshold: action.threshold };
+      s.smartAlarmThreshold = action.threshold;
+      return s;
     }
 
     case 'BID_AUCTION': {
