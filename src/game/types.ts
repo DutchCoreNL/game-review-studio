@@ -15,7 +15,7 @@ export type GameView =
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
-  | 'black-market' | 'salvage' | 'story-journal';
+  | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes';
 
 // ========== VILLA TYPES ==========
 
@@ -1212,6 +1212,9 @@ export interface GameState {
   scrapMaterials: number;
   pityCounter: number;
   lootCratesPurchased: number;
+  lootBoxPity: number;
+  lootBoxesOpened: number;
+  lastLootBoxResult: import('../game/lootBoxes').LootBoxResult | null;
 
   // ========== ARSENAL ENHANCEMENT STATE ==========
   enchantmentInventory: import('../game/enchantments').EnchantmentItem[];
