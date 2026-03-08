@@ -49,6 +49,9 @@ export function MissionBriefing({ operation, onClose }: MissionBriefingProps) {
   const [approach, setApproach] = useState<MissionApproach>('standard');
   const [launching, setLaunching] = useState(false);
 
+  // Don't render during tutorial or backstory selection
+  if (!state.tutorialDone || state.backstory === null) return null;
+
   const briefing = SOLO_OP_BRIEFINGS[operation.id]?.[state.loc] || SOLO_OP_BRIEFINGS[operation.id]?.['neon'];
   const bgImage = SOLO_OP_IMAGES[operation.id];
   const rewardRange = calculateOperationRewardRange(operation, state);
