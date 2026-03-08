@@ -119,6 +119,7 @@ const GadgetInventoryLazy = React.lazy(() => import('./gear/GearInventory').then
 const BlackMarketViewLazy = React.lazy(() => import('./shop/BlackMarketView').then(m => ({ default: m.BlackMarketView })));
 const SalvageViewLazy = React.lazy(() => import('./crafting/SalvageView').then(m => ({ default: m.SalvageView })));
 const LootBoxViewLazy = React.lazy(() => import('./lootbox/LootBoxView').then(m => ({ default: m.LootBoxView })));
+const DungeonViewLazy = React.lazy(() => import('./dungeon/DungeonView').then(m => ({ default: m.DungeonView })));
 // View mapping — each sidebar entry maps to a component
 const views: Record<string, React.ComponentType> = {
   // Stad
