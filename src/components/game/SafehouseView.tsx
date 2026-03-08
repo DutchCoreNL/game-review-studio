@@ -265,6 +265,7 @@ function SafehouseDetail({ district, onBack }: { district: DistrictId; onBack: (
 
 export function SafehouseView() {
   const { state } = useGame();
+  const { t } = useLanguage();
   const [selectedDistrict, setSelectedDistrict] = useState<DistrictId | null>(null);
   const districts: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'];
 
