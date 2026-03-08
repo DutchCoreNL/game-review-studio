@@ -1,6 +1,7 @@
 import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX, Globe, Users } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
 import { getPlayerStat } from '@/game/engine';
 import { GoodId, DistrictId } from '@/game/types';
@@ -24,6 +25,7 @@ type TradeSubTab = 'market' | 'p2p' | 'analysis' | 'global' | 'auction' | 'live_
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
   const { state } = useGame();
+  const { t, lang } = useLanguage();
   const { isMuted, reason, expiresAt } = useMuteStatus();
 
   const hasProfitableRoute = useMemo(() => {
@@ -43,16 +45,16 @@ export function TradeView() {
   }, [state.prices, state.player, state.rep]);
 
   const tabs: SubTab<TradeSubTab>[] = [
-    { id: 'market', label: 'MARKT', icon: <ShoppingBag size={11} /> },
-    { id: 'p2p', label: 'P2P', icon: <Users size={11} /> },
-    { id: 'analysis', label: 'ANALYSE', icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
-    { id: 'global', label: 'GLOBAAL', icon: <Globe size={11} /> },
-    { id: 'auction', label: 'VEILING', icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
-    { id: 'live_auction', label: 'LIVE', icon: <Gavel size={11} /> },
-    { id: 'stocks', label: 'BEURS', icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
-    { id: 'launder', label: 'WITWAS', icon: <Droplets size={11} /> },
-    { id: 'gear', label: 'GEAR', icon: <ShieldCheck size={11} /> },
-    { id: 'log', label: 'LOG', icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) },
+    { id: 'market', label: t.trade.market, icon: <ShoppingBag size={11} /> },
+    { id: 'p2p', label: t.trade.p2p, icon: <Users size={11} /> },
+    { id: 'analysis', label: t.trade.analysis, icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
+    { id: 'global', label: t.trade.global, icon: <Globe size={11} /> },
+    { id: 'auction', label: t.trade.auction, icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
+    { id: 'live_auction', label: t.trade.live, icon: <Gavel size={11} /> },
+    { id: 'stocks', label: t.trade.stocks, icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
+    { id: 'launder', label: t.trade.launder, icon: <Droplets size={11} /> },
+    { id: 'gear', label: t.trade.gear, icon: <ShieldCheck size={11} /> },
+    { id: 'log', label: t.trade.log, icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) },
   ];
 
   return (
@@ -61,16 +63,16 @@ export function TradeView() {
         <div className="bg-ice/10 border border-ice/30 rounded p-3 mb-3 flex items-start gap-2">
           <VolumeX size={14} className="text-ice shrink-0 mt-0.5" />
           <div>
-            <p className="text-[0.6rem] font-bold text-ice">🔇 Je bent gemute — Handel is geblokkeerd</p>
+            <p className="text-[0.6rem] font-bold text-ice">{t.trade.mutedTitle}</p>
             {reason && <p className="text-[0.5rem] text-muted-foreground mt-0.5">"{reason}"</p>}
-            {expiresAt && <p className="text-[0.45rem] text-muted-foreground mt-0.5">Verloopt: {new Date(expiresAt).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>}
+            {expiresAt && <p className="text-[0.45rem] text-muted-foreground mt-0.5">{t.trade.mutedExpires}: {new Date(expiresAt).toLocaleString(lang === 'nl' ? 'nl-NL' : 'en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>}
           </div>
         </div>
       )}
 
       {isMuted ? (
         <div className="text-center py-12 text-muted-foreground text-xs">
-          Handel is tijdelijk uitgeschakeld vanwege een mute-sanctie.
+          {t.trade.mutedDesc}
         </div>
       ) : (
         <>
