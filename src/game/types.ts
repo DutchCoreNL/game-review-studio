@@ -819,6 +819,10 @@ export interface GameStats {
   daysPlayed: number;
   blackjackStreak: number;
   highLowMaxRound: number;
+  combatsWon: number;
+  bestKillStreak: number;
+  pvpWins: number;
+  bountiesClaimed: number;
 }
 
 export interface DailyProgressCounters {
