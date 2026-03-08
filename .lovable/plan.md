@@ -1,87 +1,70 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Client-side & Server-side Review — Bevindingen
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
-
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Na grondige analyse van de codebase zijn er **3 bugs** en **2 inconsistenties** gevonden.
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+## 🔴 Bug 1: Client `daysPlayed++` is onbeschermd (HOOG)
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+**Locatie**: `src/game/engine.ts` regel 791
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+```typescript
+// state.day is synced with world_day via SYNC_WORLD_TIME — do NOT manually increment
+state.stats.daysPlayed++;
+```
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+De server-side (`process-turn`) heeft correct een `_lastProcessedDay` guard die voorkomt dat `daysPlayed` meerdere keren per dag omhoog gaat. Maar de client-side `engine.ts` doet `daysPlayed++` bij **elke AUTO_TICK** (elke 30 minuten). Als een speler 6 uur online is, wordt `daysPlayed` met 12 verhoogd i.p.v. 1.
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+**Fix**: Voeg dezelfde `_lastProcessedDay` guard toe aan de client-side engine:
+```typescript
+const lastProcessedDay = state._lastProcessedDay || 0;
+if (state.day > lastProcessedDay) {
+  state.stats.daysPlayed++;
+  state._lastProcessedDay = state.day;
+}
+```
 
 ---
 
-## Technisch overzicht
+## 🔴 Bug 2: `_lastProcessedDay` niet in GameState type (HOOG)
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+**Locatie**: `src/game/types.ts` — `GameState` interface
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Het veld `_lastProcessedDay` wordt gebruikt door zowel `process-turn/index.ts` als de voorgestelde client-side fix, maar is niet gedeclareerd in het `GameState` type. Dit werkt door TypeScript's `noImplicitAny: false`, maar veroorzaakt problemen bij cloud save serialisatie — het veld kan verloren gaan bij het laden van een save.
+
+**Fix**: Voeg `_lastProcessedDay?: number;` toe aan de `GameState` interface.
+
+---
+
+## 🟡 Bug 3: DailyChallenge `minDay` vergelijkt met `state.day` (MEDIUM)
+
+**Locatie**: `src/game/dailyChallenges.ts` — de `minDay` checks in challenge templates (bijv. `minDay: 5`, `minDay: 10`) worden vergeleken met `state.day` (world_day ~432), wat betekent dat alle challenges met een `minDay` vereiste direct beschikbaar zijn voor nieuwe spelers. Dit is hetzelfde probleem als de milestones.
+
+**Fix**: De `generateDailyChallenges` functie moet `state.stats.daysPlayed` gebruiken voor `minDay` filtering.
+
+---
+
+## 🟢 Inconsistentie 1: `storyArcs.ts` gebruikt `state.day` voor minDay (OK)
+
+`storyArcs.ts` vergelijkt `state.day < c.minDay`. Omdat story arcs world-event timing vertegenwoordigen (niet persoonlijke progressie), is `state.day` hier correct. Geen actie nodig.
+
+---
+
+## 🟢 Inconsistentie 2: Codex `day` unlock (OK)
+
+`codex.ts` gebruikt `state.day >= c.day` — codex entries zijn lore/wereld-unlocks, niet persoonlijke milestones. `state.day` is correct hier.
+
+---
+
+## Samenvatting
+
+| # | Probleem | Prioriteit | Bestand |
+|---|----------|-----------|---------|
+| 1 | Client `daysPlayed++` onbeschermd | **HOOG** | `src/game/engine.ts` |
+| 2 | `_lastProcessedDay` niet in type | **HOOG** | `src/game/types.ts` |
+| 3 | DailyChallenges `minDay` check | **MEDIUM** | `src/game/dailyChallenges.ts` |
+
+3 kleine, gerichte fixes. Geen grote refactoring nodig.
 
