@@ -315,7 +315,7 @@ export function AdminPanel() {
           </div>
           {loading ? <div className="text-center py-8 text-muted-foreground text-xs">Laden...</div> : (
             <div className="space-y-1.5">
-              {displayEntries.map((entry, i) => {
+              {(searchResults || displayEntries).map((entry, i) => {
                 const reasons = suspicionMap.get(entry.id);
                 const isSuspicious = !!reasons;
                 return (
@@ -335,6 +335,7 @@ export function AdminPanel() {
                       </div>
                       <div className="flex gap-1 flex-wrap justify-end">
                         <button onClick={() => openPlayerState(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50" title="Player State"><Search size={10} /></button>
+                        <button onClick={() => openPlayerFullDetail(entry)} disabled={!!actionLoading} className="p-1.5 rounded bg-purple/10 border border-purple/30 text-purple hover:bg-purple/20 transition-colors disabled:opacity-50" title="Volledige Details"><Package size={10} /></button>
                         <button onClick={() => { setEditPopup(entry); setEditStats({ username: entry.username, rep: entry.rep, cash: entry.cash, day: entry.day, level: entry.level, districts_owned: entry.districts_owned, crew_size: entry.crew_size, karma: entry.karma }); }} disabled={!!actionLoading} className="p-1.5 rounded bg-emerald/10 border border-emerald/30 text-emerald hover:bg-emerald/20 transition-colors disabled:opacity-50" title="Bewerk"><Pencil size={10} /></button>
                         <button onClick={() => { setSanctionPopup({ entry, mode: 'warn' }); setSanctionReason(''); }} disabled={!!actionLoading} className="p-1.5 rounded bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50" title="Waarschuwing"><MessageCircleWarning size={10} /></button>
                         <button onClick={() => { setSanctionPopup({ entry, mode: 'mute' }); setSanctionReason(''); setMuteDuration(24); }} disabled={!!actionLoading} className="p-1.5 rounded bg-ice/10 border border-ice/30 text-ice hover:bg-ice/20 transition-colors disabled:opacity-50" title="Mute"><VolumeX size={10} /></button>
@@ -348,7 +349,7 @@ export function AdminPanel() {
                   </div>
                 );
               })}
-              {displayEntries.length === 0 && <div className="text-center py-6 text-muted-foreground text-xs">{filterSuspicious ? 'Geen verdachte spelers 🎉' : 'Geen entries'}</div>}
+              {(searchResults || displayEntries).length === 0 && <div className="text-center py-6 text-muted-foreground text-xs">{searchResults ? 'Geen resultaten' : filterSuspicious ? 'Geen verdachte spelers 🎉' : 'Geen entries'}</div>}
             </div>
           )}
         </>
