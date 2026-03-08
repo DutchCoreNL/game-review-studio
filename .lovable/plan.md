@@ -1,87 +1,103 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# AI Bot Verbeteringen — Meer Realistische Spelers
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+## Huidige Status
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Het bot-systeem heeft **38+ simulatiefuncties** die de meeste systemen dekken. Maar er zijn significante gaten en verbeterpunten die bots onrealistisch maken.
+
+## Wat Ontbreekt
+
+### 1. Bots sturen geen directe trade offers naar spelers
+Bots plaatsen markt-listings maar sturen nooit `trade_offers` aan echte spelers. Echte spelers handelen direct — bots zouden dit ook moeten doen.
+
+### 2. Bots hebben geen Reputation Echo
+`player_reputation_echo` wordt gebruikt door het AI-verhaalsysteem en NPC-reacties, maar bots bouwen geen reputatie op per district. Dit maakt ze onzichtbaar in het reputatiesysteem.
+
+### 3. Bots racen niet
+Er is geen `simulateBotRacing` — races en leaderboards zien er leeg uit qua bot-activiteit. Bots zouden activity feed entries moeten genereren over races.
+
+### 4. Bots doen geen education/cursussen
+`player_education` wordt niet bevolkt door bots. Echte spelers zien geen bot-activiteit bij cursussen.
+
+### 5. Bot chat is niet contextueel
+Chat-berichten zijn statische templates. Bots reageren niet op wat er daadwerkelijk in de wereld gebeurt (lopende gang wars, actieve raids, markttrends).
+
+### 6. Bots hebben geen personality/gedragsprofielen
+Alle bots gedragen zich identiek — zelfde kansen, zelfde patronen. Echte spelers hebben verschillende speelstijlen.
+
+### 7. Bots verlaten/joinen nooit gangs dynamisch
+`ensureBotGangs` maakt initiële gangs, maar bots wisselen nooit van gang, worden nooit gekickt, of joinen andere gangs.
+
+### 8. Bot PvP is oppervlakkig
+`simulateBotPvP` maakt alleen een rivalry-record + activity feed, maar start geen echte `pvp_combat_sessions`. Spelers zien nooit echte gevechtsresultaten.
+
+## Implementatieplan
+
+### A. Bot Personality System (nieuw)
+Voeg een `personality` veld toe aan `bot_players` met types: `aggressive`, `trader`, `social`, `stealthy`. Dit beïnvloedt:
+- Welke acties ze vaker doen (aggressive = meer fights/pvp, trader = meer market/trades)
+- Chat-stijl en frequentie
+- Karma-richting (aggressive gaat negatief, social gaat positief)
+
+**Implementatie**: Database migratie voor `personality` kolom + logica in `simulateBots` die `BOT_ACTIONS` weights aanpast per personality.
+
+### B. Contextuele Bot Chat
+Bots lezen actieve game-events en reageren erop:
+- Actieve gang war → "Die oorlog tussen [X] en [Y] is heftig, kies je kant!"
+- World raid bijna down → "Die boss heeft nog maar 15% HP, laten we finishen!"
+- Marktprijs-spike → "Drugs zijn 40% duurder geworden, goed moment om te verkopen"
+- Iemand op leaderboard passeert → "GG [naam], rank #3 nu!"
+
+**Implementatie**: Query actieve events/raids/prices in `simulateBotChat`, genereer dynamische berichten.
+
+### C. Bot Direct Trade Offers
+Bots sturen trade offers naar echte spelers met interessante deals:
+- Koppel aan bot personality (traders doen dit vaker)
+- Bied items aan onder marktprijs (5-15% korting)
+- Auto-expire na 2 uur
+
+**Implementatie**: Nieuwe `simulateBotTradeOffers` functie die `trade_offers` inserts.
+
+### D. Bot Reputation Echo
+Bots bouwen reputatie op per district gebaseerd op hun acties:
+- Fights → violence+
+- Trades → trade_trust+
+- Gang loyalty → loyalty+
+- Crimes → stealth+
+
+**Implementatie**: Nieuwe `simulateBotReputationEcho` die `player_reputation_echo` upserts.
+
+### E. Bot Racing Activity
+Bots genereren race-gerelateerde activity feed entries en nieuws. Geen echte race-records nodig, maar zichtbare activiteit.
+
+**Implementatie**: Nieuwe `simulateBotRacing` met activity feed + news entries.
+
+### F. Bot Gang Dynamiek
+- Bots kunnen van gang wisselen (5% kans per tick als loyalty < 30)
+- Bots kunnen gangs verlaten na een verloren gang war
+- Activity feed: "[Bot] heeft [Gang] verlaten!"
+
+**Implementatie**: Uitbreiding van `ensureBotGangs` met churn-logica.
+
+### G. Bot Education
+Bots schrijven zich in voor cursussen en voltooien ze over tijd.
+
+**Implementatie**: Nieuwe `simulateBotEducation` die `player_education` inserts en updates.
+
+### H. Bot PvP Resultaten in Activity Feed
+Maak bot PvP zichtbaarder met gedetailleerde resultaatberichten en win/loss stats.
+
+**Implementatie**: Uitbreiding van `simulateBotPvP` met meer gedetailleerde activity feed entries.
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+## Bestanden
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+| Wijziging | Bestand |
+|-----------|---------|
+| Personality kolom | Database migratie |
+| Alle bot-simulatie functies | `supabase/functions/world-tick/index.ts` |
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
-
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
-
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
-
----
-
-## Technisch overzicht
-
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
-
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Alle wijzigingen zitten in één bestand (`world-tick/index.ts`) plus een kleine database migratie.
 
