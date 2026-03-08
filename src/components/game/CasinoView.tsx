@@ -7,9 +7,10 @@ import { RouletteGame } from './casino/RouletteGame';
 import { SlotsGame } from './casino/SlotsGame';
 import { HighLowGame } from './casino/HighLowGame';
 import { RussianRouletteGame } from './casino/RussianRouletteGame';
+import { PokerGame } from './casino/PokerGame';
 import { getVipBonus, INITIAL_SESSION_STATS, CasinoSessionStats } from './casino/casinoUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair, DollarSign } from 'lucide-react';
+import { Spade, CircleDot, Gem, ArrowUpDown, CloudLightning, Star, TrendingUp, TrendingDown, Crosshair, DollarSign, Trophy } from 'lucide-react';
 import casinoBg from '@/assets/casino-bg.png';
 import { CASINO_GAME_IMAGES, MINIGAME_IMAGES } from '@/assets/items/index';
 import { ViewWrapper } from './ui/ViewWrapper';
@@ -151,9 +152,10 @@ export function CasinoView() {
               </div>
             </motion.button>
 
-            {/* 2x2 Grid */}
+            {/* 2x2 Grid + Poker */}
             <div className="grid grid-cols-2 gap-3">
               <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
+              <GameCard icon={<Trophy size={28} />} name="POKER" sub="Texas Hold'em vs AI" onClick={() => setActiveGame('poker')} image={CASINO_GAME_IMAGES.poker} color="game-emerald" />
               <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
               <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
               <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" image={MINIGAME_IMAGES.russian_roulette} />
@@ -170,6 +172,9 @@ export function CasinoView() {
             state={{ ...state, casinoJackpot: state.casinoJackpot }} sessionStats={sessionStats} onResult={handleResult} />
         ) : activeGame === 'highlow' ? (
           <HighLowGame key="hl" dispatch={dispatch} showToast={showToast} money={state.money}
+            state={state} sessionStats={sessionStats} onResult={handleResult} />
+        ) : activeGame === 'poker' ? (
+          <PokerGame key="pk" dispatch={dispatch} showToast={showToast} money={state.money}
             state={state} sessionStats={sessionStats} onResult={handleResult} />
         ) : (
           <RussianRouletteGame key="rr" dispatch={dispatch} showToast={showToast} money={state.money}
