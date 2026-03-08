@@ -6,6 +6,8 @@ import { GameButton } from '../ui/GameButton';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { Lock, Heart, Users, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGameString } from '@/i18n/gameData';
 
 interface PrisonerOrPatient {
   userId: string;
@@ -22,6 +24,7 @@ interface PlayerHelpPanelProps {
 
 export function PlayerHelpPanel({ type, onResult }: PlayerHelpPanelProps) {
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const [players, setPlayers] = useState<PrisonerOrPatient[]>([]);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export function PlayerHelpPanel({ type, onResult }: PlayerHelpPanelProps) {
 
       setPlayers(data.map((p: any) => ({
         userId: p.user_id,
-        username: nameMap[p.user_id] || 'Onbekend',
+        username: nameMap[p.user_id] || getGameString(lang, 'Onbekend', 'Onbekend'),
         level: p.level || 1,
         until: p[field],
         type,
@@ -75,16 +78,16 @@ export function PlayerHelpPanel({ type, onResult }: PlayerHelpPanelProps) {
         setPlayers(prev => prev.filter(p => p.userId !== target.userId));
       }
     } catch (e: any) {
-      onResult(e.message || 'Fout opgetreden', true);
+      onResult(e.message || (lang === 'en' ? 'Error occurred' : 'Fout opgetreden'), true);
     }
     setActing(null);
     setConfirmTarget(null);
   };
 
   const icon = type === 'prison' ? <Lock size={12} /> : <Heart size={12} />;
-  const title = type === 'prison' ? 'Gevangenen Bevrijden' : 'Spelers Reviven';
-  const actionLabel = type === 'prison' ? 'BEVRIJDEN' : 'REVIVE';
-  const emptyText = type === 'prison' ? 'Geen gevangenen gevonden.' : 'Niemand in het ziekenhuis.';
+  const title = type === 'prison' ? getGameString(lang, 'Gevangenen Bevrijden') : getGameString(lang, 'Spelers Reviven');
+  const actionLabel = type === 'prison' ? getGameString(lang, 'BEVRIJDEN') : 'REVIVE';
+  const emptyText = type === 'prison' ? getGameString(lang, 'Geen gevangenen gevonden.') : getGameString(lang, 'Niemand in het ziekenhuis.');
 
   const timeLeft = (until: string) => {
     const ms = Math.max(0, new Date(until).getTime() - Date.now());

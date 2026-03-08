@@ -5,6 +5,7 @@ import { gameApi } from '@/lib/gameApi';
 import { GameButton } from '../ui/GameButton';
 import { SectionHeader } from '../ui/SectionHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TribunalCase {
   id: string;
@@ -23,15 +24,23 @@ interface TribunalCase {
   created_at: string;
 }
 
-const CHARGES = [
+const CHARGES_NL = [
   { id: 'scam', label: 'Oplichting', desc: 'Oneerlijke handel of bedrog' },
   { id: 'betrayal', label: 'Verraad', desc: 'Gang-verraad of dubbelspel' },
   { id: 'griefing', label: 'Griefing', desc: 'Herhaaldelijk targeten van zwakkere spelers' },
   { id: 'exploit', label: 'Exploit Misbruik', desc: 'Misbruik van spelfouten' },
 ];
+const CHARGES_EN = [
+  { id: 'scam', label: 'Scam', desc: 'Unfair trade or deception' },
+  { id: 'betrayal', label: 'Betrayal', desc: 'Gang betrayal or double-dealing' },
+  { id: 'griefing', label: 'Griefing', desc: 'Repeatedly targeting weaker players' },
+  { id: 'exploit', label: 'Exploit Abuse', desc: 'Abusing game bugs' },
+];
 
 export function TribunalPanel() {
   const { user } = useAuth();
+  const { lang } = useLanguage();
+  const CHARGES = lang === 'en' ? CHARGES_EN : CHARGES_NL;
   const [cases, setCases] = useState<TribunalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
