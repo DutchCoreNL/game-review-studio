@@ -15,8 +15,9 @@ const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Ner
 // Dawn: 06:00-12:00, Day: 12:00-18:00, Dusk: 18:00-00:00, Night: 00:00-06:00
 function getPhaseFromRealTime(): { phase: string; nextPhaseAt: Date; worldDayOffset: boolean } {
   const now = new Date();
-  // CET = UTC+1 (simplified; CEST = UTC+2 in summer — close enough for game purposes)
-  const cetHour = (now.getUTCHours() + 1) % 24;
+  // Use Intl to get correct CET/CEST hour (handles DST automatically)
+  const cetHourStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Amsterdam' }).format(now);
+  const cetHour = parseInt(cetHourStr, 10);
   
   let phase: string;
   let nextBoundaryHourUTC: number;
