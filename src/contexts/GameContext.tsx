@@ -352,7 +352,10 @@ type GameAction =
   | { type: 'DELETE_LOADOUT_PRESET'; presetId: string }
   | { type: 'RENAME_LOADOUT_PRESET'; presetId: string; name: string }
   // Weapon Challenge actions
-  | { type: 'UPDATE_WEAPON_CHALLENGE'; weaponId: string; challengeType: 'kill' | 'perfect_kill' };
+  | { type: 'UPDATE_WEAPON_CHALLENGE'; weaponId: string; challengeType: 'kill' | 'perfect_kill' }
+  // Internal sync actions
+  | { type: 'CLEAR_PENDING_XP' }
+  | { type: 'SYNC_SERVER_XP'; data: { newXp: number; newLevel: number; newNextXp: number; newSP: number; streak: number; totalXp?: number; levelUps?: number } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -3717,6 +3720,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.alliancePacts?.[action.familyId]) return s;
       delete s.alliancePacts[action.familyId];
       s.familyRel[action.familyId] = Math.max(-100, (s.familyRel[action.familyId] || 0) - 20);
+      return s;
+    }
+
+    case 'CLEAR_PENDING_XP': {
+      s._pendingXpGains = [];
+      return s;
+    }
+
+    case 'SYNC_SERVER_XP': {
+      s._pendingXpGains = [];
+      s.player.xp = action.data.newXp;
+      s.player.level = action.data.newLevel;
+      s.player.nextXp = action.data.newNextXp;
+      s.player.skillPoints = action.data.newSP;
+      s.xpStreak = action.data.streak;
       return s;
     }
 
