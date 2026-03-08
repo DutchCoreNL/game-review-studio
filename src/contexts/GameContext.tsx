@@ -622,10 +622,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // END_TURN removed — all day progression now goes through AUTO_TICK
     // Legacy dispatches are caught here and redirected
-    case 'END_TURN' as any: {
-      // Redirect to AUTO_TICK for backwards compatibility (prison/hospital wait buttons)
-      // Fall through to AUTO_TICK
-    }
+    case 'END_TURN' as any:
+      // Falls through to AUTO_TICK for backwards compatibility (prison/hospital wait buttons)
 
     case 'AUTO_TICK': {
       // Automatic day progression — the ONLY way days advance in MMO
@@ -2403,7 +2401,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'REFRESH_BLACK_MARKET': {
       s.blackMarketStock = generateBlackMarketStock(s.player.level, s.day);
-      s.blackMarketStock = generateBlackMarketStock(s.player.level, s.day);
       return s;
     }
 
@@ -2418,12 +2415,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.lootCratesPurchased = (s.lootCratesPurchased || 0) + 1;
       if (result.weapon) {
         if (!s.weaponInventory) s.weaponInventory = [];
-        s.weaponInventory.push(result.weapon);
+        if (s.weaponInventory.length < 50) s.weaponInventory.push(result.weapon);
       }
       if (result.gear) {
         const inv = result.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
         if (!s[inv]) (s as any)[inv] = [];
-        (s as any)[inv].push(result.gear);
+        if ((s as any)[inv].length < 50) (s as any)[inv].push(result.gear);
       }
       return s;
     }
@@ -2523,12 +2520,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (result.ammo) { s.ammo = Math.min(500, (s.ammo || 0) + result.ammo); }
       if (result.weapon) {
         if (!s.weaponInventory) s.weaponInventory = [];
-        s.weaponInventory.push(result.weapon);
+        if (s.weaponInventory.length < 50) s.weaponInventory.push(result.weapon);
       }
       if (result.gear) {
         const inv = result.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
         if (!s[inv]) (s as any)[inv] = [];
-        (s as any)[inv].push(result.gear);
+        if ((s as any)[inv].length < 50) (s as any)[inv].push(result.gear);
       }
       return s;
     }
@@ -2565,12 +2562,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.scrapMaterials = (s.scrapMaterials || 0) - recipe.scrapCost;
       if (craftResult.weapon) {
         if (!s.weaponInventory) s.weaponInventory = [];
-        s.weaponInventory.push(craftResult.weapon);
+        if (s.weaponInventory.length < 50) s.weaponInventory.push(craftResult.weapon);
       }
       if (craftResult.gear) {
         const inv = craftResult.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
         if (!s[inv]) (s as any)[inv] = [];
-        (s as any)[inv].push(craftResult.gear);
+        if ((s as any)[inv].length < 50) (s as any)[inv].push(craftResult.gear);
       }
       return s;
     }
@@ -3724,7 +3721,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     default:
-      return;
+      return s;
   }
   });
 }
@@ -4110,27 +4107,16 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     const totalAmount = pending.reduce((sum, g) => sum + g.amount, 0);
     const sources = [...new Set(pending.map(g => g.source))].join(',');
 
-    // Clear pending immediately to prevent re-firing
-    rawDispatch({ type: 'SET_STATE', state: { ...state, _pendingXpGains: [] } });
+    // Clear pending immediately to prevent re-firing — use dedicated action to avoid stale state
+    rawDispatch({ type: 'CLEAR_PENDING_XP' as any });
 
     (async () => {
       try {
         const { gameApi } = await import('@/lib/gameApi');
         const res = await gameApi.gainXp(totalAmount, sources);
         if (res.success && res.data) {
-          // Sync authoritative server values back
-          rawDispatch({ type: 'SET_STATE', state: {
-            ...state,
-            _pendingXpGains: [],
-            player: {
-              ...state.player,
-              xp: res.data.newXp,
-              level: res.data.newLevel,
-              nextXp: res.data.newNextXp,
-              skillPoints: res.data.newSP,
-            },
-            xpStreak: res.data.streak,
-          }});
+          // Sync only the authoritative XP/level fields — never overwrite full state
+          rawDispatch({ type: 'SYNC_SERVER_XP' as any, data: res.data });
           // Show XP breakdown popup with bonus details
           if (res.data.totalXp > 0) {
             // Collect unlocks for all levels gained
