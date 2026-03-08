@@ -47,7 +47,7 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
   };
 
   return (
-    <nav className="flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,3%)]/98 border-t border-border flex justify-around items-center z-50 backdrop-blur-md">
+    <nav className="flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,4%)]/95 border-t border-gold/10 flex justify-around items-center z-50 backdrop-blur-xl shadow-[0_-4px_20px_hsl(0,0%,0%/0.5)]">
       {NAV_ITEMS.map(item => {
         const isMenu = item.id === 'menu';
         const isActive = !isMenu && isInGroup(item.id);
@@ -71,16 +71,30 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
             {isActive && (
               <motion.div
                 layoutId="nav-indicator"
-                className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold rounded-full"
+                className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold rounded-full shadow-[0_0_8px_hsl(var(--gold)/0.6)]"
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
             <div className="relative">
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+              <motion.div
+                key={`${item.id}-${isActive}`}
+                initial={false}
+                animate={{ scale: isActive ? 1.1 : 1, opacity: isActive ? 1 : 0.7 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+              </motion.div>
+              {isActive && (
+                <div className="absolute inset-0 -m-1 rounded-full bg-gold/10 blur-md pointer-events-none" />
+              )}
               {badge && !isActive && (
-                <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] rounded-full bg-blood text-[0.45rem] text-primary-foreground font-bold flex items-center justify-center px-0.5 leading-none">
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] rounded-full bg-blood text-[0.45rem] text-primary-foreground font-bold flex items-center justify-center px-0.5 leading-none animate-pulse"
+                >
                   {badge > 9 ? '9+' : badge}
-                </span>
+                </motion.span>
               )}
             </div>
             <span className="tracking-wider">{item.label}</span>
