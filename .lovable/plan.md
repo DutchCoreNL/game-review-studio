@@ -1,87 +1,74 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Verhaal Verbeteren — Meer Verhaallijnen + Betere Presentatie
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+## Huidige Staat
+- **3 hoofd-arcs**: De Informant, Het Erfenis-mysterie, De Rivaal (4 stappen elk)
+- **3 backstory-arcs**: Wraak, Schuld, Loyaliteit (4-5 stappen)
+- **5 district-arcs**: Port Nero, Crown Heights, Iron Borough, Neon Strip, Lowrise (3 stappen)
+- **8 cinematics**: First Blood, First District, Arrest, Betrayal, Nemesis, Godfather, Rise to Power, Scarface
+- **~40 straatevents**, NPC events, cliffhangers, flashbacks
+- **Presentatie**: StoryArcEvent popup (functioneel maar basic), CinematicOverlay (letterbox + typewriter, sterk)
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+## Wat wordt toegevoegd
 
----
+### A. Nieuwe Verhaallijnen (5 nieuwe arcs)
 
-## Plan: Arsenaal Acquisitie Systeem
+1. **"De Dubbelagent"** — Een politiemol biedt je een deal: werk undercover voor hen, of val.
+   - Trigger: day 15+, rep 150+, heat 40+
+   - 5 stappen met dubbele loyaliteits-keuzes
+   - Uniek: elke keuze heeft een "geheim" effect dat pas in stap 4 onthuld wordt
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+2. **"Het Syndicaat Keert Terug"** — Een oude machtsfactor wil Noxhaven heroveren
+   - Trigger: day 20+, 3+ districten
+   - 4 stappen, focus op alliantie-vorming of solo-strijd
+   - Eindigt met een mogelijke nieuwe factie-alliantie
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+3. **"De Tunnels van Noxhaven"** — Ontdek een ondergronds netwerk met een eigen economie
+   - Trigger: day 10+, rep 80+
+   - 4 stappen met exploratie-focus
+   - Ontgrendelt een geheim district-event bij voltooiing
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+4. **"Bloedgeld"** — Een erfenis van miljoenen, maar met een dodelijke prijs
+   - Trigger: day 7+, backstory niet bankier (bankier heeft eigen arc)
+   - 3 stappen, heavy karma-impact
+   - Uniek: keuze in stap 1 bepaalt welke stap 2/3 je krijgt (echte branching)
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
+5. **"De Laatste Getuige"** — Iemand weet te veel over jou. Vind hem voor de politie dat doet.
+   - Trigger: day 12+, heat 20+, 1+ completed arcs
+   - 4 stappen, race-tegen-de-klok thema
+   - Integratie met nemesis-systeem
 
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
+### B. Betere Presentatie
 
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+1. **StoryArcEvent upgrade** — Volledige visuele overhaul:
+   - Cinematische intro-animatie bij elke stap (fade-in met sfeerbeeld)
+   - Scene-segmenten per stap (zoals CinematicOverlay) i.p.v. één blok tekst
+   - Sfeer-tekst (italic, atmospheric) tussen keuzes
+   - Letterbox-bars bij belangrijke stappen (stap 3+)
+   - Ambient glow gebaseerd op arc-thema
+   - Verbeterde keuze-kaarten met iconen en beschrijvingen
 
----
+2. **Nieuwe cinematics** (4 extra):
+   - "De Eerste Miljonair" — wanneer je €1.000.000 bereikt
+   - "De Onderwereld Boog" — wanneer je alle 3 facties conquered
+   - "De Schaduw Valt" — wanneer karma onder -75 zakt
+   - "Verlossing" — wanneer karma boven 75 stijgt
 
-## Technisch overzicht
+3. **Story Journal/Logboek**:
+   - Nieuw tabblad in het profiel dat alle actieve en voltooide verhaallijnen toont
+   - Per arc: samenvatting, gemaakte keuzes, en consequenties
+   - Visuele tijdlijn met iconen
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+## Technisch Plan
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/game/storyArcs.ts` | 5 nieuwe arc-templates toevoegen |
+| `src/game/cinematics.ts` | 4 nieuwe cinematics + triggers |
+| `src/components/game/StoryArcEvent.tsx` | Complete visuele overhaul met scene-segmenten, letterbox, ambient glow |
+| `src/components/game/StoryJournal.tsx` | Nieuw component: verhaaldagboek |
+| `src/game/types.ts` | GameView type uitbreiden met 'story-journal' |
+
+Alle wijzigingen zijn client-side, geen database migraties nodig.
 
