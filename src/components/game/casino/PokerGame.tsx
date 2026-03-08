@@ -196,7 +196,7 @@ export function PokerGame({ dispatch, showToast, money, state, sessionStats, onR
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="game-card overflow-hidden">
       {/* Header */}
-      <div className="relative h-24 overflow-hidden bg-gradient-to-b from-emerald-900/60 to-card">
+      <div className="relative h-24 overflow-hidden bg-gradient-to-b from-accent/30 to-card">
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
         <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">
           TEXAS HOLD'EM

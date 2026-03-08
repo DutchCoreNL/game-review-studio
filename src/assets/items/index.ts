@@ -433,6 +433,7 @@ export const CASINO_GAME_IMAGES: Record<string, string> = {
   roulette: casinoRoulette,
   slots: casinoSlots,
   highlow: casinoHighlow,
+  poker: casinoPoker,
 };
 
 export const STOCK_IMAGES: Record<string, string> = {
