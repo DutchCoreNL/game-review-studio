@@ -278,7 +278,31 @@ export function AdminPanel() {
       {/* ======== SPELERS TAB ======== */}
       {tab === 'players' && (
         <>
-          <div className="flex items-center justify-between mb-3 mt-2">
+          {/* Search bar */}
+          <div className="mt-2 mb-3">
+            <div className="flex gap-1.5">
+              <input
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); if (e.target.value.length < 2) setSearchResults(null); }}
+                onKeyDown={e => e.key === 'Enter' && searchPlayers()}
+                placeholder="🔍 Zoek speler op naam..."
+                className="flex-1 bg-background border border-border rounded px-2 py-1.5 text-xs"
+              />
+              <GameButton variant="primary" size="sm" icon={<Search size={10} />} onClick={searchPlayers} disabled={searchQuery.length < 2 || searchLoading}>
+                {searchLoading ? '...' : 'ZOEK'}
+              </GameButton>
+              {searchResults && (
+                <GameButton variant="muted" size="sm" onClick={() => { setSearchResults(null); setSearchQuery(''); }}>
+                  <X size={10} />
+                </GameButton>
+              )}
+            </div>
+            {searchResults && (
+              <p className="text-[0.5rem] text-muted-foreground mt-1">{searchResults.length} resultaten voor "{searchQuery}"</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <p className="text-[0.55rem] text-muted-foreground">{entries.length} spelers</p>
               {suspiciousCount > 0 && <GameBadge variant="gold" size="xs"><AlertTriangle size={8} /> {suspiciousCount} verdacht</GameBadge>}
