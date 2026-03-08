@@ -210,6 +210,23 @@ const BOT_ACTIONS = [
   { action: 'idle', weight: 2 },
 ];
 
+// Personality-weighted action modifiers
+const PERSONALITY_WEIGHTS: Record<string, Record<string, number>> = {
+  aggressive: { fight: 3, crime: 2, trade: 0.5, chat: 0.7, faction: 2 },
+  trader:     { trade: 3, market: 3, fight: 0.3, crime: 0.5, chat: 1.2 },
+  social:     { chat: 4, trade: 1.5, fight: 0.3, crime: 0.5, market: 1.5 },
+  stealthy:   { crime: 3, fight: 0.5, trade: 1, chat: 0.3, faction: 2 },
+  balanced:   {},
+};
+
+function getWeightedActions(personality: string): { action: string; weight: number }[] {
+  const mods = PERSONALITY_WEIGHTS[personality] || {};
+  return BOT_ACTIONS.map(a => ({
+    action: a.action,
+    weight: Math.round(a.weight * (mods[a.action] || 1)),
+  }));
+}
+
 const BOT_NEWS_TEMPLATES = [
   (name: string, loc: string) => ({ text: `${name} gespot in ${DISTRICT_NAMES[loc] || loc} — handelt grote partij goederen`, icon: '📦', urgency: 'low' as const, category: 'player' }),
   (name: string, loc: string) => ({ text: `${name} pleegt gewapende overval in ${DISTRICT_NAMES[loc] || loc}`, icon: '💥', urgency: 'medium' as const, category: 'heat' }),
@@ -219,61 +236,6 @@ const BOT_NEWS_TEMPLATES = [
   (name: string, _: string) => ({ text: `${name} gezien bij nachtclub met onbekende zakenlieden`, icon: '🍸', urgency: 'low' as const, category: 'flavor' }),
   (name: string, loc: string) => ({ text: `Politie zoekt ${name} na incident in ${DISTRICT_NAMES[loc] || loc}`, icon: '🚔', urgency: 'medium' as const, category: 'heat' }),
   (name: string, _: string) => ({ text: `${name} sluit lucratieve deal — miljoenen verdiend`, icon: '💰', urgency: 'low' as const, category: 'market' }),
-];
-
-// ========== BOT CHAT MESSAGES ==========
-const BOT_CHAT_GLOBAL = [
-  (name: string) => `Iemand nog tips voor Crown Heights? Net aangekomen.`,
-  (name: string) => `Pas op in Lowrise vanavond, politie is overal 🚔`,
-  (name: string) => `Net een mooie deal gesloten 💰 goedenavond allemaal`,
-  (name: string) => `Zoekt iemand een partner voor een run naar Port Nero?`,
-  (name: string) => `Die storm maakt het lastig om te reizen...`,
-  (name: string) => `Wie heeft er Synthetica? DM me, goede prijs.`,
-  (name: string) => `Iron Borough is rustig vandaag, goed moment om te handelen`,
-  (name: string) => `Heeft iemand info over die nieuwe gang in Neon Strip?`,
-  (name: string) => `Weer een dag overleefd in Noxhaven 💪`,
-  (name: string) => `Die faction boss is bijna down, wie helpt?`,
-  (name: string) => `Ik heb gehoord dat de haven geblokkeerd is, prijzen gaan omhoog`,
-  (name: string) => `GG aan iedereen op het leaderboard 🏆`,
-  (name: string) => `Zoek een gang, level ${Math.floor(Math.random() * 30) + 10}. Stuur me een invite.`,
-  (name: string) => `Let op: grote razzia in de buurt van Neon Strip`,
-  (name: string) => `Hoe verdienen jullie het snelst geld hier? Tips welkom`,
-  (name: string) => `Net m'n eerste district veroverd! 🎉`,
-  (name: string) => `Wie wil er meedoen aan een organized crime? We zoeken nog een hacker`,
-  (name: string) => `De marktprijzen voor wapens zijn belachelijk hoog vandaag`,
-];
-
-const BOT_CHAT_TRADE = [
-  (name: string) => `Verkoop: 50x Synthetica, €180/stuk. DM voor deal.`,
-  (name: string) => `Zoek: Zware Wapens, betaal marktprijs +10%`,
-  (name: string) => `Tip: Zwarte Data is goedkoop in Port Nero nu`,
-  (name: string) => `Medische Voorraad is schaars — prijzen stijgen snel`,
-  (name: string) => `Geroofde Kunst te koop, beste aanbod wint`,
-  (name: string) => `Wie wil ruilen? Ik heb tech, zoek drugs.`,
-  (name: string) => `Let op de markttrend — alles gaat omhoog in Crown Heights`,
-  (name: string) => `Bulk deal: 100x drugs voor €15k. Serieuze kopers only.`,
-];
-
-const BOT_CHAT_GYM = [
-  (name: string) => `Net m'n strength PR gebroken in de gym 💪 gains!`,
-  (name: string) => `Die Crown Heights Academy is echt next level qua training`,
-  (name: string) => `Wie traint er ook in Iron Borough? Die gym is goed voor speed`,
-  (name: string) => `Na 50 trainingssessies merk je echt verschil in gevechten`,
-  (name: string) => `Gym tip: train defense als je veel PvP doet, scheelt enorm`,
-  (name: string) => `Rusty Iron Gym is gratis en prima voor beginners 🏋️`,
-  (name: string) => `Vandaag 3x getraind, m'n dexterity gaat omhoog 🎯`,
-  (name: string) => `Is het de moeite waard om Crown gym membership te kopen?`,
-];
-
-const BOT_CHAT_JOB = [
-  (name: string) => `Net promotie gekregen als beveiliger, salaris +20% 🎉`,
-  (name: string) => `Advocaat zijn is echt de beste baan, -25% jail time is OP`,
-  (name: string) => `Verdien €3000/shift als arts. Plus je kunt spelers reviven`,
-  (name: string) => `Taxichauffeur is underrated — die reistijd bonus is nice`,
-  (name: string) => `Heeft iemand tips voor de boekhouder baan? Net gestart`,
-  (name: string) => `Mijn salaris + crime income = dikke winst elke dag`,
-  (name: string) => `Vastgoedmakelaar zijn naast je illegale business is perfecte dekmantel 🏠`,
-  (name: string) => `Werk shift gedaan, nu even de gym in en dan crimes 😈`,
 ];
 
 function pickWeighted(items: { action: string; weight: number }[]): string {
