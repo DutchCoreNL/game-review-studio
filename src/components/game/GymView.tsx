@@ -48,6 +48,7 @@ export function GymView() {
   );
   const [lastResult, setLastResult] = useState<{ stat: string; gain: number; message: string } | null>(null);
 
+  // gymStats comes from backend via gameApi.gymTrain — not in GameState type yet
   const gymStats: Record<string, number> = (state as any).gymStats || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
   const currentGym = GYMS.find(g => g.id === selectedGym) || GYMS[0];
   const inCorrectDistrict = state.loc === currentGym.district;

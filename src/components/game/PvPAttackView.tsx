@@ -331,9 +331,9 @@ export function PvPAttackView() {
                   <User size={8} className="text-muted-foreground" />
                   <span className="font-bold text-xs truncate hover:text-gold transition-colors">{p.username}</span>
                   <GameBadge variant="muted" size="xs">Lv.{p.level}</GameBadge>
-                  {(p as any).combatRating && (
-                    <GameBadge variant={((p as any).combatRating || 1000) > 1200 ? 'gold' : 'muted'} size="xs">
-                      ⚔️{(p as any).combatRating}
+                  {p.combatRating && (
+                    <GameBadge variant={(p.combatRating || 1000) > 1200 ? 'gold' : 'muted'} size="xs">
+                      ⚔️{p.combatRating}
                     </GameBadge>
                   )}
                 </div>

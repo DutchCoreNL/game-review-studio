@@ -14,13 +14,13 @@ const BADGE_STYLES: Record<string, string> = {
 
 export function SectionHeader({ title, icon, badge, badgeColor = 'gold' }: SectionHeaderProps) {
   return (
-    <div className="flex items-center gap-2 mt-6 mb-3 pb-1.5 border-b border-border">
-      {icon && <span className="text-gold">{icon}</span>}
-      <span className="text-gold text-[0.65rem] uppercase tracking-[0.2em] font-bold font-display">
+    <div className="flex items-center gap-1.5 mt-4 mb-2">
+      {icon && <span className="text-gold/80">{icon}</span>}
+      <span className="text-[0.5rem] uppercase tracking-wider text-gold/80 font-bold">
         {title}
       </span>
       {badge && (
-        <span className={`text-[0.45rem] px-1.5 py-0.5 rounded border font-bold uppercase ${BADGE_STYLES[badgeColor]}`}>
+        <span className={`text-[0.4rem] px-1.5 py-0.5 rounded border font-bold uppercase ${BADGE_STYLES[badgeColor]}`}>
           {badge}
         </span>
       )}

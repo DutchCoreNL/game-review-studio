@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { getChallengeTemplate, CHALLENGE_CATEGORIES } from '@/game/dailyChallenges';
-import { SectionHeader } from './ui/SectionHeader';
+
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
 import { ViewWrapper } from './ui/ViewWrapper';

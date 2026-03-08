@@ -6,7 +6,7 @@ import {
   calculateTravelTime, calculateCustomsRisk, formatTravelTime, formatCountdown,
 } from '@/game/travel';
 import { ViewWrapper } from './ui/ViewWrapper';
-import { SectionHeader } from './ui/SectionHeader';
+
 import { GameButton } from './ui/GameButton';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
