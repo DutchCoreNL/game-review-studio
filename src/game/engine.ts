@@ -15,6 +15,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId } from './weaponGenerator';
+import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
   Object.fromEntries(WEAPON_ACCESSORIES.map(a => [a.id, { dotDamage: a.dotDamage, stunChance: a.stunChance, heatReduction: a.heatReduction }]));
@@ -2029,7 +2030,97 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     }
   }
 
-  // Check if enemy defeated
+  // ===== ENCHANTMENT EFFECTS =====
+  if (procWeapon?.enchantmentId && playerDamage > 0) {
+    const ench = getEnchantmentDef(procWeapon.enchantmentId);
+    const eff = ench.effects;
+
+    // Lifesteal (vampiric)
+    if (eff.lifesteal && eff.lifesteal > 0) {
+      const healed = Math.max(1, Math.floor(playerDamage * eff.lifesteal));
+      combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + healed);
+      combat.logs.push(`${ench.icon} ${ench.name}: +${healed} HP gestolen`);
+    }
+    // Damage multiplier (brutal)
+    if (eff.damageMult && eff.damageMult > 1) {
+      const bonus = Math.floor(playerDamage * (eff.damageMult - 1));
+      combat.targetHP = Math.max(0, combat.targetHP - bonus);
+      combat.logs.push(`${ench.icon} ${ench.name}: +${bonus} extra schade`);
+    }
+    // DoT damage (venomous, blazing)
+    if (eff.dotDamage && eff.dotDamage > 0) {
+      const dotMult = eff.dotStackMult || 1;
+      const dotTotal = Math.floor(eff.dotDamage * dotMult * (1 + state.player.level * 0.1));
+      combat.targetHP = Math.max(0, combat.targetHP - dotTotal);
+      combat.logs.push(`${ench.icon} ${ench.name}: ${dotTotal} DoT schade`);
+    }
+    // Stun chance (frozen, electric)
+    if (eff.stunChance && eff.stunChance > 0 && !combat.stunned && Math.random() < eff.stunChance) {
+      combat.stunned = true;
+      combat.logs.push(`${ench.icon} ${ench.name}: Vijand STUNNED!`);
+    }
+    // Heat reduction (stealthy)
+    if (eff.heatReduction && eff.heatReduction > 0) {
+      state.heat = Math.max(0, state.heat - eff.heatReduction);
+    }
+    // Accuracy/crit/fireRate bonuses are already baked into weapon stats display,
+    // but crit bonus should affect combat
+    if (eff.critBonus && eff.critBonus > 0 && Math.random() < eff.critBonus / 100) {
+      const critBonus = Math.floor(playerDamage * 0.5);
+      combat.targetHP = Math.max(0, combat.targetHP - critBonus);
+      combat.logs.push(`${ench.icon} ${ench.name} CRIT! +${critBonus} schade`);
+    }
+    // Berserker: bonus damage when low HP
+    if (eff.berserkThreshold && eff.berserkDamageMult) {
+      if (combat.playerHP < combat.playerMaxHP * eff.berserkThreshold) {
+        const bonus = Math.floor(playerDamage * (eff.berserkDamageMult - 1));
+        combat.targetHP = Math.max(0, combat.targetHP - bonus);
+        combat.logs.push(`${ench.icon} ${ench.name}: +${bonus} berserker schade!`);
+      }
+    }
+    // Executioner: bonus damage vs low HP targets
+    if (eff.executeDamageMult && eff.executeThreshold) {
+      if (combat.targetHP < combat.enemyMaxHP * eff.executeThreshold) {
+        const bonus = Math.floor(playerDamage * (eff.executeDamageMult - 1));
+        combat.targetHP = Math.max(0, combat.targetHP - bonus);
+        combat.logs.push(`${ench.icon} ${ench.name}: +${bonus} executie schade!`);
+      }
+    }
+    // Momentum: damage per consecutive hit (uses combo counter)
+    if (eff.momentumDamagePerHit && combat.comboCounter > 0) {
+      const bonus = Math.floor(playerDamage * eff.momentumDamagePerHit * combat.comboCounter);
+      if (bonus > 0) {
+        combat.targetHP = Math.max(0, combat.targetHP - bonus);
+        combat.logs.push(`${ench.icon} ${ench.name}: +${bonus} momentum schade (${combat.comboCounter}x)`);
+      }
+    }
+  }
+
+  // ===== ENCHANTMENT DEFENSIVE EFFECTS (on gear) =====
+  const equippedArmor = state.armorInventory?.find(g => g.equipped);
+  const equippedGadget = state.gadgetInventory?.find(g => g.equipped);
+  const defensiveGear = [equippedArmor, equippedGadget].filter(Boolean);
+  for (const gear of defensiveGear) {
+    if (!gear?.enchantmentId) continue;
+    const ench = getEnchantmentDef(gear.enchantmentId);
+    const eff = ench.effects;
+    // Guardian: chance to halve incoming damage is applied in enemy attack phase below
+    // Defense bonus is already reflected in gear stats
+    // Heat reduction from gear enchantments
+    if (eff.heatReduction && eff.heatReduction > 0) {
+      state.heat = Math.max(0, state.heat - eff.heatReduction);
+    }
+  }
+
+  // Calculate guardian chance from gear enchantments for enemy attack phase
+  let guardianChance = 0;
+  for (const gear of defensiveGear) {
+    if (!gear?.enchantmentId) continue;
+    const eff = getEnchantmentDef(gear.enchantmentId).effects;
+    if (eff.damageReduction) guardianChance = Math.min(0.3, guardianChance + eff.damageReduction);
+  }
+
+
   if (combat.targetHP <= 0) {
     combat.finished = true;
     combat.won = true;
@@ -2070,6 +2161,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   // Enemy attack
   if (!combat.stunned) {
     let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6) * (state._ngPlusDifficultyScale || 1));
+    // Guardian enchantment: chance to halve damage
+    if (guardianChance > 0 && Math.random() < guardianChance) {
+      enemyDamage = Math.floor(enemyDamage * 0.5);
+      combat.logs.push(`🛡️ Beschermer: schade gehalveerd!`);
+    }
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
     }

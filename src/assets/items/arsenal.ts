@@ -19,14 +19,16 @@ import exosuitImg from './gear/exosuit.png';
 import shieldImg from './gear/shield.png';
 import cloakImg from './gear/cloak.png';
 
+// Additional armor frame images
+import helmImg from './gear/helm.png';
+import bootsImg from './gear/boots.png';
+
 // Gadget frame images
 import phoneImg from './gear/phone.png';
 import deckImg from './gear/deck.png';
 import implantImg from './gear/implant.png';
 import droneImg from './gear/drone.png';
 import scannerImg from './gear/scanner.png';
-import helmImg from './gear/helm.png';
-import bootsImg from './gear/boots.png';
 import jammerImg from './gear/jammer.png';
 import holowatchImg from './gear/holowatch.png';
 
