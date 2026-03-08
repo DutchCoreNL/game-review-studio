@@ -5,8 +5,9 @@ import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { motion } from 'framer-motion';
-import { Banknote, Store, AlertTriangle, Droplets, ArrowDown } from 'lucide-react';
+import { Banknote, Store, AlertTriangle, Droplets, ArrowDown, Lock } from 'lucide-react';
 import { useState } from 'react';
+import { LAUNDER_METHODS, isMethodUnlocked, getMethodCapacity, type LaunderMethodId } from '@/game/launderMethods';
 
 export function LaunderingPanel() {
   const { state, dispatch, showToast } = useGame();
@@ -152,6 +153,65 @@ export function LaunderingPanel() {
           <p className="text-[0.5rem] text-muted-foreground mt-1">Sluit de dag af om de capaciteit te resetten.</p>
         </div>
       )}
+
+      {/* Extended Laundering Methods */}
+      <SectionHeader title="Witwas Methodes" icon={<Droplets size={12} />} />
+      <div className="space-y-2 mb-4">
+        {LAUNDER_METHODS.filter(m => m.id !== 'standard').map(method => {
+          const unlocked = isMethodUnlocked(method.id, state.ownedDistricts, state.player.level, state.propertyId);
+          const cap = getMethodCapacity(method, state.ownedBusinesses, state.ownedDistricts.includes('neon'));
+          const used = state.launderMethodsUsed?.[method.id] || 0;
+          const remaining = cap - used;
+          const riskColors = { low: 'text-emerald', medium: 'text-gold', high: 'text-blood', none: 'text-game-purple' };
+          const riskLabels = { low: 'Laag', medium: 'Midden', high: 'Hoog', none: 'Geen' };
+
+          return (
+            <motion.div
+              key={method.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`game-card p-3 ${!unlocked ? 'opacity-50' : 'border-l-[3px] border-l-gold'}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{method.icon}</span>
+                    <span className="font-bold text-xs text-foreground">{method.name}</span>
+                    <span className={`text-[0.45rem] font-bold ${riskColors[method.riskLevel]}`}>
+                      {riskLabels[method.riskLevel]}
+                    </span>
+                  </div>
+                  <p className="text-[0.5rem] text-muted-foreground mt-0.5">{method.desc}</p>
+                  {unlocked && (
+                    <div className="flex gap-3 mt-1 text-[0.5rem] text-muted-foreground">
+                      <span>Rate: <span className="text-emerald font-semibold">{Math.round(method.cleanRate * 100)}%</span></span>
+                      <span>Cap: <span className="text-foreground font-semibold">€{remaining.toLocaleString()}/€{cap.toLocaleString()}</span></span>
+                    </div>
+                  )}
+                </div>
+                {unlocked ? (
+                  remaining > 0 && state.dirtyMoney > 0 ? (
+                    <GameButton size="sm" variant="gold" onClick={() => {
+                      const amt = Math.min(state.dirtyMoney, remaining);
+                      dispatch({ type: 'LAUNDER_METHOD', methodId: method.id, amount: amt });
+                      showToast(`€${amt.toLocaleString()} witgewassen via ${method.name}`);
+                    }}>
+                      WAS
+                    </GameButton>
+                  ) : (
+                    <span className="text-[0.5rem] text-muted-foreground">Vol</span>
+                  )
+                ) : (
+                  <div className="flex items-center gap-1 text-[0.5rem] text-muted-foreground">
+                    <Lock size={10} />
+                    <span>{method.unlockCondition}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
 
       {/* Business Wash Overview */}
       <SectionHeader title="Dekmantels" icon={<Store size={12} />} />
