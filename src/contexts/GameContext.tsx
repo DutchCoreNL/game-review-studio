@@ -2474,14 +2474,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'COLLECT_DUNGEON': {
       if (!s.activeDungeon) return s;
-      const dungResult = resolveDungeonRun(s.activeDungeon, s.player?.level || 1, s.combatRating || 0);
+      const dungResult = resolveDungeonRun(s.activeDungeon, s.player?.level || 1, 0);
       s.lastDungeonResult = dungResult;
       s.activeDungeon = null;
       s.dungeonsCompleted = (s.dungeonsCompleted || 0) + 1;
       // Apply rewards
       s.money += dungResult.money;
       s.stats.totalEarned += dungResult.money;
-      s.xp += dungResult.xp;
+      s.player.xp += dungResult.xp;
       if (dungResult.scrap > 0) s.scrapMaterials = (s.scrapMaterials || 0) + dungResult.scrap;
       // Loot box rewards → auto-open and add items
       for (const boxTier of dungResult.lootBoxRewards) {
