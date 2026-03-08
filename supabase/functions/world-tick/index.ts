@@ -198,6 +198,110 @@ const BOT_GANG_NAMES = [
   { name: 'Black Serpents', tag: 'BSP' },
 ];
 
+// ========== BOT CHAT TEMPLATES (personality-driven) ==========
+const BOT_CHAT_GLOBAL: Array<(name: string) => string> = [
+  (n) => `Yo wie is er online? 👀`,
+  (n) => `Deze stad slaapt nooit fr fr 🔥`,
+  (n) => `Iemand wil samenwerken? DM me`,
+  (n) => `Net weer een level omhoog, grinden stopt nooit 💪`,
+  (n) => `Lowrise is gevaarlijk vandaag, watch out`,
+  (n) => `Crown Heights is waar het echte geld zit`,
+  (n) => `Wie heeft er tips voor een newbie?`,
+  (n) => `Die politie is echt overal de laatste tijd 🚔`,
+  (n) => `Respect voor iedereen die hustlet hier 💯`,
+  (n) => `Iemand ervaringen met die nieuwe faction?`,
+  (n) => `GG aan de topspelers, maar ik kom eraan 😤`,
+  (n) => `Port Nero is underrated voor trades`,
+  (n) => `Iron Borough heeft de beste gym tbh`,
+  (n) => `Hoeveel verdienen jullie per dag eigenlijk?`,
+  (n) => `Neon Strip casino is rigged imo 🎰`,
+  (n) => `Ik ben broke, wie leent me wat 😅`,
+  (n) => `Die bounty op mijn hoofd is onterecht smh`,
+  (n) => `Welk district is het veiligst?`,
+  (n) => `Straatrace iemand? 🏎️`,
+  (n) => `Ik vertrouw niemand in deze stad`,
+  (n) => `De onderwereld wordt steeds heftiger`,
+  (n) => `Eerste regel: trust nobody 🤫`,
+  (n) => `Heeft iemand explosives te koop?`,
+  (n) => `Die storm buiten is echt niet normaal`,
+  (n) => `Noxhaven nooit verandert... altijd chaos 💀`,
+];
+
+const BOT_CHAT_TRADE: Array<(name: string) => string> = [
+  (n) => `WTB drugs, bulk, fair price. DM 📦`,
+  (n) => `WTS wapens onder marktprijs, snel weg ermee`,
+  (n) => `Crypto is aan het stijgen, invest nu!`,
+  (n) => `Wie heeft meds? Ik betaal goed`,
+  (n) => `Luxe goederen te koop, Crown Heights pickup`,
+  (n) => `Tech dumpen voor cash, wie wil?`,
+  (n) => `De markt crasht, nu kopen = winst later`,
+  (n) => `Explosives zijn schaars, prijzen gaan omhoog 📈`,
+  (n) => `Chemicaliën nodig voor een project, wie levert?`,
+  (n) => `Bulk deal: 50 units electronics, halve prijs`,
+  (n) => `Smokkelroute naar Crown Heights loopt goed 🚢`,
+  (n) => `Market tip: koop drugs in Lowrise, verkoop in Neon`,
+  (n) => `Wie doet er mee aan een grote trade run?`,
+  (n) => `De veiling is interessant vandaag, check het`,
+  (n) => `Import/export business is booming 💰`,
+];
+
+const BOT_CHAT_GYM: Array<(name: string) => string> = [
+  (n) => `Net 2 uur getraind, strength omhoog 💪`,
+  (n) => `Die gym in Iron Borough is hardcore`,
+  (n) => `Speed training is key voor PvP fights`,
+  (n) => `Wie traint er ook in Neon Elite? Sparren?`,
+  (n) => `Defense stats zijn ondergewaardeerd imo 🛡️`,
+  (n) => `Ik train elke dag, no days off`,
+  (n) => `PR gebroken vandaag! 🏆`,
+  (n) => `Dexterity > strength, change my mind`,
+  (n) => `Crown Heights Academy heeft de beste trainers`,
+  (n) => `Gym + goede gear = onverslaanbaar`,
+];
+
+const BOT_CHAT_JOB: Array<(name: string) => string> = [
+  (n) => `Net promotie gekregen op het werk 🎉`,
+  (n) => `Legaal geld verdienen is saai maar het loont`,
+  (n) => `Advocaat salaris is insane, maar de grind...`,
+  (n) => `Wie werkt er als beveiliger? Worth it?`,
+  (n) => `Arts verdient het meest maar je moet lvl 15+ zijn`,
+  (n) => `Taxichauffeur is chill voor beginners`,
+  (n) => `Salaris + crimineel inkomen = beste combo`,
+  (n) => `Werken is voor de arme mensen... oh wait dat ben ik 😂`,
+  (n) => `Makelaar in Crown Heights = ez money`,
+  (n) => `Boekhouder is handig voor het witwassen lol`,
+];
+
+// Personality-specific chat messages for more immersion
+const BOT_CHAT_AGGRESSIVE: Array<(name: string) => string> = [
+  (n) => `Wie wil vechten? Ik ben in ${['Lowrise', 'Iron Borough', 'Neon Strip'][Math.floor(Math.random() * 3)]} 👊`,
+  (n) => `Net iemand z'n safehouse geraided, easy loot 💀`,
+  (n) => `Ik pak iedereen die in mijn district komt`,
+  (n) => `Bounties zijn m'n hobby, wie is de volgende?`,
+  (n) => `PvP is de enige manier om respect te verdienen`,
+  (n) => `Zwakke spelers moeten oppassen in mijn wijk`,
+  (n) => `Die faction boss gaat eraan vandaag ⚔️`,
+];
+
+const BOT_CHAT_STEALTHY: Array<(name: string) => string> = [
+  (n) => `...`,
+  (n) => `Ik heb info. Kost je wel wat.`,
+  (n) => `De muren hebben oren in deze stad 👂`,
+  (n) => `Sommige dingen zie je beter niet`,
+  (n) => `Onder de radar blijven is een kunst`,
+  (n) => `Ik weet wie er mol is in jullie gang 😏`,
+  (n) => `Silent moves > loud moves`,
+];
+
+const BOT_CHAT_SOCIAL: Array<(name: string) => string> = [
+  (n) => `Heyy iedereen! Hoe gaat het? 😊`,
+  (n) => `Wie wil er een alliance vormen?`,
+  (n) => `Community is alles in dit spel ❤️`,
+  (n) => `Welkom aan alle nieuwe spelers!`,
+  (n) => `Laten we samen een heist doen, meer fun!`,
+  (n) => `GG iedereen, mooie dag vandaag`,
+  (n) => `Hulp nodig? Stuur me een bericht`,
+];
+
 // ========== BOT SIMULATION ==========
 const BOT_ACTIONS = [
   { action: 'travel', weight: 25 },
@@ -227,17 +331,6 @@ function getWeightedActions(personality: string): { action: string; weight: numb
   }));
 }
 
-const BOT_NEWS_TEMPLATES = [
-  (name: string, loc: string) => ({ text: `${name} gespot in ${DISTRICT_NAMES[loc] || loc} — handelt grote partij goederen`, icon: '📦', urgency: 'low' as const, category: 'player' }),
-  (name: string, loc: string) => ({ text: `${name} pleegt gewapende overval in ${DISTRICT_NAMES[loc] || loc}`, icon: '💥', urgency: 'medium' as const, category: 'heat' }),
-  (name: string, _: string) => ({ text: `${name} beklimt de ranglijst — reputatie stijgt snel`, icon: '📈', urgency: 'low' as const, category: 'player' }),
-  (name: string, loc: string) => ({ text: `Schietpartij gemeld in ${DISTRICT_NAMES[loc] || loc} — ${name} betrokken`, icon: '🔫', urgency: 'high' as const, category: 'heat' }),
-  (name: string, loc: string) => ({ text: `${name} koopt vastgoed op in ${DISTRICT_NAMES[loc] || loc}`, icon: '🏠', urgency: 'low' as const, category: 'market' }),
-  (name: string, _: string) => ({ text: `${name} gezien bij nachtclub met onbekende zakenlieden`, icon: '🍸', urgency: 'low' as const, category: 'flavor' }),
-  (name: string, loc: string) => ({ text: `Politie zoekt ${name} na incident in ${DISTRICT_NAMES[loc] || loc}`, icon: '🚔', urgency: 'medium' as const, category: 'heat' }),
-  (name: string, _: string) => ({ text: `${name} sluit lucratieve deal — miljoenen verdiend`, icon: '💰', urgency: 'low' as const, category: 'market' }),
-];
-
 function pickWeighted(items: { action: string; weight: number }[]): string {
   const total = items.reduce((s, i) => s + i.weight, 0);
   let r = Math.random() * total;
@@ -248,23 +341,59 @@ function pickWeighted(items: { action: string; weight: number }[]): string {
   return items[0].action;
 }
 
-// ========== BOT CHAT SIMULATION (CONTEXTUAL) ==========
+// ========== BOT CHAT SIMULATION (CONTEXTUAL + REACTIVE) ==========
 async function simulateBotChat(supabase: any, bots: any[], phase: string) {
   try {
-    // Gather world context for contextual messages
-    const [warsRes, pricesRes, raidRes, lbRes] = await Promise.all([
+    // Gather world context + recent player messages for reactive chat
+    const [warsRes, pricesRes, raidRes, lbRes, recentPlayerMsgs] = await Promise.all([
       supabase.from('gang_wars').select('attacker_gang_id, defender_gang_id').eq('status', 'active').limit(3),
       supabase.from('market_prices').select('good_id, current_price, price_trend').eq('price_trend', 'rising').limit(5),
       supabase.from('faction_relations').select('faction_id, boss_hp, boss_max_hp').lt('boss_hp', 30).gt('boss_hp', 0),
       supabase.from('leaderboard_entries').select('username, level').order('rep', { ascending: false }).limit(5),
+      // Fetch recent player messages (non-bot) for reactive replies
+      supabase.from('chat_messages').select('username, message, channel')
+        .not('user_id', 'in', `(${bots.map((b: any) => `"${b.id}"`).join(',')})`)
+        .order('created_at', { ascending: false }).limit(10),
     ]);
     const activeWars = warsRes.data || [];
     const risingPrices = pricesRes.data || [];
     const lowBosses = raidRes.data || [];
     const topPlayers = lbRes.data || [];
+    const playerMessages = recentPlayerMsgs.data || [];
 
     // Build contextual message pool
     const contextMessages: Array<{ channel: string; msg: string; personality?: string }> = [];
+
+    // === REACTIVE: Reply to recent player messages ===
+    for (const pm of playerMessages.slice(0, 3)) {
+      const msg = (pm.message || '').toLowerCase();
+      const pName = pm.username;
+      // Keyword-based reactive responses
+      if (msg.includes('help') || msg.includes('hulp') || msg.includes('tips')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Tip: begin met crimes in Lowrise, het is daar het veiligst voor beginners`, personality: 'social' });
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Join een gang, dat helpt enorm!`, personality: 'social' });
+      }
+      if (msg.includes('trade') || msg.includes('koop') || msg.includes('verkoop') || msg.includes('wtb') || msg.includes('wts')) {
+        contextMessages.push({ channel: 'trade', msg: `@${pName} Ik heb misschien wat voor je, check de markt`, personality: 'trader' });
+        contextMessages.push({ channel: 'trade', msg: `@${pName} Prijzen in Port Nero zijn het laagst nu`, personality: 'trader' });
+      }
+      if (msg.includes('fight') || msg.includes('vecht') || msg.includes('pvp') || msg.includes('duel')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Wil je echt vechten? Kom maar naar ${pick(['Iron Borough', 'Lowrise', 'Port Nero'])} 👊`, personality: 'aggressive' });
+      }
+      if (msg.includes('gang') || msg.includes('bende') || msg.includes('crew')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Onze gang zoekt nog leden! 💪`, personality: 'social' });
+      }
+      if (msg.includes('casino') || msg.includes('gok')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Casino is rigged bro, maar soms heb je geluk 🎰`, personality: 'social' });
+      }
+      if (msg.includes('broke') || msg.includes('geld') || msg.includes('arm') || msg.includes('blut')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Ga werken als barman, easy starter cash`, personality: 'social' });
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} Ik kan je een deal geven als je wilt 🤝`, personality: 'trader' });
+      }
+      if (msg.includes('gg') || msg.includes('nice') || msg.includes('respect') || msg.includes('lekker')) {
+        contextMessages.push({ channel: pm.channel, msg: `@${pName} 💪🔥`, personality: 'social' });
+      }
+    }
 
     // War context
     for (const war of activeWars) {
@@ -273,6 +402,8 @@ async function simulateBotChat(supabase: any, bots: any[], phase: string) {
       if (gA && gD) {
         contextMessages.push({ channel: 'global', msg: `Die oorlog tussen ${gA.name} en ${gD.name} is heftig! Kies je kant 🔥`, personality: 'aggressive' });
         contextMessages.push({ channel: 'global', msg: `${gA.name} vs ${gD.name}... wie wint er denken jullie?`, personality: 'social' });
+        contextMessages.push({ channel: 'global', msg: `${gA.name} gaat ${gD.name} kapot maken, let op m'n woorden`, personality: 'aggressive' });
+        contextMessages.push({ channel: 'global', msg: `Die war is slecht voor de business... prijzen schieten omhoog 📈`, personality: 'trader' });
       }
     }
     // Boss low HP
@@ -281,52 +412,83 @@ async function simulateBotChat(supabase: any, bots: any[], phase: string) {
       const pct = Math.round((boss.boss_hp / boss.boss_max_hp) * 100);
       contextMessages.push({ channel: 'global', msg: `${name} boss heeft nog maar ${pct}% HP! Laten we finishen! ⚔️`, personality: 'aggressive' });
       contextMessages.push({ channel: 'global', msg: `Wie gaat die ${name} boss nog een klap geven? Bijna down!` });
+      contextMessages.push({ channel: 'global', msg: `Die ${name} boss is bijna dood, ik ga de laatste hit scoren 😤`, personality: 'aggressive' });
     }
     // Rising prices
     for (const p of risingPrices.slice(0, 2)) {
       const goodNames: Record<string, string> = { drugs: 'Drugs', weapons: 'Wapens', tech: 'Data', luxury: 'Luxe goederen', meds: 'Medische spullen', explosives: 'Explosieven', crypto: 'Crypto', chemicals: 'Chemicaliën', electronics: 'Elektronica' };
       contextMessages.push({ channel: 'trade', msg: `${goodNames[p.good_id] || p.good_id} prijzen stijgen! Goed moment om te verkopen 📈`, personality: 'trader' });
+      contextMessages.push({ channel: 'trade', msg: `${goodNames[p.good_id] || p.good_id} is hot nu, ik heb er nog een partij van`, personality: 'trader' });
     }
     // Leaderboard shoutouts
     if (topPlayers.length > 0) {
       const top = topPlayers[Math.floor(Math.random() * Math.min(3, topPlayers.length))];
       contextMessages.push({ channel: 'global', msg: `GG ${top.username}! Level ${top.level} al, respect 🏆`, personality: 'social' });
+      contextMessages.push({ channel: 'global', msg: `${top.username} is een beest 🐐 level ${top.level}`, personality: 'social' });
     }
-    // Phase-specific
+    // Phase-specific (expanded)
     if (phase === 'night') {
       contextMessages.push({ channel: 'global', msg: `Nachtmodus 🌙 Tijd voor de echte business...`, personality: 'stealthy' });
       contextMessages.push({ channel: 'global', msg: `Iemand zin om een heist te doen vannacht? 🏦`, personality: 'aggressive' });
+      contextMessages.push({ channel: 'global', msg: `'s Nachts is de stad van ons 🌙`, personality: 'stealthy' });
+      contextMessages.push({ channel: 'global', msg: `Pas op met laat rondlopen, hoge heat nu`, personality: 'social' });
+      contextMessages.push({ channel: 'trade', msg: `Nacht = de beste deals, minder ogen 👀`, personality: 'stealthy' });
     } else if (phase === 'dawn') {
       contextMessages.push({ channel: 'global', msg: `Goedemorgen Noxhaven ☀️ Weer een dag vol mogelijkheden`, personality: 'social' });
+      contextMessages.push({ channel: 'global', msg: `Nieuwe dag, nieuwe kansen 💪 Let's go!`, personality: 'social' });
+      contextMessages.push({ channel: 'global', msg: `De zon komt op, tijd om te grinden`, personality: 'balanced' });
+    } else if (phase === 'dusk') {
+      contextMessages.push({ channel: 'global', msg: `Avond valt, de stad verandert 🌆`, personality: 'stealthy' });
+      contextMessages.push({ channel: 'global', msg: `Zonsondergang... mooiste tijd in Noxhaven eerlijk`, personality: 'social' });
+      contextMessages.push({ channel: 'trade', msg: `Laatste kans voor trades vandaag, markten sluiten 🏪`, personality: 'trader' });
+    } else if (phase === 'day') {
+      contextMessages.push({ channel: 'global', msg: `Drukke middag in de stad vandaag`, personality: 'social' });
+      contextMessages.push({ channel: 'trade', msg: `Marktdag! Wie wil er traden? 📦`, personality: 'trader' });
     }
 
-    // 3-6 chatters per tick
-    const chatters = bots.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 4));
+    // 3-7 chatters per tick (slightly more)
+    const chatters = bots.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 5));
     const rows: any[] = [];
 
     for (const bot of chatters) {
       const personality = bot.personality || 'balanced';
-      // 40% chance contextual, 60% static templates
+      // 50% chance contextual (increased from 40%), 50% personality-driven templates
       let channel = 'global';
       let message: string;
 
       const matchingContext = contextMessages.filter(c => !c.personality || c.personality === personality);
-      if (matchingContext.length > 0 && Math.random() < 0.4) {
+      if (matchingContext.length > 0 && Math.random() < 0.50) {
         const ctx = matchingContext[Math.floor(Math.random() * matchingContext.length)];
         channel = ctx.channel;
         message = ctx.msg;
       } else {
-        // Static templates based on personality
+        // Personality-driven template selection
         const roll = Math.random();
         let templates: Array<(name: string) => string>;
-        if (personality === 'trader' || (roll >= 0.5 && roll < 0.7)) {
-          channel = 'trade'; templates = BOT_CHAT_TRADE;
-        } else if (personality === 'aggressive' && roll < 0.15) {
-          channel = 'global'; templates = BOT_CHAT_GYM;
-        } else if (roll >= 0.85) {
-          channel = 'global'; templates = BOT_CHAT_JOB;
+        
+        // Primary: use personality-specific templates
+        if (personality === 'aggressive') {
+          if (roll < 0.4) { templates = BOT_CHAT_AGGRESSIVE; }
+          else if (roll < 0.6) { channel = 'global'; templates = BOT_CHAT_GYM; }
+          else { templates = BOT_CHAT_GLOBAL; }
+        } else if (personality === 'trader') {
+          if (roll < 0.5) { channel = 'trade'; templates = BOT_CHAT_TRADE; }
+          else if (roll < 0.7) { channel = 'global'; templates = BOT_CHAT_JOB; }
+          else { templates = BOT_CHAT_GLOBAL; }
+        } else if (personality === 'social') {
+          if (roll < 0.5) { templates = BOT_CHAT_SOCIAL; }
+          else if (roll < 0.7) { templates = BOT_CHAT_GLOBAL; }
+          else { channel = 'trade'; templates = BOT_CHAT_TRADE; }
+        } else if (personality === 'stealthy') {
+          if (roll < 0.5) { templates = BOT_CHAT_STEALTHY; }
+          else { templates = BOT_CHAT_GLOBAL; }
         } else {
-          channel = 'global'; templates = BOT_CHAT_GLOBAL;
+          // Balanced: random selection
+          if (roll < 0.3) { templates = BOT_CHAT_GLOBAL; }
+          else if (roll < 0.5) { channel = 'trade'; templates = BOT_CHAT_TRADE; }
+          else if (roll < 0.65) { templates = BOT_CHAT_GYM; }
+          else if (roll < 0.8) { templates = BOT_CHAT_JOB; }
+          else { templates = BOT_CHAT_SOCIAL; }
         }
         message = templates[Math.floor(Math.random() * templates.length)](bot.username);
       }
@@ -1166,8 +1328,40 @@ async function simulateBotPvP(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot PvP error:', e); }
 }
 
-// ========== BOT MESSAGES ==========
-const BOT_MESSAGE_TEMPLATES = [
+// ========== BOT MESSAGES (personality-aware DMs) ==========
+const BOT_MESSAGE_TEMPLATES_BY_PERSONALITY: Record<string, Array<{ subject: string; body: string }>> = {
+  aggressive: [
+    { subject: '⚠️ Waarschuwing', body: 'Blijf uit mijn district. Dit is je eerste en laatste waarschuwing.' },
+    { subject: 'Oorlog', body: 'Onze gang overweegt een aanval. Kies de juiste kant of je bent de volgende.' },
+    { subject: 'Uitdaging', body: 'Ik daag je uit voor een duel. Toon je niet? Dan weet iedereen dat je een lafaard bent.' },
+    { subject: 'Premie', body: 'Er staat een bounty op je hoofd. Ik zou maar oppassen als ik jou was.' },
+    { subject: 'Territorium', body: 'Je bent gezien in mijn wijk. Dat bevalt me niet. Volgende keer zijn er consequenties.' },
+  ],
+  trader: [
+    { subject: '📦 Zakelijk voorstel', body: 'Ik heb een partij goederen beschikbaar onder de marktprijs. Interesse? Snel reageren, beperkte voorraad.' },
+    { subject: 'Handelstip', body: 'Koop drugs in Lowrise en verkoop ze in Neon Strip. Easy profit. Vertel het niet door.' },
+    { subject: 'Bulk deal', body: 'Grote partij beschikbaar. Als je in bulk koopt, krijg je 15% korting. Laat het me weten.' },
+    { subject: 'Markt update', body: 'De crypto markt is instabiel. Ik zou nu verkopen als ik jou was. Of juist kopen... risk/reward.' },
+    { subject: 'Partnership', body: 'Ik zoek een handelspartner voor een smokkelroute. 50/50 winst. Discreet.' },
+  ],
+  social: [
+    { subject: 'Hey! 👋', body: 'Welkom in Noxhaven! Als je hulp nodig hebt, stuur me gerust een bericht. We helpen elkaar hier.' },
+    { subject: 'Bondgenootschap?', body: 'We zouden samen kunnen werken. Mijn gang zoekt nog sterke spelers die loyaal zijn.' },
+    { subject: 'GG! 🎉', body: 'Ik zag je level up in de feed. Gefeliciteerd! Keep grinding, je doet het goed.' },
+    { subject: 'Community event', body: 'We organiseren een groepsevent vanavond. Heist of faction raid. Ben je erbij?' },
+    { subject: 'Bedankt', body: 'GG voor die trade eerder. Laten we weer zaken doen. Respect! 💯' },
+  ],
+  stealthy: [
+    { subject: '...', body: 'Ik heb informatie over je gang. Interesse? Kost je wel wat.' },
+    { subject: 'Anonieme tip', body: 'Er wordt gepraat over jou in bepaalde kringen. Wees voorzichtig.' },
+    { subject: 'Observatie', body: 'Ik heb je in de gaten gehouden. Je hebt vijanden die je niet kent. Wil je weten wie?' },
+    { subject: 'Intel', body: 'Ik weet waar de volgende politierazzia plaatsvindt. Waardevolle info voor de juiste prijs.' },
+    { subject: 'Schaduw', body: 'De muren hebben oren. Vertrouw niemand. Zelfs dit bericht kan onderschept worden.' },
+  ],
+};
+
+// Fallback generic templates
+const BOT_MESSAGE_TEMPLATES_GENERIC = [
   { subject: 'Waarschuwing', body: 'Ik heb gehoord dat er een razzia op komst is. Pas op in de haven.' },
   { subject: 'Zakelijk voorstel', body: 'Ik heb een partij goederen beschikbaar. Interesse? Laat het me weten.' },
   { subject: 'Bondgenootschap?', body: 'We zouden samen kunnen werken. Mijn gang zoekt nog sterke spelers.' },
@@ -1182,7 +1376,7 @@ async function simulateBotMessages(supabase: any, bots: any[]) {
     if (Math.random() > 0.1) return; // ~10% per tick
 
     const { data: players } = await supabase.from('player_state')
-      .select('user_id').eq('game_over', false).limit(10);
+      .select('user_id, level, loc').eq('game_over', false).limit(10);
     if (!players || players.length === 0) return;
 
     // Don't send to other bots
@@ -1193,13 +1387,25 @@ async function simulateBotMessages(supabase: any, bots: any[]) {
     const bot = pick(bots.filter(b => b.level >= 5));
     if (!bot) return;
     const target = pick(realPlayers);
-    const template = pick(BOT_MESSAGE_TEMPLATES);
+    const personality = bot.personality || 'balanced';
+    
+    // Select personality-specific template
+    const personalityTemplates = BOT_MESSAGE_TEMPLATES_BY_PERSONALITY[personality];
+    const template = personalityTemplates 
+      ? pick(personalityTemplates) 
+      : pick(BOT_MESSAGE_TEMPLATES_GENERIC);
+
+    // Context-aware: if bot is in same district, mention it
+    const sameDistrict = bot.loc === target.loc;
+    const contextSuffix = sameDistrict 
+      ? `\n\nPS: Ik zie je in ${DISTRICT_NAMES[bot.loc]}...` 
+      : '';
 
     await supabase.from('player_messages').insert({
       sender_id: bot.id,
       receiver_id: target.user_id,
       subject: template.subject,
-      body: `${template.body}\n\n- ${bot.username}`,
+      body: `${template.body}${contextSuffix}\n\n- ${bot.username}`,
     });
   } catch (e) { console.error('Bot messages error:', e); }
 }
@@ -1274,8 +1480,44 @@ async function simulateBotNpcMood(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot NPC mood error:', e); }
 }
 
-// ========== BOT GANG CHAT ==========
-const BOT_GANG_CHAT_MESSAGES = [
+// ========== BOT GANG CHAT (contextual & personality-driven) ==========
+const BOT_GANG_CHAT_BY_PERSONALITY: Record<string, string[]> = {
+  aggressive: [
+    'Wie gaat er mee aanvallen? Ik ben klaar voor actie ⚔️',
+    'Die rivaliserende gang moet kapot. Wanneer slaan we toe?',
+    'Net iemand z\'n safehouse geraided, easy loot 💀',
+    'Ik wil die faction boss vandaag nog neerhalen',
+    'PvP scores: ik sta bovenaan 😤',
+    'Onze vijanden worden zwakker, nu doordrukken!',
+  ],
+  trader: [
+    'Ik heb een bulk partij beschikbaar, wie wil er wat?',
+    'De marktprijzen zijn goed nu, laten we traden',
+    'Onze treasury moet omhoog, meer contributies graag 💰',
+    'Ik heb een smokkelroute gevonden, profit voor de hele gang',
+    'Wie draagt er bij aan de gang kas? We hebben gear nodig',
+    'Auction tip: er staat iets goedkoops, wie wil bieden?',
+  ],
+  social: [
+    'Wie is er online? Laten we een OC doen.',
+    'Welkom aan de nieuwe leden! 🎉',
+    'Goed gevochten vandaag team! 💪',
+    'Laten we een groeps-heist plannen dit weekend',
+    'Iemand interesse in een alliance met een andere gang?',
+    'GG iedereen, we worden steeds sterker als team',
+    'Onze gang level gaat snel omhoog, keep it up!',
+  ],
+  stealthy: [
+    'Ik heb intel over de vijandelijke gang... check DM',
+    'Onze mol rapporteert dat ze weinig treasury hebben',
+    'Stil opereren, geen aandacht trekken',
+    'Ik heb een escape route gecheckt, we zitten safe',
+    'Die mole in onze gang? Ik heb m\'n vermoedens...',
+    'Under the radar werken levert meer op',
+  ],
+};
+
+const BOT_GANG_CHAT_GENERIC = [
   'Wie is er online? Laten we een OC doen.',
   'Ik ga naar Crown Heights, iemand mee?',
   'We moeten ons territorium verdedigen, er zijn vijanden in de buurt.',
@@ -1286,6 +1528,9 @@ const BOT_GANG_CHAT_MESSAGES = [
   'We moeten meer influence bijdragen in ons district.',
   'Die faction boss is bijna down, laten we aanvallen.',
   'Iemand interesse in een alliance met een andere gang?',
+  'Check de veiling, er staan goede deals',
+  'Onze treasury staat op €{treasury}, we moeten meer verdienen',
+  'Wie heeft er een auto? We moeten snel naar Port Nero',
 ];
 
 async function simulateBotGangChat(supabase: any, bots: any[]) {
@@ -1296,7 +1541,13 @@ async function simulateBotGangChat(supabase: any, bots: any[]) {
     if (gangBots.length === 0) return;
 
     const bot = pick(gangBots);
-    const message = pick(BOT_GANG_CHAT_MESSAGES);
+    const personality = bot.personality || 'balanced';
+    
+    // Personality-specific or generic message
+    const personalityMessages = BOT_GANG_CHAT_BY_PERSONALITY[personality];
+    const message = personalityMessages 
+      ? pick(personalityMessages) 
+      : pick(BOT_GANG_CHAT_GENERIC);
 
     await supabase.from('gang_chat').insert({
       gang_id: bot.gang_id,
