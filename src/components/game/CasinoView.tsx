@@ -133,28 +133,47 @@ export function CasinoView() {
 
       <AnimatePresence mode="wait">
         {!activeGame ? (
-          <motion.div key="menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
-            <GameCard icon={<Spade size={28} />} name="BLACKJACK" sub="2x Uitbetaling + Double Down" onClick={() => setActiveGame('blackjack')} image={CASINO_GAME_IMAGES.blackjack} />
-            <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
-            <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
-            <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
-            <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" image={MINIGAME_IMAGES.russian_roulette} />
+          <motion.div key="menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+            {/* Featured game */}
+            <motion.button onClick={() => setActiveGame('blackjack')}
+              className="game-card-interactive w-full flex flex-col items-center bg-gradient-to-b from-card to-background overflow-hidden"
+              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+              <div className="relative w-full h-32 overflow-hidden">
+                <img src={CASINO_GAME_IMAGES.blackjack} alt="Blackjack" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center text-gold gold-text-glow">
+                  <Spade size={32} />
+                </div>
+              </div>
+              <div className="py-2 px-3">
+                <span className="font-bold text-base font-display tracking-wider block">BLACKJACK</span>
+                <span className="text-[0.55rem] text-muted-foreground text-center block mt-0.5">2x Uitbetaling + Double Down + Split</span>
+              </div>
+            </motion.button>
+
+            {/* 2x2 Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <GameCard icon={<CircleDot size={28} />} name="ROULETTE" sub="Tot 14x, 7 inzetopties" onClick={() => setActiveGame('roulette')} image={CASINO_GAME_IMAGES.roulette} />
+              <GameCard icon={<Gem size={28} />} name="SLOTS" sub="Progressive Jackpot" onClick={() => setActiveGame('slots')} image={CASINO_GAME_IMAGES.slots} />
+              <GameCard icon={<ArrowUpDown size={28} />} name="HIGH-LOW" sub="Tot 20x, cash out!" onClick={() => setActiveGame('highlow')} color="game-purple" image={CASINO_GAME_IMAGES.highlow} />
+              <GameCard icon={<Crosshair size={28} />} name="RUSSIAN ROULETTE" sub="Tot 12x, durf jij?" onClick={() => setActiveGame('russian_roulette')} color="blood" image={MINIGAME_IMAGES.russian_roulette} />
+            </div>
           </motion.div>
         ) : activeGame === 'blackjack' ? (
           <BlackjackGame key="bj" dispatch={dispatch} showToast={showToast} money={state.money}
             state={state} sessionStats={sessionStats} onResult={handleResult} />
         ) : activeGame === 'roulette' ? (
           <RouletteGame key="rl" dispatch={dispatch} showToast={showToast} money={state.money}
-            state={state} onResult={handleResult} />
+            state={state} sessionStats={sessionStats} onResult={handleResult} />
         ) : activeGame === 'slots' ? (
           <SlotsGame key="sl" dispatch={dispatch} showToast={showToast} money={state.money}
-            state={{ ...state, casinoJackpot: state.casinoJackpot }} onResult={handleResult} />
+            state={{ ...state, casinoJackpot: state.casinoJackpot }} sessionStats={sessionStats} onResult={handleResult} />
         ) : activeGame === 'highlow' ? (
           <HighLowGame key="hl" dispatch={dispatch} showToast={showToast} money={state.money}
-            state={state} onResult={handleResult} />
+            state={state} sessionStats={sessionStats} onResult={handleResult} />
         ) : (
           <RussianRouletteGame key="rr" dispatch={dispatch} showToast={showToast} money={state.money}
-            state={state} onResult={handleResult} />
+            state={state} sessionStats={sessionStats} onResult={handleResult} />
         )}
       </AnimatePresence>
 

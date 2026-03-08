@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
+import { SessionStatsBar } from './SessionStatsBar';
+import { WinCelebration } from './WinCelebration';
 import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
@@ -12,18 +14,21 @@ interface SlotsGameProps {
   showToast: (msg: string, isError?: boolean) => void;
   money: number;
   state: { ownedDistricts: string[]; districtRep: Record<string, number>; casinoJackpot?: number };
+  sessionStats?: CasinoSessionStats;
   onResult: (won: boolean | null, amount: number) => void;
 }
 
 const BASE_SYMBOLS = ['🍒', '🍒', '🍋', '🍋', '🍇', '🍊', '🔔', '⭐', '🍀', '🎲', '💎', '7️⃣'];
 
-export function SlotsGame({ dispatch, showToast, money, state, onResult }: SlotsGameProps) {
+export function SlotsGame({ dispatch, showToast, money, state, sessionStats, onResult }: SlotsGameProps) {
   const [bet, setBet] = useState(50);
   const [reels, setReels] = useState(['🍒', '🍒', '🍒']);
   const [spinning, setSpinning] = useState([false, false, false]);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
   const [nearMiss, setNearMiss] = useState(false);
+  const [showWin, setShowWin] = useState(false);
+  const [winAmount, setWinAmount] = useState(0);
 
   const spinningRef = useRef([false, false, false]);
   const reelsRef = useRef(['🍒', '🍒', '🍒']);
@@ -86,12 +91,14 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
           setResult(`🎰 JACKPOT! +€${data.jackpotAmount?.toLocaleString()}`);
           setResultColor('text-emerald');
           onResult(true, data.netResult);
+          setWinAmount(data.netResult); setShowWin(true); setTimeout(() => setShowWin(false), 2000);
           playSlotJackpot();
           dispatch({ type: 'JACKPOT_RESET' });
         } else if (data.netResult > 0) {
           setResult(`WINNAAR! +€${data.netResult.toLocaleString()}`);
           setResultColor('text-emerald');
           onResult(true, data.netResult);
+          setWinAmount(data.netResult); setShowWin(true); setTimeout(() => setShowWin(false), 2000);
           playSlotWin();
         } else if (data.netResult === 0) {
           // Pair - small win but net 0 due to rounding
@@ -132,6 +139,8 @@ export function SlotsGame({ dispatch, showToast, money, state, onResult }: Slots
         <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display neon-text">NEON SLOTS</h3>
       </div>
       <div className="p-4 pt-1">
+      {sessionStats && <SessionStatsBar stats={sessionStats} />}
+      <WinCelebration amount={winAmount} show={showWin} />
 
       {/* Progressive Jackpot */}
       <div className="text-center mb-3">
