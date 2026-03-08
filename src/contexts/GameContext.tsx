@@ -3626,9 +3626,13 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.tutorialDone === undefined) saved.tutorialDone = false;
       if (!saved.lastLoginDay) saved.lastLoginDay = '';
       if (saved.loginStreak === undefined) saved.loginStreak = 0;
-      if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0, blackjackStreak: 0, highLowMaxRound: 0 };
+      if (!saved.stats) saved.stats = { totalEarned: 0, totalSpent: 0, casinoWon: 0, casinoLost: 0, missionsCompleted: 0, missionsFailed: 0, tradesCompleted: 0, daysPlayed: saved.day || 0, blackjackStreak: 0, highLowMaxRound: 0, combatsWon: 0, bestKillStreak: 0, pvpWins: 0, bountiesClaimed: 0 };
       if (saved.stats.blackjackStreak === undefined) saved.stats.blackjackStreak = 0;
       if (saved.stats.highLowMaxRound === undefined) saved.stats.highLowMaxRound = 0;
+      if (saved.stats.combatsWon === undefined) saved.stats.combatsWon = 0;
+      if (saved.stats.bestKillStreak === undefined) saved.stats.bestKillStreak = 0;
+      if (saved.stats.pvpWins === undefined) saved.stats.pvpWins = 0;
+      if (saved.stats.bountiesClaimed === undefined) saved.stats.bountiesClaimed = 0;
       if (saved.casinoJackpot === undefined) saved.casinoJackpot = 10000;
       // Player HP migration
       if (saved.playerHP === undefined || saved.playerMaxHP === undefined) {
