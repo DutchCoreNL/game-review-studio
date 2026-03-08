@@ -248,44 +248,93 @@ function pickWeighted(items: { action: string; weight: number }[]): string {
   return items[0].action;
 }
 
-// ========== BOT CHAT SIMULATION ==========
+// ========== BOT CHAT SIMULATION (CONTEXTUAL) ==========
 async function simulateBotChat(supabase: any, bots: any[], phase: string) {
   try {
-    // 3-6 bots chat per tick for more activity
+    // Gather world context for contextual messages
+    const [warsRes, pricesRes, raidRes, lbRes] = await Promise.all([
+      supabase.from('gang_wars').select('attacker_gang_id, defender_gang_id').eq('status', 'active').limit(3),
+      supabase.from('market_prices').select('good_id, current_price, price_trend').eq('price_trend', 'rising').limit(5),
+      supabase.from('faction_relations').select('faction_id, boss_hp, boss_max_hp').lt('boss_hp', 30).gt('boss_hp', 0),
+      supabase.from('leaderboard_entries').select('username, level').order('rep', { ascending: false }).limit(5),
+    ]);
+    const activeWars = warsRes.data || [];
+    const risingPrices = pricesRes.data || [];
+    const lowBosses = raidRes.data || [];
+    const topPlayers = lbRes.data || [];
+
+    // Build contextual message pool
+    const contextMessages: Array<{ channel: string; msg: string; personality?: string }> = [];
+
+    // War context
+    for (const war of activeWars) {
+      const { data: gA } = await supabase.from('gangs').select('name').eq('id', war.attacker_gang_id).maybeSingle();
+      const { data: gD } = await supabase.from('gangs').select('name').eq('id', war.defender_gang_id).maybeSingle();
+      if (gA && gD) {
+        contextMessages.push({ channel: 'global', msg: `Die oorlog tussen ${gA.name} en ${gD.name} is heftig! Kies je kant 🔥`, personality: 'aggressive' });
+        contextMessages.push({ channel: 'global', msg: `${gA.name} vs ${gD.name}... wie wint er denken jullie?`, personality: 'social' });
+      }
+    }
+    // Boss low HP
+    for (const boss of lowBosses) {
+      const name = FACTION_NAMES[boss.faction_id] || boss.faction_id;
+      const pct = Math.round((boss.boss_hp / boss.boss_max_hp) * 100);
+      contextMessages.push({ channel: 'global', msg: `${name} boss heeft nog maar ${pct}% HP! Laten we finishen! ⚔️`, personality: 'aggressive' });
+      contextMessages.push({ channel: 'global', msg: `Wie gaat die ${name} boss nog een klap geven? Bijna down!` });
+    }
+    // Rising prices
+    for (const p of risingPrices.slice(0, 2)) {
+      const goodNames: Record<string, string> = { drugs: 'Drugs', weapons: 'Wapens', tech: 'Data', luxury: 'Luxe goederen', meds: 'Medische spullen', explosives: 'Explosieven', crypto: 'Crypto', chemicals: 'Chemicaliën', electronics: 'Elektronica' };
+      contextMessages.push({ channel: 'trade', msg: `${goodNames[p.good_id] || p.good_id} prijzen stijgen! Goed moment om te verkopen 📈`, personality: 'trader' });
+    }
+    // Leaderboard shoutouts
+    if (topPlayers.length > 0) {
+      const top = topPlayers[Math.floor(Math.random() * Math.min(3, topPlayers.length))];
+      contextMessages.push({ channel: 'global', msg: `GG ${top.username}! Level ${top.level} al, respect 🏆`, personality: 'social' });
+    }
+    // Phase-specific
+    if (phase === 'night') {
+      contextMessages.push({ channel: 'global', msg: `Nachtmodus 🌙 Tijd voor de echte business...`, personality: 'stealthy' });
+      contextMessages.push({ channel: 'global', msg: `Iemand zin om een heist te doen vannacht? 🏦`, personality: 'aggressive' });
+    } else if (phase === 'dawn') {
+      contextMessages.push({ channel: 'global', msg: `Goedemorgen Noxhaven ☀️ Weer een dag vol mogelijkheden`, personality: 'social' });
+    }
+
+    // 3-6 chatters per tick
     const chatters = bots.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 4));
     const rows: any[] = [];
 
     for (const bot of chatters) {
-      // 50% global, 20% trade, 15% gym, 15% job
-      const roll = Math.random();
-      let channel: string;
-      let templates: Array<(name: string) => string>;
-      if (roll < 0.5) {
-        channel = 'global'; templates = BOT_CHAT_GLOBAL;
-      } else if (roll < 0.7) {
-        channel = 'trade'; templates = BOT_CHAT_TRADE;
-      } else if (roll < 0.85) {
-        channel = 'global'; templates = BOT_CHAT_GYM;
+      const personality = bot.personality || 'balanced';
+      // 40% chance contextual, 60% static templates
+      let channel = 'global';
+      let message: string;
+
+      const matchingContext = contextMessages.filter(c => !c.personality || c.personality === personality);
+      if (matchingContext.length > 0 && Math.random() < 0.4) {
+        const ctx = matchingContext[Math.floor(Math.random() * matchingContext.length)];
+        channel = ctx.channel;
+        message = ctx.msg;
       } else {
-        channel = 'global'; templates = BOT_CHAT_JOB;
+        // Static templates based on personality
+        const roll = Math.random();
+        let templates: Array<(name: string) => string>;
+        if (personality === 'trader' || (roll >= 0.5 && roll < 0.7)) {
+          channel = 'trade'; templates = BOT_CHAT_TRADE;
+        } else if (personality === 'aggressive' && roll < 0.15) {
+          channel = 'global'; templates = BOT_CHAT_GYM;
+        } else if (roll >= 0.85) {
+          channel = 'global'; templates = BOT_CHAT_JOB;
+        } else {
+          channel = 'global'; templates = BOT_CHAT_GLOBAL;
+        }
+        message = templates[Math.floor(Math.random() * templates.length)](bot.username);
       }
-      const template = templates[Math.floor(Math.random() * templates.length)];
-      const message = template(bot.username);
 
-      rows.push({
-        user_id: bot.id,
-        username: bot.username,
-        channel,
-        message,
-      });
+      rows.push({ user_id: bot.id, username: bot.username, channel, message });
     }
-
-    if (rows.length > 0) {
-      await supabase.from('chat_messages').insert(rows);
-    }
-  } catch (e) {
-    console.error('Bot chat error:', e);
-  }
+    if (rows.length > 0) await supabase.from('chat_messages').insert(rows);
+  } catch (e) { console.error('Bot chat error:', e); }
 }
 
 // ========== BOT MARKET LISTINGS ==========
