@@ -288,7 +288,7 @@ export function AdminPanel() {
                 placeholder="🔍 Zoek speler op naam..."
                 className="flex-1 bg-background border border-border rounded px-2 py-1.5 text-xs"
               />
-              <GameButton variant="primary" size="sm" icon={<Search size={10} />} onClick={searchPlayers} disabled={searchQuery.length < 2 || searchLoading}>
+              <GameButton variant="emerald" size="sm" icon={<Search size={10} />} onClick={searchPlayers} disabled={searchQuery.length < 2 || searchLoading}>
                 {searchLoading ? '...' : 'ZOEK'}
               </GameButton>
               {searchResults && (
