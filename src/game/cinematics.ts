@@ -269,6 +269,143 @@ export const CINEMATICS: CinematicMoment[] = [
       },
     ],
   },
+  // ===== NEW CINEMATICS =====
+  {
+    id: 'eerste_miljonair',
+    title: 'De Eerste Miljonair',
+    subtitle: 'Het getal met zes nullen',
+    icon: '💰',
+    category: 'milestone',
+    scenes: [
+      { atmosphere: 'De stad slaapt. Maar jij bent wakker. De cijfers op je scherm branden in je netvlies.' },
+      { text: 'Eén. Miljoen. Euro.' },
+      { text: 'Je leunt achterover. De stoel kraakt. Buiten rijdt een tram voorbij — de eerste van de ochtend.' },
+      { text: 'Je denkt aan hoe het begon. De straat. De honger. De eerste deal van vijftig euro.' },
+      { atmosphere: 'Ergens in de verte slaat een kerkklok. Zes keer. Een nieuwe dag. Een nieuw tijdperk.' },
+    ],
+    choices: [
+      {
+        id: 'em_invest',
+        label: 'INVESTEER IN DE STAD',
+        icon: '🏗️',
+        desc: '"Dit geld moet werken — voor mij en voor Noxhaven."',
+        effects: { rep: 30, karma: 10, money: -50000 },
+        resultText: 'Je opent een fonds voor de buurt. Scholen, klinieken, banen. Ze noemen je een weldoener. Of een slimme zakenman. Maakt niet uit — ze onthouden je naam.',
+      },
+      {
+        id: 'em_celebrate',
+        label: 'VIER FEEST',
+        icon: '🍾',
+        desc: '"Vanavond is alles van mij."',
+        effects: { rep: 15, karma: -5, money: -25000, heat: 5 },
+        resultText: 'Het duurste restaurant. De duurste champagne. De hele crew. Morgen is er weer tijd voor zorgen. Vanavond is van jou.',
+      },
+      {
+        id: 'em_hide',
+        label: 'VERBERG HET',
+        icon: '🔒',
+        desc: '"Niemand hoeft dit te weten."',
+        effects: { heat: -10, karma: 0 },
+        resultText: 'Je verplaatst alles naar offshore rekeningen. Drie landen, vijf banken, nul sporen. Rijkdom is macht — maar alleen als niemand weet hoeveel.',
+      },
+    ],
+  },
+  {
+    id: 'onderwereld_boog',
+    title: 'Heerser van de Schaduwen',
+    subtitle: 'Alle facties buigen',
+    icon: '🌑',
+    category: 'power',
+    scenes: [
+      { text: 'De drie factiebazen staan voor je. Verslagen. Het Cartel. Het Syndicaat. De Bikers.' },
+      { text: 'Hun gebieden, hun routes, hun mensen — alles is nu van jou.' },
+      { atmosphere: 'De kamer ruikt naar sigaren en angst. Drie imperia, gecondenseerd in één moment van overgave.' },
+      { text: '"Vanaf vandaag," zeg je, "is er maar één stem die telt in Noxhaven."' },
+      { atmosphere: 'Stilte. Dan, één voor één, buigen ze. Niet uit respect — uit noodzaak. Maar het resultaat is hetzelfde.' },
+    ],
+    choices: [
+      {
+        id: 'ob_unite',
+        label: 'VERENIG DE FACTIES',
+        icon: '🤝',
+        desc: '"Samen zijn we sterker dan verdeeld."',
+        effects: { rep: 80, karma: 10, money: 20000 },
+        resultText: 'Een nieuw tijdperk begint. De factieoorlagen zijn voorbij. Onder jouw leiding opereert Noxhaven als één machine. Efficiënt. Meedogenloos. Eensgezind.',
+      },
+      {
+        id: 'ob_dismantle',
+        label: 'ONTMANTEL ZE ALLEMAAL',
+        icon: '💣',
+        desc: '"Er is geen plek voor rivalen. Zelfs verslagen rivalen."',
+        effects: { rep: 50, karma: -20, heat: 15, money: 50000 },
+        resultText: 'Je ontmantelt hun organisaties systematisch. Leiders verbannen, structuren vernietigd, loyalisten omgekocht. Er is maar één organisatie in Noxhaven — de jouwe.',
+      },
+    ],
+  },
+  {
+    id: 'schaduw_valt',
+    title: 'De Schaduw Valt',
+    subtitle: 'Duisternis consumeert alles',
+    icon: '🖤',
+    category: 'confrontation',
+    scenes: [
+      { atmosphere: 'De spiegel in de badkamer. Je herkent het gezicht niet meer. Wanneer is het veranderd?' },
+      { text: 'De lijst is lang geworden. Namen die je liever vergeet. Gezichten die je \'s nachts bezoeken.' },
+      { text: 'Je telefoon trilt. Weer een bericht. Weer een dreigement. Of een smeekbede. Het verschil vervaagt.' },
+      { atmosphere: 'De stad buiten is donker. Maar niet zo donker als wat binnen groeit. De schaduw die je bent geworden — is dat wie je wilde zijn?' },
+      { text: 'Een oude foto valt uit een lade. Jij, lachend. Wanneer was dat? Een ander leven. Een ander mens.' },
+    ],
+    choices: [
+      {
+        id: 'sv_embrace',
+        label: 'OMARM DE DUISTERNIS',
+        icon: '👁️',
+        desc: '"Dit is wie ik ben. Geen excuses."',
+        effects: { rep: 30, karma: -15, heat: 10 },
+        resultText: 'Je verbrandt de foto. Het verleden is dood. Er is alleen het nu — en in het nu ben je de gevaarlijkste persoon in Noxhaven. Laat ze maar bang zijn.',
+      },
+      {
+        id: 'sv_question',
+        label: 'TWIJFEL',
+        icon: '💭',
+        desc: '"Is dit het allemaal waard?"',
+        effects: { karma: 10, rep: -5 },
+        resultText: 'Je stopt de foto terug. Niet vernietigen. Niet vergeten. Ergens, diep vanbinnen, is er nog iets menselijks. Misschien is het nog niet te laat.',
+      },
+    ],
+  },
+  {
+    id: 'verlossing',
+    title: 'Verlossing',
+    subtitle: 'Licht in de duisternis',
+    icon: '🕊️',
+    category: 'milestone',
+    scenes: [
+      { atmosphere: 'Zonsopgang boven Noxhaven. Goud en roze strepen aan de hemel. De stad is stil — voor even.' },
+      { text: 'De jongen kijkt naar je op. "Bent u echt de baas van alles?" Je knielt. "Nee. Ik ben gewoon iemand die probeert het goed te doen."' },
+      { text: 'Het buurthuis dat je hebt gefinancierd opent zijn deuren. Kinderen rennen naar binnen, lachend.' },
+      { atmosphere: 'Een oude vrouw pakt je hand. "Je hebt mijn kleinzoon van de straat gehaald. God zegene je." Haar ogen glanzen.' },
+      { text: 'Misschien maakt het niet uit hoe je begonnen bent. Misschien telt alleen hoe je eindigt.' },
+    ],
+    choices: [
+      {
+        id: 'vl_continue',
+        label: 'GA DOOR OP DIT PAD',
+        icon: '🌅',
+        desc: '"Er is nog zoveel te doen."',
+        effects: { rep: 40, karma: 20, money: -10000 },
+        resultText: 'Je opent een stichting. Eerlijk geld voor eerlijk werk. De straten worden schoner, de kinderen veiliger. Noxhaven verandert — langzaam, maar zeker. En jij verandert mee.',
+      },
+      {
+        id: 'vl_balance',
+        label: 'ZOEK BALANS',
+        icon: '⚖️',
+        desc: '"Goed doen hoeft niet te betekenen dat ik alles opgeef."',
+        effects: { rep: 20, karma: 10, money: 5000 },
+        resultText: 'Je bent geen heilige. Maar je bent ook geen monster meer. Ergens in het midden vind je een plek die voelt als thuis. De stad ziet het. En respecteert het.',
+      },
+    ],
+  },
 ];
 
 // ========== TRIGGER SYSTEM ==========
@@ -311,6 +448,23 @@ const CINEMATIC_TRIGGERS: CinematicTrigger[] = [
   {
     cinematicId: 'scarface_moment',
     check: (s, ctx) => ctx === 'villa_attack_lost' && (s.villa?.level || 0) >= 2 && !s.seenCinematics?.includes('scarface_moment'),
+  },
+  // NEW CINEMATIC TRIGGERS
+  {
+    cinematicId: 'eerste_miljonair',
+    check: (s) => s.money >= 1000000 && !s.seenCinematics?.includes('eerste_miljonair'),
+  },
+  {
+    cinematicId: 'onderwereld_boog',
+    check: (s) => (s.conqueredFactions?.length || 0) >= 3 && !s.seenCinematics?.includes('onderwereld_boog'),
+  },
+  {
+    cinematicId: 'schaduw_valt',
+    check: (s) => (s.karma || 0) <= -75 && !s.seenCinematics?.includes('schaduw_valt'),
+  },
+  {
+    cinematicId: 'verlossing',
+    check: (s) => (s.karma || 0) >= 75 && !s.seenCinematics?.includes('verlossing'),
   },
 ];
 

@@ -15,7 +15,7 @@ export type GameView =
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
-  | 'black-market' | 'salvage';
+  | 'black-market' | 'salvage' | 'story-journal';
 
 // ========== VILLA TYPES ==========
 

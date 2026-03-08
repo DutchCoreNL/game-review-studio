@@ -457,6 +457,584 @@ export const STORY_ARCS: StoryArcTemplate[] = [
       },
     ],
   },
+  // ===== ARC 4: DE DUBBELAGENT =====
+  {
+    id: 'dubbelagent',
+    name: 'De Dubbelagent',
+    description: 'Een politiemol biedt je een deal: werk undercover voor hen, of val. Dubbele loyaliteiten, dubbel gevaar.',
+    icon: '🎭',
+    triggerConditions: { minDay: 15, minRep: 150 },
+    completionReward: { money: 35000, rep: 250, dirtyMoney: 15000, heat: -30, gearReward: { type: 'gadget', minRarity: 'epic' } },
+    steps: [
+      {
+        id: 'dub_1',
+        text: 'Een man in een onopvallend pak staat bij je auto te wachten. Hij laat een politiepenning zien — en stopt hem snel weer weg. "Inspecteur Janssen. Ik heb een voorstel dat je leven kan redden. Of beëindigen."',
+        phonePreview: '"We moeten praten. Geen trucs. Ik kan je helpen — of vernietigen." — Onbekend (politie)',
+        phoneFrom: 'dubbelagent',
+        choices: [
+          {
+            id: 'dub_1a', label: 'LUISTER NAAR ZIJN VOORSTEL', stat: 'brains', difficulty: 20,
+            successText: '"Ik heb een netwerk van corrupte collega\'s. Ze beschermen de echte criminelen — niet jou. Help me ze ontmaskeren, en ik zorg dat jij vrij rondloopt." Hij schuift een dossier over de tafel.',
+            failText: 'Janssen is vaag en nerveus. "Ik neem later contact op." Hij verdwijnt in de menigte. Was dit echt?',
+            effects: { money: 0, heat: -5, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+          },
+          {
+            id: 'dub_1b', label: 'WEIGER EN DREIG', stat: 'muscle', difficulty: 30,
+            successText: '"Als je me ooit weer benadert, stuur ik je badge naar de krant." Janssen verbleekt. "Je maakt een fout." Maar hij vertrekt.',
+            failText: 'Janssen glimlacht koud. "Dreigen? Mij?" Hij laat een foto zien van jou bij een deal. "Ik heb meer op je dan je denkt."',
+            effects: { money: 0, heat: 5, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: -5 },
+          },
+          {
+            id: 'dub_1c', label: 'SPEEL MEE — MAAR VERTROUW NIEMAND', stat: 'charm', difficulty: 25,
+            successText: '"Ik luister." Janssen knikt goedkeurend. Je krijgt een prepaid telefoon. "Hiermee communiceren we. Vertel niemand hierover." Een nieuw spel begint.',
+            failText: 'Je probeert hem uit te horen, maar Janssen is getraind. Hij geeft niets prijs over zichzelf.',
+            effects: { money: 0, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+          },
+        ],
+      },
+      {
+        id: 'dub_2',
+        text: 'Janssen stuurt je de eerste opdracht via de prepaid: "Een drugsleverantie vanavond in Port Nero. Ik heb de route. Plant een tracker op de vrachtwagen — dan pakken wij de ontvangers. Jij blijft buiten beeld."',
+        phonePreview: '"Vanavond. Port Nero. Plant een tracker. Geen vragen." — Janssen',
+        phoneFrom: 'dubbelagent',
+        districtVariant: {
+          port: 'Janssen stuurt coördinaten: Dok 7, Port Nero. Een bekende plek — je hebt hier zelf gehandeld. De ironie brandt.',
+        },
+        choices: [
+          {
+            id: 'dub_2a', label: 'PLANT DE TRACKER', stat: 'brains', difficulty: 35,
+            successText: 'In de duisternis bevestig je het apparaat onder de vrachtwagen. De volgende ochtend: een grote politie-inval op het nieuws. Janssens vijanden zijn gevallen. Maar jij voelt je vies.',
+            failText: 'De chauffeur betrapte je bijna. Je ontsnapt, maar de tracker zit los. De inval mislukt gedeeltelijk.',
+            effects: { money: 5000, heat: -10, rep: -5, dirtyMoney: 0, crewDamage: 0, karma: 10 },
+          },
+          {
+            id: 'dub_2b', label: 'WAARSCHUW DE ONTVANGERS', stat: 'charm', difficulty: 40,
+            successText: 'Je tipt de ontvangers. Zij verplaatsen de lading. Janssens inval vindt niets. "Wat is er misgegaan?" vraagt hij woedend. Jij zegt niets.',
+            failText: 'De ontvangers vertrouwen je niet en vluchten. De politie vindt de lading toch. Janssen is blij — maar jij hebt vijanden gemaakt.',
+            effects: { money: 3000, heat: 5, rep: 20, dirtyMoney: 5000, crewDamage: 0, karma: -10 },
+          },
+          {
+            id: 'dub_2c', label: 'STEEL DE LADING ZELF', stat: 'muscle', difficulty: 45,
+            successText: 'Terwijl iedereen op de tracker focust, rij jij de vrachtwagen een andere kant op. De politie staat voor een leeg dok. De ontvangers staan met lege handen. En jij? Jij hebt de lading.',
+            failText: 'Te hebberig. De chauffeur slaat alarm en je moet vluchten zonder de lading.',
+            effects: { money: 0, heat: 15, rep: 10, dirtyMoney: 15000, crewDamage: 10, karma: -15 },
+          },
+        ],
+      },
+      {
+        id: 'dub_3',
+        text: 'Weken gaan voorbij. Janssen wordt steeds veeleisender. Dan ontdek je iets: Janssen is zelf niet schoon. Hij gebruikt jou om zijn rivalen bij de politie uit te schakelen — niet om corruptie te bestrijden. Je bent een pion in zijn machtsspel.',
+        phonePreview: '"Volgende klus: neem contact op met mijn bron in Crown Heights." — Janssen (maar klopt dit wel?)',
+        phoneFrom: 'dubbelagent',
+        choices: [
+          {
+            id: 'dub_3a', label: 'CONFRONTEER JANSSEN', stat: 'charm', difficulty: 45,
+            successText: '"Je bent zelf corrupt, Janssen." Stilte aan de lijn. Dan: "Oké. Je bent slimmer dan ik dacht. Laten we... opnieuw onderhandelen." De machtsbalans verschuift naar jou.',
+            failText: '"Beschuldig mij niet van iets dat je niet kunt bewijzen." Janssen klinkt ijskoud. Je hebt een gevaarlijke vijand gemaakt.',
+            effects: { money: 0, heat: 5, rep: 30, dirtyMoney: 0, crewDamage: 0, karma: 10 },
+          },
+          {
+            id: 'dub_3b', label: 'GEBRUIK HET TEGEN HEM', stat: 'brains', difficulty: 50,
+            successText: 'Je verzamelt bewijs van Janssens eigen corruptie. Screenshots, opnames, data. Nu heb jij de touwtjes in handen. "Van nu af aan werk JIJ voor MIJ, inspecteur."',
+            failText: 'Janssen ontdekt je spionage. "Je speelt een gevaarlijk spel." De prepaid gaat dood.',
+            effects: { money: 0, heat: -15, rep: 40, dirtyMoney: 0, crewDamage: 0, karma: -5 },
+          },
+          {
+            id: 'dub_3c', label: 'STAP ERUIT — VERNIETIG ALLES', stat: 'muscle', difficulty: 35,
+            successText: 'Je vernietigt de prepaid, wist alle sporen. Janssen kan niets bewijzen. "Dit was een fout," sms je als laatste. Vrij, maar met vijanden.',
+            failText: 'Janssen had backup-kopieën. Je bent niet zo vrij als je dacht.',
+            effects: { money: 0, heat: 10, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+          },
+        ],
+      },
+      {
+        id: 'dub_4',
+        text: 'De situatie escaleert. Janssens corrupte netwerk wordt onderzocht door Interne Zaken. Jouw naam duikt op in dossiers. Janssen belt in paniek: "Ze komen achter ons aan. We moeten samenwerken of we gaan allebei ten onder."',
+        phonePreview: '"IZ opent onderzoek. Jouw naam staat in mijn dossiers. We moeten praten. NU." — Janssen',
+        phoneFrom: 'dubbelagent',
+        choices: [
+          {
+            id: 'dub_4a', label: 'WERK SAMEN — LAATSTE KEER', stat: 'brains', difficulty: 45,
+            successText: 'Samen fabriceren jullie een rookgordijn. Janssen "arresteert" een stroman. IZ sluit het onderzoek. "We zijn quitte," zegt Janssen. "Laten we doen alsof dit nooit is gebeurd."',
+            failText: 'Het rookgordijn werkt niet. IZ graaft dieper. Je moet onderduiken.',
+            effects: { money: 10000, heat: -20, rep: 30, dirtyMoney: 10000, crewDamage: 0, karma: -10 },
+          },
+          {
+            id: 'dub_4b', label: 'LEVER JANSSEN UIT AAN IZ', stat: 'charm', difficulty: 40,
+            requiredKarma: 'eerbaar',
+            successText: 'Je belt IZ anoniem met al het bewijs. Janssen wordt gearresteerd op het bureau, voor de ogen van zijn collega\'s. "JIJ..." schreeuwt hij terwijl ze hem wegvoeren. Recht zegeviert — voor deze keer.',
+            failText: 'IZ gelooft je niet volledig. Janssen wordt geschorst maar niet gearresteerd. Hij zweert wraak.',
+            effects: { money: 0, heat: -25, rep: 50, dirtyMoney: 0, crewDamage: 0, karma: 25 },
+          },
+          {
+            id: 'dub_4c', label: 'ELIMINEER JANSSEN PERMANENT', stat: 'muscle', difficulty: 50,
+            requiredKarma: 'meedogenloos',
+            successText: 'Een "ongeluk" op de snelweg. Inspecteur Janssen overleeft het niet. Het IZ-onderzoek stopt wegens gebrek aan getuigen. Alle sporen leiden naar een dood spoor.',
+            failText: 'Janssen overleeft de aanslag. Nu jaagt zowel IZ als Janssen op je.',
+            effects: { money: 0, heat: 20, rep: 30, dirtyMoney: 15000, crewDamage: 10, karma: -25 },
+          },
+        ],
+      },
+      {
+        id: 'dub_5',
+        text: 'Maanden later. De storm is gaan liggen. Een envelop onder je deur: foto\'s van al je ontmoetingen met Janssen. Een briefje: "Ik weet alles. En ik wil praten." Geen afzender. Maar het handschrift is vrouwelijk.',
+        phonePreview: '"Iemand weet van Janssen. Nieuwe speler. Wees voorzichtig." — Eigen analyse',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'dub_5a', label: 'ONTMOET DE AFZENDER', stat: 'charm', difficulty: 40,
+            successText: 'Een vrouw in het zwart. Officier van Justitie Van der Berg. "Ik wil hetzelfde als jij — de stad schoonvegen. Maar op mijn manier." Een onverwachte bondgenoot. Of een nieuwe val.',
+            failText: 'Je gaat erheen, maar ze verschijnt niet. Alleen een tweede envelop: "Niet klaar. Volgende keer."',
+            effects: { money: 5000, heat: -10, rep: 40, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+          },
+          {
+            id: 'dub_5b', label: 'VERBRAND ALLES EN VERDWIJN', stat: 'brains', difficulty: 35,
+            successText: 'Je vernietigt alle bewijs, verhuist je operatie, en verandert je routines. Wie het ook is — ze vinden een lege schelp.',
+            failText: 'Je vernietigt te veel. Waardevolle contacten gaan verloren in je paranoia.',
+            effects: { money: -5000, heat: -15, rep: 20, dirtyMoney: 0, crewDamage: 5, karma: 0 },
+          },
+          {
+            id: 'dub_5c', label: 'STUUR EEN BOODSCHAP TERUG', stat: 'muscle', difficulty: 45,
+            successText: 'Je vindt haar adres en laat een tegenboodschap achter: "Ik weet ook wie jij bent. Laten we praten als gelijken." Ze belt de volgende dag.',
+            failText: 'Je boodschap bereikt de verkeerde persoon. Nu weten meer mensen van Janssen.',
+            effects: { money: 0, heat: 5, rep: 35, dirtyMoney: 5000, crewDamage: 0, karma: -5 },
+          },
+        ],
+      },
+    ],
+  },
+
+  // ===== ARC 5: HET SYNDICAAT KEERT TERUG =====
+  {
+    id: 'syndicaat',
+    name: 'Het Syndicaat Keert Terug',
+    description: 'Een oude machtsfactor uit het verleden van Noxhaven wil de stad heroveren. Kies je zijde.',
+    icon: '🏛️',
+    triggerConditions: { minDay: 20, minDistricts: 3 },
+    completionReward: { money: 50000, rep: 350, dirtyMoney: 25000, heat: -15, weaponReward: { minRarity: 'epic' } },
+    steps: [
+      {
+        id: 'syn_1',
+        text: 'Zwarte SUV\'s verschijnen in meerdere districten tegelijk. Mannen in pakken — niet van hier. Op straat fluistert men: "Het Syndicaat is terug." De organisatie die Noxhaven vóór jou beheerste, voordat ze werden verdreven. Nu willen ze het terug.',
+        phonePreview: '"Zwarte SUV\'s overal. Mannen in pakken. Het Syndicaat. Ze zijn terug." — Crew',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'syn_1a', label: 'VERZAMEL INTEL', stat: 'brains', difficulty: 30,
+            successText: 'Je informanten melden: het Syndicaat wordt geleid door Konstantin Varga, een Hongaarse oligarch. Hij heeft eindeloos geld en een leger huurlingen. Maar hij kent de stad niet — dat is jouw voordeel.',
+            failText: 'Het Syndicaat heeft hun communicatie goed beveiligd. Je vangt slechts flarden op.',
+            effects: { money: 0, heat: 5, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'syn_1b', label: 'TOON KRACHT DIRECT', stat: 'muscle', difficulty: 35,
+            successText: 'Je onderschept een van hun SUV\'s. De mannen erin zijn professionals — maar jij ook. "Vertel Varga: Noxhaven heeft al een eigenaar." Ze vertrekken met de boodschap.',
+            failText: 'De SUV-mannen zijn getrainde soldaten. Een kort vuurgevecht dat je verliest. Ze laten je gaan — als boodschap.',
+            effects: { money: 0, heat: 10, rep: 25, dirtyMoney: 0, crewDamage: 10 },
+          },
+          {
+            id: 'syn_1c', label: 'NEEM CONTACT OP MET VARGA', stat: 'charm', difficulty: 30,
+            successText: 'Via vijf tussenpersonen bereik je Varga. "Ah, de lokale koning," zegt hij met een zwaar accent. "Ik waardeer directheid. Laten we praten." Een gevaarlijke uitnodiging.',
+            failText: 'Varga weigert contact. "Ik praat niet met straatkatten." De belediging brandt.',
+            effects: { money: 0, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+        ],
+      },
+      {
+        id: 'syn_2',
+        text: 'Het Syndicaat maakt zijn eerste zet: ze kopen drie bedrijven in Crown Heights op en beginnen een "legitieme" operatie die als dekmantel dient. Tegelijkertijd rekruteren ze lokale gangs als tussenpersonen. Jouw invloed slinkt.',
+        phonePreview: '"Varga koopt halve Crown Heights op. Lokale gangs lopen over. Dit is oorlog." — Informant',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'syn_2a', label: 'ECONOMISCHE TEGENACTIE', stat: 'brains', difficulty: 40,
+            successText: 'Je verlaagt je prijzen, biedt betere bescherming aan winkeliers, en onthult Varga\'s criminele verleden aan de media. Zijn "legitieme" façade scheurt. Investeerders trekken zich terug.',
+            failText: 'Varga heeft betere advocaten dan jij. Zijn façade houdt stand. Je verliest geld aan de prijzenoorlog.',
+            effects: { money: -10000, heat: 5, rep: 25, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+          },
+          {
+            id: 'syn_2b', label: 'REKRUTEER ZIJN OVERLOPERS TERUG', stat: 'charm', difficulty: 45,
+            successText: '"Varga betaalt goed — maar hij kent jullie niet. Ik ken jullie namen, jullie families." De boodschap is duidelijk. Drie gangs keren terug naar jouw zijde.',
+            failText: 'De gangs zijn te bang voor Varga. "Sorry, baas. Maar die man... die is anders."',
+            effects: { money: -5000, heat: 5, rep: 20, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'syn_2c', label: 'SABOTEER ZIJN OPERATIES', stat: 'muscle', difficulty: 40,
+            successText: 'Een nachtelijke raid op zijn pakhuizen. Goederen vernietigd, voertuigen onklaar gemaakt. Varga raakt miljoenen kwijt. "Dit is oorlog," sist hij.',
+            failText: 'Zijn beveiliging is militair niveau. Je verliest twee crewleden bij de poging.',
+            effects: { money: 0, heat: 15, rep: 30, dirtyMoney: 10000, crewDamage: 15 },
+          },
+        ],
+      },
+      {
+        id: 'syn_3',
+        text: 'Varga stuurt een ultimatum: "Geef me Port Nero en Iron District. In ruil krijg je vrede, 20% van mijn import, en bescherming tegen de politie. Weiger en ik neem alles." Je hebt 24 uur.',
+        phonePreview: '"Varga\'s ultimatum: geef twee districten of oorlog. Je hebt 24 uur." — Crew',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'syn_3a', label: 'ACCEPTEER DE DEAL', stat: 'charm', difficulty: 25,
+            successText: 'Je geeft twee districten op — maar krijgt toegang tot Varga\'s internationale smokkelnetwerk. Soms is een stap terug twee stappen vooruit.',
+            failText: 'Varga neemt de districten en breekt de deal binnen een week. Je hebt niets.',
+            effects: { money: 20000, heat: -20, rep: -30, dirtyMoney: 15000, crewDamage: 0, karma: 0 },
+          },
+          {
+            id: 'syn_3b', label: 'WEIGER — BEREID JE VOOR OP OORLOG', stat: 'muscle', difficulty: 45,
+            successText: 'Je mobiliseert alles. Barricades, wachtposten, wapens. Wanneer Varga\'s leger aanvalt, zijn ze niet voorbereid op de weerstand. Na drie dagen van straatgevechten trekken ze zich terug.',
+            failText: 'Varga\'s troepen zijn beter bewapend. Je verliest terrein, maar houdt je kerngebied vast.',
+            effects: { money: -15000, heat: 25, rep: 50, dirtyMoney: 0, crewDamage: 25 },
+          },
+          {
+            id: 'syn_3c', label: 'SMEED EEN ALLIANTIE MET DE FACTIES', stat: 'charm', difficulty: 50,
+            successText: '"De vijand van mijn vijand..." Voor het eerst in de geschiedenis van Noxhaven werken alle drie de facties samen. Varga staat tegenover een verenigde stad.',
+            failText: 'De facties vertrouwen elkaar te weinig. De alliantie valt uiteen voordat Varga aanvalt.',
+            effects: { money: -8000, heat: 10, rep: 40, dirtyMoney: 0, crewDamage: 10, karma: 10 },
+          },
+        ],
+      },
+      {
+        id: 'syn_4',
+        text: 'De eindstrijd. Varga heeft zich verschanst in een gefortificeerd penthouse in het centrum. Zijn troepen zijn gedecimeerd, maar hij heeft gijzelaars. De hele stad kijkt toe. Dit is het moment dat Noxhaven\'s toekomst bepaalt.',
+        phonePreview: '"Varga\'s penthouse. Gijzelaars. Dit is het einde — voor hem of voor ons." — Crew',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'syn_4a', label: 'BESTORM HET PENTHOUSE', stat: 'muscle', difficulty: 50,
+            successText: 'Een brutale aanval van alle kanten. Varga vecht als een gewond dier, maar hij staat alleen. Als de rook optrekt, knielt hij. "Dit is niet het einde," fluistert hij. Maar dat is het wel.',
+            failText: 'De aanval is kostbaar. Je wint, maar het penthouse is verwoest en de gijzelaars gewond.',
+            effects: { money: 25000, heat: 20, rep: 80, dirtyMoney: 20000, crewDamage: 20, karma: -10 },
+          },
+          {
+            id: 'syn_4b', label: 'ONDERHANDEL OVER DE GIJZELAARS', stat: 'charm', difficulty: 45,
+            successText: 'Uren van gespannen onderhandeling. Uiteindelijk laat Varga de gijzelaars gaan in ruil voor vrije aftocht. Bij de helikopter draait hij zich om: "We zien elkaar weer." Maar zijn imperium is gebroken.',
+            failText: 'Varga breekt de onderhandeling af. Een schot weerklinkt binnen. Je moet toch aanvallen.',
+            effects: { money: 15000, heat: 0, rep: 60, dirtyMoney: 10000, crewDamage: 5, karma: 15 },
+          },
+          {
+            id: 'syn_4c', label: 'BIED HEM EEN PLEK IN JOUW ORGANISATIE', stat: 'charm', difficulty: 55,
+            requiredKarma: 'eerbaar',
+            successText: '"Je hebt talent, Varga. En ik kan het gebruiken." De oligarch staart je aan. Dan lacht hij — voor het eerst. "Je bent de eerste die me verrast in twintig jaar." Een onverwacht bondgenootschap.',
+            failText: '"Werk voor jou? VOOR JOU?" Varga barst in lachen uit en opent het vuur.',
+            effects: { money: 10000, heat: -10, rep: 100, dirtyMoney: 0, crewDamage: 0, karma: 20 },
+          },
+        ],
+      },
+    ],
+  },
+
+  // ===== ARC 6: DE TUNNELS VAN NOXHAVEN =====
+  {
+    id: 'tunnels',
+    name: 'De Tunnels van Noxhaven',
+    description: 'Onder de stad ligt een vergeten netwerk van tunnels met een eigen economie en bewoners. Ontdek het.',
+    icon: '🕳️',
+    triggerConditions: { minDay: 10, minRep: 80 },
+    completionReward: { money: 30000, rep: 200, dirtyMoney: 10000, heat: -25, gearReward: { type: 'gadget', minRarity: 'rare' } },
+    steps: [
+      {
+        id: 'tun_1',
+        text: 'Een dakloze man grijpt je arm als je door Lowrise loopt. "Jij... jij bent sterk genoeg. Onder de stad... er is meer. Veel meer." Hij wijst naar een rooster in het trottoir. "Ga kijken. Maar pas op voor de Bewakers."',
+        phonePreview: '"Een vreemde man bij Lowrise vertelde over tunnels onder de stad. Kan niets zijn — of alles."',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'tun_1a', label: 'GA HET RIOOL IN', stat: 'muscle', difficulty: 25,
+            successText: 'De afdalende trap leidt naar een wereld die je niet verwachtte. Verlichte tunnels, bewoond. Een ondergrondse markt. Mensen leven hier al jaren — buiten het zicht van iedereen.',
+            failText: 'Je verdwaalt in de tunnels. Na uren vind je de weg terug naar boven. Maar je hebt genoeg gezien om te weten: daar is iets.',
+            effects: { money: 0, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'tun_1b', label: 'STUUR EEN DRONE', stat: 'brains', difficulty: 30,
+            successText: 'De drone-beelden zijn ongelooflijk. Een heel netwerk — kamers, opslagruimtes, zelfs een bar. En bewapende wachten bij elk kruispunt.',
+            failText: 'De drone verliest signaal na 200 meter. Maar de beelden die je hebt, zijn genoeg.',
+            effects: { money: -500, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'tun_1c', label: 'BETAAL DE DAKLOZE VOOR INFO', stat: 'charm', difficulty: 20,
+            successText: 'Voor €200 tekent hij een ruwe kaart op een servet. Ingangen, routes, namen. "Vraag naar Moeder Kraai. Zij leidt alles."',
+            failText: 'De man neemt je geld en verdwijnt. Oplichter — of te bang om meer te vertellen?',
+            effects: { money: -200, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+          },
+        ],
+      },
+      {
+        id: 'tun_2',
+        text: 'Je betreedt de tunnels opnieuw, beter voorbereid. Na een halfuur lopen bereik je een poort bewaakt door twee gespierde mannen. "Wie ben je? En wie heeft je gestuurd?" Achter hen hoor je het geluid van een bruisende markt.',
+        phonePreview: '"De tunnelmarkt is echt. Bewaking is streng. Je hebt een ingang nodig." — Eigen notities',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'tun_2a', label: 'NOEM MOEDER KRAAI', stat: 'charm', difficulty: 35,
+            successText: 'De bewakers wisselen een blik. "Moeder verwacht je." Ze laten je door. De tunnelmarkt is overweldigend — goederen, wapens, informatie, alles verhandeld buiten de wet om.',
+            failText: '"Moeder Kraai ontvangt geen onbekenden." Ze duwen je terug de tunnel in.',
+            effects: { money: 0, heat: 0, rep: 15, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'tun_2b', label: 'BAAN JE WEG ERDOORHEEN', stat: 'muscle', difficulty: 45,
+            successText: 'Een kort maar intens gevecht. De bewakers zijn sterk, maar jij sterker. "Genoeg!" roept een stem. Een oude vrouw verschijnt. "Laat hem door. Iemand met zoveel lef... die wil ik spreken."',
+            failText: 'De bewakers zijn getrainde vechters. Ze slaan je neer en gooien je terug naar boven.',
+            effects: { money: 0, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 15 },
+          },
+          {
+            id: 'tun_2c', label: 'BIED HANDELSWAAR AAN', stat: 'brains', difficulty: 30,
+            successText: 'Je toont een monster van je beste goederen. De bewakers knikken. "Handelaars zijn altijd welkom." De poort gaat open.',
+            failText: 'Ze zijn niet geïnteresseerd in wat je aanbiedt. "Wij hebben genoeg."',
+            effects: { money: -1000, heat: 0, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+        ],
+      },
+      {
+        id: 'tun_3',
+        text: 'Moeder Kraai — een oude vrouw met ogen als obsidiaan — ontvangt je in haar "paleis": een verbouwde metrostation. "Ik ken je reputatie bovengronds. Hier beneden heb je die niet. Bewijs je waarde."',
+        phonePreview: '"Moeder Kraai wil dat je je bewijst. Een test — of een val." — Eigen notities',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'tun_3a', label: 'ACCEPTEER HAAR TEST', stat: 'brains', difficulty: 40,
+            successText: 'De test: los een handelsgeschil op tussen twee tunnelfacties zonder geweld. Na twee uur van onderhandelen schudden ze handen. Moeder Kraai glimlacht. "Je bent welkom hier. Als gelijke."',
+            failText: 'De onderhandeling mislukt. Een van de facties trekt een mes. Je ontsnapt, maar Moeder Kraai is niet onder de indruk.',
+            effects: { money: 5000, heat: 0, rep: 30, dirtyMoney: 5000, crewDamage: 0, karma: 10 },
+          },
+          {
+            id: 'tun_3b', label: 'EIS DIRECTE TOEGANG', stat: 'muscle', difficulty: 50,
+            successText: '"Ik bewijs niets. Ik neem." Moeder Kraai\'s bewakers spannen, maar zij houdt hen tegen. "Eindelijk iemand met ruggengraat. Goed. Je krijgt toegang — maar je betaalt in bloed als je me verraadt."',
+            failText: 'Moeder Kraai klakt met haar tong. "Arrogantie is geen kracht." Haar bewakers escorteren je naar buiten.',
+            effects: { money: 0, heat: 10, rep: 20, dirtyMoney: 0, crewDamage: 10, karma: -10 },
+          },
+          {
+            id: 'tun_3c', label: 'BIED EEN ALLIANTIE AAN', stat: 'charm', difficulty: 45,
+            successText: '"Bovengronds heb ik macht. Ondergronds hebt u kennis. Samen zijn we onaantastbaar." Moeder Kraai peinst lang. "Aangenomen. Maar verraad me, en de tunnels zullen je opslokken."',
+            failText: '"Allianties... die heb ik geprobeerd. Altijd verraden." Ze wijst naar de uitgang.',
+            effects: { money: 0, heat: -5, rep: 35, dirtyMoney: 0, crewDamage: 0, karma: 5 },
+          },
+        ],
+      },
+      {
+        id: 'tun_4',
+        text: 'Moeder Kraai onthult het diepste geheim van de tunnels: een vergeten metrolijn die alle districten verbindt — onzichtbaar voor de bovenwereld. "Wie deze lijn controleert, controleert de onderbuik van Noxhaven. Ik word oud. En ik zoek een opvolger."',
+        phonePreview: '"Een geheime metrolijn onder alle districten. Moeder Kraai biedt je de sleutel aan." — Eigen notities',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'tun_4a', label: 'NEEM DE LEIDING OVER', stat: 'charm', difficulty: 45,
+            successText: 'Een ceremonie in de diepste tunnel. Moeder Kraai legt een sleutelbos in je handen. "De tunnels zijn van jou. Gebruik ze wijselijk." Een heel nieuw domein opent zich.',
+            failText: 'De tunnelbewoners accepteren je niet als leider. "Je bent een buitenstaander." Moeder Kraai zucht. "Misschien volgende keer."',
+            effects: { money: 15000, heat: -15, rep: 60, dirtyMoney: 15000, crewDamage: 0, karma: 5 },
+          },
+          {
+            id: 'tun_4b', label: 'NEEM ALLES MET GEWELD', stat: 'muscle', difficulty: 55,
+            successText: 'Je duwt Moeder Kraai opzij en claimt de sleutels. "Dit is nu van mij." De bewoners beven. Angst regeert. De tunnels zijn van jou — maar zonder loyaliteit.',
+            failText: 'De tunnelbewoners verenigen zich tegen je. Een bittere strijd in het donker. Je vlucht met lege handen.',
+            effects: { money: 10000, heat: 15, rep: 30, dirtyMoney: 20000, crewDamage: 20, karma: -20 },
+          },
+          {
+            id: 'tun_4c', label: 'WEIGER — MAAR BEHOUD TOEGANG', stat: 'brains', difficulty: 35,
+            successText: '"Ik wil geen koning zijn van de duisternis. Maar ik wil wel handelen." Moeder Kraai knikt respectvol. "Een wijze keuze. De markt staat altijd voor je open." Permanente toegang verkregen.',
+            failText: 'Moeder Kraai is teleurgesteld. "Dan zoek ik iemand anders." Je verliest je voorkeursbehandeling.',
+            effects: { money: 5000, heat: -10, rep: 40, dirtyMoney: 5000, crewDamage: 0, karma: 10 },
+          },
+        ],
+      },
+    ],
+  },
+
+  // ===== ARC 7: BLOEDGELD =====
+  {
+    id: 'bloedgeld',
+    name: 'Bloedgeld',
+    description: 'Een erfenis van miljoenen duikt op — maar het geld is besmet met bloed en schuld. Elke euro heeft een prijs.',
+    icon: '💀',
+    triggerConditions: { minDay: 7 },
+    completionReward: { money: 45000, rep: 180, dirtyMoney: 30000, heat: 5, weaponReward: { minRarity: 'rare' } },
+    steps: [
+      {
+        id: 'blg_1',
+        text: 'Een advocaat in een duur pak staat op je stoep. "Mijn client is overleden. U bent de enige erfgenaam van €2.000.000. Er zijn... voorwaarden." Hij overhandigt een testament. De naam van de overledene: Antonio Ferrara — een beruchte oorlogsmisdadiger uit de jaren \'90.',
+        phonePreview: '"Een erfenis van €2 miljoen. Van een oorlogsmisdadiger. Er zijn voorwaarden..." — Advocaat',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'blg_1a', label: 'ACCEPTEER DE ERFENIS', stat: 'charm', difficulty: 20,
+            successText: 'Je tekent de papieren. De advocaat glimlacht — te breed. "De eerste voorwaarde: u moet het familiegraf bezoeken. In Kroatië." Een ticket en een paspoort liggen klaar.',
+            failText: 'De advocaat trekt de papieren terug. "Twijfel is een teken van zwakte. Mijn client koos u niet voor twijfel." Je hebt een kans gemist — of een kogel ontweken.',
+            effects: { money: 50000, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: -5 },
+            nextStepOverride: 1,
+          },
+          {
+            id: 'blg_1b', label: 'WEIGER — DIT GELD IS BESMET', stat: 'brains', difficulty: 15,
+            successText: '"Ik wil niets te maken hebben met oorlogsgeld." De advocaat knikt langzaam. "Respectabel." Hij vertrekt. Maar drie dagen later vind je €50.000 cash in je brievenbus. Een briefje: "Weigering niet geaccepteerd."',
+            failText: 'De advocaat haalt zijn schouders op en vertrekt. Maar de gedachte aan twee miljoen laat je niet los.',
+            effects: { money: 50000, heat: 0, rep: 20, dirtyMoney: 0, crewDamage: 0, karma: 15 },
+            nextStepOverride: 2,
+          },
+        ],
+      },
+      {
+        id: 'blg_2a',
+        text: 'Het graf van Ferrara. Een klein dorp in Kroatië. De grafsteen is onopvallend, maar eronder — een verborgen compartiment. Foto\'s van slachtoffers, een lijst met namen, en een sleutel voor een Zwitserse bankkluis. Het bloedgeld is echt. En er is meer. Veel meer.',
+        phonePreview: '"Het graf bevat geheimen. Een Zwitserse bankkluis. Dit gaat verder dan je dacht." — Eigen notities',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'blg_2a_1', label: 'GA NAAR DE ZWITSERSE KLUIS', stat: 'brains', difficulty: 40,
+            successText: 'In Zürich open je de kluis. €800.000 in goudcertificaten. Maar ook: een dagboek van Ferrara. Zijn berouw. Zijn verzoek: "Gebruik het geld om goed te doen." Kun je dat?',
+            failText: 'De bank weigert toegang. De sleutel is verlopen. Je hebt de reis voor niets gemaakt.',
+            effects: { money: 200000, heat: 10, rep: 20, dirtyMoney: 0, crewDamage: 0, karma: -10 },
+          },
+          {
+            id: 'blg_2a_2', label: 'VERKOOP DE INFORMATIE', stat: 'charm', difficulty: 35,
+            successText: 'Een journalist betaalt €100.000 voor de foto\'s en namen. Het verhaal gaat de wereld over. Ferrara\'s slachtoffers krijgen gerechtigheid. Maar jij profiteert van hun leed.',
+            failText: 'De journalist wil meer bewijs. "Dit is niet genoeg voor publicatie." Je hebt niets.',
+            effects: { money: 100000, heat: 5, rep: -10, dirtyMoney: 0, crewDamage: 0, karma: -15 },
+          },
+        ],
+      },
+      {
+        id: 'blg_2b',
+        text: 'Het geld in je brievenbus was geen gift — het was een test. Ferrara\'s "familie" (zijn criminele netwerk) beschouwt jou nu als erfgenaam. Ze verschijnen: drie mannen die "bescherming" bieden. En verwachtingen hebben. "Antonio\'s erfgenaam werkt voor de familie. Altijd."',
+        phonePreview: '"Ferrara\'s organisatie ziet je als erfgenaam. Ze komen vandaag. Ze verwachten loyaliteit." — Informant',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'blg_2b_1', label: 'ACCEPTEER DE ROL', stat: 'charm', difficulty: 30,
+            successText: 'Je speelt mee — voorlopig. De "familie" opent deuren die normaal gesloten zijn. Internationale smokkelroutes, politieke contacten, ongelimiteerd krediet. Maar de prijs? Je ziel.',
+            failText: 'Ze vertrouwen je niet. "Je bent niet als Antonio." Ze vertrekken, maar laten bewaking achter. Je bent een gevangene in je eigen huis.',
+            effects: { money: 100000, heat: 15, rep: 30, dirtyMoney: 50000, crewDamage: 0, karma: -20 },
+          },
+          {
+            id: 'blg_2b_2', label: 'VECHT JE VRIJ', stat: 'muscle', difficulty: 45,
+            successText: 'Een explosief gevecht in je eigen woonkamer. De drie mannen onderschatten je. "Zeg tegen jullie baas: ik ben niemands erfgenaam." Je gooit ze de straat op.',
+            failText: 'Ze zijn professionals. Je overleeft, maar je huis is verwoest en je bent gewond.',
+            effects: { money: -10000, heat: 20, rep: 25, dirtyMoney: 0, crewDamage: 15, karma: 5 },
+          },
+        ],
+      },
+    ],
+  },
+
+  // ===== ARC 8: DE LAATSTE GETUIGE =====
+  {
+    id: 'getuige',
+    name: 'De Laatste Getuige',
+    description: 'Iemand weet te veel over jou. Vind hem voor de politie dat doet. De klok tikt.',
+    icon: '👁️',
+    triggerConditions: { minDay: 12 },
+    completionReward: { money: 20000, rep: 200, dirtyMoney: 5000, heat: -35, gearReward: { type: 'armor', minRarity: 'rare' } },
+    steps: [
+      {
+        id: 'get_1',
+        text: 'Je advocaat belt in paniek: "Er is een getuige. Iemand die alles heeft gezien — de deals, de gevechten, alles. De politie weet van hem. Ze zoeken hem. Als zij hem vinden voor jij dat doet..." Hij hoeft zijn zin niet af te maken.',
+        phonePreview: '"URGENT: Een getuige. De politie zoekt hem. Vind hem eerst." — Advocaat',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'get_1a', label: 'ZET AL JE CONTACTEN IN', stat: 'charm', difficulty: 30,
+            successText: 'Elk oor op straat luistert. Binnen 12 uur heb je een naam: Piet de Boer, een voormalige buurtwacht. Hij is ondergedoken in Lowrise.',
+            failText: 'Je contacten leveren niets op. De getuige is goed verborgen. De politie heeft een voorsprong.',
+            effects: { money: -2000, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'get_1b', label: 'HACK POLITIEDATABASES', stat: 'brains', difficulty: 40,
+            successText: 'Je hacker vindt het dossier: Piet de Boer, getuige #447. Zijn verklaring is vernietigend. Maar je weet nu ook waar hij beschermd wordt.',
+            failText: 'De firewall is te sterk. Je hacker wordt bijna getraceerd. Te riskant.',
+            effects: { money: -3000, heat: 3, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'get_1c', label: 'BESTOOK DE BUURT', stat: 'muscle', difficulty: 35,
+            successText: 'Je crew doorzoekt systematisch elke schuilplaats. In een verlaten wasserette vind je sporen: lege blikken, dekens, een telefoonoplader. Hij was hier. Recent.',
+            failText: 'Te veel lawaai. De politie wordt gewaarschuwd dat iemand ook zoekt.',
+            effects: { money: 0, heat: 10, rep: 15, dirtyMoney: 0, crewDamage: 5 },
+          },
+        ],
+      },
+      {
+        id: 'get_2',
+        text: 'Je hebt De Boer gelokaliseerd: een goedkoop hotel in het zuiden van Crown Heights. Maar de politie is er ook achter — je ziet een onopvallende auto bij de ingang. Je hebt misschien een uur voorsprong.',
+        phonePreview: '"De Boer zit in Hotel Rembrand, Crown Heights. Politie is er ook. Je hebt een uur." — Crew',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'get_2a', label: 'GA VIA HET DAK', stat: 'muscle', difficulty: 40,
+            successText: 'Via het dak en de brandtrap bereik je zijn kamer. De Boer — een bange, magere man — kijkt je aan met wijde ogen. "Alsjeblieft, doe me niets."',
+            failText: 'Het dak is afgesloten. Je verliest kostbare tijd bij het forceren.',
+            effects: { money: 0, heat: 5, rep: 10, dirtyMoney: 0, crewDamage: 5 },
+          },
+          {
+            id: 'get_2b', label: 'CREËER EEN AFLEIDING', stat: 'brains', difficulty: 35,
+            successText: 'Een "gaslek" in het hotel. Evacuatie. In de chaos grijp je De Boer uit de menigte. Niemand ziet het.',
+            failText: 'De politie trapt er niet in en verscherpt de bewaking.',
+            effects: { money: -1000, heat: 3, rep: 10, dirtyMoney: 0, crewDamage: 0 },
+          },
+          {
+            id: 'get_2c', label: 'KOOP DE RECEPTIONIST OM', stat: 'charm', difficulty: 30,
+            successText: 'Voor €5.000 geeft de receptionist je een sleutelkaart en de kamernummer. "Ik heb niets gezien." Perfect.',
+            failText: 'De receptionist is al omgekocht door de politie. Hij belt ze zodra je weg bent.',
+            effects: { money: -5000, heat: 0, rep: 5, dirtyMoney: 0, crewDamage: 0 },
+          },
+        ],
+      },
+      {
+        id: 'get_3',
+        text: 'Je staat oog in oog met Piet de Boer. Trillend, zwetend, bang. "Ik wil dit niet. Ze dwongen me om te getuigen. Mijn dochter is ziek — ze beloofden haar behandeling te betalen." Zijn ogen zijn rood van het huilen.',
+        phonePreview: '"Je hebt De Boer. Wat nu? De politie komt eraan." — Crew',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'get_3a', label: 'BETAAL VOOR ZIJN DOCHTER', stat: 'charm', difficulty: 35,
+            requiredKarma: 'eerbaar',
+            successText: '"Ik betaal de behandeling. Alles. En jij trekt je getuigenis in." De Boer barst in tranen uit. "Dank je... dank je..." Hij belt de officier: "Ik heb me vergist. Ik heb niets gezien." De zaak stort in.',
+            failText: 'De Boer gelooft je niet. "Iedereen belooft dingen." Hij weigert.',
+            effects: { money: -30000, heat: -25, rep: 30, dirtyMoney: 0, crewDamage: 0, karma: 25 },
+          },
+          {
+            id: 'get_3b', label: 'DREIG HEM', stat: 'muscle', difficulty: 30,
+            successText: '"Als je getuigt, kom ik terug. En dan niet voor een praatje." De Boer begrijpt het. De volgende dag trekt hij zijn verklaring in. "Ik heb me vergist."',
+            failText: 'De Boer is te bang voor de politie om ook nog bang voor jou te zijn. Hij getuigt toch.',
+            effects: { money: 0, heat: 5, rep: 15, dirtyMoney: 0, crewDamage: 0, karma: -15 },
+          },
+          {
+            id: 'get_3c', label: 'LAAT HEM VERDWIJNEN', stat: 'brains', difficulty: 40,
+            successText: 'Nieuwe identiteit, ticket naar Zuid-Amerika, €10.000 cash. "Je heet nu Carlos. Vergeet Noxhaven." De Boer pakt zijn tas en verdwijnt. Geen getuige, geen zaak.',
+            failText: 'De politie vindt hem op het vliegveld. Te laat.',
+            effects: { money: -10000, heat: -15, rep: 20, dirtyMoney: 0, crewDamage: 0, karma: 0 },
+          },
+          {
+            id: 'get_3d', label: 'ELIMINEER HET PROBLEEM', stat: 'muscle', difficulty: 25,
+            requiredKarma: 'meedogenloos',
+            successText: 'De volgende dag meldt het nieuws: "Getuige in strafzaak vermist." Geen lichaam, geen bewijs, geen zaak. Efficiënt. Koud. Maar effectief.',
+            failText: 'Het lichaam wordt gevonden. Nu heb je een moordonderzoek aan je broek.',
+            effects: { money: 0, heat: 15, rep: 10, dirtyMoney: 0, crewDamage: 0, karma: -25 },
+          },
+        ],
+      },
+      {
+        id: 'get_4',
+        text: 'De getuige is afgehandeld, maar de officier van justitie geeft niet op. "We vinden wel een andere getuige." Je advocaat adviseert: "Eén definitieve zet. Maak de zaak onmogelijk — voor altijd."',
+        phonePreview: '"De OvJ geeft niet op. We moeten de zaak permanent torpederen." — Advocaat',
+        phoneFrom: 'anonymous',
+        choices: [
+          {
+            id: 'get_4a', label: 'KOOP DE OVJ OM', stat: 'charm', difficulty: 45,
+            successText: 'Iedereen heeft een prijs. Die van de OvJ is €50.000 en een villa in Spanje. De zaak wordt "wegens gebrek aan bewijs" geseponeerd. Permanent.',
+            failText: 'Deze OvJ is onkreukbaar. "Jouw soort denkt dat alles te koop is." De zaak gaat door.',
+            effects: { money: -50000, heat: -30, rep: 30, dirtyMoney: 0, crewDamage: 0, karma: -10 },
+          },
+          {
+            id: 'get_4b', label: 'VERNIETIG HET BEWIJS', stat: 'brains', difficulty: 50,
+            successText: 'Een ingenieuze inbraak bij het OM. Alle fysieke bewijsstukken verdwijnen. Digitale kopieën gewist. De OvJ staat met lege handen. "Dit is... onmogelijk." Maar het is gebeurd.',
+            failText: 'De beveiliging van het OM is top. Je team wordt bijna gepakt.',
+            effects: { money: -10000, heat: 10, rep: 40, dirtyMoney: 0, crewDamage: 10, karma: -5 },
+          },
+          {
+            id: 'get_4c', label: 'GEEF JEZELF AAN — MET EEN PLAN', stat: 'brains', difficulty: 55,
+            requiredKarma: 'eerbaar',
+            successText: 'Je advocaat presenteert een waterdicht alibi, getuigenverklaringen, en procedurele fouten in het onderzoek. De rechter verwerpt de zaak. Je loopt vrij de rechtszaal uit — onschuldig verklaard.',
+            failText: 'Het plan heeft gaten. De rechter gelooft het niet helemaal. Vrijspraak wegens gebrek aan bewijs, maar je staat op de radar.',
+            effects: { money: -20000, heat: -35, rep: 50, dirtyMoney: 0, crewDamage: 0, karma: 20 },
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // Merge district-specific story arcs
