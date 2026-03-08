@@ -108,8 +108,14 @@ const WarViewLazy = React.lazy(() => import('./WarView').then(m => ({ default: m
 const WeaponInventoryLazy = React.lazy(() => import('./weapons/WeaponInventory').then(m => ({ default: m.WeaponInventory })));
 const CampaignViewLazy = React.lazy(() => import('./campaign/CampaignView').then(m => ({ default: m.CampaignView })));
 const CodexViewLazy = React.lazy(() => import('./codex/CodexView').then(m => ({ default: m.CodexView })));
-const ArmorInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'armor' }) })));
-const GadgetInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => ({ default: () => m.GearInventory({ gearType: 'gadget' }) })));
+const ArmorInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => {
+  function ArmorWrapper() { return m.GearInventory({ gearType: 'armor' }); }
+  return { default: ArmorWrapper };
+}));
+const GadgetInventoryLazy = React.lazy(() => import('./gear/GearInventory').then(m => {
+  function GadgetWrapper() { return m.GearInventory({ gearType: 'gadget' }); }
+  return { default: GadgetWrapper };
+}));
 const BlackMarketViewLazy = React.lazy(() => import('./shop/BlackMarketView').then(m => ({ default: m.BlackMarketView })));
 const SalvageViewLazy = React.lazy(() => import('./crafting/SalvageView').then(m => ({ default: m.SalvageView })));
 // View mapping — each sidebar entry maps to a component
@@ -255,12 +261,7 @@ export function GameLayout() {
     }
   }, [state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
 
-  // Sync world time of day → game state for phase-based events
-  useEffect(() => {
-    if (worldState.timeOfDay && worldState.timeOfDay !== state.worldTimeOfDay) {
-      dispatch({ type: 'SYNC_WORLD_TIME' as any, timeOfDay: worldState.timeOfDay } as any);
-    }
-  }, [worldState.timeOfDay]);
+  // Sync world time of day → game state (handled by SYNC_WORLD_TIME above which includes timeOfDay)
 
   // Sync world_state.active_event → local activeWeekEvent
   const prevActiveEventRef = useRef<string | null>(null);

@@ -13,8 +13,8 @@ import {
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
   Users, Handshake, Crown as CrownIcon,
   Car, Store, MapPin, Hammer,
-  BarChart3 as Stats, Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
-  ShieldAlert, LucideIcon, BookOpen, Skull as SkullIcon,
+  Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
+  ShieldAlert, LucideIcon, BookOpen, Sparkles, GraduationCap, Plane, MessageCircle, Waypoints,
 } from 'lucide-react';
 
 interface SidebarCategory {
@@ -38,6 +38,8 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
         label: 'STAD', icon: '🗺',
         items: [
           { id: 'city', label: 'Kaart', icon: Map },
+          { id: 'travel', label: 'Reizen', icon: Plane },
+          { id: 'chat', label: 'Chat', icon: MessageCircle },
           { id: 'casino', label: 'Casino', icon: Dices },
           { id: 'hospital', label: 'Ziekenhuis', icon: Heart },
           { id: 'safehouse', label: 'Safehouse', icon: Home },
@@ -68,7 +70,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'stocks', label: 'Beurs', icon: TrendingUp, badge: !!state.pendingInsiderTip },
           { id: 'launder', label: 'Witwassen', icon: Droplets },
           { id: 'gear', label: 'Gear', icon: ShieldCheck },
-          { id: 'black-market', label: 'Zwarte Markt', icon: SkullIcon },
+          { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
           { id: 'salvage', label: 'Salvage', icon: Hammer },
         ],
       },
@@ -78,6 +80,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'crew', label: 'Crew', icon: Users, badge: state.crew?.filter(c => c.hp < 100).length || 0 },
           { id: 'families', label: 'Facties', icon: Users },
           { id: 'gang', label: 'Gang', icon: Skull },
+          { id: 'organized-crimes', label: 'Organized Crime', icon: Waypoints },
           { id: 'war', label: 'Oorlog', icon: Swords },
           { id: 'corruption', label: 'Corruptie', icon: Handshake },
         ],
@@ -88,12 +91,17 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'business', label: 'Business', icon: Store },
           { id: 'garage', label: 'Garage', icon: Car, badge: state.carOrders?.filter(o => state.day >= o.deadline).length || 0 },
           { id: 'districts', label: 'Wijken', icon: MapPin },
+          { id: 'properties', label: 'Vastgoed', icon: Home },
         ],
       },
       {
         label: 'PROFIEL', icon: '👤',
         items: [
-          { id: 'profile', label: 'Stats & Skills', icon: Stats },
+          { id: 'profile', label: 'Stats & Skills', icon: BarChart3 },
+          { id: 'merit', label: 'Merit Punten', icon: Sparkles },
+          { id: 'gym', label: 'Gym', icon: Award },
+          { id: 'jobs', label: 'Banen', icon: Star },
+          { id: 'education', label: 'Educatie', icon: GraduationCap },
           { id: 'loadout', label: 'Loadout', icon: Shield },
           { id: 'weapons', label: 'Wapenarsenaal', icon: Sword, badge: state.weaponInventory?.length || 0 },
           { id: 'armor-arsenal', label: 'Pantser', icon: Shield, badge: state.armorInventory?.length || 0 },

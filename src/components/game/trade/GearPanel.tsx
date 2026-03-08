@@ -123,7 +123,7 @@ export function GearPanel() {
 
       <div className="space-y-2">
         <motion.button
-          onClick={() => setView('weapons' as any)}
+          onClick={() => setView('weapons')}
           className="w-full game-card p-3 flex items-center gap-3 hover:border-blood/40 transition-all"
           whileTap={{ scale: 0.98 }}
         >
@@ -138,7 +138,7 @@ export function GearPanel() {
         </motion.button>
 
         <motion.button
-          onClick={() => setView('armor-arsenal' as any)}
+          onClick={() => setView('armor-arsenal')}
           className="w-full game-card p-3 flex items-center gap-3 hover:border-ice/40 transition-all"
           whileTap={{ scale: 0.98 }}
         >
@@ -153,7 +153,7 @@ export function GearPanel() {
         </motion.button>
 
         <motion.button
-          onClick={() => setView('gadget-arsenal' as any)}
+          onClick={() => setView('gadget-arsenal')}
           className="w-full game-card p-3 flex items-center gap-3 hover:border-game-purple/40 transition-all"
           whileTap={{ scale: 0.98 }}
         >
@@ -168,7 +168,7 @@ export function GearPanel() {
         </motion.button>
 
         <motion.button
-          onClick={() => setView('black-market' as any)}
+          onClick={() => setView('black-market')}
           className="w-full game-card p-3 flex items-center gap-3 hover:border-gold/40 transition-all border-l-[3px] border-l-gold"
           whileTap={{ scale: 0.98 }}
         >
@@ -182,7 +182,7 @@ export function GearPanel() {
         </motion.button>
 
         <motion.button
-          onClick={() => setView('salvage' as any)}
+          onClick={() => setView('salvage')}
           className="w-full game-card p-3 flex items-center gap-3 hover:border-emerald/40 transition-all"
           whileTap={{ scale: 0.98 }}
         >
