@@ -1,9 +1,7 @@
 import { useOnlinePlayers } from '@/hooks/useOnlinePlayers';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGameText } from '@/i18n/gameData';
 import { Users, Wifi } from 'lucide-react';
-
-const DISTRICT_NAMES: Record<string, string> = {
-  low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights',
-};
 
 interface Props {
   currentDistrict?: string;
@@ -12,6 +10,15 @@ interface Props {
 
 export function OnlinePlayersIndicator({ currentDistrict, compact = false }: Props) {
   const { countByDistrict, total } = useOnlinePlayers();
+  const { t, lang } = useLanguage();
+
+  const DISTRICT_NAMES: Record<string, string> = {
+    low: getGameText(lang, 'districts', 'low', 'name', 'Lowrise'),
+    port: getGameText(lang, 'districts', 'port', 'name', 'Port Nero'),
+    iron: getGameText(lang, 'districts', 'iron', 'name', 'Iron Borough'),
+    neon: getGameText(lang, 'districts', 'neon', 'name', 'Neon Strip'),
+    crown: getGameText(lang, 'districts', 'crown', 'name', 'Crown Heights'),
+  };
 
   if (compact) {
     return (
@@ -19,10 +26,10 @@ export function OnlinePlayersIndicator({ currentDistrict, compact = false }: Pro
         <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
         <Wifi size={8} />
         <span className="font-bold">{total}</span>
-        <span className="text-muted-foreground">online</span>
+        <span className="text-muted-foreground">{t.onlinePlayers.online}</span>
         {currentDistrict && countByDistrict[currentDistrict] && (
           <span className="text-muted-foreground">
-            ({countByDistrict[currentDistrict]} hier)
+            ({countByDistrict[currentDistrict]} {t.onlinePlayers.here})
           </span>
         )}
       </div>
@@ -34,7 +41,7 @@ export function OnlinePlayersIndicator({ currentDistrict, compact = false }: Pro
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <Users size={10} className="text-emerald" />
-          <span className="text-[0.55rem] font-bold text-foreground uppercase tracking-wider">Online Spelers</span>
+          <span className="text-[0.55rem] font-bold text-foreground uppercase tracking-wider">{t.onlinePlayers.title}</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />

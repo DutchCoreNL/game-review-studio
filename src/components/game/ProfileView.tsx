@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getPlayerStat, getRankTitle } from '@/game/engine';
 import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/constants';
 import { ACHIEVEMENT_IMAGES } from '@/assets/items';
@@ -35,12 +36,6 @@ import { AdminPanel } from './AdminPanel';
 import { MessagesView } from './MessagesView';
 import { useAdmin } from '@/hooks/useAdmin';
 
-const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
-  { id: 'muscle', label: 'Kracht', icon: <Swords size={14} /> },
-  { id: 'brains', label: 'Vernuft', icon: <Brain size={14} /> },
-  { id: 'charm', label: 'Charisma', icon: <Gem size={14} /> },
-];
-
 const SLOT_ICONS: Record<string, React.ReactNode> = {
   weapon: <Sword size={20} />,
   armor: <Shield size={20} />,
@@ -51,12 +46,19 @@ type ProfileTab = 'stats' | 'skills' | 'loadout' | 'contacts' | 'districts' | 'a
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
+  const { t } = useLanguage();
   const [profileTab, setProfileTab] = useState<ProfileTab>('stats');
   const [confirmReset, setConfirmReset] = useState(false);
   const { isAdmin } = useAdmin();
   const xpPct = Math.min(100, (state.player.xp / state.player.nextXp) * 100);
   const rank = getRankTitle(state.rep);
   const stats = state.stats;
+
+  const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
+    { id: 'muscle', label: t.profile.muscle, icon: <Swords size={14} /> },
+    { id: 'brains', label: t.profile.brains, icon: <Brain size={14} /> },
+    { id: 'charm', label: t.profile.charm, icon: <Gem size={14} /> },
+  ];
 
   return (
     <ViewWrapper bg={profileBg}>
@@ -68,11 +70,11 @@ export function ProfileView() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <h3 className="font-bold text-sm font-display tracking-wider uppercase">The Boss</h3>
+              <h3 className="font-bold text-sm font-display tracking-wider uppercase">{t.profile.theBoss}</h3>
               {state.newGamePlusLevel > 0 && <PrestigeBadge level={state.newGamePlusLevel} size="md" />}
             </div>
             <div className="flex items-center gap-1.5">
-              <p className="text-[0.6rem] text-gold font-semibold">{rank} — Level {state.player.level}</p>
+              <p className="text-[0.6rem] text-gold font-semibold">{rank} — {t.header.level} {state.player.level}</p>
             </div>
             <div className="mt-1.5">
               <AnimatedXPBar xp={state.player.xp} nextXp={state.player.nextXp} level={state.player.level} />
@@ -101,7 +103,7 @@ export function ProfileView() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[0.55rem] font-bold uppercase tracking-wider text-purple-400">MMO Perk</span>
+                <span className="text-[0.55rem] font-bold uppercase tracking-wider text-purple-400">{t.profile.mmoPerk}</span>
                 <span className="text-[0.5rem] text-muted-foreground">— {bs.name}</span>
               </div>
               <h4 className="font-bold text-xs">{bs.mmoPerk.label}</h4>
@@ -111,20 +113,20 @@ export function ProfileView() {
         );
       })()}
 
-      {/* Sub-tabs — consolidated 12→9 */}
+      {/* Sub-tabs */}
       <SubTabBar
         tabs={[
-          { id: 'stats', label: 'STATS', icon: <BarChart3 size={11} /> },
-          { id: 'skills', label: 'SKILLS', icon: <Star size={11} /> },
-          { id: 'loadout', label: 'LOADOUT', icon: <Shield size={11} /> },
-          { id: 'contacts', label: 'NPC\'S', icon: <Users size={11} /> },
-          { id: 'districts', label: 'REPUTATIE', icon: <MapPin size={11} /> },
-          { id: 'arcs', label: 'BOGEN', icon: <Target size={11} /> },
-          { id: 'trophies', label: 'TROFEEËN', icon: <Trophy size={11} /> },
-          { id: 'leaderboard', label: 'ONLINE', icon: <Crown size={11} /> },
-          { id: 'messages', label: 'MAIL', icon: <Mail size={11} /> },
-          { id: 'imperium', label: 'IMPERIUM', icon: <Skull size={11} /> },
-          { id: 'settings', label: '⚙️', icon: <Settings size={11} /> },
+          { id: 'stats', label: t.profile.stats, icon: <BarChart3 size={11} /> },
+          { id: 'skills', label: t.profile.skills, icon: <Star size={11} /> },
+          { id: 'loadout', label: t.profile.loadout, icon: <Shield size={11} /> },
+          { id: 'contacts', label: t.profile.npcs, icon: <Users size={11} /> },
+          { id: 'districts', label: t.profile.repTab, icon: <MapPin size={11} /> },
+          { id: 'arcs', label: t.profile.arcs, icon: <Target size={11} /> },
+          { id: 'trophies', label: t.profile.trophies, icon: <Trophy size={11} /> },
+          { id: 'leaderboard', label: t.profile.online, icon: <Crown size={11} /> },
+          { id: 'messages', label: t.profile.mail, icon: <Mail size={11} /> },
+          { id: 'imperium', label: t.profile.imperiumTab, icon: <Skull size={11} /> },
+          { id: 'settings', label: t.profile.settingsTab, icon: <Settings size={11} /> },
           ...(isAdmin ? [{ id: 'admin', label: 'ADMIN', icon: <Shield size={11} />, badge: true }] : []),
         ] as SubTab<string>[]}
         active={profileTab}
@@ -134,7 +136,7 @@ export function ProfileView() {
       {profileTab === 'stats' && (
         <>
           {/* Skills */}
-          <SectionHeader title="Eigenschappen" icon={<Swords size={12} />} />
+          <SectionHeader title={t.profile.properties} icon={<Swords size={12} />} />
           <div className="game-card mb-4 space-y-3">
             {STAT_INFO.map(s => {
               const base = state.player.stats[s.id];
@@ -146,7 +148,7 @@ export function ProfileView() {
                   <div className="flex-1"><StatBar value={total} max={15} color="gold" height="sm" animate={false} /></div>
                   <span className="font-bold w-10 text-right">{base}{bonus > 0 && <span className="text-gold">+{bonus}</span>}</span>
                   {(state.player.statPoints || 0) > 0 && (
-                    <button onClick={() => { dispatch({ type: 'UPGRADE_STAT', stat: s.id }); showToast(`${s.label} verhoogd!`); }}
+                    <button onClick={() => { dispatch({ type: 'UPGRADE_STAT', stat: s.id }); showToast(`${s.label} ${t.profile.upgraded}`); }}
                       className="w-5 h-5 rounded bg-muted border border-emerald text-emerald text-xs flex items-center justify-center hover:bg-emerald/10">+</button>
                   )}
                 </div>
@@ -154,55 +156,48 @@ export function ProfileView() {
             })}
           </div>
 
-          {/* Karma */}
           <KarmaPanel />
-
-          {/* Statistics Overview */}
           <StatsOverviewPanel />
 
-          {/* Legacy Statistics */}
-          <SectionHeader title="Statistieken" icon={<BarChart3 size={12} />} />
+          <SectionHeader title={t.profile.statistics} icon={<BarChart3 size={12} />} />
           <div className="game-card mb-4">
             <div className="grid grid-cols-2 gap-2">
-              <InfoRow icon={<Coins size={10} />} label="Verdiend" value={`€${stats.totalEarned.toLocaleString()}`} valueClass="text-emerald" />
-              <InfoRow icon={<Coins size={10} />} label="Uitgegeven" value={`€${stats.totalSpent.toLocaleString()}`} valueClass="text-blood" />
-              <InfoRow icon={<Dices size={10} />} label="Casino +" value={`€${stats.casinoWon.toLocaleString()}`} valueClass="text-gold" />
-              <InfoRow icon={<Dices size={10} />} label="Casino -" value={`€${stats.casinoLost.toLocaleString()}`} valueClass="text-blood" />
-              <InfoRow icon={<Target size={10} />} label="Missies ✓" value={`${stats.missionsCompleted}`} valueClass="text-emerald" />
-              <InfoRow icon={<Target size={10} />} label="Missies ✗" value={`${stats.missionsFailed}`} valueClass="text-blood" />
-              <InfoRow icon={<BarChart3 size={10} />} label="Trades" value={`${stats.tradesCompleted}`} valueClass="text-gold" />
-              <InfoRow icon={<Calendar size={10} />} label="Dagen" value={`${stats.daysPlayed}`} />
+              <InfoRow icon={<Coins size={10} />} label={t.profile.earned} value={`€${stats.totalEarned.toLocaleString()}`} valueClass="text-emerald" />
+              <InfoRow icon={<Coins size={10} />} label={t.profile.spent} value={`€${stats.totalSpent.toLocaleString()}`} valueClass="text-blood" />
+              <InfoRow icon={<Dices size={10} />} label={t.profile.casinoWon} value={`€${stats.casinoWon.toLocaleString()}`} valueClass="text-gold" />
+              <InfoRow icon={<Dices size={10} />} label={t.profile.casinoLost} value={`€${stats.casinoLost.toLocaleString()}`} valueClass="text-blood" />
+              <InfoRow icon={<Target size={10} />} label={t.profile.missionsDone} value={`${stats.missionsCompleted}`} valueClass="text-emerald" />
+              <InfoRow icon={<Target size={10} />} label={t.profile.missionsFailed} value={`${stats.missionsFailed}`} valueClass="text-blood" />
+              <InfoRow icon={<BarChart3 size={10} />} label={t.profile.trades} value={`${stats.tradesCompleted}`} valueClass="text-gold" />
+              <InfoRow icon={<Calendar size={10} />} label={t.profile.days} value={`${stats.daysPlayed}`} />
             </div>
           </div>
 
-
-          {/* Casino Quick Link */}
           <SectionHeader title="Casino" icon={<Dices size={12} />} />
           <div className="game-card mb-4 flex items-center justify-between">
             <div>
-              <h4 className="font-bold text-xs">The Velvet Room</h4>
-              <p className="text-[0.5rem] text-muted-foreground">Blackjack, Roulette, Slots & High-Low</p>
-              <p className="text-[0.45rem] text-gold">Casino €{state.stats.casinoWon.toLocaleString()} gewonnen</p>
+              <h4 className="font-bold text-xs">{t.profile.casinoTitle}</h4>
+              <p className="text-[0.5rem] text-muted-foreground">{t.profile.casinoDesc}</p>
+              <p className="text-[0.45rem] text-gold">Casino €{state.stats.casinoWon.toLocaleString()} {t.profile.casinoWonLabel}</p>
             </div>
             <GameButton variant="purple" size="sm" onClick={() => setView('city')}>
-              OPEN KAART
+              {t.profile.openMap}
             </GameButton>
           </div>
-          {/* Charts inline */}
           <StatisticsCharts />
         </>
       )}
 
       {profileTab === 'loadout' && (
         <>
-          <SectionHeader title="Loadout" icon={<Shield size={12} />} />
+          <SectionHeader title={t.profile.loadout} icon={<Shield size={12} />} />
           <div className="grid grid-cols-3 gap-2 mb-4">
             {(['weapon', 'armor', 'gadget'] as const).map(slot => {
               const gearId = state.player.loadout[slot];
               const item = gearId ? GEAR.find(g => g.id === gearId) : null;
               return (
                 <motion.button key={slot}
-                  onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast('Item uitgedaan'); } }}
+                  onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast(t.profile.unequipped); } }}
                   className={`aspect-square rounded flex flex-col items-center justify-center text-center p-2 transition-all ${
                     item ? 'border border-gold bg-gold/5 text-foreground' : 'border border-dashed border-border bg-muted/30 text-muted-foreground'
                   }`}
@@ -214,7 +209,7 @@ export function ProfileView() {
             })}
           </div>
 
-          <SectionHeader title="Kluis" />
+          <SectionHeader title={t.profile.vault} />
           <div className="space-y-2 mb-4">
             {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).map(id => {
               const item = GEAR.find(g => g.id === id);
@@ -225,51 +220,41 @@ export function ProfileView() {
                     <h4 className="font-bold text-xs">{item.name}</h4>
                     <p className="text-[0.5rem] text-muted-foreground">{item.desc}</p>
                   </div>
-                  <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'EQUIP', id }); showToast(`${item.name} uitgerust`); }}>
-                    DRAAG
+                  <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'EQUIP', id }); showToast(`${item.name} ${t.common.equip.toLowerCase()}`); }}>
+                    {t.profile.wear}
                   </GameButton>
                 </div>
               );
             })}
             {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).length === 0 && (
-              <p className="text-muted-foreground text-xs italic py-3">Kluis is leeg. Koop gear op de Zwarte Markt (Handel tab).</p>
+              <p className="text-muted-foreground text-xs italic py-3">{t.profile.vaultEmpty}</p>
             )}
           </div>
         </>
       )}
 
       {profileTab === 'skills' && <SkillTreePanel />}
-
       {profileTab === 'contacts' && <NpcRelationsPanel />}
-
       {profileTab === 'arcs' && <StoryArcsPanel />}
-
       {profileTab === 'leaderboard' && <LeaderboardView embedded />}
-
       {profileTab === 'messages' && <MessagesView />}
-
       {profileTab === 'imperium' && (
         <>
           <VillaSummaryPanel />
-          <div className="mt-4">
-            <DrugEmpireStatsPanel />
-          </div>
+          <div className="mt-4"><DrugEmpireStatsPanel /></div>
         </>
       )}
-
       {profileTab === 'settings' && <AudioSettingsPanel />}
-
       {profileTab === 'admin' && isAdmin && <AdminPanel />}
 
       {profileTab === 'districts' && (
         <>
-          <SectionHeader title="District Reputatie" icon={<MapPin size={12} />} />
+          <SectionHeader title={t.profile.districtRep} icon={<MapPin size={12} />} />
           <div className="space-y-2 mb-4">
             {(Object.keys(DISTRICTS) as DistrictId[]).map(id => {
               const rep = state.districtRep?.[id] || 0;
               const isOwned = state.ownedDistricts.includes(id);
               const perks = DISTRICT_REP_PERKS[id] || [];
-
               return (
                 <div key={id} className={`game-card border-l-[3px] ${isOwned ? 'border-l-blood' : 'border-l-border'}`}>
                   <div className="flex justify-between items-center mb-1.5">
@@ -283,9 +268,7 @@ export function ProfileView() {
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {perks.map(p => (
                       <span key={p.threshold} className={`text-[0.4rem] font-semibold px-1 py-0.5 rounded ${
-                        rep >= p.threshold
-                          ? 'bg-gold/10 text-gold'
-                          : 'bg-muted/50 text-muted-foreground opacity-40'
+                        rep >= p.threshold ? 'bg-gold/10 text-gold' : 'bg-muted/50 text-muted-foreground opacity-40'
                       }`}>
                         {rep >= p.threshold ? '✓' : `${p.threshold}+`} {p.label}
                       </span>
@@ -300,8 +283,7 @@ export function ProfileView() {
 
       {profileTab === 'trophies' && (
         <>
-          {/* Progression Timeline */}
-          <SectionHeader title="Progressie" icon={<Crown size={12} />} />
+          <SectionHeader title={t.profile.progression} icon={<Crown size={12} />} />
           <div className="game-card mb-4">
             <div className="space-y-2">
               {ENDGAME_PHASES.map((phase, i) => {
@@ -326,7 +308,7 @@ export function ProfileView() {
             </div>
           </div>
 
-          <SectionHeader title={`Achievements (${state.achievements.length}/${ACHIEVEMENTS.length})`} icon={<Trophy size={12} />} />
+          <SectionHeader title={`${t.profile.achievements} (${state.achievements.length}/${ACHIEVEMENTS.length})`} icon={<Trophy size={12} />} />
           <div className="grid grid-cols-1 gap-2 mb-4">
             {ACHIEVEMENTS.map(a => {
               const unlocked = state.achievements.includes(a.id);
@@ -350,14 +332,10 @@ export function ProfileView() {
                       {unlocked && <span className="text-[0.45rem] text-gold">✓</span>}
                     </div>
                     <div className="text-[0.45rem] text-muted-foreground truncate">{a.desc}</div>
-                    {/* Progress bar */}
                     {!unlocked && prog && (
                       <div className="mt-1 flex items-center gap-1.5">
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gold/60 rounded-full transition-all duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
+                          <div className="h-full bg-gold/60 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[0.4rem] text-muted-foreground font-bold whitespace-nowrap">
                           {prog.target >= 10000 ? `€${(prog.current / 1000).toFixed(0)}k/€${(prog.target / 1000).toFixed(0)}k` : `${prog.current}/${prog.target}`}
@@ -377,7 +355,7 @@ export function ProfileView() {
             })}
           </div>
 
-          <SectionHeader title="Reputatie Rang" />
+          <SectionHeader title={t.profile.repRank} />
           <div className="space-y-1.5 mb-4">
             {[
               { title: 'STRAATRAT', min: 0 },
@@ -400,30 +378,28 @@ export function ProfileView() {
         </>
       )}
 
-      {/* Link Account for anonymous users */}
       <LinkAccountPanel />
 
-      {/* Menu & Reset */}
       <div className="flex gap-2 mt-4">
         {onExitToMenu && (
           <button onClick={onExitToMenu}
             className="flex-1 py-2 rounded text-xs font-semibold text-gold bg-gold/10 border border-gold/30 hover:bg-gold/20 transition-colors flex items-center justify-center gap-1.5">
-            <Home size={12} /> HOOFDMENU
+            <Home size={12} /> {t.profile.mainMenu}
           </button>
         )}
         <button onClick={() => setConfirmReset(true)}
           className="flex-1 py-2 rounded text-xs font-semibold text-muted-foreground bg-muted border border-border hover:text-foreground transition-colors">
-          OPNIEUW BEGINNEN
+          {t.profile.startOver}
         </button>
       </div>
 
       <ConfirmDialog
         open={confirmReset}
-        title="Game Resetten"
-        message="Weet je zeker dat je opnieuw wilt beginnen? AL je voortgang gaat verloren."
-        confirmText="RESET ALLES"
+        title={t.profile.gameReset}
+        message={t.profile.gameResetMsg}
+        confirmText={t.profile.resetAll}
         variant="danger"
-        onConfirm={() => { setConfirmReset(false); dispatch({ type: 'RESET' }); showToast('Spel gereset'); }}
+        onConfirm={() => { setConfirmReset(false); dispatch({ type: 'RESET' }); showToast(t.profile.gameResetDone); }}
         onCancel={() => setConfirmReset(false)}
       />
     </ViewWrapper>

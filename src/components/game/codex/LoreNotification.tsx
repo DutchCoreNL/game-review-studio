@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getEntryById } from '@/game/codex';
 import { useEffect, useState } from 'react';
 
 export function LoreNotification() {
   const { state } = useGame();
+  const { t } = useLanguage();
   const [visibleEntry, setVisibleEntry] = useState<{ id: string; title: string; icon: string } | null>(null);
   const codex = (state as any).codex;
   const lastUnlocked = (state as any)._lastCodexUnlock as string | undefined;
@@ -32,7 +34,7 @@ export function LoreNotification() {
         >
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-gold/40 shadow-lg shadow-gold/10">
             <BookOpen size={14} className="text-gold" />
-            <span className="text-[0.65rem] text-gold font-bold uppercase tracking-wider">Codex Ontgrendeld</span>
+            <span className="text-[0.65rem] text-gold font-bold uppercase tracking-wider">{t.codex.unlocked}</span>
             <span className="text-sm">{visibleEntry.icon}</span>
             <span className="text-xs text-foreground">{visibleEntry.title}</span>
           </div>
