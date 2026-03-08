@@ -4,6 +4,9 @@ import { FamilyId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { FACTION_IMAGES } from '@/assets/items';
+import { Users, ShieldAlert } from 'lucide-react';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
 
 export function FamiliesView() {
   const { state, dispatch, showToast } = useGame();
@@ -12,8 +15,19 @@ export function FamiliesView() {
   const bribeCost = Math.max(1000, 3500 - (charmStat * 150));
 
   return (
-    <div>
-      <SectionHeader title="Onderwereld & Facties" />
+    <ViewWrapper>
+      {/* Cinematic Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+          <Users size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="text-base font-black uppercase tracking-wider text-foreground">Facties</h2>
+          <p className="text-[0.55rem] text-muted-foreground uppercase tracking-wider">Onderwereld · Relaties · Corruptie</p>
+        </div>
+      </div>
+
+      <SectionHeader title="Onderwereld & Facties" icon={<Users size={10} />} />
       <p className="text-[0.65rem] text-muted-foreground mb-3">
         Relatie {'>'} 50: Korting op markt & exclusieve gear. Relatie {'<'} -20: Vijanden vallen aan.
       </p>
@@ -76,7 +90,7 @@ export function FamiliesView() {
       </div>
 
       {/* Police */}
-      <SectionHeader title="Corruptie" />
+      <SectionHeader title="Corruptie" icon={<ShieldAlert size={10} />} />
       <div className="game-card border-l-[3px] border-l-police">
         <div className="flex justify-between items-center">
           <div>
@@ -94,14 +108,6 @@ export function FamiliesView() {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-2 mt-5 mb-3 pb-1 border-b border-border">
-      <span className="text-gold text-[0.65rem] uppercase tracking-widest font-bold">{title}</span>
-    </div>
+    </ViewWrapper>
   );
 }
