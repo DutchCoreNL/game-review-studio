@@ -323,7 +323,29 @@ type GameAction =
   | { type: 'END_BOSS_FIGHT' }
   | { type: 'SET_CHAPTER_DIFFICULTY'; chapterId: string; difficulty: import('../game/campaign').CampaignDifficulty }
   | { type: 'CAMPAIGN_MISSION_PUSH' }
-  | { type: 'CAMPAIGN_MISSION_REST' };
+  | { type: 'CAMPAIGN_MISSION_REST' }
+  // Enchantment actions
+  | { type: 'ADD_ENCHANTMENT'; enchantment: import('../game/enchantments').EnchantmentItem }
+  | { type: 'SOCKET_ENCHANTMENT_WEAPON'; weaponId: string; enchantmentItemId: string; cost: number }
+  | { type: 'SOCKET_ENCHANTMENT_GEAR'; gearId: string; gearType: 'armor' | 'gadget'; enchantmentItemId: string; cost: number }
+  | { type: 'SALVAGE_ENCHANTMENT'; enchantmentItemId: string }
+  // Skin actions
+  | { type: 'ADD_SKIN'; skin: import('../game/weaponSkins').SkinItem }
+  | { type: 'APPLY_SKIN_WEAPON'; weaponId: string; skinItemId: string }
+  | { type: 'APPLY_SKIN_GEAR'; gearId: string; gearType: 'armor' | 'gadget'; skinItemId: string }
+  // Durability/Repair actions
+  | { type: 'REPAIR_WEAPON'; weaponId: string; useScrap: boolean }
+  | { type: 'REPAIR_GEAR'; gearId: string; gearType: 'armor' | 'gadget'; useScrap: boolean }
+  // Blueprint actions
+  | { type: 'ADD_BLUEPRINT'; blueprint: import('../game/blueprints').BlueprintItem }
+  | { type: 'CRAFT_BLUEPRINT'; blueprintItemId: string }
+  // Loadout Preset actions
+  | { type: 'SAVE_LOADOUT_PRESET'; name: string }
+  | { type: 'LOAD_LOADOUT_PRESET'; presetId: string }
+  | { type: 'DELETE_LOADOUT_PRESET'; presetId: string }
+  | { type: 'RENAME_LOADOUT_PRESET'; presetId: string; name: string }
+  // Weapon Challenge actions
+  | { type: 'UPDATE_WEAPON_CHALLENGE'; weaponId: string; challengeType: 'kill' | 'perfect_kill' };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
