@@ -31,6 +31,7 @@ import { upgradeWeapon, getUpgradeCost, swapAccessory, getAccessorySwapCost, can
 import { upgradeGear, getGearUpgradeCost, swapGearMod, getGearModSwapCost, canFuseGear, fuseGear, getGearBelowRarity, getGearBulkSellValue } from '../game/gearUpgrade';
 import { generateBlackMarketStock, shouldRefreshStock } from '../game/blackMarket';
 import { openCrate, getCrateDef } from '../game/lootCrates';
+import { openLootBox, getLootBoxDef, type LootBoxTier } from '../game/lootBoxes';
 import { canClaimDailyReward, shouldResetStreak, claimDailyReward } from '../game/dailyRewards';
 import { getWeaponScrapValue, getGearScrapValue, CRAFT_RECIPES as SALVAGE_RECIPES, executeCraft } from '../game/salvage';
 import { startCampaignMission, canStartMission, getMissionDef, advanceCampaignMission, startBossFight, canFightBoss, bossFightTurn, generateBossLoot } from '../game/campaign';
@@ -306,6 +307,8 @@ type GameAction =
   | { type: 'REFRESH_BLACK_MARKET' }
   // Loot Crate actions
   | { type: 'OPEN_LOOT_CRATE'; tier: import('../game/lootCrates').CrateTier }
+  // Loot Box actions
+  | { type: 'OPEN_LOOT_BOX'; tier: LootBoxTier }
   // Daily Reward actions
   | { type: 'CLAIM_DAILY_LOGIN_REWARD' }
   // Salvage/Crafting actions
@@ -457,6 +460,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (loaded.scrapMaterials === undefined) loaded.scrapMaterials = 0;
       if (loaded.pityCounter === undefined) loaded.pityCounter = 0;
       if (loaded.lootCratesPurchased === undefined) loaded.lootCratesPurchased = 0;
+      if (loaded.lootBoxPity === undefined) loaded.lootBoxPity = 0;
+      if (loaded.lootBoxesOpened === undefined) loaded.lootBoxesOpened = 0;
+      if (loaded.lastLootBoxResult === undefined) loaded.lastLootBoxResult = null;
       return loaded;
     }
 
@@ -2411,6 +2417,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const inv = result.gear.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
         if (!s[inv]) (s as any)[inv] = [];
         (s as any)[inv].push(result.gear);
+      }
+      return s;
+    }
+
+    // ========== LOOT BOX ACTIONS ==========
+    case 'OPEN_LOOT_BOX': {
+      const boxDef = getLootBoxDef(action.tier);
+      if (s.money < boxDef.price) return s;
+      s.money -= boxDef.price;
+      s.stats.totalSpent += boxDef.price;
+      const { result: lbResult, newPityCounter: newLBPity } = openLootBox(action.tier, s.player.level, s.lootBoxPity || 0);
+      s.lootBoxPity = newLBPity;
+      s.lootBoxesOpened = (s.lootBoxesOpened || 0) + 1;
+      s.lastLootBoxResult = lbResult;
+      for (const reward of lbResult.rewards) {
+        if (reward.type === 'money') {
+          s.money += reward.value;
+          s.stats.totalEarned += reward.value;
+        } else if (reward.type === 'ammo') {
+          s.ammo = Math.min(500, (s.ammo || 0) + reward.value);
+        } else if (reward.type === 'scrap') {
+          s.scrapMaterials = (s.scrapMaterials || 0) + reward.value;
+        } else if (reward.type === 'weapon' && reward.weapon) {
+          if (!s.weaponInventory) s.weaponInventory = [];
+          s.weaponInventory.push(reward.weapon);
+        } else if (reward.type === 'armor' && reward.gear) {
+          if (!s.armorInventory) s.armorInventory = [];
+          s.armorInventory.push(reward.gear);
+        } else if (reward.type === 'gadget' && reward.gear) {
+          if (!s.gadgetInventory) s.gadgetInventory = [];
+          s.gadgetInventory.push(reward.gear);
+        }
       }
       return s;
     }

@@ -1965,6 +1965,9 @@ export function createInitialState(): import('./types').GameState {
     scrapMaterials: 0,
     pityCounter: 0,
     lootCratesPurchased: 0,
+    lootBoxPity: 0,
+    lootBoxesOpened: 0,
+    lastLootBoxResult: null,
 
     // Arsenal enhancement state
     enchantmentInventory: [],
