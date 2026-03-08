@@ -1480,8 +1480,44 @@ async function simulateBotNpcMood(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot NPC mood error:', e); }
 }
 
-// ========== BOT GANG CHAT ==========
-const BOT_GANG_CHAT_MESSAGES = [
+// ========== BOT GANG CHAT (contextual & personality-driven) ==========
+const BOT_GANG_CHAT_BY_PERSONALITY: Record<string, string[]> = {
+  aggressive: [
+    'Wie gaat er mee aanvallen? Ik ben klaar voor actie ⚔️',
+    'Die rivaliserende gang moet kapot. Wanneer slaan we toe?',
+    'Net iemand z\'n safehouse geraided, easy loot 💀',
+    'Ik wil die faction boss vandaag nog neerhalen',
+    'PvP scores: ik sta bovenaan 😤',
+    'Onze vijanden worden zwakker, nu doordrukken!',
+  ],
+  trader: [
+    'Ik heb een bulk partij beschikbaar, wie wil er wat?',
+    'De marktprijzen zijn goed nu, laten we traden',
+    'Onze treasury moet omhoog, meer contributies graag 💰',
+    'Ik heb een smokkelroute gevonden, profit voor de hele gang',
+    'Wie draagt er bij aan de gang kas? We hebben gear nodig',
+    'Auction tip: er staat iets goedkoops, wie wil bieden?',
+  ],
+  social: [
+    'Wie is er online? Laten we een OC doen.',
+    'Welkom aan de nieuwe leden! 🎉',
+    'Goed gevochten vandaag team! 💪',
+    'Laten we een groeps-heist plannen dit weekend',
+    'Iemand interesse in een alliance met een andere gang?',
+    'GG iedereen, we worden steeds sterker als team',
+    'Onze gang level gaat snel omhoog, keep it up!',
+  ],
+  stealthy: [
+    'Ik heb intel over de vijandelijke gang... check DM',
+    'Onze mol rapporteert dat ze weinig treasury hebben',
+    'Stil opereren, geen aandacht trekken',
+    'Ik heb een escape route gecheckt, we zitten safe',
+    'Die mole in onze gang? Ik heb m\'n vermoedens...',
+    'Under the radar werken levert meer op',
+  ],
+};
+
+const BOT_GANG_CHAT_GENERIC = [
   'Wie is er online? Laten we een OC doen.',
   'Ik ga naar Crown Heights, iemand mee?',
   'We moeten ons territorium verdedigen, er zijn vijanden in de buurt.',
@@ -1492,6 +1528,9 @@ const BOT_GANG_CHAT_MESSAGES = [
   'We moeten meer influence bijdragen in ons district.',
   'Die faction boss is bijna down, laten we aanvallen.',
   'Iemand interesse in een alliance met een andere gang?',
+  'Check de veiling, er staan goede deals',
+  'Onze treasury staat op €{treasury}, we moeten meer verdienen',
+  'Wie heeft er een auto? We moeten snel naar Port Nero',
 ];
 
 async function simulateBotGangChat(supabase: any, bots: any[]) {
@@ -1502,7 +1541,13 @@ async function simulateBotGangChat(supabase: any, bots: any[]) {
     if (gangBots.length === 0) return;
 
     const bot = pick(gangBots);
-    const message = pick(BOT_GANG_CHAT_MESSAGES);
+    const personality = bot.personality || 'balanced';
+    
+    // Personality-specific or generic message
+    const personalityMessages = BOT_GANG_CHAT_BY_PERSONALITY[personality];
+    const message = personalityMessages 
+      ? pick(personalityMessages) 
+      : pick(BOT_GANG_CHAT_GENERIC);
 
     await supabase.from('gang_chat').insert({
       gang_id: bot.gang_id,
