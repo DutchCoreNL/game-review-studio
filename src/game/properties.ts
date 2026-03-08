@@ -74,7 +74,7 @@ export const PROPERTIES: Property[] = [
     bonuses: {
       maxEnergy: 50,
       maxHp: 30,
-      passiveIncome: 2500,
+      passiveIncome: 5500,
       heatReduction: 20,
       storageSlots: 50,
     },

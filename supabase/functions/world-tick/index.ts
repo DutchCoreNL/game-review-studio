@@ -1796,14 +1796,14 @@ async function simulateBotGymTraining(supabase: any, bots: any[]) {
 
 // ========== BOT JOBS SIMULATION ==========
 const BOT_JOBS = [
-  { id: 'barman', name: 'Barman', salary: 500 },
-  { id: 'taxichauffeur', name: 'Taxichauffeur', salary: 800 },
-  { id: 'beveiliger', name: 'Beveiliger', salary: 1200 },
-  { id: 'monteur', name: 'Automonteur', salary: 1500 },
-  { id: 'boekhouder', name: 'Boekhouder', salary: 2000 },
-  { id: 'advocaat', name: 'Advocaat', salary: 3000 },
-  { id: 'arts', name: 'Arts', salary: 3500 },
-  { id: 'makelaar', name: 'Vastgoedmakelaar', salary: 4000 },
+  { id: 'barman', name: 'Barman', salary: 1500 },
+  { id: 'taxichauffeur', name: 'Taxichauffeur', salary: 2500 },
+  { id: 'beveiliger', name: 'Beveiliger', salary: 4000 },
+  { id: 'monteur', name: 'Automonteur', salary: 5000 },
+  { id: 'boekhouder', name: 'Boekhouder', salary: 7000 },
+  { id: 'advocaat', name: 'Advocaat', salary: 10000 },
+  { id: 'arts', name: 'Arts', salary: 12000 },
+  { id: 'makelaar', name: 'Vastgoedmakelaar', salary: 15000 },
 ];
 
 async function simulateBotJobs(supabase: any, bots: any[]) {

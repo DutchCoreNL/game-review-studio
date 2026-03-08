@@ -23,14 +23,14 @@ interface JobDef {
 }
 
 const JOBS: JobDef[] = [
-  { id: 'barman', name: 'Barman', icon: '🍸', salary: 500, perk: '+5% Charm XP', reqLevel: 1, desc: 'Werk achter de bar. Goed voor connecties.' },
-  { id: 'taxichauffeur', name: 'Taxichauffeur', icon: '🚕', salary: 800, perk: '-10% Reistijd', reqLevel: 2, desc: 'Ken elke straat van Noxhaven.' },
-  { id: 'beveiliger', name: 'Beveiliger', icon: '🛡️', salary: 1200, perk: '+5% Defense', reqLevel: 4, reqStat: { stat: 'muscle', value: 5 }, desc: 'Nachtwerk bij clubs en evenementen.' },
-  { id: 'monteur', name: 'Automonteur', icon: '🔧', salary: 1500, perk: '-15% Voertuig reparatie', reqLevel: 5, reqStat: { stat: 'brains', value: 4 }, desc: 'Repareer en tune voertuigen.' },
-  { id: 'boekhouder', name: 'Boekhouder', icon: '📊', salary: 2000, perk: '+10% Witwas limiet', reqLevel: 7, reqStat: { stat: 'brains', value: 8 }, desc: 'Creatieve boekhouding voor de onderwereld.' },
-  { id: 'advocaat', name: 'Advocaat', icon: '⚖️', salary: 3000, perk: '-25% Gevangenisstraf', reqLevel: 10, reqStat: { stat: 'brains', value: 12 }, desc: 'Ken de wet. Buig de wet.' },
-  { id: 'arts', name: 'Arts', icon: '🏥', salary: 3500, perk: 'Kan spelers reviven', reqLevel: 12, reqStat: { stat: 'brains', value: 15 }, desc: 'Genees anderen. Verdien respect.' },
-  { id: 'makelaar', name: 'Vastgoedmakelaar', icon: '🏠', salary: 4000, perk: '-10% Vastgoedprijzen', reqLevel: 15, reqStat: { stat: 'charm', value: 12 }, desc: 'Handel in het duurste goed: locatie.' },
+  { id: 'barman', name: 'Barman', icon: '🍸', salary: 1500, perk: '+5% Charm XP', reqLevel: 1, desc: 'Werk achter de bar. Goed voor connecties.' },
+  { id: 'taxichauffeur', name: 'Taxichauffeur', icon: '🚕', salary: 2500, perk: '-10% Reistijd', reqLevel: 2, desc: 'Ken elke straat van Noxhaven.' },
+  { id: 'beveiliger', name: 'Beveiliger', icon: '🛡️', salary: 4000, perk: '+5% Defense', reqLevel: 4, reqStat: { stat: 'muscle', value: 5 }, desc: 'Nachtwerk bij clubs en evenementen.' },
+  { id: 'monteur', name: 'Automonteur', icon: '🔧', salary: 5000, perk: '-15% Voertuig reparatie', reqLevel: 5, reqStat: { stat: 'brains', value: 4 }, desc: 'Repareer en tune voertuigen.' },
+  { id: 'boekhouder', name: 'Boekhouder', icon: '📊', salary: 7000, perk: '+10% Witwas limiet', reqLevel: 7, reqStat: { stat: 'brains', value: 8 }, desc: 'Creatieve boekhouding voor de onderwereld.' },
+  { id: 'advocaat', name: 'Advocaat', icon: '⚖️', salary: 10000, perk: '-25% Gevangenisstraf', reqLevel: 10, reqStat: { stat: 'brains', value: 12 }, desc: 'Ken de wet. Buig de wet.' },
+  { id: 'arts', name: 'Arts', icon: '🏥', salary: 12000, perk: 'Kan spelers reviven', reqLevel: 12, reqStat: { stat: 'brains', value: 15 }, desc: 'Genees anderen. Verdien respect.' },
+  { id: 'makelaar', name: 'Vastgoedmakelaar', icon: '🏠', salary: 15000, perk: '-10% Vastgoedprijzen', reqLevel: 15, reqStat: { stat: 'charm', value: 12 }, desc: 'Handel in het duurste goed: locatie.' },
 ];
 
 export function JobsView() {
