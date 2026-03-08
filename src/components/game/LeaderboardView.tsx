@@ -171,7 +171,18 @@ export function LeaderboardView({ embedded }: { embedded?: boolean }) {
 
       {/* Leaderboard list */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground text-xs font-ui">Laden...</div>
+        <div className="space-y-2 py-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2 p-3 rounded-lg border border-border bg-card animate-pulse">
+              <div className="w-7 h-5 rounded bg-muted/30" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-2/5 rounded bg-muted/30" />
+                <div className="h-2.5 w-3/5 rounded bg-muted/30" />
+              </div>
+              <div className="h-4 w-12 rounded bg-muted/30" />
+            </div>
+          ))}
+        </div>
       ) : entries.length === 0 ? (
         <div className="text-center py-8">
           {tab === 'legends' ? (

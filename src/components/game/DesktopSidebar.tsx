@@ -18,6 +18,8 @@ import { DailyDigestPopup } from './DailyDigestPopup';
 import { useAdmin } from '@/hooks/useAdmin';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
+import { formatGameDate } from '@/lib/gameDate';
+import { useWorldState, TIME_OF_DAY_ICONS } from '@/hooks/useWorldState';
 
 interface Category {
   label: string;
@@ -38,6 +40,7 @@ export function DesktopSidebar() {
   const { isAdmin } = useAdmin();
   const { t } = useLanguage();
   const { digest, refetchLast } = useDailyDigest();
+  const worldState = useWorldState();
   const [showDigest, setShowDigest] = useState(false);
 
   const allCategories = useMemo<Category[]>(() => {
@@ -159,7 +162,7 @@ export function DesktopSidebar() {
         <h1 className="font-display text-xl text-blood uppercase tracking-[4px] font-bold blood-text-glow leading-none">
           Noxhaven
         </h1>
-        <p className="text-[0.6rem] text-muted-foreground mt-1 uppercase tracking-widest">📅 {new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</p>
+        <p className="text-[0.6rem] text-muted-foreground mt-1 uppercase tracking-widest">{TIME_OF_DAY_ICONS[worldState.timeOfDay]} 📅 {formatGameDate()}</p>
       </div>
 
       {/* Nav items */}

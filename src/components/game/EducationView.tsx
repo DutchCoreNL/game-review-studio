@@ -172,7 +172,20 @@ export function EducationView() {
       </div>
 
       {loading ? (
-        <p className="text-center text-muted-foreground text-sm py-8">{t.education.loading}</p>
+        <div className="space-y-2 py-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="p-4 rounded-lg border border-border bg-card animate-pulse space-y-2.5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded bg-muted/30 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 w-2/5 rounded bg-muted/30" />
+                  <div className="h-3 w-4/5 rounded bg-muted/30" />
+                  <div className="h-2.5 w-1/3 rounded bg-muted/30" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-4">
           {categories.map(cat => {

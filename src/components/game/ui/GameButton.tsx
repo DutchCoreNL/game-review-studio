@@ -54,6 +54,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
           ${glow && GLOW_STYLES[variant] ? GLOW_STYLES[variant] : ''}
           ${className}
         `}
+        whileHover={!disabled ? { scale: 1.03, filter: 'brightness(1.15)' } : undefined}
         whileTap={!disabled ? { scale: 0.97 } : undefined}
       >
         {icon}
