@@ -1020,6 +1020,9 @@ export interface GameState {
   corruptContacts: CorruptContact[];
   pendingCorruptionEvent: CorruptionEvent | null;
 
+  // ========== INTERNAL TRACKING ==========
+  _lastProcessedDay?: number; // guards daysPlayed from incrementing multiple times per world_day
+
   // ========== DAILY CHALLENGES STATE ==========
   dailyChallenges: ActiveChallenge[];
   challengeDay: number;

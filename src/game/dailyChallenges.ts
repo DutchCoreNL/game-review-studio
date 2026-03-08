@@ -55,8 +55,9 @@ export const CHALLENGE_CATEGORIES: Record<ChallengeCategory, { label: string; co
  * Generate 3 random daily challenges appropriate for the player's level and day.
  */
 export function generateDailyChallenges(state: GameState): ActiveChallenge[] {
+  const daysPlayed = state.stats?.daysPlayed || 1;
   const eligible = CHALLENGE_TEMPLATES.filter(t => 
-    state.day >= t.minDay && state.player.level >= t.minLevel
+    daysPlayed >= t.minDay && state.player.level >= t.minLevel
   );
 
   if (eligible.length === 0) return [];

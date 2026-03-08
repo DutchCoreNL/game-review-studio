@@ -788,7 +788,12 @@ export function endTurn(state: GameState): NightReportData {
   }
 
   // state.day is synced with world_day via SYNC_WORLD_TIME — do NOT manually increment
-  state.stats.daysPlayed++;
+  // Only increment daysPlayed once per world_day (guarded by _lastProcessedDay)
+  const lastProcessedDay = state._lastProcessedDay || 0;
+  if (state.day > lastProcessedDay) {
+    state.stats.daysPlayed = (state.stats.daysPlayed || 0) + 1;
+    state._lastProcessedDay = state.day;
+  }
 
   // === HIDING DAYS PROCESSING ===
   const isHiding = (state.hidingDays || 0) > 0;
