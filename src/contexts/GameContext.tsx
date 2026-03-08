@@ -98,7 +98,7 @@ type GameAction =
   | { type: 'BUY_GEAR'; id: string }
   | { type: 'EQUIP'; id: string }
   | { type: 'UNEQUIP'; slot: string }
-  | { type: 'BUY_VEHICLE'; id: string }
+  | { type: 'BUY_VEHICLE'; id: string; discountedCost?: number }
   | { type: 'SET_VEHICLE'; id: string }
   | { type: 'REPAIR_VEHICLE' }
   | { type: 'BUY_UPGRADE'; id: string }
@@ -845,9 +845,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BUY_VEHICLE': {
       const v = VEHICLES.find(v => v.id === action.id);
-      if (!v || s.money < v.cost) return s;
-      s.money -= v.cost;
-      s.stats.totalSpent += v.cost;
+      if (!v) return s;
+      const cost = action.discountedCost ?? v.cost;
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
       s.ownedVehicles.push({ id: action.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
       Engine.checkAchievements(s);
       return s;

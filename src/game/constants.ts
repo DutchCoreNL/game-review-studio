@@ -419,6 +419,9 @@ export const RACE_NPCS: RaceNPC[] = [
   { name: 'Iron Mike', vehicle: 'Gepantserde BMW', skill: 4 },
   { name: 'Silk', vehicle: 'Zilveren Mercedes', skill: 6 },
   { name: 'Turbo Tina', vehicle: 'Groene Lambo', skill: 9 },
+  { name: 'Viper Voss', vehicle: 'Matzwarte Venom GT', skill: 11 },
+  { name: 'Midnight Queen', vehicle: 'Paarse Pagani', skill: 12 },
+  { name: 'Kazuki', vehicle: 'Titanium NSX', skill: 10 },
 ];
 
 // ========== UNIQUE VEHICLES ==========
@@ -441,6 +444,15 @@ export const REKAT_COSTS: Record<string, number> = {
   meridiolux: 10000,
   lupoghini: 12000,
   royaleryce: 15000,
+  // Prestige voertuigen
+  noxreaper: 20000,
+  obsidiancruiser: 25000,
+  phantomgt: 35000,
+  // Unieke voertuigen
+  decker_phantom: 15000,
+  cartel_bulldozer: 12000,
+  nemesis_trophy: 10000,
+  gouden_klassiek: 10000,
 };
 
 export const VEHICLE_UPGRADES: Record<VehicleUpgradeType, {

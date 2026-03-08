@@ -6,7 +6,7 @@ import { getPlayerStat } from './engine';
 export interface RaceResult {
   won: boolean;
   multiplier: number; // 1.5x - 3x on win
-  conditionLoss: number; // 0 on win, 15-30 on loss
+  conditionLoss: number; // small on win, 15-30 on loss (reduced by armor)
   repGain: number;
   xpGain: number;
   npc: RaceNPC;
@@ -50,6 +50,11 @@ export function calculateRaceResult(state: GameState, raceType: 'street' | 'harb
 
   const won = playerScore > npcScore;
 
+  // Armor reduces condition loss
+  const armorUpgrade = (ownedV.upgrades?.armor || 0);
+  const armorBonus = armorUpgrade > 0 ? VEHICLE_UPGRADES.armor.bonuses[armorUpgrade - 1] : 0;
+  const armorReduction = armorBonus * 0.15; // each armor point reduces condition loss by 15%
+
   const winNarratives = [
     `Je laat ${npc.name} ver achter je! De menigte gaat wild.`,
     `${npc.name} probeert in te halen maar je bent te snel!`,
@@ -66,20 +71,25 @@ export function calculateRaceResult(state: GameState, raceType: 'street' | 'harb
 
   if (won) {
     const multiplier = raceType === 'neon_gp' ? 2.5 + Math.random() * 0.5 : raceType === 'harbor' ? 2 + Math.random() * 0.5 : 1.5 + Math.random() * 0.5;
+    // Small condition loss on win (3-8%), reduced by armor
+    const baseWinLoss = raceType === 'neon_gp' ? 6 + Math.floor(Math.random() * 3) : raceType === 'harbor' ? 4 + Math.floor(Math.random() * 3) : 3 + Math.floor(Math.random() * 3);
+    const winConditionLoss = Math.max(1, Math.floor(baseWinLoss * (1 - armorReduction)));
     return {
       won: true,
       multiplier: Math.round(multiplier * 10) / 10,
-      conditionLoss: 0,
+      conditionLoss: winConditionLoss,
       repGain: raceType === 'neon_gp' ? 30 : raceType === 'harbor' ? 15 : 5,
       xpGain: raceType === 'neon_gp' ? 40 : raceType === 'harbor' ? 20 : 10,
       npc,
       narrative: winNarratives[Math.floor(Math.random() * winNarratives.length)],
     };
   } else {
+    const baseLoss = 15 + Math.floor(Math.random() * 16); // 15-30
+    const lossCondition = Math.max(5, Math.floor(baseLoss * (1 - armorReduction)));
     return {
       won: false,
       multiplier: 0,
-      conditionLoss: 15 + Math.floor(Math.random() * 16), // 15-30
+      conditionLoss: lossCondition,
       repGain: 0,
       xpGain: 2,
       npc,

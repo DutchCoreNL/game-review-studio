@@ -1,67 +1,87 @@
 
 
-# Auto Systeem Review — Bevindingen & Verbeteringen
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-## Gevonden Bugs
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
-### 1. Rekat-kosten ontbreken voor prestige voertuigen (BUG)
-`REKAT_COSTS` bevat alleen entries voor de 6 reguliere voertuigen. Prestige voertuigen (`noxreaper`, `obsidiancruiser`, `phantomgt`) en unieke voertuigen vallen terug op de default `5000` — veel te goedkoop voor auto's van €500K-€1.2M. 
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
-**Fix**: Voeg rekat-kosten toe voor prestige en unieke voertuigen:
-- `noxreaper`: €20.000
-- `obsidiancruiser`: €25.000  
-- `phantomgt`: €35.000
-- Unieke voertuigen: €10.000-€15.000
+---
 
-### 2. Race winst negeert armor upgrade (MEDIUM)
-Bij verlies verliest de speler 15-30% conditie, maar **armor upgrades worden niet meegenomen** in de conditieverlies-berekening. Een volledig gepantserd voertuig zou minder schade moeten lijden.
+## Plan: Arsenaal Acquisitie Systeem
 
-**Fix**: Pas `calculateRaceResult` aan zodat conditionLoss verminderd wordt met armor bonus.
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-### 3. Dealer "Deal van de Dag" koopt tegen basisprijzen (BUG)
-De `DealerPanel` dispatcht `BUY_VEHICLE` bij het kopen van de "Deal van de Dag", maar `handleBuyVehicle` gebruikt altijd `v.cost` — de korting wordt niet doorgegeven. De speler betaalt de volle prijs.
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
-**Fix**: Voeg een `discountedCost` parameter toe aan `BUY_VEHICLE` of maak een apart `BUY_DEALER_DEAL` action.
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-### 4. Trade-in kiest altijd eerste niet-starter voertuig (UX BUG)
-In `DealerPanel`, bij inruilen, selecteert de confirm dialog automatisch het eerste niet-starter voertuig zonder de speler te laten kiezen. Als je 3 auto's hebt, kun je niet bepalen welke je inruilt.
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
-**Fix**: Voeg een dropdown of selectielijst toe in de trade-in dialog zodat de speler kan kiezen welk voertuig wordt ingeruild.
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
-### 5. VehicleComparePanel max waarden zijn hardcoded en te laag (MEDIUM)
-De `max` waarden voor stat-bars zijn: storage=30, speed=8, armor=6, charm=20. Maar de Phantom GT heeft speed=10 en charm=35, en de Obsidian Cruiser heeft storage=35. Dit zorgt voor bars die over 100% gaan.
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
-**Fix**: Bereken max dynamisch op basis van alle beschikbare voertuigen.
+---
 
-## Balancing Issues
+## Technisch overzicht
 
-### 6. Starter auto onverkoopbaar maar ook onbruikbaar na mid-game
-De Toyo-Hata (cost=0, storage=5, speed=1) is onverkoopbaar en neemt een slot in de collectie. Het heeft geen nut na het kopen van een tweede auto. 
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-**Suggestie**: Laat de speler de starter auto "doneren" voor een kleine rep/XP bonus, of geef het een unieke perk (bijv. "onzichtbaar voor checkpoints" vanwege lage waarde).
-
-### 7. Race NPC skill-ranges overlappen slecht
-- Street: skill ≤5 → 3 NPCs (Eddie=3, Iron Mike=4, Nitro Nadia=5)
-- Harbor: skill 3-7 → 5 NPCs (Eddie=3, Iron Mike=4, Nadia=5, Silk=6, El Diablo=7)
-- Neon GP: skill ≥5 → 5 NPCs (Nadia=5, Silk=6, Diablo=7, Ghost=8, Turbo Tina=9)
-
-Met een max player speed van ~10 (Phantom GT) + 3 (speed upgrade) + 2 (chauffeur) + 1.5 (racer) = 16.5 + random(0-4), vs Turbo Tina's 9 + random(0-3) = max 12, zijn Neon GP races met een top voertuig vrijwel onverliesbaar.
-
-**Fix**: Voeg 2-3 sterkere NPCs toe (skill 10-12) en schaal NPC skill met race type.
-
-### 8. Geen conditionverlies bij winst
-Winnen kost 0% conditie. In werkelijkheid slijt racen altijd het voertuig. Dit maakt reparatie bijna nooit nodig bij goede spelers.
-
-**Fix**: Voeg een klein conditionverlies toe bij winst (3-8%), afhankelijk van race type.
-
-## Implementatieplan
-
-| # | Fix | Prioriteit | Bestanden |
-|---|-----|-----------|-----------|
-| 1 | Rekat-kosten prestige/unieke voertuigen | Hoog | `constants.ts` |
-| 2 | Armor vermindert race conditionverlies | Medium | `racing.ts` |
-| 3 | Dealer Deal korting fix | Hoog | `DealerPanel.tsx`, `vehicleHandlers.ts`, reducer types |
-| 4 | Trade-in voertuig selectie | Medium | `DealerPanel.tsx` |
-| 5 | Compare panel max waarden dynamisch | Laag | `VehicleComparePanel.tsx` |
-| 6 | Sterkere race NPCs + winst conditionverlies | Medium | `constants.ts`, `racing.ts` |
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 

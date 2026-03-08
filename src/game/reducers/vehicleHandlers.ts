@@ -116,6 +116,11 @@ export function handleStartRace(s: GameState, raceType: RaceType, bet: number, r
     Engine.gainXp(s, result.xpGain);
     s.screenEffect = 'gold-flash';
     s.lastRewardAmount = winnings;
+    // Condition loss on win too (wear & tear)
+    const activeOvWin = s.ownedVehicles.find(v => v.id === s.activeVehicle);
+    if (activeOvWin && result.conditionLoss > 0) {
+      activeOvWin.condition = Math.max(10, activeOvWin.condition - result.conditionLoss);
+    }
   } else {
     s.money -= bet;
     s.stats.totalSpent += bet;

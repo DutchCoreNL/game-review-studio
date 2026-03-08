@@ -14,12 +14,13 @@ export function DealerPanel() {
   const { state, dispatch, showToast } = useGame();
   const [confirmSell, setConfirmSell] = useState<string | null>(null);
   const [tradeInTarget, setTradeInTarget] = useState<string | null>(null);
+  const [tradeInSource, setTradeInSource] = useState<string | null>(null);
 
   const getSellPrice = (vehicleId: string) => {
     const vDef = VEHICLES.find(v => v.id === vehicleId);
     const ownedV = state.ownedVehicles.find(v => v.id === vehicleId);
     if (!vDef || !ownedV) return 0;
-    const conditionMod = (ownedV.condition / 100) * 0.3 + 0.4; // 40-70% range
+    const conditionMod = (ownedV.condition / 100) * 0.3 + 0.4;
     const upgradeBonus = ownedV.upgrades ? Object.values(ownedV.upgrades).reduce((sum, lvl) => sum + (lvl || 0) * 0.05, 0) : 0;
     return Math.floor(vDef.cost * (VEHICLE_SELL_RATIO + upgradeBonus) * conditionMod);
   };
@@ -32,7 +33,6 @@ export function DealerPanel() {
   };
 
   const canSell = (vehicleId: string) => {
-    // Can't sell last vehicle, can't sell active if it's the only one
     if (state.ownedVehicles.length <= 1) return false;
     return true;
   };
@@ -49,7 +49,14 @@ export function DealerPanel() {
     const vNew = VEHICLES.find(v => v.id === newId);
     showToast(`Ingeruild voor ${vNew?.name}!`);
     setTradeInTarget(null);
+    setTradeInSource(null);
   };
+
+  // Get tradeable vehicles (not starter, cost > 0)
+  const tradeableVehicles = state.ownedVehicles.filter(v => {
+    const vDef = VEHICLES.find(vd => vd.id === v.id);
+    return vDef && vDef.cost > 0;
+  });
 
   const ownedIds = state.ownedVehicles.map(v => v.id);
   const notOwned = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
@@ -101,7 +108,7 @@ export function DealerPanel() {
                   size="sm"
                   disabled={state.money < discountedPrice || alreadyOwned}
                   onClick={() => {
-                    dispatch({ type: 'BUY_VEHICLE', id: dealV.id });
+                    dispatch({ type: 'BUY_VEHICLE', id: dealV.id, discountedCost: discountedPrice });
                     showToast(`${dealV.name} gekocht met ${Math.round(state.dealerDeal!.discount * 100)}% korting!`);
                   }}
                 >
@@ -118,9 +125,8 @@ export function DealerPanel() {
       <div className="space-y-2 mb-4">
         {state.ownedVehicles.map(ov => {
           const vDef = VEHICLES.find(v => v.id === ov.id);
-          // Skip unique vehicles from sell list
           if (UNIQUE_VEHICLES.some(uv => uv.id === ov.id)) return null;
-          if (!vDef || vDef.cost === 0) return null; // Can't sell starter car
+          if (!vDef || vDef.cost === 0) return null;
           const sellPrice = getSellPrice(ov.id);
           const isActive = ov.id === state.activeVehicle;
           return (
@@ -207,11 +213,14 @@ export function DealerPanel() {
                     >
                       KOOP
                     </GameButton>
-                    {state.ownedVehicles.length > 0 && (
+                    {tradeableVehicles.length > 0 && (
                       <GameButton
                         variant="muted"
                         size="sm"
-                        onClick={() => setTradeInTarget(v.id)}
+                        onClick={() => {
+                          setTradeInTarget(v.id);
+                          setTradeInSource(tradeableVehicles[0]?.id || null);
+                        }}
                       >
                         <ArrowRightLeft size={8} /> INRUIL
                       </GameButton>
@@ -291,21 +300,104 @@ export function DealerPanel() {
         />
       )}
 
-      {/* Trade-in modal */}
+      {/* Trade-in modal with vehicle selection */}
       {tradeInTarget && (
-        <ConfirmDialog
-          open={true}
-          title="Inruilen"
-          message={`Kies een voertuig om in te ruilen voor ${VEHICLES.find(v => v.id === tradeInTarget)?.name}. Je krijgt 10% extra boven de normale verkoopprijs.`}
-          onConfirm={() => {
-            // Trade in active vehicle by default
-            const tradeCandidate = state.ownedVehicles.find(v => v.id !== 'toyohata' && VEHICLES.find(vd => vd.id === v.id)?.cost! > 0);
-            if (tradeCandidate) {
-              handleTradeIn(tradeCandidate.id, tradeInTarget);
-            }
-          }}
-          onCancel={() => setTradeInTarget(null)}
-        />
+        <>
+          <div className="fixed inset-0 bg-background/80 z-[10000] backdrop-blur-sm" onClick={() => { setTradeInTarget(null); setTradeInSource(null); }} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="fixed left-4 right-4 top-1/4 z-[10001] max-w-sm mx-auto"
+          >
+            <div className="game-card p-5 shadow-2xl border-t-[3px] border-t-gold">
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-1">Inruilen</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Kies welk voertuig je wilt inruilen voor <span className="font-bold text-foreground">{VEHICLES.find(v => v.id === tradeInTarget)?.name}</span>.
+                Je krijgt 10% extra boven de normale verkoopprijs.
+              </p>
+
+              {/* Vehicle selection */}
+              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                {tradeableVehicles.map(tv => {
+                  const tvDef = VEHICLES.find(v => v.id === tv.id);
+                  if (!tvDef) return null;
+                  const tradeValue = Math.floor(getSellPrice(tv.id) * 1.18); // 10% extra + base
+                  const isSelected = tradeInSource === tv.id;
+                  return (
+                    <button
+                      key={tv.id}
+                      onClick={() => setTradeInSource(tv.id)}
+                      className={`w-full flex items-center gap-2 p-2 rounded border transition-all text-left ${
+                        isSelected 
+                          ? 'border-gold bg-gold/10' 
+                          : 'border-border bg-muted/30 hover:border-muted-foreground/50'
+                      }`}
+                    >
+                      <div className="w-10 h-7 rounded bg-muted overflow-hidden flex-shrink-0">
+                        {VEHICLE_IMAGES[tv.id] ? (
+                          <img src={VEHICLE_IMAGES[tv.id]} alt={tvDef.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><Car size={10} className="text-muted-foreground" /></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[0.55rem] truncate">
+                          {tvDef.name}
+                          {tv.id === state.activeVehicle && <span className="text-gold text-[0.4rem] ml-1">(ACTIEF)</span>}
+                        </div>
+                        <div className="text-[0.45rem] text-muted-foreground">
+                          Conditie: {tv.condition}% · Inruilwaarde: <span className="text-emerald font-bold">€{tradeValue.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-gold' : 'border-muted-foreground/30'
+                      }`}>
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-gold" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Net cost preview */}
+              {tradeInSource && (() => {
+                const targetDef = VEHICLES.find(v => v.id === tradeInTarget);
+                const targetPrice = getMarketPrice(tradeInTarget);
+                const tradeValue = Math.floor(getSellPrice(tradeInSource) * 1.18);
+                const netCost = targetPrice - tradeValue;
+                return (
+                  <div className="bg-muted/30 rounded p-2 mb-4 text-[0.5rem]">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Prijs {targetDef?.name}:</span><span>€{targetPrice.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Inruilwaarde:</span><span className="text-emerald">-€{tradeValue.toLocaleString()}</span></div>
+                    <div className="border-t border-border my-1" />
+                    <div className="flex justify-between font-bold">
+                      <span>{netCost > 0 ? 'Bijbetalen:' : 'Je ontvangt:'}</span>
+                      <span className={netCost > 0 ? 'text-blood' : 'text-emerald'}>€{Math.abs(netCost).toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setTradeInTarget(null); setTradeInSource(null); }}
+                  className="flex-1 py-2.5 rounded text-xs font-bold bg-muted border border-border text-muted-foreground"
+                >
+                  ANNULEER
+                </button>
+                <button
+                  onClick={() => {
+                    if (tradeInSource) handleTradeIn(tradeInSource, tradeInTarget);
+                  }}
+                  disabled={!tradeInSource}
+                  className="flex-1 py-2.5 rounded text-xs font-bold bg-gold text-secondary-foreground disabled:opacity-50"
+                >
+                  RUIL IN
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
       )}
     </div>
   );
