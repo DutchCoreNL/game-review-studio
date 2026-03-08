@@ -2104,21 +2104,20 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     if (!gear?.enchantmentId) continue;
     const ench = getEnchantmentDef(gear.enchantmentId);
     const eff = ench.effects;
-    // Guardian: chance to halve incoming damage (applied retroactively is complex,
-    // so we apply as a post-combat heal representing damage mitigation)
-    if (eff.damageReduction && eff.damageReduction > 0) {
-      // Store for enemy attack phase below
-      if (!combat._guardianChance) combat._guardianChance = 0;
-      combat._guardianChance = Math.min(0.3, (combat._guardianChance || 0) + eff.damageReduction);
-    }
-    // Defense bonus
-    if (eff.defenseBonus && eff.defenseBonus > 0) {
-      // Already reflected in gear stats, no double-dip
-    }
+    // Guardian: chance to halve incoming damage is applied in enemy attack phase below
+    // Defense bonus is already reflected in gear stats
     // Heat reduction from gear enchantments
     if (eff.heatReduction && eff.heatReduction > 0) {
       state.heat = Math.max(0, state.heat - eff.heatReduction);
     }
+  }
+
+  // Calculate guardian chance from gear enchantments for enemy attack phase
+  let guardianChance = 0;
+  for (const gear of defensiveGear) {
+    if (!gear?.enchantmentId) continue;
+    const eff = getEnchantmentDef(gear.enchantmentId).effects;
+    if (eff.damageReduction) guardianChance = Math.min(0.3, guardianChance + eff.damageReduction);
   }
 
 
