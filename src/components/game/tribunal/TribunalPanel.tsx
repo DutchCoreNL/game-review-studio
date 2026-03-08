@@ -23,11 +23,17 @@ interface TribunalCase {
   created_at: string;
 }
 
-const CHARGES = [
+const CHARGES_NL = [
   { id: 'scam', label: 'Oplichting', desc: 'Oneerlijke handel of bedrog' },
   { id: 'betrayal', label: 'Verraad', desc: 'Gang-verraad of dubbelspel' },
   { id: 'griefing', label: 'Griefing', desc: 'Herhaaldelijk targeten van zwakkere spelers' },
   { id: 'exploit', label: 'Exploit Misbruik', desc: 'Misbruik van spelfouten' },
+];
+const CHARGES_EN = [
+  { id: 'scam', label: 'Scam', desc: 'Unfair trade or deception' },
+  { id: 'betrayal', label: 'Betrayal', desc: 'Gang betrayal or double-dealing' },
+  { id: 'griefing', label: 'Griefing', desc: 'Repeatedly targeting weaker players' },
+  { id: 'exploit', label: 'Exploit Abuse', desc: 'Abusing game bugs' },
 ];
 
 export function TribunalPanel() {
