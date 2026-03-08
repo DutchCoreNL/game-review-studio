@@ -56,7 +56,6 @@ function getWorldDayFromDate(): number {
   const diffMs = now.getTime() - REFERENCE_DATE.getTime();
   return Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
 }
-const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
 
 function weightedRandomWeather(): string {
   const total = WEATHER_WEIGHTS.reduce((a, b) => a + b, 0);
