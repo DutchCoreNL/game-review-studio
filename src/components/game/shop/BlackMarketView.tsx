@@ -7,8 +7,9 @@ import { GameButton } from '@/components/game/ui/GameButton';
 import { ViewWrapper } from '@/components/game/ui/ViewWrapper';
 import { WEAPON_FRAME_IMAGES, GEAR_FRAME_IMAGES } from '@/assets/items/arsenal';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Package, Sparkles, DollarSign, Banknote } from 'lucide-react';
+import { ShoppingBag, Package, Sparkles, DollarSign, Banknote, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import arsenalBg from '@/assets/arsenal-bg.jpg';
+import { getBlackMarketPriceMultiplier, type MarketPriceModifier } from '@/game/marketFluctuations';
 
 type Tab = 'shop' | 'crates';
 
@@ -29,6 +30,9 @@ export function BlackMarketView() {
     dispatch({ type: 'BUY_BLACK_MARKET_ITEM', itemId, useDirtyMoney: useDirty });
     showToast('Item gekocht! Check je arsenaal.');
   };
+
+  const modifiers: MarketPriceModifier[] = state.marketPriceModifiers || [];
+  const insiderTips = state.insiderTips || [];
 
   const handleOpenCrate = (tier: CrateTier) => {
     const def = CRATE_DEFS.find(c => c.id === tier)!;
@@ -60,6 +64,39 @@ export function BlackMarketView() {
             <Package size={12} /> Kisten
           </GameButton>
         </div>
+
+        {/* Active Market Modifiers */}
+        {modifiers.length > 0 && (
+          <div className="space-y-1">
+            {modifiers.map(mod => {
+              const isUp = Object.values(mod.effects).some(v => v !== undefined && (v as number) > 1);
+              return (
+                <div key={mod.id} className={`flex items-center gap-2 text-[0.55rem] p-2 rounded border ${isUp ? 'bg-blood/5 border-blood/20 text-blood' : 'bg-emerald/5 border-emerald/20 text-emerald'}`}>
+                  {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                  <span className="font-bold">{mod.icon} {mod.name}</span>
+                  <span className="text-muted-foreground flex-1">{mod.desc}</span>
+                  <span className="text-[0.45rem]">{mod.daysRemaining}d</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Insider Tips */}
+        {insiderTips.length > 0 && (
+          <div className="space-y-1">
+            {insiderTips.map(tip => (
+              <div key={tip.id} className="flex items-center gap-2 text-[0.55rem] p-2 rounded border bg-gold/5 border-gold/20">
+                <AlertTriangle size={10} className="text-gold" />
+                <span className="text-gold font-bold">TIP:</span>
+                <span className="text-foreground flex-1">{tip.tipText}</span>
+                <GameButton size="sm" variant="ghost" className="text-[0.45rem]" onClick={() => dispatch({ type: 'DISMISS_INSIDER_TIP_MARKET', tipId: tip.id })}>
+                  ✓
+                </GameButton>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Shop Tab */}
         {tab === 'shop' && (
