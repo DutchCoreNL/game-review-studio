@@ -198,6 +198,110 @@ const BOT_GANG_NAMES = [
   { name: 'Black Serpents', tag: 'BSP' },
 ];
 
+// ========== BOT CHAT TEMPLATES (personality-driven) ==========
+const BOT_CHAT_GLOBAL: Array<(name: string) => string> = [
+  (n) => `Yo wie is er online? 👀`,
+  (n) => `Deze stad slaapt nooit fr fr 🔥`,
+  (n) => `Iemand wil samenwerken? DM me`,
+  (n) => `Net weer een level omhoog, grinden stopt nooit 💪`,
+  (n) => `Lowrise is gevaarlijk vandaag, watch out`,
+  (n) => `Crown Heights is waar het echte geld zit`,
+  (n) => `Wie heeft er tips voor een newbie?`,
+  (n) => `Die politie is echt overal de laatste tijd 🚔`,
+  (n) => `Respect voor iedereen die hustlet hier 💯`,
+  (n) => `Iemand ervaringen met die nieuwe faction?`,
+  (n) => `GG aan de topspelers, maar ik kom eraan 😤`,
+  (n) => `Port Nero is underrated voor trades`,
+  (n) => `Iron Borough heeft de beste gym tbh`,
+  (n) => `Hoeveel verdienen jullie per dag eigenlijk?`,
+  (n) => `Neon Strip casino is rigged imo 🎰`,
+  (n) => `Ik ben broke, wie leent me wat 😅`,
+  (n) => `Die bounty op mijn hoofd is onterecht smh`,
+  (n) => `Welk district is het veiligst?`,
+  (n) => `Straatrace iemand? 🏎️`,
+  (n) => `Ik vertrouw niemand in deze stad`,
+  (n) => `De onderwereld wordt steeds heftiger`,
+  (n) => `Eerste regel: trust nobody 🤫`,
+  (n) => `Heeft iemand explosives te koop?`,
+  (n) => `Die storm buiten is echt niet normaal`,
+  (n) => `Noxhaven nooit verandert... altijd chaos 💀`,
+];
+
+const BOT_CHAT_TRADE: Array<(name: string) => string> = [
+  (n) => `WTB drugs, bulk, fair price. DM 📦`,
+  (n) => `WTS wapens onder marktprijs, snel weg ermee`,
+  (n) => `Crypto is aan het stijgen, invest nu!`,
+  (n) => `Wie heeft meds? Ik betaal goed`,
+  (n) => `Luxe goederen te koop, Crown Heights pickup`,
+  (n) => `Tech dumpen voor cash, wie wil?`,
+  (n) => `De markt crasht, nu kopen = winst later`,
+  (n) => `Explosives zijn schaars, prijzen gaan omhoog 📈`,
+  (n) => `Chemicaliën nodig voor een project, wie levert?`,
+  (n) => `Bulk deal: 50 units electronics, halve prijs`,
+  (n) => `Smokkelroute naar Crown Heights loopt goed 🚢`,
+  (n) => `Market tip: koop drugs in Lowrise, verkoop in Neon`,
+  (n) => `Wie doet er mee aan een grote trade run?`,
+  (n) => `De veiling is interessant vandaag, check het`,
+  (n) => `Import/export business is booming 💰`,
+];
+
+const BOT_CHAT_GYM: Array<(name: string) => string> = [
+  (n) => `Net 2 uur getraind, strength omhoog 💪`,
+  (n) => `Die gym in Iron Borough is hardcore`,
+  (n) => `Speed training is key voor PvP fights`,
+  (n) => `Wie traint er ook in Neon Elite? Sparren?`,
+  (n) => `Defense stats zijn ondergewaardeerd imo 🛡️`,
+  (n) => `Ik train elke dag, no days off`,
+  (n) => `PR gebroken vandaag! 🏆`,
+  (n) => `Dexterity > strength, change my mind`,
+  (n) => `Crown Heights Academy heeft de beste trainers`,
+  (n) => `Gym + goede gear = onverslaanbaar`,
+];
+
+const BOT_CHAT_JOB: Array<(name: string) => string> = [
+  (n) => `Net promotie gekregen op het werk 🎉`,
+  (n) => `Legaal geld verdienen is saai maar het loont`,
+  (n) => `Advocaat salaris is insane, maar de grind...`,
+  (n) => `Wie werkt er als beveiliger? Worth it?`,
+  (n) => `Arts verdient het meest maar je moet lvl 15+ zijn`,
+  (n) => `Taxichauffeur is chill voor beginners`,
+  (n) => `Salaris + crimineel inkomen = beste combo`,
+  (n) => `Werken is voor de arme mensen... oh wait dat ben ik 😂`,
+  (n) => `Makelaar in Crown Heights = ez money`,
+  (n) => `Boekhouder is handig voor het witwassen lol`,
+];
+
+// Personality-specific chat messages for more immersion
+const BOT_CHAT_AGGRESSIVE: Array<(name: string) => string> = [
+  (n) => `Wie wil vechten? Ik ben in ${['Lowrise', 'Iron Borough', 'Neon Strip'][Math.floor(Math.random() * 3)]} 👊`,
+  (n) => `Net iemand z'n safehouse geraided, easy loot 💀`,
+  (n) => `Ik pak iedereen die in mijn district komt`,
+  (n) => `Bounties zijn m'n hobby, wie is de volgende?`,
+  (n) => `PvP is de enige manier om respect te verdienen`,
+  (n) => `Zwakke spelers moeten oppassen in mijn wijk`,
+  (n) => `Die faction boss gaat eraan vandaag ⚔️`,
+];
+
+const BOT_CHAT_STEALTHY: Array<(name: string) => string> = [
+  (n) => `...`,
+  (n) => `Ik heb info. Kost je wel wat.`,
+  (n) => `De muren hebben oren in deze stad 👂`,
+  (n) => `Sommige dingen zie je beter niet`,
+  (n) => `Onder de radar blijven is een kunst`,
+  (n) => `Ik weet wie er mol is in jullie gang 😏`,
+  (n) => `Silent moves > loud moves`,
+];
+
+const BOT_CHAT_SOCIAL: Array<(name: string) => string> = [
+  (n) => `Heyy iedereen! Hoe gaat het? 😊`,
+  (n) => `Wie wil er een alliance vormen?`,
+  (n) => `Community is alles in dit spel ❤️`,
+  (n) => `Welkom aan alle nieuwe spelers!`,
+  (n) => `Laten we samen een heist doen, meer fun!`,
+  (n) => `GG iedereen, mooie dag vandaag`,
+  (n) => `Hulp nodig? Stuur me een bericht`,
+];
+
 // ========== BOT SIMULATION ==========
 const BOT_ACTIONS = [
   { action: 'travel', weight: 25 },
@@ -226,17 +330,6 @@ function getWeightedActions(personality: string): { action: string; weight: numb
     weight: Math.round(a.weight * (mods[a.action] || 1)),
   }));
 }
-
-const BOT_NEWS_TEMPLATES = [
-  (name: string, loc: string) => ({ text: `${name} gespot in ${DISTRICT_NAMES[loc] || loc} — handelt grote partij goederen`, icon: '📦', urgency: 'low' as const, category: 'player' }),
-  (name: string, loc: string) => ({ text: `${name} pleegt gewapende overval in ${DISTRICT_NAMES[loc] || loc}`, icon: '💥', urgency: 'medium' as const, category: 'heat' }),
-  (name: string, _: string) => ({ text: `${name} beklimt de ranglijst — reputatie stijgt snel`, icon: '📈', urgency: 'low' as const, category: 'player' }),
-  (name: string, loc: string) => ({ text: `Schietpartij gemeld in ${DISTRICT_NAMES[loc] || loc} — ${name} betrokken`, icon: '🔫', urgency: 'high' as const, category: 'heat' }),
-  (name: string, loc: string) => ({ text: `${name} koopt vastgoed op in ${DISTRICT_NAMES[loc] || loc}`, icon: '🏠', urgency: 'low' as const, category: 'market' }),
-  (name: string, _: string) => ({ text: `${name} gezien bij nachtclub met onbekende zakenlieden`, icon: '🍸', urgency: 'low' as const, category: 'flavor' }),
-  (name: string, loc: string) => ({ text: `Politie zoekt ${name} na incident in ${DISTRICT_NAMES[loc] || loc}`, icon: '🚔', urgency: 'medium' as const, category: 'heat' }),
-  (name: string, _: string) => ({ text: `${name} sluit lucratieve deal — miljoenen verdiend`, icon: '💰', urgency: 'low' as const, category: 'market' }),
-];
 
 function pickWeighted(items: { action: string; weight: number }[]): string {
   const total = items.reduce((s, i) => s + i.weight, 0);
