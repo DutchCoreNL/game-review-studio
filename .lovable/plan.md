@@ -1,87 +1,60 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Casino Verbeteringen
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
-
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Na analyse van alle 5 casino-games en de lobby zijn er verbeteringen in 3 categorieën: **visuele consistentie**, **UX/feedback** en **gameplay**.
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+## 1. Russian Roulette — Visuele consistentie (bug)
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+`RussianRouletteGame.tsx` mist de cinematic header-structuur die alle andere games wél hebben (game-card wrapper met afbeelding + gradient + titel). Het gebruikt een kale `space-y-4` layout. Dit valt visueel uit de toon.
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
-
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
-
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+**Fix**: Wrap in dezelfde `game-card overflow-hidden` structuur met cinematic header afbeelding, zoals de andere 4 games.
 
 ---
 
-## Technisch overzicht
+## 2. In-game stats balk
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+Sessie-statistieken (winst/verlies/streak) zijn alleen zichtbaar in de lobby. Tijdens het spelen zie je niets — je moet terug naar het menu om je sessie-voortgang te zien.
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+**Fix**: Voeg een compacte stats-balk toe bovenin elk actief spel: `W:3 | L:1 | +€450 | 🔥2`. Dit is een klein gedeeld component `<SessionStatsBar />`.
+
+---
+
+## 3. Lobby layout — Featured game + 2x2 grid
+
+De lobby heeft 5 kaarten in een 2-kolom grid waardoor Russian Roulette alleen op de onderste rij staat. 
+
+**Fix**: Maak het eerste spel (Blackjack) een full-width "featured" kaart bovenaan, gevolgd door de overige 4 in een 2x2 grid. Dit geeft een professionelere uitstraling.
+
+---
+
+## 4. Win-animatie met goudmunten
+
+Er is geen visuele bevestiging bij winst behalve een tekstregel. Alle games tonen alleen `<motion.p>GEWONNEN!</motion.p>`.
+
+**Fix**: Voeg een `<WinCelebration amount={number} />` component toe met 5-8 gouden muntjes die omhoog floaten met framer-motion. Wordt getriggerd bij winst in alle 5 games.
+
+---
+
+## 5. Blackjack — Split optie
+
+Blackjack heeft alleen Hit/Stand/Double. Split ontbreekt — een standaard blackjack-feature wanneer je twee kaarten van dezelfde waarde hebt.
+
+**Fix**: Voeg een SPLIT-knop toe die verschijnt wanneer de eerste twee kaarten dezelfde rang hebben. De actie wordt als `'split'` naar de server gestuurd. De UI toont twee handen naast elkaar.
+
+---
+
+## Implementatieplan
+
+| # | Wat | Bestanden | Complexiteit |
+|---|-----|-----------|-------------|
+| 1 | Russian Roulette cinematic header | `RussianRouletteGame.tsx` | Klein |
+| 2 | `SessionStatsBar` component + integratie in alle games | Nieuw component + 5 game files | Medium |
+| 3 | Lobby featured layout | `CasinoView.tsx` | Klein |
+| 4 | `WinCelebration` coin animatie | Nieuw component + 5 game files | Medium |
+| 5 | Blackjack Split | `BlackjackGame.tsx` | Medium-groot |
+
+Stappen 1-4 zijn puur visueel/UX. Stap 5 is gameplay. Totaal ~6 bestanden gewijzigd, 2 nieuwe components.
 
