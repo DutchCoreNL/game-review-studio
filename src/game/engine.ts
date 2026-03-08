@@ -15,6 +15,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId } from './weaponGenerator';
+import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
   Object.fromEntries(WEAPON_ACCESSORIES.map(a => [a.id, { dotDamage: a.dotDamage, stunChance: a.stunChance, heatReduction: a.heatReduction }]));
