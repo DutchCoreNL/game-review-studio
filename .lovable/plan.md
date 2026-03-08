@@ -1,74 +1,87 @@
 
 
-## Underworld Economy — Uitbreidingsplan
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-Na analyse van de bestaande systemen (reizen, smokkelroutes, drug imperium, corruptie, zwarte markt, goederenhandel) zijn dit de onderdelen die ontbreken of onvoldoende uitgewerkt zijn:
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
----
-
-### 1. Wapenhandel Netwerk
-Nieuw systeem: `src/game/armsDealing.ts`
-
-Spelers kunnen een **wapenhandelnetwerk** opzetten parallel aan het drug imperium:
-- **Wapen-contacten** per district die wekelijks bestellingen plaatsen (pistolen, SMGs, rifles)
-- Inkomsten schalen met hoeveelheid contacten en district-reputatie
-- **Risico**: politie-interceptie bij hoge heat, rivaliserende facties die concurreren
-- Vereist: eigen wapens uit arsenaal "verkopen" aan contacten, of bulk-inkoop via internationale reizen
-- UI: tab in TradeView of als sub-panel
-
-### 2. Smokkelroute Upgrades & Specialisaties
-Uitbreiding van bestaande `SmuggleRoute` in types.ts:
-
-Huidige routes zijn simpel (from/to/good/active). Uitbreiden met:
-- **Route-levels** (1-3): hogere levels = meer capaciteit, lagere interceptiekans
-- **Specialisatie**: route specialiseren in één goedtype voor +50% winst
-- **Escortes**: crew-leden toewijzen aan routes voor bescherming (Enforcer = -30% interceptie)
-- **Upgrade-kosten** stijgen per level, vereisen scrap of dirty money
-
-### 3. Witwas Uitbreiding
-Uitbreiding van bestaand LaunderingPanel:
-
-- **Witwas-methodes**: naast het bestaande systeem, 3 nieuwe methodes toevoegen:
-  - **Casino Witwas**: via casinowinsten (laag risico, lage throughput, vereist Neon Strip)
-  - **Crypto Mixing**: via crypto wallets (hoog risico, hoge throughput)
-  - **Vastgoed Shell Companies**: via properties (nul risico, zeer trage throughput, vereist 3+ properties)
-- Elke methode heeft eigen kosten, snelheid en detectierisico
-
-### 4. Zwarte Markt Prijsfluctuaties
-Uitbreiding van BlackMarket + goederenprijzen:
-
-- **Dynamische wapenprijzen**: Zwarte Markt items worden duurder/goedkoper op basis van:
-  - Actieve gang wars → wapenprijzen +30%
-  - DEA-onderzoek actief → drugsprijzen -20% (niemand wil kopen)
-  - Week-events die specifieke categorieën beïnvloeden
-- **Insider-tips** via corrupte contacten: vooraf weten welke prijzen gaan stijgen
-- Visueel: prijstrend-pijlen in de Zwarte Markt UI
-
-### 5. Ondergrondse Warenhuizen (Stash Houses)
-Nieuw concept gekoppeld aan safehouses:
-
-- **Stash Houses**: opslaglocaties voor illegale goederen verspreid over districten
-- Capaciteit per stash afhankelijk van safehouse-level
-- Goederen opslaan buiten je hoofdinventaris (beschermt tegen raids/arrestatie)
-- **Risico**: stash houses kunnen ontdekt worden als heat te hoog is → confiscatie
-- Tactisch element: spreid je voorraad om risico te minimaliseren
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
 ---
 
-### Technisch Overzicht
+## Plan: Arsenaal Acquisitie Systeem
+
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
+
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
+
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
+
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
+
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+
+---
+
+## Technisch overzicht
 
 | Component | Bestand | Wijziging |
-|---|---|---|
-| Wapenhandel logica | `src/game/armsDealing.ts` | Nieuw |
-| Wapenhandel UI | `src/components/game/trade/ArmsDealingPanel.tsx` | Nieuw |
-| Smokkelroute upgrades | `src/game/types.ts` (SmuggleRoute), reducer | Uitbreiding |
-| Smokkelroute upgrade UI | Bestaande TravelView uitbreiden | Uitbreiding |
-| Witwas methodes | `src/game/constants.ts`, LaunderingPanel | Uitbreiding |
-| Prijsfluctuaties | `src/game/blackMarket.ts`, BlackMarketView | Uitbreiding |
-| Stash Houses | `src/game/types.ts`, safehouse reducer | Uitbreiding |
-| Stash Houses UI | `src/components/game/SafehouseView.tsx` | Uitbreiding |
-| View registry | `src/components/game/viewRegistry.ts` | Arms Dealing toevoegen |
-| Sidebar | Desktop/Mobile sidebar | Navigatie links |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-Alle wijzigingen zijn client-side. Geen database migraties nodig. GameState krijgt nieuwe velden: `armsNetwork`, `stashHouses`, `launderMethods`, `marketPriceModifiers`.
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 

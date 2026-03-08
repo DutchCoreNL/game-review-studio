@@ -15,7 +15,7 @@ export type GameView =
   | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
-  | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes' | 'raids';
+  | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes' | 'raids' | 'arms-dealing';
 
 // ========== VILLA TYPES ==========
 
@@ -256,6 +256,11 @@ export interface SmuggleRoute {
   good: GoodId;
   active: boolean;
   daysActive: number;
+  // Upgrade fields
+  level: number; // 1-3
+  specialization: GoodId | null; // specialized good for +50% profit
+  escort: string | null; // crew member name assigned as escort
+  escortRole: import('./types').CrewRole | null;
 }
 
 export interface PhoneMessage {
@@ -1225,6 +1230,13 @@ export interface GameState {
   skinInventory: import('../game/weaponSkins').SkinItem[];
   blueprintInventory: import('../game/blueprints').BlueprintItem[];
   loadoutPresets: import('../game/loadoutPresets').LoadoutPreset[];
+
+  // ========== UNDERWORLD ECONOMY STATE ==========
+  armsNetwork: import('../game/armsDealing').ArmsNetwork | null;
+  stashHouses: import('../game/stashHouses').StashHouse[];
+  marketPriceModifiers: import('../game/marketFluctuations').MarketPriceModifier[];
+  insiderTips: import('../game/marketFluctuations').InsiderTipData[];
+  launderMethodsUsed: Partial<Record<string, number>>; // methodId -> amount used today
 
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;

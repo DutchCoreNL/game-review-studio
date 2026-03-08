@@ -1979,6 +1979,12 @@ export function createInitialState(): import('./types').GameState {
     skinInventory: [],
     blueprintInventory: [],
     loadoutPresets: [],
+    // Underworld Economy state
+    armsNetwork: null,
+    stashHouses: [],
+    marketPriceModifiers: [],
+    insiderTips: [],
+    launderMethodsUsed: {},
   };
 }
 

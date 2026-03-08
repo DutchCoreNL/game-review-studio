@@ -76,6 +76,7 @@ const BlackMarketViewLazy = React.lazy(() => import('./shop/BlackMarketView').th
 const SalvageViewLazy = React.lazy(() => import('./crafting/SalvageView').then(m => ({ default: m.SalvageView })));
 const LootBoxViewLazy = React.lazy(() => import('./lootbox/LootBoxView').then(m => ({ default: m.LootBoxView })));
 const DungeonViewLazy = React.lazy(() => import('./dungeon/DungeonView').then(m => ({ default: m.DungeonView })));
+const ArmsDealingViewLazy = React.lazy(() => import('./trade/ArmsDealingPanel').then(m => ({ default: m.ArmsDealingPanel })));
 
 // View mapping — each sidebar entry maps to a component
 export const views: Record<string, React.ComponentType> = {
@@ -143,6 +144,7 @@ export const views: Record<string, React.ComponentType> = {
   'salvage': SalvageViewLazy,
   'loot-boxes': LootBoxViewLazy,
   'raids': DungeonViewLazy,
+  'arms-dealing': ArmsDealingViewLazy,
   // Admin
   admin: AdminPanelView,
 };
@@ -151,7 +153,7 @@ export const views: Record<string, React.ComponentType> = {
 export function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
   if (['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign', 'raids'].includes(v)) return 'ops';
-  if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear', 'black-market', 'salvage', 'loot-boxes'].includes(v)) return 'trade';
+  if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear', 'black-market', 'salvage', 'loot-boxes', 'arms-dealing'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
   return 'profile';
 }

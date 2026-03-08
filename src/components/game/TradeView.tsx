@@ -1,4 +1,4 @@
-import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX, Globe, Users } from 'lucide-react';
+import { ShoppingBag, Droplets, ShieldCheck, BarChart3, Gavel, TrendingUp, ScrollText, VolumeX, Globe, Users, Crosshair } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,12 +15,13 @@ import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
 import { GlobalMarketPanel } from './trade/GlobalMarketPanel';
 import { MarketplacePanel } from './trade/MarketplacePanel';
+import { ArmsDealingPanel } from './trade/ArmsDealingPanel';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { useMuteStatus } from '@/hooks/useMuteStatus';
 import tradeBg from '@/assets/trade-bg.jpg';
 
-type TradeSubTab = 'market' | 'p2p' | 'analysis' | 'global' | 'auction' | 'live_auction' | 'launder' | 'gear' | 'stocks' | 'log';
+type TradeSubTab = 'market' | 'p2p' | 'analysis' | 'global' | 'auction' | 'live_auction' | 'launder' | 'gear' | 'stocks' | 'log' | 'arms';
 
 export function TradeView() {
   const [subTab, setSubTab] = useState<TradeSubTab>('market');
@@ -55,6 +56,7 @@ export function TradeView() {
     { id: 'launder', label: t.trade.launder, icon: <Droplets size={11} /> },
     { id: 'gear', label: t.trade.gear, icon: <ShieldCheck size={11} /> },
     { id: 'log', label: t.trade.log, icon: <ScrollText size={11} />, badge: (state.tradeLog?.length || 0) },
+    { id: 'arms', label: 'Wapens', icon: <Crosshair size={11} />, badge: (state.armsNetwork?.contacts.length || 0) },
   ];
 
   return (
@@ -87,6 +89,7 @@ export function TradeView() {
           {subTab === 'launder' && <LaunderingPanel />}
           {subTab === 'gear' && <GearPanel />}
           {subTab === 'log' && <TradeLogPanel />}
+          {subTab === 'arms' && <ArmsDealingPanel />}
         </>
       )}
     </ViewWrapper>
