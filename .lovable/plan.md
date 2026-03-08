@@ -1,87 +1,74 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+## Arsenaal Uitbreidingsplan
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
-
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+Het huidige systeem heeft 7 wapen-frames, 5 armor-frames, 5 gadget-frames, 8 brands, 6 gear brands, 12 enchantments, 12 skins en 5 unique weapons. Hier is het uitbreidingsplan:
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+### 1. Nieuwe Wapen-Frames (+3)
+Toevoegen aan `weaponGenerator.ts` en `WEAPON_FRAMES`:
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+| Frame | Base DMG | ACC | Fire Rate | Clip | Niche |
+|---|---|---|---|---|---|
+| **Sniper** | 16 | 10 | 2 | 5 | Hoge schade + accuracy, laag vuur |
+| **Crossbow** | 11 | 7 | 3 | 4 | Silent kills, geen heat |
+| **Dual Pistols** | 5 | 4 | 10 | 24 | Extreem hoge vuursnelheid |
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+- `FrameId` type uitbreiden met `'sniper' | 'crossbow' | 'duals'`
+- Thumbnail-assets genereren via imagegen (3 nieuwe noir-style .png)
+- `WEAPON_FRAME_IMAGES` in `arsenal.ts` uitbreiden
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+### 2. Nieuwe Gear-Frames (+2 armor, +2 gadget)
+Toevoegen aan `gearGenerator.ts`:
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
+| Frame | Type | DEF | BRN | CRM | HP | Niche |
+|---|---|---|---|---|---|---|
+| **Helm** | armor | 4 | 2 | 0 | 12 | Balanced armor |
+| **Boots** | armor | 3 | 0 | 2 | 8 | Speed/mobility |
+| **Jammer** | gadget | 0 | 5 | 0 | 0 | Anti-tech counter |
+| **Holowatch** | gadget | 0 | 2 | 5 | 0 | Charm-focused gadget |
 
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
+- `ArmorFrameId` uitbreiden met `'helm' | 'boots'`
+- `GadgetFrameId` uitbreiden met `'jammer' | 'holowatch'`
+- 4 nieuwe thumbnail-assets genereren
 
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+### 3. Meer Content Variatie
+
+**Nieuwe Brands (+2 wapen, +2 gear)**:
+- **Wapen**: `Havoc Arms` (explosief: +splash damage) en `Wraithsteel` (precision: +headshot bonus)
+- **Gear**: `Ironhide` (tank: +HP focus) en `Nexus Systems` (+charm specialist)
+
+**Nieuwe Enchantments (+4)**:
+- `Executioner` (legendary): +40% schade tegen targets onder 25% HP
+- `Guardian` (epic): 15% kans schade te halveren
+- `Pyromaniac` (rare): DoT stapelt 2x sneller
+- `Momentum` (epic): +5% schade per opeenvolgende hit (reset bij miss)
+
+**Nieuwe Skins (+4)**:
+- `Holographic` (legendary): regenboog-shimmer effect
+- `Crimson Dragonscale` (epic): rode geschubde textuur
+- `Ghost Wire` (rare): transparante wireframe look
+- `Rusted Iron` (uncommon): verweerde industriele look
+
+**Nieuwe Unique Weapons (+3)**:
+- `De Weduwemaker` (sniper, Wraithsteel) — drops van Gang War legendary
+- `Echo` (crossbow, Phantom) — drops van dungeon boss
+- `Tweelingvuur` (duals, Havoc Arms) — drops van organized crime milestone
 
 ---
 
-## Technisch overzicht
+### Technisch Overzicht
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+| Bestand | Wijziging |
+|---|---|
+| `src/game/weaponGenerator.ts` | +3 frames, +2 brands, FrameId/BrandId types uitbreiden |
+| `src/game/gearGenerator.ts` | +4 frames, +2 brands, FrameId/BrandId types uitbreiden |
+| `src/game/enchantments.ts` | +4 enchantments, EnchantmentId type uitbreiden |
+| `src/game/weaponSkins.ts` | +4 skins, SkinId type uitbreiden |
+| `src/game/uniqueWeapons.ts` | +3 unique weapons |
+| `src/assets/items/arsenal.ts` | Nieuwe frame images registreren |
+| 9× imagegen | Noir-style thumbnails voor 3 weapon + 4 gear frames + 2 extra |
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Alle wijzigingen zijn additief — geen bestaande data breekt. De generator-functies pikken automatisch nieuwe frames/brands op via de bestaande `pickRandom()` arrays.
 
