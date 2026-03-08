@@ -5,18 +5,13 @@ import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { useGame } from '@/contexts/GameContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shield, Brain, Heart, Sparkles, ArrowUp, ArrowDown, Wrench, Star, Smartphone } from 'lucide-react';
+import { ArrowLeft, Shield, Brain, Heart, Sparkles, Wrench, Star, Smartphone } from 'lucide-react';
 import { useState } from 'react';
+import { ComparisonStat } from '../arsenal/SharedStatBars';
 
 const ACCENT_STYLES = {
-  armor: {
-    iconBg: 'bg-ice/15 border-ice/40',
-    iconText: 'text-ice',
-  },
-  gadget: {
-    iconBg: 'bg-game-purple/15 border-game-purple/40',
-    iconText: 'text-game-purple',
-  },
+  armor: { iconBg: 'bg-ice/15 border-ice/40', iconText: 'text-ice' },
+  gadget: { iconBg: 'bg-game-purple/15 border-game-purple/40', iconText: 'text-game-purple' },
 } as const;
 
 interface GearCompareProps {
@@ -27,28 +22,6 @@ interface GearCompareProps {
   onSell: () => void;
   onUpgrade: () => void;
   onBack: () => void;
-}
-
-function ComparisonStat({ label, newVal, oldVal, icon }: { label: string; newVal: number; oldVal: number; icon: React.ReactNode }) {
-  const diff = newVal - oldVal;
-  if (newVal === 0 && oldVal === 0) return null;
-  return (
-    <div className="flex items-center justify-between py-1">
-      <div className="flex items-center gap-1.5">
-        {icon}
-        <span className="text-[0.5rem] text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-[0.55rem] font-bold">{newVal}</span>
-        {diff !== 0 && (
-          <span className={`text-[0.5rem] font-bold flex items-center gap-0.5 ${diff > 0 ? 'text-emerald' : 'text-blood'}`}>
-            {diff > 0 ? <ArrowUp size={8} /> : <ArrowDown size={8} />}
-            {Math.abs(diff)}
-          </span>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUpgrade, onBack }: GearCompareProps) {
@@ -77,12 +50,10 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
 
   return (
     <div>
-      {/* Back button */}
       <button onClick={onBack} className="flex items-center gap-1.5 text-[0.55rem] text-muted-foreground hover:text-gold mb-3 transition-colors">
         <ArrowLeft size={12} /> Terug naar arsenaal
       </button>
 
-      {/* Cinematic header */}
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 rounded-full ${accent.iconBg} flex items-center justify-center`}>
           <HeaderIcon size={18} className={accent.iconText} />
@@ -99,7 +70,6 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         </div>
       </div>
 
-      {/* Gear display */}
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -110,7 +80,6 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         {gear.lore && <p className="text-[0.45rem] italic text-muted-foreground mt-2 max-w-xs mx-auto">"{gear.lore}"</p>}
       </motion.div>
 
-      {/* Mastery */}
       {(gear.masteryXp || 0) > 0 && (
         <div className="game-card p-3 mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -128,18 +97,16 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         </div>
       )}
 
-      {/* Stat comparison */}
       <div className="game-card p-3 mb-3">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
           {currentGear ? 'Vergelijking met huidig' : 'Statistieken'}
         </div>
-        <ComparisonStat label="Defensie" newVal={stats.defense} oldVal={oldStats.defense} icon={<Shield size={10} className="text-ice" />} />
-        <ComparisonStat label="Vernuft" newVal={stats.brains} oldVal={oldStats.brains} icon={<Brain size={10} className="text-game-purple" />} />
-        <ComparisonStat label="Charisma" newVal={stats.charm} oldVal={oldStats.charm} icon={<Sparkles size={10} className="text-gold" />} />
-        <ComparisonStat label="Bonus HP" newVal={stats.bonusHP} oldVal={oldStats.bonusHP} icon={<Heart size={10} className="text-blood" />} />
+        <ComparisonStat label="Defensie" newVal={stats.defense} oldVal={oldStats.defense} icon={<Shield size={10} className="text-ice" />} hideIfZero />
+        <ComparisonStat label="Vernuft" newVal={stats.brains} oldVal={oldStats.brains} icon={<Brain size={10} className="text-game-purple" />} hideIfZero />
+        <ComparisonStat label="Charisma" newVal={stats.charm} oldVal={oldStats.charm} icon={<Sparkles size={10} className="text-gold" />} hideIfZero />
+        <ComparisonStat label="Bonus HP" newVal={stats.bonusHP} oldVal={oldStats.bonusHP} icon={<Heart size={10} className="text-blood" />} hideIfZero />
       </div>
 
-      {/* Special effect */}
       {gear.specialEffect && (
         <div className="game-card p-3 mb-3">
           <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-1">Speciaal effect</div>
@@ -147,7 +114,6 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         </div>
       )}
 
-      {/* Upgrade section */}
       <div className="game-card p-3 mb-3">
         <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-bold mb-2">
           <Wrench size={8} className="inline mr-1" /> Verbeteren
@@ -172,7 +138,6 @@ export function GearCompare({ gear, currentGear, gearType, onEquip, onSell, onUp
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2">
         <GameButton variant="gold" size="lg" fullWidth glow onClick={onEquip}>
           {gear.equipped ? 'AL UITGERUST' : 'UITRUSTEN'}
