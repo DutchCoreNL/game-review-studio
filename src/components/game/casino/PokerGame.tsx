@@ -206,7 +206,7 @@ export function PokerGame({ dispatch, showToast, money, state, sessionStats, onR
       <div className="p-4 pt-2 space-y-3">
         <SessionStatsBar stats={sessionStats} />
 
-        {showWin && <WinCelebration amount={winAmount} />}
+        {showWin && <WinCelebration amount={winAmount} show={showWin} />}
 
         {/* Pot indicator */}
         {isPlaying && (
@@ -297,13 +297,13 @@ export function PokerGame({ dispatch, showToast, money, state, sessionStats, onR
         {/* Actions */}
         {isPlaying && (
           <div className="grid grid-cols-3 gap-2">
-            <GameButton variant="default" size="sm" onClick={() => act('check')} disabled={loading}>
+            <GameButton variant="muted" size="sm" onClick={() => act('check')} disabled={loading}>
               {poker.phase === 'preflop' ? 'CALL' : 'CHECK'}
             </GameButton>
             <GameButton variant="gold" size="sm" onClick={() => act('raise')} disabled={loading}>
               RAISE €{bet >= 1000 ? `${Math.floor(bet/1000)}k` : bet}
             </GameButton>
-            <GameButton variant="danger" size="sm" onClick={() => act('fold')} disabled={loading}>
+            <GameButton variant="blood" size="sm" onClick={() => act('fold')} disabled={loading}>
               FOLD
             </GameButton>
           </div>
