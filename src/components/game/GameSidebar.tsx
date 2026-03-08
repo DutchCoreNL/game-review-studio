@@ -15,7 +15,7 @@ import {
   Car, Store, MapPin, Hammer,
   Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
   ShieldAlert, LucideIcon, BookOpen, Sparkles, GraduationCap, Plane, MessageCircle, Waypoints,
-  Package,
+  Package, Flame,
 } from 'lucide-react';
 
 interface SidebarCategory {
@@ -60,6 +60,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'challenges', label: 'Dagelijks', icon: Calendar },
           { id: 'hits', label: 'Hits', icon: Award },
           { id: 'wanted', label: 'Most Wanted', icon: ShieldAlert },
+          { id: 'raids', label: 'Raids', icon: Flame, badge: state.activeDungeon ? 1 : 0 },
         ],
       },
       {
