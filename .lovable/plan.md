@@ -1,87 +1,75 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Codebase Review — Bevindingen en Verbeteringen
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
-
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+## Samenvatting
+Na het nalopen van alle belangrijke views zijn er geen kritieke bugs meer. De eerdere fixes (Tailwind dynamic classes, stale state, type casts) zijn correct doorgevoerd. Wat overblijft zijn **consistentie-problemen** en **dead code** verspreid over de codebase.
 
 ---
 
-## Plan: Arsenaal Acquisitie Systeem
+## 1. `SectionHeader` nog steeds gebruikt in cinematic views (inconsistentie)
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+De cinematic noir upgrade verving de flat `SectionHeader` component door immersieve headers. Maar **binnen** de views worden `SectionHeader` calls nog steeds gebruikt als sub-sectie dividers — dit creëert een visuele breuk (platte `border-b` lijn-stijl naast de cinematic kaart-stijl).
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+**Getroffen bestanden (sub-secties binnen cinematic views):**
+| View | Aantal `SectionHeader` calls |
+|------|-----|
+| `CorruptionView.tsx` | 3 (Actieve/Beschikbare/Verloren Contacten) |
+| `GymView.tsx` | 1 (Locaties) |
+| `JobsView.tsx` | 1 (Beschikbare Banen) |
+| `WarView.tsx` | ~3 (in sub-tabs) |
+| `LeaderboardView.tsx` | ~2 |
+| `PvPAttackView.tsx` | 2 (Gevecht Preview, Spelers lijst) |
+| `ProfileView.tsx` | ~8 |
+| `GangView.tsx` | meerdere |
+| `DailyChallengesView.tsx` | 0 (import maar niet gebruikt → dead import) |
+| `MeritPointsView.tsx` | 0 (import maar niet gebruikt → dead import) |
+| `EducationView.tsx` | 1 (per categorie) |
+| `PropertiesView.tsx` | 0 (import maar niet gebruikt → dead import) |
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
-
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+**Fix:** 
+- Views met dead imports (`DailyChallengesView`, `MeritPointsView`, `PropertiesView`): verwijder de import
+- Views die `SectionHeader` als sub-sectie divider gebruiken: vervang door een lichtere inline variant die consistent is met het noir-thema, bijv:
+```typescript
+<div className="flex items-center gap-1.5 mt-4 mb-2">
+  <Icon size={10} className="text-gold" />
+  <span className="text-[0.5rem] uppercase tracking-wider text-gold/80 font-bold">Titel</span>
+</div>
+```
 
 ---
 
-## Technisch overzicht
+## 2. `TravelView.tsx` — unused `SectionHeader` import
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+Geïmporteerd op regel 9 maar nergens in de body gebruikt. Dead import.
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+---
+
+## 3. `GymView.tsx` — `(state as any).gymStats`
+
+Regel 51: `const gymStats = (state as any).gymStats` — dit suggereert dat `gymStats` niet in het GameState type zit. Als het via de backend komt, is dit acceptabel maar fragiel. Minimaal een type guard of comment is beter.
+
+---
+
+## 4. `PvPAttackView.tsx` — `(p as any).combatRating`
+
+Regels 334-337: `combatRating` wordt gelezen via `as any` cast op `PvPPlayerInfo`. Dit veld zou aan het `PvPPlayerInfo` type moeten worden toegevoegd als het van de backend komt.
+
+---
+
+## 5. Loadout `as GameView` casts — nu OK
+
+De eerder genoemde `as any` casts zijn vervangen door `as GameView`. Dit is acceptabel zolang de string literals (`'weapons'`, `'armor-arsenal'`, `'gadget-arsenal'`) daadwerkelijk in het `GameView` union type staan.
+
+---
+
+## Implementatieplan
+
+| # | Wat | Impact |
+|---|-----|--------|
+| 1 | Dead `SectionHeader` imports verwijderen uit 4 files | Cleanup |
+| 2 | `SectionHeader` in sub-secties vervangen door inline noir-stijl dividers in de 6 meest-gebruikte views | Visuele consistentie |
+| 3 | Type safety: `gymStats` en `combatRating` typen toevoegen aan hun respectieve interfaces | Code quality |
+
+Stap 1 en 3 zijn triviale fixes. Stap 2 is het meeste werk maar puur visueel — geen logica verandert.
 
