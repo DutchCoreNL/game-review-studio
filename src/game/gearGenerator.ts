@@ -72,6 +72,10 @@ export interface GeneratedGear {
   isUnique?: boolean;
   uniqueGlow?: string;
   lore?: string;
+  // Arsenal enhancement features
+  enchantmentId?: import('./enchantments').EnchantmentId;
+  skinId?: import('./weaponSkins').SkinId;
+  durability?: number; // 0-100, default 100
 }
 
 // ========== BRANDS ==========
@@ -235,6 +239,7 @@ export function generateGear(level: number, type: GearType, forcedRarity?: GearR
     equipped: false,
     locked: false,
     masteryXp: 0,
+    durability: 100,
   };
 }
 

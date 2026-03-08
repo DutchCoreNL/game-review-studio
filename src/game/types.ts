@@ -1209,6 +1209,12 @@ export interface GameState {
   pityCounter: number;
   lootCratesPurchased: number;
 
+  // ========== ARSENAL ENHANCEMENT STATE ==========
+  enchantmentInventory: import('../game/enchantments').EnchantmentItem[];
+  skinInventory: import('../game/weaponSkins').SkinItem[];
+  blueprintInventory: import('../game/blueprints').BlueprintItem[];
+  loadoutPresets: import('../game/loadoutPresets').LoadoutPreset[];
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
