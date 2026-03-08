@@ -292,7 +292,7 @@ export function SafehouseView() {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="game-card bg-emerald/5 border border-emerald/20 p-2.5 text-center">
           <Home size={12} className="text-emerald mx-auto mb-0.5" />
-          <div className="text-[0.45rem] text-muted-foreground">Actief</div>
+          <div className="text-[0.45rem] text-muted-foreground">{t.common.active}</div>
           <div className="text-sm font-bold text-emerald">{state.safehouses.length}</div>
         </div>
         <div className="game-card bg-ice/5 border border-ice/20 p-2.5 text-center">
