@@ -2481,7 +2481,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Apply rewards
       s.money += dungResult.money;
       s.stats.totalEarned += dungResult.money;
-      s.player.xp += dungResult.xp;
+      Engine.gainXp(s, dungResult.xp, 'dungeon');
       if (dungResult.scrap > 0) s.scrapMaterials = (s.scrapMaterials || 0) + dungResult.scrap;
       // Loot box rewards → auto-open and add items
       for (const boxTier of dungResult.lootBoxRewards) {
@@ -2511,7 +2511,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ========== DAILY LOGIN REWARD ACTIONS ==========
     case 'CLAIM_DAILY_LOGIN_REWARD': {
-      if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
       if (!canClaimDailyReward(s.lastDailyRewardClaim)) return s;
       let streak = s.dailyRewardStreak || 0;
       if (shouldResetStreak(s.lastDailyRewardClaim)) streak = 0;
