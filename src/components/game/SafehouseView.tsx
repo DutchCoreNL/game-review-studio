@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DISTRICTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, SAFEHOUSE_PERKS } from '@/game/constants';
 import { DistrictId, SafehouseUpgradeId } from '@/game/types';
 import { GameButton } from './ui/GameButton';
@@ -13,6 +14,7 @@ import { SAFEHOUSE_UPGRADE_IMAGES } from '@/assets/items';
 
 function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect: () => void }) {
   const { state } = useGame();
+  const { t } = useLanguage();
   const sh = state.safehouses.find(h => h.district === district);
   const districtData = DISTRICTS[district];
 
@@ -32,7 +34,7 @@ function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect:
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold">{districtData.name}</span>
-            <div className="text-[0.5rem] text-muted-foreground">Koop safehouse — €{cost.toLocaleString()}</div>
+            <div className="text-[0.5rem] text-muted-foreground">{t.common.buySafehouse} — €{cost.toLocaleString()}</div>
           </div>
           <Lock size={14} className="text-muted-foreground" />
         </div>
