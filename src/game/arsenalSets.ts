@@ -23,7 +23,7 @@ const WEAPON_BRAND_TO_FAMILY: Record<BrandId, SetFamilyId> = {
   phantom: 'phantom',
   drakon: 'drakon',
   havoc: 'havoc',
-  wraithsteel: 'phantom',  // Wraithsteel pairs with Phantom/stealth family
+  wraithsteel: 'nexus',   // Wraithsteel pairs with Nexus/precision family
 };
 
 const GEAR_BRAND_TO_FAMILY: Record<GearBrandId, SetFamilyId> = {
@@ -33,7 +33,7 @@ const GEAR_BRAND_TO_FAMILY: Record<GearBrandId, SetFamilyId> = {
   stealthcore: 'phantom',
   titanweave: 'drakon',
   ciphertech: 'nox',
-  ironhide: 'iron',       // Ironhide pairs with Ironjaw/defensive family
+  ironhide: 'havoc',      // Ironhide pairs with Havoc/aggressive tank family
   nexus: 'nexus',          // Nexus is its own charm family
 };
 
@@ -141,6 +141,26 @@ export const SET_BONUSES: SetBonusDef[] = [
     tiers: [
       { pieces: 2, label: '+12% schade, +15 HP', effects: { damageMult: 1.12, hpBonus: 15 } },
       { pieces: 3, label: '+25% schade, +30 HP, +15% armor pierce', effects: { damageMult: 1.25, hpBonus: 30, armorPierce: 15 } },
+    ],
+  },
+  {
+    familyId: 'havoc',
+    name: 'Havoc Fury',
+    icon: '💥',
+    color: 'text-red-400',
+    tiers: [
+      { pieces: 2, label: '+10% schade, +10% armor pierce', effects: { damageMult: 1.1, armorPierce: 10 } },
+      { pieces: 3, label: '+20% schade, +20% armor pierce, +8% crit', effects: { damageMult: 1.2, armorPierce: 20, critBonus: 8 } },
+    ],
+  },
+  {
+    familyId: 'nexus',
+    name: 'Nexus Harmony',
+    icon: '✨',
+    color: 'text-pink-400',
+    tiers: [
+      { pieces: 2, label: '+5% alle stats, +10 HP', effects: { damageMult: 1.05, defenseMult: 1.05, hpBonus: 10 } },
+      { pieces: 3, label: '+10% alle stats, +25 HP, +10% XP', effects: { damageMult: 1.1, defenseMult: 1.1, hpBonus: 25, xpMult: 1.1 } },
     ],
   },
 ];
