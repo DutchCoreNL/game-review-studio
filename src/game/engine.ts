@@ -1514,7 +1514,9 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     state.player.nextXp = xpForLevel(state.player.level);
     // +1 Stat Point per level-up (for raw stats)
     state.player.statPoints = (state.player.statPoints || 0) + 1;
-    // Skill Points only at milestones (every 5 levels) — uses milestone config
+    // +2 Skill Points per level-up (matches server SP_PER_LEVEL = 2)
+    state.player.skillPoints += 2;
+    // Extra SP at milestones (every 5 levels)
     const milestone = getMilestone(state.player.level);
     if (milestone && milestone.sp_bonus > 0) {
       state.player.skillPoints += milestone.sp_bonus;
