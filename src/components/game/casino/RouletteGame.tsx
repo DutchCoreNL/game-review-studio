@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { GameButton } from '../ui/GameButton';
 import { BetControls } from './BetControls';
+import { SessionStatsBar } from './SessionStatsBar';
+import { WinCelebration } from './WinCelebration';
 import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { CASINO_GAME_IMAGES } from '@/assets/items/index';
@@ -14,12 +16,13 @@ interface RouletteGameProps {
   showToast: (msg: string, isError?: boolean) => void;
   money: number;
   state: { ownedDistricts: string[]; districtRep: Record<string, number> };
+  sessionStats?: CasinoSessionStats;
   onResult: (won: boolean | null, amount: number) => void;
 }
 
 const RED_NUMS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
 
-export function RouletteGame({ dispatch, showToast, money, state, onResult }: RouletteGameProps) {
+export function RouletteGame({ dispatch, showToast, money, state, sessionStats, onResult }: RouletteGameProps) {
   const [bet, setBet] = useState(100);
   const [result, setResult] = useState('');
   const [resultColor, setResultColor] = useState('');
@@ -27,6 +30,8 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
   const [wheelNum, setWheelNum] = useState<number | null>(null);
   const [wheelColor, setWheelColor] = useState('');
   const [history, setHistory] = useState<{ num: number; color: string }[]>([]);
+  const [showWin, setShowWin] = useState(false);
+  const [winAmount, setWinAmount] = useState(0);
 
   const getNumColor = (num: number) => num === 0 ? 'green' : RED_NUMS.includes(num) ? 'red' : 'black';
 
@@ -64,6 +69,7 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
         setResult(`GEWONNEN! +€${data.netResult.toLocaleString()}`);
         setResultColor('text-emerald');
         onResult(true, data.netResult);
+        setWinAmount(data.netResult); setShowWin(true); setTimeout(() => setShowWin(false), 2000);
         playRouletteWin();
       } else {
         setResult('VERLOREN');
@@ -88,6 +94,8 @@ export function RouletteGame({ dispatch, showToast, money, state, onResult }: Ro
         <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">ROULETTE</h3>
       </div>
       <div className="p-4 pt-2">
+      {sessionStats && <SessionStatsBar stats={sessionStats} />}
+      <WinCelebration amount={winAmount} show={showWin} />
 
       {/* Wheel */}
       <div className="flex justify-center mb-3">

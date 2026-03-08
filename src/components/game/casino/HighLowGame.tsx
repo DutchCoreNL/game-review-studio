@@ -3,6 +3,8 @@ import { PlayingCard } from '@/game/types';
 import { GameButton } from '../ui/GameButton';
 import { CardDisplay } from './CardDisplay';
 import { BetControls } from './BetControls';
+import { SessionStatsBar } from './SessionStatsBar';
+import { WinCelebration } from './WinCelebration';
 import { CasinoSessionStats } from './casinoUtils';
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react';
@@ -24,10 +26,11 @@ interface HighLowGameProps {
   showToast: (msg: string, isError?: boolean) => void;
   money: number;
   state: { ownedDistricts: string[]; districtRep: Record<string, number> };
+  sessionStats?: CasinoSessionStats;
   onResult: (won: boolean | null, amount: number) => void;
 }
 
-export function HighLowGame({ dispatch, showToast, money, state, onResult }: HighLowGameProps) {
+export function HighLowGame({ dispatch, showToast, money, state, sessionStats, onResult }: HighLowGameProps) {
   const [bet, setBet] = useState(100);
   const [playing, setPlaying] = useState(false);
   const [currentCard, setCurrentCard] = useState<PlayingCard | null>(null);
@@ -37,6 +40,8 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
   const [resultColor, setResultColor] = useState('');
   const [guesses, setGuesses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showWin, setShowWin] = useState(false);
+  const [winAmount, setWinAmount] = useState(0);
 
   const createLocalDeck = (): PlayingCard => {
     const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -104,6 +109,7 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
         setResult(`GECASHED! +€${data.netResult.toLocaleString()} (${data.mult}x)`);
         setResultColor('text-emerald');
         onResult(true, data.netResult);
+        setWinAmount(data.netResult); setShowWin(true); setTimeout(() => setShowWin(false), 2000);
         playCashOut();
       } else {
         setResult('Geen winst.');
@@ -127,6 +133,8 @@ export function HighLowGame({ dispatch, showToast, money, state, onResult }: Hig
         <h3 className="absolute bottom-2 left-0 right-0 text-center text-gold font-bold text-lg font-display gold-text-glow">HIGH-LOW</h3>
       </div>
       <div className="p-4 pt-2">
+      {sessionStats && <SessionStatsBar stats={sessionStats} />}
+      <WinCelebration amount={winAmount} show={showWin} />
 
       {/* Multiplier Ladder */}
       {playing && (
