@@ -11,7 +11,7 @@ import type { GeneratedGear } from './gearGenerator';
 // Maps weapon brands to their gear brand equivalents for set matching
 // Some brands share a "family" for set purposes
 
-export type SetFamilyId = 'nox' | 'serpiente' | 'volkov' | 'shadow' | 'iron' | 'krakeel' | 'phantom' | 'drakon';
+export type SetFamilyId = 'nox' | 'serpiente' | 'volkov' | 'shadow' | 'iron' | 'krakeel' | 'phantom' | 'drakon' | 'havoc' | 'nexus';
 
 const WEAPON_BRAND_TO_FAMILY: Record<BrandId, SetFamilyId> = {
   noxforge: 'nox',
@@ -22,15 +22,19 @@ const WEAPON_BRAND_TO_FAMILY: Record<BrandId, SetFamilyId> = {
   krakeel: 'krakeel',
   phantom: 'phantom',
   drakon: 'drakon',
+  havoc: 'havoc',
+  wraithsteel: 'phantom',  // Wraithsteel pairs with Phantom/stealth family
 };
 
 const GEAR_BRAND_TO_FAMILY: Record<GearBrandId, SetFamilyId> = {
-  aegis: 'iron',        // Aegis + Ironjaw = defensive family
-  neurox: 'shadow',     // NeuroX + ShadowTech = tech family
-  blackwall: 'volkov',  // Blackwall + Volkov = balanced family
-  stealthcore: 'phantom', // StealthCore + Phantom = stealth family
-  titanweave: 'drakon', // TitanWeave + Drakon = heavy family
-  ciphertech: 'nox',    // CipherTech + Noxforge = offensive family
+  aegis: 'iron',
+  neurox: 'shadow',
+  blackwall: 'volkov',
+  stealthcore: 'phantom',
+  titanweave: 'drakon',
+  ciphertech: 'nox',
+  ironhide: 'iron',       // Ironhide pairs with Ironjaw/defensive family
+  nexus: 'nexus',          // Nexus is its own charm family
 };
 
 // ========== SET BONUS DEFINITIONS ==========

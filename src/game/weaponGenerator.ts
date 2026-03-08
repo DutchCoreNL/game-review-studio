@@ -6,8 +6,8 @@ import type { LootRarity } from './combatLoot';
 
 export type WeaponRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
-export type BrandId = 'noxforge' | 'serpiente' | 'volkov' | 'shadowtech' | 'ironjaw' | 'krakeel' | 'phantom' | 'drakon';
-export type FrameId = 'pistol' | 'smg' | 'shotgun' | 'rifle' | 'blade' | 'lmg' | 'launcher';
+export type BrandId = 'noxforge' | 'serpiente' | 'volkov' | 'shadowtech' | 'ironjaw' | 'krakeel' | 'phantom' | 'drakon' | 'havoc' | 'wraithsteel';
+export type FrameId = 'pistol' | 'smg' | 'shotgun' | 'rifle' | 'blade' | 'lmg' | 'launcher' | 'sniper' | 'crossbow' | 'duals';
 export type BarrelId = 'kort' | 'standaard' | 'lang' | 'precisie' | 'gedempt' | 'dubbel' | 'plasma';
 export type MagazineId = 'klein' | 'standaard' | 'uitgebreid' | 'drum' | 'speciaal' | 'belt' | 'cassette';
 export type AccessoryId = 'geen' | 'laser' | 'silencer' | 'incendiary' | 'shock' | 'cryo' | 'toxic';
@@ -109,6 +109,8 @@ export const WEAPON_BRANDS: WeaponBrand[] = [
   { id: 'krakeel', name: 'Krakeel', icon: '💣', color: 'text-red-500', bonus: '+20% vuursnelheid', damageMult: 0.95, accuracyMult: 0.9, fireRateMult: 1.2, clipMult: 1, critBonus: 0, armorPierce: 0.1 },
   { id: 'phantom', name: 'Phantom Corp', icon: '👻', color: 'text-slate-300', bonus: '+15% accuracy & stealth', damageMult: 0.95, accuracyMult: 1.15, fireRateMult: 1.05, clipMult: 0.9, critBonus: 0.1, armorPierce: 0 },
   { id: 'drakon', name: 'Drakon Heavy', icon: '🐉', color: 'text-amber-500', bonus: '+25% schade, -10% snelheid', damageMult: 1.25, accuracyMult: 0.9, fireRateMult: 0.9, clipMult: 1.1, critBonus: 0, armorPierce: 0.15 },
+  { id: 'havoc', name: 'Havoc Arms', icon: '💥', color: 'text-red-400', bonus: '+20% schade, splash effect', damageMult: 1.2, accuracyMult: 0.85, fireRateMult: 1, clipMult: 0.9, critBonus: 0, armorPierce: 0.2 },
+  { id: 'wraithsteel', name: 'Wraithsteel', icon: '🎯', color: 'text-cyan-300', bonus: '+15% headshot bonus', damageMult: 1.05, accuracyMult: 1.2, fireRateMult: 0.95, clipMult: 1, critBonus: 0.15, armorPierce: 0.1 },
 ];
 
 export const WEAPON_FRAMES: WeaponFrame[] = [
@@ -119,6 +121,9 @@ export const WEAPON_FRAMES: WeaponFrame[] = [
   { id: 'blade', name: 'Blade', icon: '🗡️', baseDamage: 8, baseAccuracy: 8, baseFireRate: 7, baseClip: 0, isMelee: true },
   { id: 'lmg', name: 'LMG', icon: '🔫', baseDamage: 7, baseAccuracy: 3, baseFireRate: 8, baseClip: 30, isMelee: false },
   { id: 'launcher', name: 'Launcher', icon: '🚀', baseDamage: 18, baseAccuracy: 3, baseFireRate: 1, baseClip: 2, isMelee: false },
+  { id: 'sniper', name: 'Sniper', icon: '🔭', baseDamage: 16, baseAccuracy: 10, baseFireRate: 2, baseClip: 5, isMelee: false },
+  { id: 'crossbow', name: 'Crossbow', icon: '🏹', baseDamage: 11, baseAccuracy: 7, baseFireRate: 3, baseClip: 4, isMelee: false },
+  { id: 'duals', name: 'Dual Pistols', icon: '🔫', baseDamage: 5, baseAccuracy: 4, baseFireRate: 10, baseClip: 24, isMelee: false },
 ];
 
 export const WEAPON_BARRELS: WeaponBarrel[] = [
