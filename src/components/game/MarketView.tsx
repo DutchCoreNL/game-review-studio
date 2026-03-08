@@ -3,10 +3,12 @@ import { GOODS, GEAR, DISTRICTS } from '@/game/constants';
 import { GoodId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi, ShoppingBag } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { gameApi } from '@/lib/gameApi';
 import { supabase } from '@/integrations/supabase/client';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
 
 const QUANTITIES = [1, 5, 10, 0]; // 0 = max
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
@@ -91,7 +93,6 @@ export function MarketView() {
     if (res.success) {
       const good = GOODS.find(g => g.id === gid);
       showToast(res.message || `${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
-      // Also dispatch locally to sync state
       dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
     } else {
       showToast(res.message || 'Handel mislukt.', true);
@@ -99,9 +100,20 @@ export function MarketView() {
   };
 
   return (
-    <div>
+    <ViewWrapper>
+      {/* Cinematic Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+          <ArrowRightLeft size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="text-base font-black uppercase tracking-wider text-foreground">Zwarte Markt</h2>
+          <p className="text-[0.55rem] text-muted-foreground uppercase tracking-wider">Handel · Witwas · Gear</p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
-        <SectionHeader title={`Lokale Markt: ${DISTRICTS[state.loc].name}`} />
+        <SectionHeader title={`Lokale Markt: ${DISTRICTS[state.loc].name}`} icon={<ShoppingBag size={10} />} />
         <div className="flex items-center gap-1.5 mt-2">
           {loading ? (
             <RefreshCw size={10} className="text-muted-foreground animate-spin" />
@@ -253,7 +265,7 @@ export function MarketView() {
       </div>
 
       {/* Wash Money */}
-      <SectionHeader title="Witwas Operaties" />
+      <SectionHeader title="Witwas Operaties" icon={<ArrowRightLeft size={10} />} />
       <div className="game-card border-l-[3px] border-l-emerald mb-4">
         <div className="flex justify-between items-center">
           <div>
@@ -273,7 +285,7 @@ export function MarketView() {
       </div>
 
       {/* Gear Shop */}
-      <SectionHeader title="Zwarte Markt (Gear)" />
+      <SectionHeader title="Zwarte Markt (Gear)" icon={<ShoppingBag size={10} />} />
       <div className="space-y-2">
         {GEAR.filter(g => {
           if (state.ownedGear.includes(g.id)) return false;
@@ -304,14 +316,6 @@ export function MarketView() {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-2 mt-5 mb-3 pb-1 border-b border-border">
-      <span className="text-gold text-[0.65rem] uppercase tracking-widest font-bold">{title}</span>
-    </div>
+    </ViewWrapper>
   );
 }

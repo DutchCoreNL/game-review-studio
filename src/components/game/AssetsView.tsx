@@ -2,6 +2,8 @@ import { useGame } from '@/contexts/GameContext';
 import { VEHICLES, BUSINESSES, REKAT_COSTS, DISTRICTS } from '@/game/constants';
 import { motion } from 'framer-motion';
 import { Car, Gauge, Shield, Gem, Wrench, Factory, Store, Flame } from 'lucide-react';
+import { ViewWrapper } from './ui/ViewWrapper';
+import { SectionHeader } from './ui/SectionHeader';
 
 function isBusinessUnlocked(b: typeof BUSINESSES[0], state: { ownedDistricts: string[]; rep: number; day: number; ownedBusinesses: string[] }) {
   if (b.reqDistrict && !state.ownedDistricts.includes(b.reqDistrict)) return false;
@@ -19,9 +21,20 @@ export function AssetsView() {
   const ownedIds = state.ownedVehicles.map(v => v.id);
 
   return (
-    <div>
+    <ViewWrapper>
+      {/* Cinematic Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+          <Car size={18} className="text-gold" />
+        </div>
+        <div>
+          <h2 className="text-base font-black uppercase tracking-wider text-foreground">Bezittingen</h2>
+          <p className="text-[0.55rem] text-muted-foreground uppercase tracking-wider">Voertuigen · Lab · Dekmantels</p>
+        </div>
+      </div>
+
       {/* Active Vehicle */}
-      <SectionHeader title="Car Dashboard" />
+      <SectionHeader title="Car Dashboard" icon={<Car size={10} />} />
       {activeV && activeObj && (
         <motion.div
           className="game-card border-l-[3px] border-l-gold mb-4"
@@ -131,7 +144,7 @@ export function AssetsView() {
       )}
 
       {/* Buy Vehicles */}
-      <SectionHeader title="Chop Shop" />
+      <SectionHeader title="Chop Shop" icon={<Car size={10} />} />
       <div className="space-y-2 mb-4">
         {VEHICLES.filter(v => !ownedIds.includes(v.id)).map(v => (
           <div key={v.id} className="game-card">
@@ -160,7 +173,7 @@ export function AssetsView() {
       {/* Lab */}
       {state.hqUpgrades.includes('lab') && (
         <>
-          <SectionHeader title="Synthetica Lab" />
+          <SectionHeader title="Synthetica Lab" icon={<Factory size={10} />} />
           <div className="game-card border-l-[3px] border-l-[hsl(var(--purple))] mb-4">
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-2">
@@ -188,7 +201,7 @@ export function AssetsView() {
       )}
 
       {/* Businesses */}
-      <SectionHeader title="Dekmantels" />
+      <SectionHeader title="Dekmantels" icon={<Store size={10} />} />
       <div className="space-y-2">
         {[...BUSINESSES].sort((a, b) => {
           const aOwned = state.ownedBusinesses.includes(a.id) ? 0 : 1;
@@ -235,7 +248,7 @@ export function AssetsView() {
           );
         })}
       </div>
-    </div>
+    </ViewWrapper>
   );
 }
 
@@ -245,14 +258,6 @@ function StatBadge({ icon, label, value }: { icon: React.ReactNode; label: strin
       <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">{icon}</div>
       <div className="text-[0.45rem] text-muted-foreground uppercase">{label}</div>
       <div className="text-xs font-bold">{value}</div>
-    </div>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-2 mt-5 mb-3 pb-1 border-b border-border">
-      <span className="text-gold text-[0.65rem] uppercase tracking-widest font-bold">{title}</span>
     </div>
   );
 }
