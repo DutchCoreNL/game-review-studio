@@ -10,6 +10,7 @@ import { SafehouseView } from './SafehouseView';
 import { VillaView } from './villa/VillaView';
 import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
+import { MapMMOPanels } from './map/MapMMOPanels';
 
 import { NewsTicker } from './map/NewsTicker';
 import { BreakingNewsFlash } from './map/BreakingNewsFlash';
@@ -27,15 +28,6 @@ import { canTriggerFinalBoss } from '@/game/endgame';
 import { useDistrictData } from '@/hooks/useDistrictData';
 import { useWorldState } from '@/hooks/useWorldState';
 import { useRealtimeNews } from '@/hooks/useRealtimeNews';
-import { ActivityFeedPanel } from './mmo/ActivityFeedPanel';
-import { OnlinePlayersIndicator } from './mmo/OnlinePlayersIndicator';
-import { WorldRaidPanel } from './mmo/WorldRaidPanel';
-import { SmuggleRoutesPanel } from './mmo/SmuggleRoutesPanel';
-import { ReputationEchoIndicator } from './mmo/ReputationEchoIndicator';
-import { BountyHunterLeaderboard } from './mmo/BountyHunterLeaderboard';
-import { SeasonEventPanel } from './mmo/SeasonEventPanel';
-import { DuelArenaPanel } from './mmo/DuelArenaPanel';
-import { MarketAlertPanel } from './mmo/MarketAlertPanel';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -66,8 +58,6 @@ export function MapView() {
   }, [state.loc]);
 
   const { items: newsItems, breakingItem, clearBreaking } = useRealtimeNews(state.dailyNews);
-
-  // Auto-tick is now handled by GameContext — no manual end-turn needed
 
   // Sub-location views
   const subViews: { show: boolean; component: React.ReactNode; onClose: () => void }[] = [
@@ -126,7 +116,6 @@ export function MapView() {
     <div className="relative">
       <HidingOverlay />
       <CatchUpReport />
-
 
       {showNightReport && state.nightReport && (
         <NightReport onClose={() => setShowNightReport(false)} />
@@ -195,49 +184,9 @@ export function MapView() {
 
       {state.nemesis && <NemesisInfo />}
       
-      
-      {/* Online Players + Rep Echo */}
-      <div className="mb-2 flex items-center justify-between">
-        <OnlinePlayersIndicator currentDistrict={state.loc} compact />
-        <ReputationEchoIndicator currentDistrict={state.loc} compact />
-      </div>
-      
+      <MapMMOPanels currentDistrict={state.loc} />
+
       {selectedDistrict && !isHiding && <DistrictPopup districtData={districtData} />}
-
-      {/* Season Events */}
-      <div className="mb-2">
-        <SeasonEventPanel />
-      </div>
-
-      {/* World Raids */}
-      <div className="mb-2">
-        <WorldRaidPanel />
-      </div>
-
-      {/* Duel Arena */}
-      <div className="mb-2">
-        <DuelArenaPanel currentDistrict={state.loc} />
-      </div>
-
-      {/* Bounty Hunter Leaderboard */}
-      <div className="mb-2">
-        <BountyHunterLeaderboard />
-      </div>
-
-      {/* Smuggle Routes */}
-      <div className="mb-2">
-        <SmuggleRoutesPanel currentDistrict={state.loc} />
-      </div>
-
-      {/* Market Alerts */}
-      <div className="mb-2">
-        <MarketAlertPanel />
-      </div>
-
-      {/* Activity Feed */}
-      <div className="mb-2">
-        <ActivityFeedPanel districtFilter={state.loc} maxItems={10} />
-      </div>
 
       {/* Contextual action bar */}
       {contextActions.length > 0 && (
