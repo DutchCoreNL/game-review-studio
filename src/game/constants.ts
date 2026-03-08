@@ -1934,6 +1934,12 @@ export function createInitialState(): import('./types').GameState {
     scrapMaterials: 0,
     pityCounter: 0,
     lootCratesPurchased: 0,
+
+    // Arsenal enhancement state
+    enchantmentInventory: [],
+    skinInventory: [],
+    blueprintInventory: [],
+    loadoutPresets: [],
   };
 }
 
