@@ -6,7 +6,8 @@
 export type SkinId = 
   | 'neon_red' | 'gold_plated' | 'skull_camo' | 'arctic_white'
   | 'shadow_purple' | 'blood_crimson' | 'toxic_green' | 'cyber_blue'
-  | 'chrome_silver' | 'inferno_orange' | 'midnight_black' | 'diamond_frost';
+  | 'chrome_silver' | 'inferno_orange' | 'midnight_black' | 'diamond_frost'
+  | 'holographic' | 'crimson_dragonscale' | 'ghost_wire' | 'rusted_iron';
 
 export interface SkinDef {
   id: SkinId;
@@ -110,6 +111,34 @@ export const WEAPON_SKINS: SkinDef[] = [
     borderColor: 'border-cyan-200/50',
     description: 'Schitterende diamant-ijs kristallen coating',
     cost: 35000,
+  },
+  {
+    id: 'holographic', name: 'Holographic', icon: '🌈', rarity: 'legendary',
+    glowClass: 'ring-2 ring-pink-300/50 shadow-[0_0_16px_rgba(236,72,153,0.4)] animate-pulse',
+    borderColor: 'border-pink-300/50',
+    description: 'Regenboog-shimmer holografisch effect',
+    cost: 40000,
+  },
+  {
+    id: 'crimson_dragonscale', name: 'Crimson Dragonscale', icon: '🐲', rarity: 'epic',
+    glowClass: 'ring-1 ring-red-600/60 shadow-[0_0_12px_rgba(220,38,38,0.4)]',
+    borderColor: 'border-red-600/50',
+    description: 'Rode geschubde drakenhuid textuur',
+    cost: 18000,
+  },
+  {
+    id: 'ghost_wire', name: 'Ghost Wire', icon: '👻', rarity: 'rare',
+    glowClass: 'ring-1 ring-slate-300/40 shadow-[0_0_8px_rgba(203,213,225,0.3)]',
+    borderColor: 'border-slate-300/30',
+    description: 'Transparante wireframe hologram look',
+    cost: 7000,
+  },
+  {
+    id: 'rusted_iron', name: 'Rusted Iron', icon: '🔩', rarity: 'uncommon',
+    glowClass: 'ring-1 ring-amber-700/50 shadow-[0_0_6px_rgba(180,83,9,0.3)]',
+    borderColor: 'border-amber-700/40',
+    description: 'Verweerde industriële roestige afwerking',
+    cost: 3000,
   },
 ];
 

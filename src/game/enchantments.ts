@@ -9,7 +9,8 @@ import type { WeaponRarity } from './weaponGenerator';
 export type EnchantmentId = 
   | 'vampiric' | 'swift' | 'fortified' | 'venomous' 
   | 'blazing' | 'frozen' | 'electric' | 'lucky'
-  | 'precise' | 'brutal' | 'stealthy' | 'berserker';
+  | 'precise' | 'brutal' | 'stealthy' | 'berserker'
+  | 'executioner' | 'guardian' | 'pyromaniac' | 'momentum';
 
 export type EnchantmentRarity = 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -32,6 +33,11 @@ export interface EnchantmentDef {
     heatReduction?: number;   // flat reduction
     berserkThreshold?: number; // HP % below which bonus activates
     berserkDamageMult?: number;
+    executeDamageMult?: number; // bonus dmg vs low HP targets
+    executeThreshold?: number;  // HP % threshold
+    damageReduction?: number;   // % chance to halve damage
+    dotStackMult?: number;      // DoT stacking speed multiplier
+    momentumDamagePerHit?: number; // % dmg increase per consecutive hit
   };
 }
 
@@ -115,6 +121,30 @@ export const ENCHANTMENTS: EnchantmentDef[] = [
     description: '+25% schade onder 30% HP',
     rarity: 'legendary',
     effects: { berserkThreshold: 0.3, berserkDamageMult: 1.25 },
+  },
+  {
+    id: 'executioner', name: 'Beul', icon: '⚰️', color: 'text-red-700',
+    description: '+40% schade tegen targets onder 25% HP',
+    rarity: 'legendary',
+    effects: { executeDamageMult: 1.4, executeThreshold: 0.25 },
+  },
+  {
+    id: 'guardian', name: 'Beschermer', icon: '🛡️', color: 'text-sky-400',
+    description: '15% kans om schade te halveren',
+    rarity: 'epic',
+    effects: { damageReduction: 0.15 },
+  },
+  {
+    id: 'pyromaniac', name: 'Pyromaan', icon: '🧨', color: 'text-orange-500',
+    description: 'DoT stapelt 2x sneller',
+    rarity: 'rare',
+    effects: { dotStackMult: 2 },
+  },
+  {
+    id: 'momentum', name: 'Momentum', icon: '🌊', color: 'text-blue-400',
+    description: '+5% schade per opeenvolgende hit',
+    rarity: 'epic',
+    effects: { momentumDamagePerHit: 0.05 },
   },
 ];
 

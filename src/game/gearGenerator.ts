@@ -7,11 +7,11 @@ import type { LootRarity } from './combatLoot';
 export type GearRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type GearType = 'armor' | 'gadget';
 
-export type ArmorFrameId = 'vest' | 'jacket' | 'exosuit' | 'shield' | 'cloak';
-export type GadgetFrameId = 'phone' | 'deck' | 'implant' | 'drone' | 'scanner';
+export type ArmorFrameId = 'vest' | 'jacket' | 'exosuit' | 'shield' | 'cloak' | 'helm' | 'boots';
+export type GadgetFrameId = 'phone' | 'deck' | 'implant' | 'drone' | 'scanner' | 'jammer' | 'holowatch';
 export type GearFrameId = ArmorFrameId | GadgetFrameId;
 
-export type GearBrandId = 'aegis' | 'neurox' | 'blackwall' | 'stealthcore' | 'titanweave' | 'ciphertech';
+export type GearBrandId = 'aegis' | 'neurox' | 'blackwall' | 'stealthcore' | 'titanweave' | 'ciphertech' | 'ironhide' | 'nexus';
 export type GearModId = 'geen' | 'reflective' | 'thermal' | 'emp' | 'regen' | 'stealth' | 'boost';
 
 // ========== INTERFACES ==========
@@ -87,6 +87,8 @@ export const GEAR_BRANDS: GearBrand[] = [
   { id: 'stealthcore', name: 'StealthCore', icon: '👤', color: 'text-slate-300', bonus: '+15% stealth & charm', defenseMult: 1, brainsMult: 1.1, charmMult: 1.15, specialBonus: 'Onzichtbaarheid' },
   { id: 'titanweave', name: 'TitanWeave', icon: '⚔️', color: 'text-gold', bonus: '+25% defense, -5% snelheid', defenseMult: 1.25, brainsMult: 0.95, charmMult: 0.95, specialBonus: 'Onverwoestbaar' },
   { id: 'ciphertech', name: 'CipherTech', icon: '💻', color: 'text-cyan-400', bonus: '+25% vernuft, -5% defense', defenseMult: 0.95, brainsMult: 1.25, charmMult: 1, specialBonus: 'Hack expert' },
+  { id: 'ironhide', name: 'Ironhide', icon: '🦏', color: 'text-amber-600', bonus: '+30% HP, +10% defense', defenseMult: 1.1, brainsMult: 0.9, charmMult: 0.9, specialBonus: 'Tank build' },
+  { id: 'nexus', name: 'Nexus Systems', icon: '✨', color: 'text-pink-400', bonus: '+30% charm', defenseMult: 1, brainsMult: 1.05, charmMult: 1.3, specialBonus: 'Charme specialist' },
 ];
 
 // ========== FRAMES ==========
@@ -97,6 +99,8 @@ export const ARMOR_FRAMES: GearFrame[] = [
   { id: 'exosuit', type: 'armor', name: 'Exo-Suit', icon: '🤖', baseDefense: 8, baseBrains: 1, baseCharm: 0, baseHP: 20 },
   { id: 'shield', type: 'armor', name: 'Energieschild', icon: '🔋', baseDefense: 6, baseBrains: 2, baseCharm: 0, baseHP: 15 },
   { id: 'cloak', type: 'armor', name: 'Stealth Mantel', icon: '🦇', baseDefense: 2, baseBrains: 3, baseCharm: 4, baseHP: 5 },
+  { id: 'helm', type: 'armor', name: 'Tactical Helm', icon: '⛑️', baseDefense: 4, baseBrains: 2, baseCharm: 0, baseHP: 12 },
+  { id: 'boots', type: 'armor', name: 'Combat Boots', icon: '🥾', baseDefense: 3, baseBrains: 0, baseCharm: 2, baseHP: 8 },
 ];
 
 export const GADGET_FRAMES: GearFrame[] = [
@@ -105,6 +109,8 @@ export const GADGET_FRAMES: GearFrame[] = [
   { id: 'implant', type: 'gadget', name: 'Neural Implant', icon: '🧠', baseDefense: 1, baseBrains: 5, baseCharm: 2, baseHP: 5 },
   { id: 'drone', type: 'gadget', name: 'Recon Drone', icon: '🛸', baseDefense: 0, baseBrains: 4, baseCharm: 0, baseHP: 0 },
   { id: 'scanner', type: 'gadget', name: 'Bio Scanner', icon: '📡', baseDefense: 0, baseBrains: 3, baseCharm: 3, baseHP: 0 },
+  { id: 'jammer', type: 'gadget', name: 'Signal Jammer', icon: '📻', baseDefense: 0, baseBrains: 5, baseCharm: 0, baseHP: 0 },
+  { id: 'holowatch', type: 'gadget', name: 'Holo Watch', icon: '⌚', baseDefense: 0, baseBrains: 2, baseCharm: 5, baseHP: 0 },
 ];
 
 export const ALL_GEAR_FRAMES: GearFrame[] = [...ARMOR_FRAMES, ...GADGET_FRAMES];
