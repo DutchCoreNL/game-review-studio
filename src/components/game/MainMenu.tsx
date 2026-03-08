@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap, Skull } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -299,15 +299,16 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
   );
 }
 
-function MenuButton({ icon, label, accent, onClick, className }: {
+const MenuButton = forwardRef<HTMLButtonElement, {
   icon: React.ReactNode;
   label: string;
   accent?: boolean;
   onClick: () => void;
   className?: string;
-}) {
+}>(({ icon, label, accent, onClick, className }, ref) => {
   return (
     <motion.button
+      ref={ref}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -321,7 +322,8 @@ function MenuButton({ icon, label, accent, onClick, className }: {
       {label}
     </motion.button>
   );
-}
+});
+MenuButton.displayName = 'MenuButton';
 
 function SubPanel({ title, children, onBack, backLabel }: {
   title: string;
