@@ -4152,6 +4152,19 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       // Hardcore & prestige reset migration
       if (saved.hardcoreMode === undefined) saved.hardcoreMode = false;
       if (saved.prestigeResetCount === undefined) saved.prestigeResetCount = 0;
+      // Underworld Economy migrations
+      if (saved.armsNetwork === undefined) saved.armsNetwork = null;
+      if (!saved.stashHouses) saved.stashHouses = [];
+      if (!saved.marketPriceModifiers) saved.marketPriceModifiers = [];
+      if (!saved.insiderTips) saved.insiderTips = [];
+      if (!saved.launderMethodsUsed) saved.launderMethodsUsed = {};
+      // Migrate old smuggle routes
+      saved.smuggleRoutes?.forEach((r: any) => {
+        if (r.level === undefined) r.level = 1;
+        if (r.specialization === undefined) r.specialization = null;
+        if (r.escort === undefined) r.escort = null;
+        if (r.escortRole === undefined) r.escortRole = null;
+      });
       return saved;
     }
     const fresh = createInitialState();
