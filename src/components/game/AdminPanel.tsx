@@ -235,6 +235,25 @@ export function AdminPanel() {
     } catch (e: any) { showToast(`❌ ${e.message}`, true); }
   };
 
+  const searchPlayers = async () => {
+    if (searchQuery.length < 2) return;
+    setSearchLoading(true);
+    try {
+      const d = await adminCall('search_players', { query: searchQuery });
+      setSearchResults(d.entries || []);
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setSearchLoading(false);
+  };
+
+  const openPlayerFullDetail = async (entry: LeaderboardEntry) => {
+    setActionLoading(entry.id);
+    try {
+      const d = await adminCall('get_player_full_detail', { userId: entry.user_id });
+      setPlayerDetailPopup({ entry, detail: d.detail });
+    } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+    setActionLoading(null);
+  };
+
   // ====== RENDER ======
   return (
     <ViewWrapper>
