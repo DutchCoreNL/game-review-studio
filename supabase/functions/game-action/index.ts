@@ -2999,58 +2999,110 @@ async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload:
       const playerHand = [deck.pop()!, deck.pop()!];
       const dealerHand = [deck.pop()!, deck.pop()!];
 
-      const action = choice?.action; // 'stand', 'hit', or 'double'
-      // For simplicity: client sends the FULL action sequence as an array
-      // e.g. choice = { actions: ['hit', 'hit', 'stand'] }
       const actions: string[] = choice?.actions || ['stand'];
       let activeBet = bet;
       let doubled = false;
+      let isSplit = false;
 
-      for (const act of actions) {
-        if (act === 'hit') {
-          playerHand.push(deck.pop()!);
-          if (bjScore(playerHand) > 21) break;
-        } else if (act === 'double') {
-          if (!doubled && playerHand.length === 2 && activeBet <= Number(ps.money) - bet) {
-            activeBet = bet * 2;
-            doubled = true;
-            playerHand.push(deck.pop()!);
-            break; // after double, auto-stand
+      // Check for split: first action is 'split' and both cards have same rank
+      if (actions[0] === 'split' && playerHand.length === 2 && playerHand[0].rank === playerHand[1].rank && Number(ps.money) >= bet * 2) {
+        isSplit = true;
+        const hand1 = [playerHand[0], deck.pop()!];
+        const hand2 = [playerHand[1], deck.pop()!];
+        const splitActions = actions.slice(1);
+
+        // Play both hands
+        const playHand = (hand: any[], acts: string[]): { hand: any[]; score: number; bet: number } => {
+          let hBet = bet;
+          for (const act of acts) {
+            if (act === 'hit') {
+              hand.push(deck.pop()!);
+              if (bjScore(hand) > 21) break;
+            } else if (act === 'double' && hand.length === 2 && hBet === bet) {
+              hBet = bet * 2;
+              hand.push(deck.pop()!);
+              break;
+            } else { break; }
           }
-        } else { // stand
-          break;
+          return { hand, score: bjScore(hand), bet: hBet };
+        };
+
+        // Split actions by 'next_hand' delimiter or play first half for hand1, rest for hand2
+        const nextIdx = splitActions.indexOf('next_hand');
+        const h1Acts = nextIdx >= 0 ? splitActions.slice(0, nextIdx) : splitActions;
+        const h2Acts = nextIdx >= 0 ? splitActions.slice(nextIdx + 1) : ['stand'];
+
+        const r1 = playHand(hand1, h1Acts);
+        const r2 = playHand(hand2, h2Acts);
+
+        // Dealer plays once
+        let ds_score = bjScore(dealerHand);
+        if (r1.score <= 21 || r2.score <= 21) {
+          while (ds_score < 17) { dealerHand.push(deck.pop()!); ds_score = bjScore(dealerHand); }
         }
-      }
 
-      const ps_score = bjScore(playerHand);
-      let ds_score = bjScore(dealerHand);
+        const resolveHand = (pScore: number, hBet: number): number => {
+          if (pScore > 21) return -hBet;
+          if (ds_score > 21) return Math.floor(hBet * 2) - hBet;
+          if (pScore > ds_score) return Math.floor(hBet * 2) - hBet;
+          if (pScore === ds_score) return 0;
+          return -hBet;
+        };
 
-      if (ps_score <= 21) {
-        // Dealer draws
-        while (ds_score < 17) {
-          dealerHand.push(deck.pop()!);
-          ds_score = bjScore(dealerHand);
-        }
-      }
+        const net1 = resolveHand(r1.score, r1.bet);
+        const net2 = resolveHand(r2.score, r2.bet);
+        netResult = net1 + net2;
+        activeBet = r1.bet + r2.bet;
 
-      const isBj = ps_score === 21 && playerHand.length === 2;
-      let won: boolean | null = null;
-      if (ps_score > 21) { won = false; }
-      else if (ds_score > 21) { won = true; }
-      else if (ps_score > ds_score) { won = true; }
-      else if (ps_score === ds_score) { won = null; } // push
-      else { won = false; }
-
-      if (won === true) {
-        const mult = isBj ? 2.5 : 2;
-        netResult = Math.floor(activeBet * mult) - activeBet;
-      } else if (won === false) {
-        netResult = -activeBet;
+        resultData = {
+          isSplit: true, dealerHand, dealerScore: ds_score,
+          hands: [
+            { hand: r1.hand, score: r1.score, bet: r1.bet, net: net1, won: net1 > 0 ? true : net1 === 0 ? null : false },
+            { hand: r2.hand, score: r2.score, bet: r2.bet, net: net2, won: net2 > 0 ? true : net2 === 0 ? null : false },
+          ],
+          activeBet,
+        };
       } else {
-        netResult = 0; // push - return bet
-      }
+        // Normal play (hit/stand/double)
+        for (const act of actions) {
+          if (act === 'hit') {
+            playerHand.push(deck.pop()!);
+            if (bjScore(playerHand) > 21) break;
+          } else if (act === 'double') {
+            if (!doubled && playerHand.length === 2 && activeBet <= Number(ps.money) - bet) {
+              activeBet = bet * 2;
+              doubled = true;
+              playerHand.push(deck.pop()!);
+              break;
+            }
+          } else { break; }
+        }
 
-      resultData = { playerHand, dealerHand, playerScore: ps_score, dealerScore: ds_score, won, isBj, activeBet };
+        const ps_score = bjScore(playerHand);
+        let ds_score = bjScore(dealerHand);
+        if (ps_score <= 21) {
+          while (ds_score < 17) { dealerHand.push(deck.pop()!); ds_score = bjScore(dealerHand); }
+        }
+
+        const isBj = ps_score === 21 && playerHand.length === 2;
+        let won: boolean | null = null;
+        if (ps_score > 21) { won = false; }
+        else if (ds_score > 21) { won = true; }
+        else if (ps_score > ds_score) { won = true; }
+        else if (ps_score === ds_score) { won = null; }
+        else { won = false; }
+
+        if (won === true) {
+          const mult = isBj ? 2.5 : 2;
+          netResult = Math.floor(activeBet * mult) - activeBet;
+        } else if (won === false) {
+          netResult = -activeBet;
+        } else {
+          netResult = 0;
+        }
+
+        resultData = { playerHand, dealerHand, playerScore: ps_score, dealerScore: ds_score, won, isBj, activeBet, isSplit: false };
+      }
       break;
     }
 
@@ -3088,7 +3140,7 @@ async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload:
         else if (a === '💎') { winMult = 25; }
         else { winMult = 8; }
       } else if (a === b || b === c || a === c) {
-        winMult = 1.2;
+        winMult = 1.5;
       }
 
       if (isJackpot) {
@@ -6612,14 +6664,14 @@ Deno.serve(async (req) => {
       case "apply_job": {
         const { jobId: applyJobId } = payload || {};
         const jobDefs: Record<string, { salary: number; reqLevel: number; reqStat?: { stat: string; value: number } }> = {
-          barman: { salary: 500, reqLevel: 1 },
-          taxichauffeur: { salary: 800, reqLevel: 2 },
-          beveiliger: { salary: 1200, reqLevel: 4, reqStat: { stat: 'muscle', value: 5 } },
-          monteur: { salary: 1500, reqLevel: 5, reqStat: { stat: 'brains', value: 4 } },
-          boekhouder: { salary: 2000, reqLevel: 7, reqStat: { stat: 'brains', value: 8 } },
-          advocaat: { salary: 3000, reqLevel: 10, reqStat: { stat: 'brains', value: 12 } },
-          arts: { salary: 3500, reqLevel: 12, reqStat: { stat: 'brains', value: 15 } },
-          makelaar: { salary: 4000, reqLevel: 15, reqStat: { stat: 'charm', value: 12 } },
+          barman: { salary: 1500, reqLevel: 1 },
+          taxichauffeur: { salary: 2500, reqLevel: 2 },
+          beveiliger: { salary: 4000, reqLevel: 4, reqStat: { stat: 'muscle', value: 5 } },
+          monteur: { salary: 5000, reqLevel: 5, reqStat: { stat: 'brains', value: 4 } },
+          boekhouder: { salary: 7000, reqLevel: 7, reqStat: { stat: 'brains', value: 8 } },
+          advocaat: { salary: 10000, reqLevel: 10, reqStat: { stat: 'brains', value: 12 } },
+          arts: { salary: 12000, reqLevel: 12, reqStat: { stat: 'brains', value: 15 } },
+          makelaar: { salary: 15000, reqLevel: 15, reqStat: { stat: 'charm', value: 12 } },
         };
         const jobDef = jobDefs[applyJobId];
         if (!jobDef) { result = { success: false, message: "Onbekende baan." }; break; }
@@ -6641,7 +6693,7 @@ Deno.serve(async (req) => {
         if (lastW && (Date.now() - new Date(lastW).getTime()) < 8 * 60 * 60 * 1000) { result = { success: false, message: "Je hebt al gewerkt. Kom over 8 uur terug." }; break; }
         const blocked3 = checkBlocked(playerState); if (blocked3) { result = { success: false, message: blocked3 }; break; }
         const promo = playerState.stats?.job_promotion || 0;
-        const salaries: Record<string, number> = { barman: 500, taxichauffeur: 800, beveiliger: 1200, monteur: 1500, boekhouder: 2000, advocaat: 3000, arts: 3500, makelaar: 4000 };
+        const salaries: Record<string, number> = { barman: 1500, taxichauffeur: 2500, beveiliger: 4000, monteur: 5000, boekhouder: 7000, advocaat: 10000, arts: 12000, makelaar: 15000 };
         const sal = Math.floor((salaries[cJob] || 500) * (1 + promo * 0.2));
         const newDays = (playerState.stats?.job_days_worked || 0) + 1;
         const newPromo = newDays > 0 && newDays % 10 === 0 ? promo + 1 : promo;

@@ -20,8 +20,8 @@ export function calculateOperationRewardRange(
 ): OperationRewardRange {
   const bonuses: { label: string; value: string }[] = [];
 
-  // Day progression bonus (up to +80% at day 50+)
-  const dayBonus = Math.min(0.8, state.day * 0.015);
+  // Day progression bonus (up to +50% at day 35+)
+  const dayBonus = Math.min(0.5, state.day * 0.015);
   if (dayBonus >= 0.1) {
     bonuses.push({ label: 'DAG BONUS', value: `+${Math.round(dayBonus * 100)}%` });
   }
