@@ -3290,7 +3290,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           s.lastRewardAmount = stolen;
           Engine.gainXp(s, 50);
         } else {
-          s.playerHP = Math.max(1, s.activePvPCombat.attackerHP);
+          // PvP is permadeath — you lose, you die
+          s.playerHP = 0;
+          s.gameOver = true;
         }
         s.activePvPCombat = null;
       }
