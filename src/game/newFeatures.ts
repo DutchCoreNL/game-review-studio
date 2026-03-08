@@ -878,10 +878,24 @@ export function processSmuggleRoutes(state: GameState, report: NightReportData):
     // Calculate income based on price difference
     const buyPrice = state.prices[route.from]?.[route.good] || GOODS.find(g => g.id === route.good)!.base;
     const sellPrice = state.prices[route.to]?.[route.good] || GOODS.find(g => g.id === route.good)!.base;
-    const income = Math.max(100, Math.floor((sellPrice - buyPrice) * 0.6));
+    let income = Math.max(100, Math.floor((sellPrice - buyPrice) * 0.6));
+
+    // Route level bonus: +20% per level above 1
+    if (route.level > 1) {
+      income = Math.floor(income * (1 + (route.level - 1) * 0.2));
+    }
+    // Specialization bonus: +50% if route good matches specialization
+    if (route.specialization && route.specialization === route.good) {
+      income = Math.floor(income * 1.5);
+    }
 
     // Interception chance
     let interceptChance = 0.10 + getActiveVehicleHeat(state) / 200;
+    // Route level reduces interception: -3% per level above 1
+    if (route.level > 1) interceptChance -= (route.level - 1) * 0.03;
+    // Escort reduces interception
+    if (route.escort && route.escortRole === 'Enforcer') interceptChance -= 0.08;
+    else if (route.escort) interceptChance -= 0.04;
     // While hiding: +15% interception (no supervision)
     if ((state.hidingDays || 0) > 0) interceptChance += 0.15;
     // Speed upgrade reduces interception: -3% per bonus point
