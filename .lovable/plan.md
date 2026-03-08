@@ -1,66 +1,87 @@
 
 
-## Verbeteringsplan — Volgende Visuele & UX Upgrades
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-Na audit van alle views en componenten zijn dit de gebieden met het meeste verbeterpotentieel:
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
----
-
-### 1. NightReport — Te Groot (997 regels)
-**Probleem:** Het NightReport is het grootste component in het project. Moeilijk te onderhouden en bevat herhaalde patronen.
-
-**Verbetering:**
-- Splitsen in sub-componenten: `IncomeSection`, `EventsSection`, `DrugEmpireSection`, `DigestSection`
-- Hergebruik van `AnimatedReportRow` consistent maken
-- Schatting: ~4 nieuwe bestanden, NightReport.tsx naar ~300 regels
-
-### 2. SubTabBar — Geen Scroll-indicatie
-**Probleem:** De SubTabBar scrollt horizontaal maar geeft geen visuele hint dat er meer tabs buiten beeld zijn. Gebruikers missen tabs.
-
-**Verbetering:**
-- Fade-gradient toevoegen aan linker/rechter rand wanneer er meer tabs zijn
-- Actieve tab automatisch in view scrollen bij mount
-- Subtiele pijl-indicator bij overflow
-
-### 3. DesktopSidebar — Statische Datumweergave
-**Probleem:** De sidebar toont de echte datum (`new Date()`) in plaats van de in-game datum. Dit breekt de immersie.
-
-**Verbetering:**
-- Gebruik `formatGameDate()` (reeds beschikbaar) i.p.v. `new Date().toLocaleDateString()`
-- Tijdfase-icoon toevoegen (🌙/☀️) consistent met de header
-
-### 4. Empty States — Meerdere Views Missen Ze
-**Probleem:** Views als Leaderboard, Chat en Safehouse tonen "Laden..." als platte tekst zonder de nieuwe `SkeletonCard` te gebruiken die we net hebben gemaakt.
-
-**Verbetering:**
-- `SkeletonCard` integreren in LeaderboardView, EducationView en SafehouseView loading states
-- Thematische lege-staat berichten toevoegen waar nodig
-
-### 5. GameButton — Hover-feedback op Desktop
-**Probleem:** De GameButton heeft goede mobile tap-feedback (whileTap scale) maar mist hover-effecten op desktop. Knoppen voelen "dood" tot je klikt.
-
-**Verbetering:**
-- `whileHover` scale en brightness toevoegen aan GameButton
-- Subtiele glow-intensivering bij hover voor glow-varianten
-
-### 6. JobsView — Emoji's i.p.v. Noir Visuals
-**Probleem:** JobsView gebruikt nog emoji's (🍸, 🚕, 🛡️) voor baankaarten, inconsistent met de noir-stijl van de rest.
-
-**Verbetering:**
-- Emoji's vervangen door Lucide iconen met kleurcodering per baantype
-- Actieve baan-indicator visueel prominenter maken
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
 ---
 
-### Technisch Overzicht
-| Component | Wijziging | Impact |
-|---|---|---|
-| `NightReport.tsx` | Splitsen in 4 sub-componenten | Hoog (onderhoud) |
-| `SubTabBar.tsx` | Scroll-fade indicators | Medium (UX) |
-| `DesktopSidebar.tsx` | Game-datum fix + fase-icoon | Laag (immersie) |
-| Meerdere views | SkeletonCard integratie | Medium (polish) |
-| `GameButton.tsx` | Desktop hover-effecten | Laag (feel) |
-| `JobsView.tsx` | Emoji → Lucide iconen | Laag (consistentie) |
+## Plan: Arsenaal Acquisitie Systeem
 
-Totaal: ~6-8 bestanden aanpassen, ~4 nieuwe sub-componenten.
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
+
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
+
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
+
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
+
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+
+---
+
+## Technisch overzicht
+
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 

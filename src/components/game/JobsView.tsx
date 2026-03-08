@@ -6,7 +6,7 @@ import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion } from 'framer-motion';
-import { Briefcase, Clock, TrendingUp, Star, DollarSign } from 'lucide-react';
+import { Briefcase, Clock, TrendingUp, Star, DollarSign, Wine, Car, Shield, Wrench, Calculator, Scale, Stethoscope, Building2, LucideIcon } from 'lucide-react';
 import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
 import operationsBg from '@/assets/operations-bg.jpg';
@@ -14,7 +14,8 @@ import operationsBg from '@/assets/operations-bg.jpg';
 interface JobDef {
   id: string;
   name: string;
-  icon: string;
+  icon: LucideIcon;
+  iconColor: string;
   salary: number;
   perk: string;
   reqLevel: number;
@@ -23,14 +24,14 @@ interface JobDef {
 }
 
 const JOBS: JobDef[] = [
-  { id: 'barman', name: 'Barman', icon: '🍸', salary: 1500, perk: '+5% Charm XP', reqLevel: 1, desc: 'Werk achter de bar. Goed voor connecties.' },
-  { id: 'taxichauffeur', name: 'Taxichauffeur', icon: '🚕', salary: 2500, perk: '-10% Reistijd', reqLevel: 2, desc: 'Ken elke straat van Noxhaven.' },
-  { id: 'beveiliger', name: 'Beveiliger', icon: '🛡️', salary: 4000, perk: '+5% Defense', reqLevel: 4, reqStat: { stat: 'muscle', value: 5 }, desc: 'Nachtwerk bij clubs en evenementen.' },
-  { id: 'monteur', name: 'Automonteur', icon: '🔧', salary: 5000, perk: '-15% Voertuig reparatie', reqLevel: 5, reqStat: { stat: 'brains', value: 4 }, desc: 'Repareer en tune voertuigen.' },
-  { id: 'boekhouder', name: 'Boekhouder', icon: '📊', salary: 7000, perk: '+10% Witwas limiet', reqLevel: 7, reqStat: { stat: 'brains', value: 8 }, desc: 'Creatieve boekhouding voor de onderwereld.' },
-  { id: 'advocaat', name: 'Advocaat', icon: '⚖️', salary: 10000, perk: '-25% Gevangenisstraf', reqLevel: 10, reqStat: { stat: 'brains', value: 12 }, desc: 'Ken de wet. Buig de wet.' },
-  { id: 'arts', name: 'Arts', icon: '🏥', salary: 12000, perk: 'Kan spelers reviven', reqLevel: 12, reqStat: { stat: 'brains', value: 15 }, desc: 'Genees anderen. Verdien respect.' },
-  { id: 'makelaar', name: 'Vastgoedmakelaar', icon: '🏠', salary: 15000, perk: '-10% Vastgoedprijzen', reqLevel: 15, reqStat: { stat: 'charm', value: 12 }, desc: 'Handel in het duurste goed: locatie.' },
+  { id: 'barman', name: 'Barman', icon: Wine, iconColor: 'text-game-purple', salary: 1500, perk: '+5% Charm XP', reqLevel: 1, desc: 'Werk achter de bar. Goed voor connecties.' },
+  { id: 'taxichauffeur', name: 'Taxichauffeur', icon: Car, iconColor: 'text-gold', salary: 2500, perk: '-10% Reistijd', reqLevel: 2, desc: 'Ken elke straat van Noxhaven.' },
+  { id: 'beveiliger', name: 'Beveiliger', icon: Shield, iconColor: 'text-blood', salary: 4000, perk: '+5% Defense', reqLevel: 4, reqStat: { stat: 'muscle', value: 5 }, desc: 'Nachtwerk bij clubs en evenementen.' },
+  { id: 'monteur', name: 'Automonteur', icon: Wrench, iconColor: 'text-ice', salary: 5000, perk: '-15% Voertuig reparatie', reqLevel: 5, reqStat: { stat: 'brains', value: 4 }, desc: 'Repareer en tune voertuigen.' },
+  { id: 'boekhouder', name: 'Boekhouder', icon: Calculator, iconColor: 'text-emerald', salary: 7000, perk: '+10% Witwas limiet', reqLevel: 7, reqStat: { stat: 'brains', value: 8 }, desc: 'Creatieve boekhouding voor de onderwereld.' },
+  { id: 'advocaat', name: 'Advocaat', icon: Scale, iconColor: 'text-gold', salary: 10000, perk: '-25% Gevangenisstraf', reqLevel: 10, reqStat: { stat: 'brains', value: 12 }, desc: 'Ken de wet. Buig de wet.' },
+  { id: 'arts', name: 'Arts', icon: Stethoscope, iconColor: 'text-emerald', salary: 12000, perk: 'Kan spelers reviven', reqLevel: 12, reqStat: { stat: 'brains', value: 15 }, desc: 'Genees anderen. Verdien respect.' },
+  { id: 'makelaar', name: 'Vastgoedmakelaar', icon: Building2, iconColor: 'text-ice', salary: 15000, perk: '-10% Vastgoedprijzen', reqLevel: 15, reqStat: { stat: 'charm', value: 12 }, desc: 'Handel in het duurste goed: locatie.' },
 ];
 
 export function JobsView() {
@@ -98,7 +99,7 @@ export function JobsView() {
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-xl">{currentJobDef.icon}</span>
+              {(() => { const Icon = currentJobDef.icon; return <div className={`w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center ${currentJobDef.iconColor}`}><Icon size={16} /></div>; })()}
               <div>
                 <div className="text-sm font-bold text-foreground">{currentJobDef.name}</div>
                 <div className="text-[0.6rem] text-muted-foreground">
@@ -169,7 +170,7 @@ export function JobsView() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-lg">{job.icon}</span>
+                  {(() => { const Icon = job.icon; return <div className={`w-9 h-9 rounded-lg bg-muted/40 border border-border flex items-center justify-center ${locked ? 'opacity-50' : job.iconColor}`}><Icon size={16} /></div>; })()}
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-foreground">{job.name}</span>
