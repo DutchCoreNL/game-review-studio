@@ -2161,6 +2161,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   // Enemy attack
   if (!combat.stunned) {
     let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6) * (state._ngPlusDifficultyScale || 1));
+    // Guardian enchantment: chance to halve damage
+    if (guardianChance > 0 && Math.random() < guardianChance) {
+      enemyDamage = Math.floor(enemyDamage * 0.5);
+      combat.logs.push(`🛡️ Beschermer: schade gehalveerd!`);
+    }
     if (playerDefenseBonus > 0) {
       enemyDamage = Math.floor(enemyDamage * (1 - playerDefenseBonus));
     }
