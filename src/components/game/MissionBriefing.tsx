@@ -49,12 +49,12 @@ export function MissionBriefing({ operation, onClose }: MissionBriefingProps) {
   const [approach, setApproach] = useState<MissionApproach>('standard');
   const [launching, setLaunching] = useState(false);
 
-  // Don't render during tutorial or backstory selection
-  if (!state.tutorialDone || state.backstory === null) return null;
-
   const briefing = SOLO_OP_BRIEFINGS[operation.id]?.[state.loc] || SOLO_OP_BRIEFINGS[operation.id]?.['neon'];
   const bgImage = SOLO_OP_IMAGES[operation.id];
   const rewardRange = calculateOperationRewardRange(operation, state);
+
+  // Don't render during tutorial or backstory selection
+  if (!state.tutorialDone || state.backstory === null) return null;
 
   const heatMult = approach === 'cautious' ? 0.7 : approach === 'aggressive' ? 1.3 : 1;
   const rewardMult = approach === 'cautious' ? 0.8 : approach === 'aggressive' ? 1.3 : 1;
