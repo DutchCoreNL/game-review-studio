@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { PROPERTIES, getCurrentProperty, getNextProperty, canAffordProperty, Property } from '@/game/properties';
 import { ViewWrapper } from './ui/ViewWrapper';
-import { SectionHeader } from './ui/SectionHeader';
+
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';

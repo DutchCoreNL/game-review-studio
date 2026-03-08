@@ -5,7 +5,7 @@ import { PrestigeBadge } from './ui/PrestigeBadge';
 import { GameBadge } from './ui/GameBadge';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
-import { SectionHeader } from './ui/SectionHeader';
+
 import { SubTabBar } from './ui/SubTabBar';
 import { PlayerDetailPopup } from './PlayerDetailPopup';
 import leaderboardBg from '@/assets/leaderboard-bg.jpg';
