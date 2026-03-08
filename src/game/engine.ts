@@ -787,7 +787,7 @@ export function endTurn(state: GameState): NightReportData {
     }
   }
 
-  state.day++;
+  // state.day is synced with world_day via SYNC_WORLD_TIME — do NOT manually increment
   state.stats.daysPlayed++;
 
   // === HIDING DAYS PROCESSING ===

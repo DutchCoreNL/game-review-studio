@@ -15,48 +15,59 @@ const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Ner
 // Dawn: 06:00-12:00, Day: 12:00-18:00, Dusk: 18:00-00:00, Night: 00:00-06:00
 function getPhaseFromRealTime(): { phase: string; nextPhaseAt: Date; worldDayOffset: boolean } {
   const now = new Date();
-  // CET = UTC+1 (simplified; CEST = UTC+2 in summer — close enough for game purposes)
-  const cetHour = (now.getUTCHours() + 1) % 24;
+  // Use Intl to get correct CET/CEST hour (handles DST automatically)
+  const cetHourStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Amsterdam' }).format(now);
+  const cetHour = parseInt(cetHourStr, 10);
   
   let phase: string;
-  let nextBoundaryHourUTC: number;
+  let nextBoundaryCET: number;
   let isDawn = false;
   
   if (cetHour >= 6 && cetHour < 12) {
     phase = 'dawn';
-    nextBoundaryHourUTC = 11; // 12:00 CET = 11:00 UTC
+    nextBoundaryCET = 12;
     isDawn = true;
   } else if (cetHour >= 12 && cetHour < 18) {
     phase = 'day';
-    nextBoundaryHourUTC = 17; // 18:00 CET = 17:00 UTC
+    nextBoundaryCET = 18;
   } else if (cetHour >= 18) {
     phase = 'dusk';
-    nextBoundaryHourUTC = 23; // 00:00 CET = 23:00 UTC
+    nextBoundaryCET = 24;
   } else {
     phase = 'night';
-    nextBoundaryHourUTC = 5; // 06:00 CET = 05:00 UTC
+    nextBoundaryCET = 6;
   }
   
-  // Calculate next phase boundary
+  // Calculate next phase boundary using timezone-aware date math
+  // Create a date string in Amsterdam timezone, then compute target
+  const cetOffset = getCETOffsetHours(now);
+  const nextBoundaryHourUTC = (nextBoundaryCET - cetOffset + 24) % 24;
   const nextPhaseAt = new Date(now);
   nextPhaseAt.setUTCMinutes(0, 0, 0);
-  if (nextBoundaryHourUTC < now.getUTCHours()) {
-    // Next boundary is tomorrow
+  nextPhaseAt.setUTCHours(nextBoundaryHourUTC);
+  if (nextPhaseAt.getTime() <= now.getTime()) {
     nextPhaseAt.setUTCDate(nextPhaseAt.getUTCDate() + 1);
   }
-  nextPhaseAt.setUTCHours(nextBoundaryHourUTC);
   
   return { phase, nextPhaseAt, worldDayOffset: isDawn };
 }
 
+// Get the current UTC offset for Europe/Amsterdam (1 for CET, 2 for CEST)
+function getCETOffsetHours(date: Date): number {
+  const utcStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'UTC' }).format(date);
+  const cetStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Amsterdam' }).format(date);
+  return ((parseInt(cetStr, 10) - parseInt(utcStr, 10)) + 24) % 24;
+}
+
 // Calculate world_day from a reference date (Jan 1, 2025 as day 1)
 function getWorldDayFromDate(): number {
-  const REFERENCE_DATE = new Date('2025-01-01T05:00:00Z'); // 06:00 CET = day 1 start
   const now = new Date();
-  const diffMs = now.getTime() - REFERENCE_DATE.getTime();
+  const cetOffset = getCETOffsetHours(now);
+  // Reference: Jan 1, 2025 06:00 local Amsterdam time
+  const refMs = new Date('2025-01-01T00:00:00Z').getTime() + (6 - cetOffset) * 3600000;
+  const diffMs = now.getTime() - refMs;
   return Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
 }
-const DISTRICT_NAMES: Record<string, string> = { low: 'Lowrise', port: 'Port Nero', iron: 'Iron Borough', neon: 'Neon Strip', crown: 'Crown Heights' };
 
 function weightedRandomWeather(): string {
   const total = WEATHER_WEIGHTS.reduce((a, b) => a + b, 0);

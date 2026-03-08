@@ -1,61 +1,87 @@
 
 
-# Analyse: Dagen-systeem Implementatie
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-## Hoe het werkt
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
-Het systeem heeft **twee lagen**:
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
-1. **Server (`world-tick`)**: Berekent `world_day` als het aantal dagen sinds 1 jan 2025 (referentiedatum). Vandaag = dag ~432. De server draait elke 30 min en update `world_state` in de database met de huidige fase (dawn/day/dusk/night), weer, en `world_day`.
+---
 
-2. **Client**: Haalt `world_day` op via `useWorldState` hook (realtime subscription). `GameLayout` synct `state.day = worldState.worldDay` via `SYNC_WORLD_TIME` action.
+## Plan: Arsenaal Acquisitie Systeem
 
-## Gevonden problemen
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-### 1. Milestone-checks breken voor nieuwe spelers (HOOG)
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
-**Probleem**: `state.day` start op `1` in `createInitialState()`, maar wordt meteen overschreven naar `~432` (de huidige world_day). Hierdoor worden milestone-checks als `state.day === 7` en `state.day === 30` **nooit** getriggerd — de dag springt direct van 1 naar 432.
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-Dit treft:
-- Telefoonberichten op dag 7 en 30 (`newFeatures.ts`)
-- Achievement "Overlever" (`state.day >= 30`) — direct unlocked
-- Achievement "Nachtuil" (`state.day >= 100`) — direct unlocked
-- Week events check (`state.day % 7 === 0`) — werkt toevallig, maar semantisch fout
-- Hit contract deadlines (`deadline: state.day + 3`) — werkt correct
-- Codex unlocks op basis van dag — te vroeg unlocked
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
-**Fix**: Voeg een `daysPlayed` tracker toe die bijhoudt hoeveel dagen de speler daadwerkelijk actief is geweest. Gebruik `daysPlayed` voor milestones/achievements, en `state.day` (= world_day) voor deadlines en world-sync.
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
-### 2. Duplicate `DISTRICT_NAMES` declaratie (BUG)
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
-**Probleem**: `world-tick/index.ts` regel 12 en regel 59 declareren beide `const DISTRICT_NAMES`. Dit is een compile-fout die TypeScript zou moeten blokkeren. In Deno edge functions kan dit tot runtime errors leiden.
+---
 
-**Fix**: Verwijder de duplicate declaratie op regel 59.
+## Technisch overzicht
 
-### 3. `process-turn` incrementeert `stats.daysPlayed` elke turn (MEDIUM)
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
 
-**Probleem**: `process-turn/index.ts` regel 569 doet `s.stats.daysPlayed += 1` bij **elke turn**, niet bij elke nieuwe dag. Als een speler 5 acties per dag doet, telt `daysPlayed` 5 in plaats van 1.
-
-**Fix**: Alleen incrementeren als de dag daadwerkelijk veranderd is (vergelijk met een `lastDayProcessed` veld).
-
-### 4. `next_cycle_at` countdown bug bij nacht→dawn overgang
-
-**Probleem**: In `getPhaseFromRealTime()`, als `cetHour < 6` (nacht), wordt `nextBoundaryHourUTC = 5`. Maar de check `if (nextBoundaryHourUTC < now.getUTCHours())` klopt niet altijd — als UTC hour = 23 en next = 5, dan is 5 < 23 = true, dus het springt naar morgen. Dat is correct. Maar als UTC = 3 en next = 5, dan 5 < 3 = false, dus het blijft vandaag. Dat klopt ook. Lijkt OK bij nader inzien.
-
-### 5. CET vs CEST niet afgehandeld
-
-**Probleem**: De code gebruikt hard `UTC+1` (regel 19: `(getUTCHours() + 1) % 24`). In de zomer is Nederland UTC+2 (CEST). Dit betekent dat de fases in de zomer 1 uur verschoven zijn: "Dawn" begint om 07:00 lokale tijd in plaats van 06:00.
-
-**Fix**: Optioneel — gebruik `Intl.DateTimeFormat` met timezone `Europe/Amsterdam` voor correcte CET/CEST detectie. Of accepteer de 1-uur drift als bewuste keuze.
-
-## Implementatieplan
-
-| # | Wat | Impact | Bestanden |
-|---|-----|--------|-----------|
-| 1 | Splits `daysPlayed` (speler-specifiek) vs `day` (world_day) voor milestones | Hoog | `constants.ts`, `newFeatures.ts`, `constants.ts` (achievements), `weekEvents.ts`, `endgame.ts` |
-| 2 | Verwijder duplicate `DISTRICT_NAMES` | Bug | `world-tick/index.ts` |
-| 3 | Fix `daysPlayed` increment in process-turn | Medium | `process-turn/index.ts` |
-| 4 | (Optioneel) CET/CEST correctie | Laag | `world-tick/index.ts` |
-
-Stap 1 is de belangrijkste: milestones moeten op basis van **speeldagen** werken, niet op basis van de absolute wereld-dag.
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 

@@ -1179,10 +1179,11 @@ export function generateDailyMessages(state: GameState): void {
   }
 
   // ======= MILESTONES & ACHIEVEMENTS =======
-  if (state.day === 7 && chance(0.8)) {
+  const daysPlayed = state.stats?.daysPlayed || 0;
+  if (daysPlayed === 7 && chance(0.8)) {
     addPhoneMessage(state, 'anonymous', `Een week in Noxhaven overleefd. De meesten halen dat niet. Respect.`, 'info');
   }
-  if (state.day === 30 && chance(0.8)) {
+  if (daysPlayed === 30 && chance(0.8)) {
     addPhoneMessage(state, 'informant', `30 dagen. Je bent geen nieuwkomer meer. De stad kent je naam.`, 'info');
   }
   if (state.money > 100000 && state.day > 1 && chance(0.1)) {

@@ -1306,7 +1306,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'high_roller', name: 'High Roller', desc: 'Bezit €50.000 aan cash', icon: 'Dices', condition: (s) => s.money >= 50000, progress: (s) => ({ current: Math.min(s.money, 50000), target: 50000 }) },
   { id: 'clean_money', name: 'Witwasser', desc: 'Bezit een dekmantel', icon: 'Store', condition: (s) => s.ownedBusinesses.length > 0, progress: (s) => ({ current: Math.min(s.ownedBusinesses.length, 1), target: 1 }) },
   { id: 'car_collector', name: 'Auto Verzamelaar', desc: 'Bezit 3 voertuigen', icon: 'Car', condition: (s) => s.ownedVehicles.length >= 3, progress: (s) => ({ current: Math.min(s.ownedVehicles.length, 3), target: 3 }) },
-  { id: 'survivor', name: 'Overlever', desc: 'Overleef 30 dagen', icon: 'Clock', condition: (s) => s.day >= 30, progress: (s) => ({ current: Math.min(s.day, 30), target: 30 }) },
+  { id: 'survivor', name: 'Overlever', desc: 'Overleef 30 dagen', icon: 'Clock', condition: (s) => (s.stats?.daysPlayed || 0) >= 30, progress: (s) => ({ current: Math.min(s.stats?.daysPlayed || 0, 30), target: 30 }) },
   { id: 'combat_master', name: 'Vechtmachine', desc: 'Win een gevecht tegen een factieleider', icon: 'Swords', condition: (s) => s.leadersDefeated.length >= 1, progress: (s) => ({ current: Math.min(s.leadersDefeated.length, 1), target: 1 }) },
   { id: 'trader', name: 'Handelaar', desc: 'Voltooi 50 transacties', icon: 'ArrowRightLeft', condition: (s) => (s.stats?.tradesCompleted || 0) >= 50, progress: (s) => ({ current: Math.min(s.stats?.tradesCompleted || 0, 50), target: 50 }) },
   { id: 'jackpot', name: 'Jackpot!', desc: 'Win €50.000 in casino', icon: 'Dices', condition: (s) => s.stats.casinoWon >= 50000, progress: (s) => ({ current: Math.min(s.stats.casinoWon || 0, 50000), target: 50000 }) },
@@ -1321,7 +1321,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'villa_fortress', name: 'Fort Knox', desc: 'Installeer 5 villa modules', icon: 'Castle', condition: (s) => (s.villa?.modules || []).length >= 5, progress: (s) => ({ current: Math.min((s.villa?.modules || []).length, 5), target: 5 }) },
   { id: 'gear_collector', name: 'Wapenhandelaar', desc: 'Bezit 5 gear items', icon: 'Package', condition: (s) => (s.ownedGear || []).length >= 5, progress: (s) => ({ current: Math.min((s.ownedGear || []).length, 5), target: 5 }) },
   { id: 'heist_master', name: 'Veteraan', desc: 'Voltooi 10 missies', icon: 'Banknote', condition: (s) => (s.stats?.missionsCompleted || 0) >= 10, progress: (s) => ({ current: Math.min(s.stats?.missionsCompleted || 0, 10), target: 10 }) },
-  { id: 'night_owl', name: 'Nachtuil', desc: 'Overleef 100 dagen', icon: 'Moon', condition: (s) => s.day >= 100, progress: (s) => ({ current: Math.min(s.day, 100), target: 100 }) },
+  { id: 'night_owl', name: 'Nachtuil', desc: 'Overleef 100 dagen', icon: 'Moon', condition: (s) => (s.stats?.daysPlayed || 0) >= 100, progress: (s) => ({ current: Math.min(s.stats?.daysPlayed || 0, 100), target: 100 }) },
   { id: 'debt_free', name: 'Schuldvrij', desc: 'Los al je schulden af', icon: 'CheckCircle', condition: (s) => s.debt === 0 && (s.stats?.totalEarned || 0) > 10000 },
   { id: 'hall_of_fame', name: 'Hall of Fame', desc: 'Voltooi 3+ NG+ runs met minimaal A-rank', icon: 'Trophy', condition: (s) => (s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length >= 3, progress: (s) => ({ current: Math.min((s.runHistory || []).filter((r: any) => r.rank === 'S' || r.rank === 'A').length, 3), target: 3 }) },
   // Drug Imperium achievements

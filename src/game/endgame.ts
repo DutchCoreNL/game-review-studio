@@ -347,11 +347,12 @@ export function getEndgameEvent(state: GameState): EndgameEvent | null {
 export function calculateRanking(state: GameState): { rank: VictoryRank; score: number } {
   let score = 0;
 
-  // Speed bonus (fewer days = better, max 400 points)
-  if (state.day <= 20) score += 400;
-  else if (state.day <= 40) score += 300;
-  else if (state.day <= 60) score += 200;
-  else if (state.day <= 100) score += 100;
+  // Speed bonus (fewer days played = better, max 400 points)
+  const dp = state.stats?.daysPlayed || state.day;
+  if (dp <= 20) score += 400;
+  else if (dp <= 40) score += 300;
+  else if (dp <= 60) score += 200;
+  else if (dp <= 100) score += 100;
   else score += 50;
 
   // Wealth (max 200 points)
