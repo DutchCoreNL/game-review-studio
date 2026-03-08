@@ -30,6 +30,11 @@ import { ActivityFeedPanel } from './mmo/ActivityFeedPanel';
 import { OnlinePlayersIndicator } from './mmo/OnlinePlayersIndicator';
 import { WorldRaidPanel } from './mmo/WorldRaidPanel';
 import { SmuggleRoutesPanel } from './mmo/SmuggleRoutesPanel';
+import { ReputationEchoIndicator } from './mmo/ReputationEchoIndicator';
+import { BountyHunterLeaderboard } from './mmo/BountyHunterLeaderboard';
+import { SeasonEventPanel } from './mmo/SeasonEventPanel';
+import { DuelArenaPanel } from './mmo/DuelArenaPanel';
+import { MarketAlertPanel } from './mmo/MarketAlertPanel';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
@@ -189,21 +194,42 @@ export function MapView() {
       {state.nemesis && <NemesisInfo />}
       
       
-      {/* Online Players */}
-      <div className="mb-2">
+      {/* Online Players + Rep Echo */}
+      <div className="mb-2 flex items-center justify-between">
         <OnlinePlayersIndicator currentDistrict={state.loc} compact />
+        <ReputationEchoIndicator currentDistrict={state.loc} compact />
       </div>
       
       {selectedDistrict && !isHiding && <DistrictPopup districtData={districtData} />}
+
+      {/* Season Events */}
+      <div className="mb-2">
+        <SeasonEventPanel />
+      </div>
 
       {/* World Raids */}
       <div className="mb-2">
         <WorldRaidPanel />
       </div>
 
+      {/* Duel Arena */}
+      <div className="mb-2">
+        <DuelArenaPanel currentDistrict={state.loc} />
+      </div>
+
+      {/* Bounty Hunter Leaderboard */}
+      <div className="mb-2">
+        <BountyHunterLeaderboard />
+      </div>
+
       {/* Smuggle Routes */}
       <div className="mb-2">
         <SmuggleRoutesPanel currentDistrict={state.loc} />
+      </div>
+
+      {/* Market Alerts */}
+      <div className="mb-2">
+        <MarketAlertPanel />
       </div>
 
       {/* Activity Feed */}

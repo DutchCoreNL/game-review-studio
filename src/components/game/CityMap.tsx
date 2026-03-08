@@ -1,4 +1,5 @@
 import { DistrictId, MapEvent, WeatherType, NemesisState, SmuggleRoute, Safehouse, VillaState } from '@/game/types';
+import { TerritoryHeatmap } from './mmo/TerritoryHeatmap';
 import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WeatherOverlay } from './map/WeatherOverlay';
@@ -528,33 +529,20 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           );
         })}
 
+        {/* === MMO: TERRITORY HEATMAP (replaces old danger + gang borders) === */}
+        {districtData && <TerritoryHeatmap districtData={districtData} />}
+
         {/* === MMO: DANGER LEVEL OVERLAY === */}
         {districtData && (Object.keys(DISTRICT_ZONES) as DistrictId[]).map(id => {
           const danger = districtData.dangerLevels[id] || 0;
           if (danger < 10) return null;
           const zone = DISTRICT_ZONES[id];
           const intensity = Math.min(1, danger / 100);
-          const hue = 120 - intensity * 120; // green(120) → red(0)
+          const hue = 120 - intensity * 120;
           return (
             <rect key={`danger-${id}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h}
               fill={`hsla(${hue}, 70%, 40%, ${0.03 + intensity * 0.08})`}
               rx="4" pointerEvents="none" />
-          );
-        })}
-
-        {/* === MMO: GANG TERRITORY BORDERS === */}
-        {districtData?.territories.map(t => {
-          const zone = DISTRICT_ZONES[t.district_id as DistrictId];
-          if (!zone) return null;
-          // Generate a deterministic hue from gang_tag
-          const tagHash = t.gang_tag.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-          const gangHue = tagHash % 360;
-          return (
-            <g key={`gang-${t.district_id}`} pointerEvents="none">
-              <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h}
-                fill="none" stroke={`hsla(${gangHue}, 70%, 50%, 0.4)`}
-                strokeWidth="1.5" strokeDasharray="4 2" rx="4" />
-            </g>
           );
         })}
 
