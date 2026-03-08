@@ -2447,7 +2447,218 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    // ========== CAMPAIGN ACTIONS ==========
+    // ========== ENCHANTMENT ACTIONS ==========
+    case 'ADD_ENCHANTMENT': {
+      if (!s.enchantmentInventory) s.enchantmentInventory = [];
+      s.enchantmentInventory.push(action.enchantment);
+      return s;
+    }
+
+    case 'SOCKET_ENCHANTMENT_WEAPON': {
+      if (!s.weaponInventory || !s.enchantmentInventory) return s;
+      const enchItem = s.enchantmentInventory.find((e: any) => e.id === action.enchantmentItemId);
+      if (!enchItem) return s;
+      const socketCostMoney = action.cost || 0;
+      if (s.money < socketCostMoney) return s;
+      s.money -= socketCostMoney;
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, enchantmentId: enchItem.enchantmentId } : w);
+      s.enchantmentInventory = s.enchantmentInventory.filter((e: any) => e.id !== action.enchantmentItemId);
+      return s;
+    }
+
+    case 'SOCKET_ENCHANTMENT_GEAR': {
+      const enchInv = s.enchantmentInventory || [];
+      const eItem = enchInv.find((e: any) => e.id === action.enchantmentItemId);
+      if (!eItem) return s;
+      const sCost = action.cost || 0;
+      if (s.money < sCost) return s;
+      s.money -= sCost;
+      const gInvE = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!gInvE) return s;
+      const gUpdated = gInvE.map(g => g.id === action.gearId ? { ...g, enchantmentId: eItem.enchantmentId } : g);
+      if (action.gearType === 'armor') s.armorInventory = gUpdated;
+      else s.gadgetInventory = gUpdated;
+      s.enchantmentInventory = enchInv.filter((e: any) => e.id !== action.enchantmentItemId);
+      return s;
+    }
+
+    case 'SALVAGE_ENCHANTMENT': {
+      if (!s.enchantmentInventory) return s;
+      const eSalv = s.enchantmentInventory.find((e: any) => e.id === action.enchantmentItemId);
+      if (!eSalv) return s;
+      const eScrapValues: Record<string, number> = { uncommon: 2, rare: 5, epic: 12, legendary: 30 };
+      s.scrapMaterials = (s.scrapMaterials || 0) + (eScrapValues[eSalv.rarity] || 2);
+      s.enchantmentInventory = s.enchantmentInventory.filter((e: any) => e.id !== action.enchantmentItemId);
+      return s;
+    }
+
+    // ========== SKIN ACTIONS ==========
+    case 'ADD_SKIN': {
+      if (!s.skinInventory) s.skinInventory = [];
+      s.skinInventory.push(action.skin);
+      return s;
+    }
+
+    case 'APPLY_SKIN_WEAPON': {
+      if (!s.weaponInventory || !s.skinInventory) return s;
+      const skinItem = s.skinInventory.find((sk: any) => sk.id === action.skinItemId);
+      if (!skinItem) return s;
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, skinId: skinItem.skinId } : w);
+      s.skinInventory = s.skinInventory.filter((sk: any) => sk.id !== action.skinItemId);
+      return s;
+    }
+
+    case 'APPLY_SKIN_GEAR': {
+      const skInvG = s.skinInventory || [];
+      const skItem = skInvG.find((sk: any) => sk.id === action.skinItemId);
+      if (!skItem) return s;
+      const skGInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!skGInv) return s;
+      const skUpdated = skGInv.map(g => g.id === action.gearId ? { ...g, skinId: skItem.skinId } : g);
+      if (action.gearType === 'armor') s.armorInventory = skUpdated;
+      else s.gadgetInventory = skUpdated;
+      s.skinInventory = skInvG.filter((sk: any) => sk.id !== action.skinItemId);
+      return s;
+    }
+
+    // ========== DURABILITY / REPAIR ACTIONS ==========
+    case 'REPAIR_WEAPON': {
+      if (!s.weaponInventory) return s;
+      const repWpn = s.weaponInventory.find(w => w.id === action.weaponId);
+      if (!repWpn) return s;
+      if (action.useScrap) {
+        const scrapNeeded: Record<string, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 15 };
+        const cost = scrapNeeded[repWpn.rarity] || 4;
+        if ((s.scrapMaterials || 0) < cost) return s;
+        s.scrapMaterials = (s.scrapMaterials || 0) - cost;
+      } else {
+        const missing = 100 - (repWpn.durability || 100);
+        const costPerPoint: Record<string, number> = { common: 20, uncommon: 40, rare: 80, epic: 150, legendary: 300 };
+        const moneyCost = Math.ceil(missing * (costPerPoint[repWpn.rarity] || 80));
+        if (s.money < moneyCost) return s;
+        s.money -= moneyCost;
+      }
+      s.weaponInventory = s.weaponInventory.map(w => w.id === action.weaponId ? { ...w, durability: 100 } : w);
+      return s;
+    }
+
+    case 'REPAIR_GEAR': {
+      const repGInv = action.gearType === 'armor' ? s.armorInventory : s.gadgetInventory;
+      if (!repGInv) return s;
+      const repGear = repGInv.find(g => g.id === action.gearId);
+      if (!repGear) return s;
+      if (action.useScrap) {
+        const gScrapNeeded: Record<string, number> = { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 15 };
+        const gCost = gScrapNeeded[repGear.rarity] || 4;
+        if ((s.scrapMaterials || 0) < gCost) return s;
+        s.scrapMaterials = (s.scrapMaterials || 0) - gCost;
+      } else {
+        const gMissing = 100 - (repGear.durability || 100);
+        const gCostPerPoint: Record<string, number> = { common: 20, uncommon: 40, rare: 80, epic: 150, legendary: 300 };
+        const gMoneyCost = Math.ceil(gMissing * (gCostPerPoint[repGear.rarity] || 80));
+        if (s.money < gMoneyCost) return s;
+        s.money -= gMoneyCost;
+      }
+      const repGUpdated = repGInv.map(g => g.id === action.gearId ? { ...g, durability: 100 } : g);
+      if (action.gearType === 'armor') s.armorInventory = repGUpdated;
+      else s.gadgetInventory = repGUpdated;
+      return s;
+    }
+
+    // ========== BLUEPRINT ACTIONS ==========
+    case 'ADD_BLUEPRINT': {
+      if (!s.blueprintInventory) s.blueprintInventory = [];
+      s.blueprintInventory.push(action.blueprint);
+      return s;
+    }
+
+    case 'CRAFT_BLUEPRINT': {
+      if (!s.blueprintInventory) return s;
+      const bpItem = s.blueprintInventory.find((b: any) => b.id === action.blueprintItemId);
+      if (!bpItem) return s;
+      const { getBlueprintDef, craftFromBlueprint } = require('../game/blueprints');
+      const bpDef = getBlueprintDef(bpItem.blueprintId);
+      if (!bpDef) return s;
+      if ((s.scrapMaterials || 0) < bpDef.scrapCost || s.money < bpDef.moneyCost) return s;
+      s.scrapMaterials = (s.scrapMaterials || 0) - bpDef.scrapCost;
+      s.money -= bpDef.moneyCost;
+      s.stats.totalSpent += bpDef.moneyCost;
+      const bpResult = craftFromBlueprint(bpDef, s.player.level);
+      if (bpResult.type === 'weapon') {
+        if (!s.weaponInventory) s.weaponInventory = [];
+        s.weaponInventory.push(bpResult.item);
+      } else {
+        const bpInv = bpResult.type === 'armor' ? 'armorInventory' : 'gadgetInventory';
+        if (!s[bpInv]) (s as any)[bpInv] = [];
+        (s as any)[bpInv].push(bpResult.item);
+      }
+      // Remove used blueprint
+      s.blueprintInventory = s.blueprintInventory.filter((b: any) => b.id !== action.blueprintItemId);
+      return s;
+    }
+
+    // ========== LOADOUT PRESET ACTIONS ==========
+    case 'SAVE_LOADOUT_PRESET': {
+      if (!s.loadoutPresets) s.loadoutPresets = [];
+      if (s.loadoutPresets.length >= 5) return s;
+      const eqWpn = s.weaponInventory?.find(w => w.equipped);
+      const eqArm = s.armorInventory?.find(g => g.equipped);
+      const eqGad = s.gadgetInventory?.find(g => g.equipped);
+      s.loadoutPresets.push({
+        id: `preset_${Date.now()}`,
+        name: action.name || `Loadout ${s.loadoutPresets.length + 1}`,
+        weaponId: eqWpn?.id || null,
+        armorId: eqArm?.id || null,
+        gadgetId: eqGad?.id || null,
+        createdDay: s.day,
+      });
+      return s;
+    }
+
+    case 'LOAD_LOADOUT_PRESET': {
+      if (!s.loadoutPresets) return s;
+      const preset = s.loadoutPresets.find((p: any) => p.id === action.presetId);
+      if (!preset) return s;
+      // Equip weapon
+      if (preset.weaponId && s.weaponInventory) {
+        s.weaponInventory = s.weaponInventory.map(w => ({ ...w, equipped: w.id === preset.weaponId }));
+      }
+      // Equip armor
+      if (preset.armorId && s.armorInventory) {
+        s.armorInventory = s.armorInventory.map(g => ({ ...g, equipped: g.id === preset.armorId }));
+      }
+      // Equip gadget
+      if (preset.gadgetId && s.gadgetInventory) {
+        s.gadgetInventory = s.gadgetInventory.map(g => ({ ...g, equipped: g.id === preset.gadgetId }));
+      }
+      return s;
+    }
+
+    case 'DELETE_LOADOUT_PRESET': {
+      if (!s.loadoutPresets) return s;
+      s.loadoutPresets = s.loadoutPresets.filter((p: any) => p.id !== action.presetId);
+      return s;
+    }
+
+    case 'RENAME_LOADOUT_PRESET': {
+      if (!s.loadoutPresets) return s;
+      s.loadoutPresets = s.loadoutPresets.map((p: any) => p.id === action.presetId ? { ...p, name: action.name } : p);
+      return s;
+    }
+
+    // ========== WEAPON CHALLENGE PROGRESS ==========
+    case 'UPDATE_WEAPON_CHALLENGE': {
+      if (!s.weaponInventory) return s;
+      s.weaponInventory = s.weaponInventory.map(w => {
+        if (w.id !== action.weaponId) return w;
+        const { updateChallengeProgress: updateCP } = require('../game/weaponChallenges');
+        const result = updateCP(w.challenges || [], action.challengeType);
+        return { ...w, challenges: result.updated };
+      });
+      return s;
+    }
+
+
     case 'START_CAMPAIGN_MISSION': {
       if (!s.campaign) return s;
       if (!s.campaign) return s;
