@@ -141,6 +141,7 @@ import casinoBlackjack from './casino-blackjack.jpg';
 import casinoRoulette from './casino-roulette.jpg';
 import casinoSlots from './casino-slots.jpg';
 import casinoHighlow from './casino-highlow.jpg';
+import casinoPoker from '../casino-poker.jpg';
 
 // Achievement badge images
 import badgeFirstBlood from './badge-first-blood.jpg';
@@ -433,6 +434,7 @@ export const CASINO_GAME_IMAGES: Record<string, string> = {
   roulette: casinoRoulette,
   slots: casinoSlots,
   highlow: casinoHighlow,
+  poker: casinoPoker,
 };
 
 export const STOCK_IMAGES: Record<string, string> = {

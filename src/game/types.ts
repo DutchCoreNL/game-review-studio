@@ -32,7 +32,7 @@ export interface VillaState {
   purchaseDay: number;
   lastPartyDay: number; // day when last party was thrown (cooldown)
 }
-export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | 'russian_roulette' | null;
+export type CasinoGame = 'blackjack' | 'roulette' | 'slots' | 'highlow' | 'russian_roulette' | 'poker' | null;
 export type CardSuit = 'spade' | 'heart' | 'diamond' | 'club';
 export interface PlayingCard { rank: string; suit: CardSuit; }
 export type FactionActionType = 'negotiate' | 'bribe' | 'intimidate' | 'sabotage' | 'gift' | 'intel';

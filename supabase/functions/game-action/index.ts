@@ -2977,6 +2977,40 @@ function getCardRankVal(rank: string): number {
   return CASINO_RANKS.indexOf(rank);
 }
 
+// Poker hand evaluation
+function pokerHandStrength(holeCards: any[], communityCards: any[]): number {
+  const all = [...holeCards, ...communityCards];
+  if (all.length < 2) return 0;
+  const ranks = all.map((c: any) => CASINO_RANKS.indexOf(c.rank));
+  const suits = all.map((c: any) => c.suit);
+  const rankCount: Record<number, number> = {};
+  for (const r of ranks) rankCount[r] = (rankCount[r] || 0) + 1;
+  const counts = Object.values(rankCount).sort((a, b) => b - a);
+  const suitCount: Record<string, number> = {};
+  for (const s of suits) suitCount[s] = (suitCount[s] || 0) + 1;
+  const isFlush = Object.values(suitCount).some(c => c >= 5);
+  const sorted = [...new Set(ranks)].sort((a, b) => a - b);
+  let isStraight = false;
+  for (let i = 0; i <= sorted.length - 5; i++) {
+    if (sorted[i + 4] - sorted[i] === 4) { isStraight = true; break; }
+  }
+  if (sorted.includes(12) && sorted.includes(0) && sorted.includes(1) && sorted.includes(2) && sorted.includes(3)) isStraight = true;
+  if (isFlush && isStraight && sorted.includes(12) && sorted.includes(11)) return 9;
+  if (isFlush && isStraight) return 8;
+  if (counts[0] === 4) return 7;
+  if (counts[0] === 3 && counts[1] >= 2) return 6;
+  if (isFlush) return 5;
+  if (isStraight) return 4;
+  if (counts[0] === 3) return 3;
+  if (counts[0] === 2 && counts[1] === 2) return 2;
+  if (counts[0] === 2) return 1;
+  return 0;
+}
+
+function pokerHandName(strength: number): string {
+  return ['High Card','Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush','Royal Flush'][strength] || 'High Card';
+}
+
 async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload: any): Promise<ActionResult> {
   const { game, bet, choice } = payload || {};
   if (!game || !bet || bet < 10) return { success: false, message: "Ongeldige casino parameters." };
@@ -3237,6 +3271,99 @@ async function handleCasinoPlay(supabase: any, userId: string, ps: any, payload:
         resultData = { survived: 0, dead: false };
       }
       break;
+    }
+
+    case "poker": {
+      const pokerAction = choice?.action;
+      
+      if (pokerAction === 'deal') {
+        const deck = serverCreateDeck();
+        const playerHand = [deck.pop()!, deck.pop()!];
+        netResult = -bet;
+        resultData = { playerHand, newMoney: Number(ps.money) - bet };
+        await supabase.from("player_state").update({
+          money: Math.max(0, Number(ps.money) - bet),
+          last_action_at: new Date().toISOString(),
+        }).eq("user_id", userId);
+        return { success: true, message: 'Deal!', data: resultData };
+      }
+      
+      if (pokerAction === 'continue') {
+        const phase = choice?.phase;
+        const playerHand: any[] = choice?.playerHand || [];
+        const existingCommunity: any[] = choice?.communityCards || [];
+        const pot = choice?.pot || 0;
+        const playerTotalBet = choice?.playerBet || 0;
+        const isRaise = choice?.isRaise || false;
+        
+        const deck = serverCreateDeck();
+        const usedCards = [...playerHand, ...existingCommunity];
+        const remainingDeck = deck.filter((c: any) => 
+          !usedCards.some((u: any) => u.rank === c.rank && u.suit === c.suit)
+        );
+        const dealerHand = [remainingDeck.pop()!, remainingDeck.pop()!];
+        
+        let raiseCost = 0;
+        let newPot = pot;
+        let newPlayerBet = playerTotalBet;
+        if (isRaise && bet > 0) { raiseCost = bet; newPot += bet * 2; newPlayerBet += bet; }
+        
+        // AI fold decision
+        let dealerFolded = false;
+        if (isRaise) {
+          const dScore = pokerHandStrength(dealerHand, existingCommunity);
+          const foldChance = dScore < 2 ? 0.35 : dScore < 4 ? 0.15 : 0.05;
+          if (Math.random() < foldChance) dealerFolded = true;
+        }
+        
+        if (dealerFolded) {
+          const winnings = newPot;
+          const playerNet = winnings - newPlayerBet;
+          await supabase.from("player_state").update({
+            money: Math.max(0, Number(ps.money) - raiseCost + winnings),
+            stats_casino_won: (ps.stats_casino_won || 0) + Math.max(0, playerNet),
+            stats_total_earned: (ps.stats_total_earned || 0) + Math.max(0, playerNet),
+            last_action_at: new Date().toISOString(),
+          }).eq("user_id", userId);
+          return { success: true, message: `Dealer foldt!`, data: { dealerFolded: true, pot: newPot, netResult: playerNet, newMoney: Math.max(0, Number(ps.money) - raiseCost + winnings) } };
+        }
+        
+        let nextPhase: string;
+        let communityCards = [...existingCommunity];
+        if (phase === 'preflop') { nextPhase = 'flop'; for (let i = 0; i < 3; i++) communityCards.push(remainingDeck.pop()!); }
+        else if (phase === 'flop') { nextPhase = 'turn'; communityCards.push(remainingDeck.pop()!); }
+        else if (phase === 'turn') { nextPhase = 'river'; communityCards.push(remainingDeck.pop()!); }
+        else { nextPhase = 'showdown'; }
+        
+        if (nextPhase === 'showdown') {
+          while (communityCards.length < 5) communityCards.push(remainingDeck.pop()!);
+          const playerStrength = pokerHandStrength(playerHand, communityCards);
+          const dealerStrength = pokerHandStrength(dealerHand, communityCards);
+          const pName = pokerHandName(playerStrength);
+          const dName = pokerHandName(dealerStrength);
+          
+          let won: boolean | null;
+          let resultText: string;
+          if (playerStrength > dealerStrength) { won = true; resultText = `🏆 Jij wint met ${pName}!`; }
+          else if (dealerStrength > playerStrength) { won = false; resultText = `💀 Dealer wint met ${dName}.`; }
+          else { won = null; resultText = `🤝 Gelijkspel — ${pName}.`; }
+          
+          const winnings = won === true ? newPot : won === null ? Math.floor(newPlayerBet) : 0;
+          const playerNet = winnings - newPlayerBet;
+          const moneyUpdate: Record<string, any> = { money: Math.max(0, Number(ps.money) - raiseCost + winnings), last_action_at: new Date().toISOString() };
+          if (playerNet > 0) { moneyUpdate.stats_casino_won = (ps.stats_casino_won || 0) + playerNet; moneyUpdate.stats_total_earned = (ps.stats_total_earned || 0) + playerNet; }
+          else if (playerNet < 0) { moneyUpdate.stats_casino_lost = (ps.stats_casino_lost || 0) + Math.abs(playerNet); moneyUpdate.stats_total_spent = (ps.stats_total_spent || 0) + Math.abs(playerNet); }
+          await supabase.from("player_state").update(moneyUpdate).eq("user_id", userId);
+          
+          return { success: true, message: resultText, data: { phase: 'showdown', communityCards, dealerHand, pot: newPot, playerTotalBet: newPlayerBet, playerHandName: pName, dealerHandName: dName, won, resultText, netResult: playerNet, newMoney: Math.max(0, Number(ps.money) - raiseCost + winnings) } };
+        }
+        
+        if (raiseCost > 0) {
+          await supabase.from("player_state").update({ money: Math.max(0, Number(ps.money) - raiseCost), last_action_at: new Date().toISOString() }).eq("user_id", userId);
+        }
+        return { success: true, message: nextPhase, data: { phase: nextPhase, communityCards, pot: newPot, playerTotalBet: newPlayerBet, newMoney: Math.max(0, Number(ps.money) - raiseCost) } };
+      }
+      return { success: false, message: 'Ongeldige poker actie.' };
     }
 
     default:
