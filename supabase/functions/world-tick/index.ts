@@ -1328,8 +1328,40 @@ async function simulateBotPvP(supabase: any, bots: any[]) {
   } catch (e) { console.error('Bot PvP error:', e); }
 }
 
-// ========== BOT MESSAGES ==========
-const BOT_MESSAGE_TEMPLATES = [
+// ========== BOT MESSAGES (personality-aware DMs) ==========
+const BOT_MESSAGE_TEMPLATES_BY_PERSONALITY: Record<string, Array<{ subject: string; body: string }>> = {
+  aggressive: [
+    { subject: '⚠️ Waarschuwing', body: 'Blijf uit mijn district. Dit is je eerste en laatste waarschuwing.' },
+    { subject: 'Oorlog', body: 'Onze gang overweegt een aanval. Kies de juiste kant of je bent de volgende.' },
+    { subject: 'Uitdaging', body: 'Ik daag je uit voor een duel. Toon je niet? Dan weet iedereen dat je een lafaard bent.' },
+    { subject: 'Premie', body: 'Er staat een bounty op je hoofd. Ik zou maar oppassen als ik jou was.' },
+    { subject: 'Territorium', body: 'Je bent gezien in mijn wijk. Dat bevalt me niet. Volgende keer zijn er consequenties.' },
+  ],
+  trader: [
+    { subject: '📦 Zakelijk voorstel', body: 'Ik heb een partij goederen beschikbaar onder de marktprijs. Interesse? Snel reageren, beperkte voorraad.' },
+    { subject: 'Handelstip', body: 'Koop drugs in Lowrise en verkoop ze in Neon Strip. Easy profit. Vertel het niet door.' },
+    { subject: 'Bulk deal', body: 'Grote partij beschikbaar. Als je in bulk koopt, krijg je 15% korting. Laat het me weten.' },
+    { subject: 'Markt update', body: 'De crypto markt is instabiel. Ik zou nu verkopen als ik jou was. Of juist kopen... risk/reward.' },
+    { subject: 'Partnership', body: 'Ik zoek een handelspartner voor een smokkelroute. 50/50 winst. Discreet.' },
+  ],
+  social: [
+    { subject: 'Hey! 👋', body: 'Welkom in Noxhaven! Als je hulp nodig hebt, stuur me gerust een bericht. We helpen elkaar hier.' },
+    { subject: 'Bondgenootschap?', body: 'We zouden samen kunnen werken. Mijn gang zoekt nog sterke spelers die loyaal zijn.' },
+    { subject: 'GG! 🎉', body: 'Ik zag je level up in de feed. Gefeliciteerd! Keep grinding, je doet het goed.' },
+    { subject: 'Community event', body: 'We organiseren een groepsevent vanavond. Heist of faction raid. Ben je erbij?' },
+    { subject: 'Bedankt', body: 'GG voor die trade eerder. Laten we weer zaken doen. Respect! 💯' },
+  ],
+  stealthy: [
+    { subject: '...', body: 'Ik heb informatie over je gang. Interesse? Kost je wel wat.' },
+    { subject: 'Anonieme tip', body: 'Er wordt gepraat over jou in bepaalde kringen. Wees voorzichtig.' },
+    { subject: 'Observatie', body: 'Ik heb je in de gaten gehouden. Je hebt vijanden die je niet kent. Wil je weten wie?' },
+    { subject: 'Intel', body: 'Ik weet waar de volgende politierazzia plaatsvindt. Waardevolle info voor de juiste prijs.' },
+    { subject: 'Schaduw', body: 'De muren hebben oren. Vertrouw niemand. Zelfs dit bericht kan onderschept worden.' },
+  ],
+};
+
+// Fallback generic templates
+const BOT_MESSAGE_TEMPLATES_GENERIC = [
   { subject: 'Waarschuwing', body: 'Ik heb gehoord dat er een razzia op komst is. Pas op in de haven.' },
   { subject: 'Zakelijk voorstel', body: 'Ik heb een partij goederen beschikbaar. Interesse? Laat het me weten.' },
   { subject: 'Bondgenootschap?', body: 'We zouden samen kunnen werken. Mijn gang zoekt nog sterke spelers.' },
@@ -1344,7 +1376,7 @@ async function simulateBotMessages(supabase: any, bots: any[]) {
     if (Math.random() > 0.1) return; // ~10% per tick
 
     const { data: players } = await supabase.from('player_state')
-      .select('user_id').eq('game_over', false).limit(10);
+      .select('user_id, level, loc').eq('game_over', false).limit(10);
     if (!players || players.length === 0) return;
 
     // Don't send to other bots
@@ -1355,13 +1387,25 @@ async function simulateBotMessages(supabase: any, bots: any[]) {
     const bot = pick(bots.filter(b => b.level >= 5));
     if (!bot) return;
     const target = pick(realPlayers);
-    const template = pick(BOT_MESSAGE_TEMPLATES);
+    const personality = bot.personality || 'balanced';
+    
+    // Select personality-specific template
+    const personalityTemplates = BOT_MESSAGE_TEMPLATES_BY_PERSONALITY[personality];
+    const template = personalityTemplates 
+      ? pick(personalityTemplates) 
+      : pick(BOT_MESSAGE_TEMPLATES_GENERIC);
+
+    // Context-aware: if bot is in same district, mention it
+    const sameDistrict = bot.loc === target.loc;
+    const contextSuffix = sameDistrict 
+      ? `\n\nPS: Ik zie je in ${DISTRICT_NAMES[bot.loc]}...` 
+      : '';
 
     await supabase.from('player_messages').insert({
       sender_id: bot.id,
       receiver_id: target.user_id,
       subject: template.subject,
-      body: `${template.body}\n\n- ${bot.username}`,
+      body: `${template.body}${contextSuffix}\n\n- ${bot.username}`,
     });
   } catch (e) { console.error('Bot messages error:', e); }
 }
