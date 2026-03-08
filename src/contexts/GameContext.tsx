@@ -1178,9 +1178,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           // Won: keep remaining HP (min 1)
           s.playerHP = Math.max(1, s.activeCombat.playerHP);
         } else {
-          // Universal permadeath: death = game over, no Last Stand, no hospital
-          s.gameOver = true;
-          s.playerHP = 0;
+          // Only final boss combat is lethal (permadeath)
+          const isFinalBoss = s.activeCombat.bossPhase !== undefined;
+          if (isFinalBoss) {
+            s.gameOver = true;
+            s.playerHP = 0;
+          } else {
+            // Knocked out — recover with penalties (not permadeath)
+            s.playerHP = Math.max(1, Math.floor((s.playerMaxHP || 100) * 0.25));
+            const moneyLost = Math.floor(s.money * 0.15);
+            s.money -= moneyLost;
+            s.rep = Math.max(0, s.rep - 10);
+            addPhoneMessage(s, 'anonymous',
+              `Je bent knocked out door ${s.activeCombat.targetName}. Je verloor €${moneyLost.toLocaleString()} en wat reputatie terwijl je bewusteloos was.`,
+              'warning'
+            );
+          }
           s.hospitalizations = (s.hospitalizations || 0) + 1;
         }
         // Check nemesis wounded revenge (player lost nemesis combat)
