@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { MERIT_NODES, MERIT_CATEGORIES, canUnlockMeritNode, getMeritNodeLevel, MeritCategoryId, MeritNodeDef } from '@/game/meritSystem';
 import { ViewWrapper } from './ui/ViewWrapper';
-
+import { SectionHeader } from './ui/SectionHeader';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
