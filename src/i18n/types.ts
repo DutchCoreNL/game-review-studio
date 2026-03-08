@@ -179,6 +179,9 @@ export interface Translations {
     noCrewAvailable: string;
     ideal: string;
     connectionError: string;
+    fireConfirmMsg: string;
+    fireBtn: string;
+    personality: Record<string, string>;
   };
   profile: {
     stats: string;
@@ -276,6 +279,8 @@ export interface Translations {
     stormClosed: string;
     nightReport: string;
     dailyDigest: string;
+    openNightReport: string;
+    openDigest: string;
   };
   casino: {
     closed: string;
@@ -406,6 +411,8 @@ export interface Translations {
     reward: string;
     notEnoughMoney: string;
     connectionError: string;
+    active: string;
+    buySafehouse: string;
   };
   howToPlay: {
     trading: { title: string; desc: string };
@@ -415,5 +422,36 @@ export interface Translations {
     heat: { title: string; desc: string };
     villa: { title: string; desc: string };
     goal: { title: string; desc: string };
+  };
+  factions: {
+    underworld: string;
+    conquestProgress: string;
+    factionsConquered: string;
+    absolutePower: string;
+    defeatOrRelation: string;
+    vassal: string;
+    bribePolice: string;
+    relation: string;
+  };
+  news: {
+    player: string;
+    faction: string;
+    market: string;
+    weather: string;
+    heat: string;
+    crew: string;
+    corruption: string;
+    vehicle: string;
+    karma: string;
+    flavor: string;
+    urgent: string;
+    encounter: string;
+  };
+  npc: {
+    encounter: string;
+  };
+  safehouse: {
+    buySafehouse: string;
+    owned: string;
   };
 }

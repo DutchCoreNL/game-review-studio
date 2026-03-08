@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DISTRICTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, SAFEHOUSE_PERKS } from '@/game/constants';
 import { DistrictId, SafehouseUpgradeId } from '@/game/types';
 import { GameButton } from './ui/GameButton';
@@ -13,6 +14,7 @@ import { SAFEHOUSE_UPGRADE_IMAGES } from '@/assets/items';
 
 function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect: () => void }) {
   const { state } = useGame();
+  const { t } = useLanguage();
   const sh = state.safehouses.find(h => h.district === district);
   const districtData = DISTRICTS[district];
 
@@ -32,7 +34,7 @@ function SafehouseCard({ district, onSelect }: { district: DistrictId; onSelect:
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold">{districtData.name}</span>
-            <div className="text-[0.5rem] text-muted-foreground">Koop safehouse — €{cost.toLocaleString()}</div>
+            <div className="text-[0.5rem] text-muted-foreground">{t.common.buySafehouse} — €{cost.toLocaleString()}</div>
           </div>
           <Lock size={14} className="text-muted-foreground" />
         </div>
@@ -263,6 +265,7 @@ function SafehouseDetail({ district, onBack }: { district: DistrictId; onBack: (
 
 export function SafehouseView() {
   const { state } = useGame();
+  const { t } = useLanguage();
   const [selectedDistrict, setSelectedDistrict] = useState<DistrictId | null>(null);
   const districts: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'];
 
@@ -290,7 +293,7 @@ export function SafehouseView() {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="game-card bg-emerald/5 border border-emerald/20 p-2.5 text-center">
           <Home size={12} className="text-emerald mx-auto mb-0.5" />
-          <div className="text-[0.45rem] text-muted-foreground">Actief</div>
+          <div className="text-[0.45rem] text-muted-foreground">{t.common.active}</div>
           <div className="text-sm font-bold text-emerald">{state.safehouses.length}</div>
         </div>
         <div className="game-card bg-ice/5 border border-ice/20 p-2.5 text-center">

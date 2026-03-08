@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { GameButton } from './ui/GameButton';
 import { BackButton } from './ui/BackButton';
 import { CityMap } from './CityMap';
@@ -38,6 +39,7 @@ import { MarketAlertPanel } from './mmo/MarketAlertPanel';
 
 export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
+  const { t } = useLanguage();
   const [showCasino, setShowCasino] = useState(false);
   const [showChopShop, setShowChopShop] = useState(false);
   const [showSafehouse, setShowSafehouse] = useState(false);
@@ -93,25 +95,25 @@ export function MapView() {
 
   if (!isHiding) {
     if (canTriggerFinalBoss(state) && !state.activeCombat) {
-      contextActions.push({ id: 'decker', icon: <Swords size={14} />, label: 'DECKER', variant: 'blood', onClick: () => dispatch({ type: 'START_FINAL_BOSS' }), className: 'glow-blood' });
+      contextActions.push({ id: 'decker', icon: <Swords size={14} />, label: t.map.decker, variant: 'blood', onClick: () => dispatch({ type: 'START_FINAL_BOSS' }), className: 'glow-blood' });
     }
     if ((state.loc === 'neon' || (state.districtRep?.crown >= 50))) {
-      contextActions.push({ id: 'casino', icon: <Dices size={14} />, label: 'CASINO', variant: 'purple', onClick: () => {
-        if (state.weather === 'storm') { showToast('Casino gesloten wegens storm!', true); return; }
+      contextActions.push({ id: 'casino', icon: <Dices size={14} />, label: t.map.casino, variant: 'purple', onClick: () => {
+        if (state.weather === 'storm') { showToast(t.map.stormClosed, true); return; }
         setShowCasino(true);
       }, className: state.weather === 'storm' ? 'opacity-50' : '' });
     }
     if (state.loc === 'iron') {
-      contextActions.push({ id: 'chop', icon: <Wrench size={14} />, label: 'CHOP', variant: 'gold', onClick: () => setShowChopShop(true) });
+      contextActions.push({ id: 'chop', icon: <Wrench size={14} />, label: t.map.chop, variant: 'gold', onClick: () => setShowChopShop(true) });
     }
     if (state.loc === 'crown' && state.playerHP < state.playerMaxHP) {
-      contextActions.push({ id: 'hospital', icon: <Heart size={14} />, label: 'ZSHS', variant: 'emerald', onClick: () => setShowHospital(true) });
+      contextActions.push({ id: 'hospital', icon: <Heart size={14} />, label: t.map.hospital, variant: 'emerald', onClick: () => setShowHospital(true) });
     }
     if (state.safehouses.some(sh => sh.district === state.loc)) {
-      contextActions.push({ id: 'safe', icon: <Home size={14} />, label: 'SAFE', variant: 'emerald', onClick: () => setShowSafehouse(true) });
+      contextActions.push({ id: 'safe', icon: <Home size={14} />, label: t.map.safe, variant: 'emerald', onClick: () => setShowSafehouse(true) });
     }
     if (state.villa || (state.player.level >= 8 && state.rep >= 300)) {
-      contextActions.push({ id: 'villa', icon: <Building2 size={14} />, label: 'VILLA', variant: 'gold', onClick: () => setShowVilla(true) });
+      contextActions.push({ id: 'villa', icon: <Building2 size={14} />, label: t.map.villaBtn, variant: 'gold', onClick: () => setShowVilla(true) });
     }
   }
 
@@ -142,20 +144,20 @@ export function MapView() {
           <button
             onClick={() => setShowNightReport(true)}
             className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-blood/30 text-blood hover:bg-blood/10 transition-colors"
-            title="Nacht Rapport openen"
+            title={t.map.openNightReport}
           >
             <FileText size={12} />
-            <span className="text-[0.5rem] font-bold uppercase tracking-wider">Rapport</span>
+            <span className="text-[0.5rem] font-bold uppercase tracking-wider">{t.map.report}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
           </button>
         )}
         <button
           onClick={handleOpenDigest}
           className="flex items-center gap-1 px-2 py-1 rounded bg-card/80 border border-gold/30 text-gold hover:bg-gold/10 transition-colors"
-          title="Dagelijks Digest openen"
-        >
-          <Moon size={12} />
-          <span className="text-[0.5rem] font-bold uppercase tracking-wider">Digest</span>
+            title={t.map.openDigest}
+          >
+            <Moon size={12} />
+            <span className="text-[0.5rem] font-bold uppercase tracking-wider">{t.map.digest}</span>
           {digest && !digest.seen && (
             <span className="w-1.5 h-1.5 rounded-full bg-blood animate-pulse" />
           )}

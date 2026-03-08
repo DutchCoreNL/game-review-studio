@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { NPC_IMAGES } from '@/assets/items';
 import { NpcEvent } from '@/game/npcEvents';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +8,7 @@ import { GameButton } from './ui/GameButton';
 
 export function NpcEventPopup() {
   const { state, dispatch, showToast } = useGame();
+  const { t } = useLanguage();
   const event = (state as any).pendingNpcEvent as NpcEvent | null;
 
   if (!event) return null;
@@ -40,7 +42,7 @@ export function NpcEventPopup() {
             </div>
             <div className="flex-1">
               <h3 className="font-display text-sm text-ice uppercase tracking-widest">{event.npcName}</h3>
-              <p className="text-[0.45rem] text-muted-foreground">Ontmoeting — Dag {event.day}</p>
+              <p className="text-[0.45rem] text-muted-foreground">{t.npc.encounter} — {t.common.day} {event.day}</p>
             </div>
             <button
               onClick={() => dispatch({ type: 'DISMISS_NPC_EVENT' })}
