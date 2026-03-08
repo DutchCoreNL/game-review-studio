@@ -4134,7 +4134,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         const res = await gameApi.gainXp(totalAmount, sources);
         if (res.success && res.data) {
           // Sync only the authoritative XP/level fields — never overwrite full state
-          rawDispatch({ type: 'SYNC_SERVER_XP' as any, data: res.data });
+          rawDispatch({ type: 'SYNC_SERVER_XP', data: res.data as any });
           // Show XP breakdown popup with bonus details
           if (res.data.totalXp > 0) {
             // Collect unlocks for all levels gained
