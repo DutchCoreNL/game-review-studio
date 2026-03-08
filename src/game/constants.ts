@@ -1969,6 +1969,11 @@ export function createInitialState(): import('./types').GameState {
     lootBoxesOpened: 0,
     lastLootBoxResult: null,
 
+    // Dungeon / Raid state
+    activeDungeon: null,
+    lastDungeonResult: null,
+    dungeonsCompleted: 0,
+
     // Arsenal enhancement state
     enchantmentInventory: [],
     skinInventory: [],
