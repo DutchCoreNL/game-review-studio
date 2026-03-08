@@ -186,6 +186,7 @@ const views: Record<string, React.ComponentType> = {
   'black-market': BlackMarketViewLazy,
   'salvage': SalvageViewLazy,
   'loot-boxes': LootBoxViewLazy,
+  'raids': DungeonViewLazy,
   // Admin
   admin: AdminPanelView,
 };
