@@ -8,6 +8,7 @@ import {
   Car, Store, MapPin,
   Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen, Sword, Smartphone,
   ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
+  Package,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
@@ -63,6 +64,7 @@ const CATEGORIES: Category[] = [
       { id: 'gear', label: 'Gear', icon: ShieldCheck },
       { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
       { id: 'salvage', label: 'Salvage', icon: Wrench },
+      { id: 'loot-boxes', label: 'Loot Boxes', icon: Package },
     ],
   },
   {

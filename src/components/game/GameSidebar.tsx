@@ -15,6 +15,7 @@ import {
   Car, Store, MapPin, Hammer,
   Star, Shield, Smartphone, Trophy, Mail, Settings, Sword,
   ShieldAlert, LucideIcon, BookOpen, Sparkles, GraduationCap, Plane, MessageCircle, Waypoints,
+  Package,
 } from 'lucide-react';
 
 interface SidebarCategory {
@@ -72,6 +73,7 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
           { id: 'gear', label: 'Gear', icon: ShieldCheck },
           { id: 'black-market', label: 'Zwarte Markt', icon: Skull },
           { id: 'salvage', label: 'Salvage', icon: Hammer },
+          { id: 'loot-boxes', label: 'Loot Boxes', icon: Package },
         ],
       },
       {
