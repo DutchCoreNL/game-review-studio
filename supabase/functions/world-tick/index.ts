@@ -352,7 +352,7 @@ async function simulateBotChat(supabase: any, bots: any[], phase: string) {
       supabase.from('leaderboard_entries').select('username, level').order('rep', { ascending: false }).limit(5),
       // Fetch recent player messages (non-bot) for reactive replies
       supabase.from('chat_messages').select('username, message, channel')
-        .not('user_id', 'in', `(${bots.map((b: any) => `"${b.id}"`).join(',')})`)
+        .not('user_id', 'in', `(${bots.map((b: any) => b.id).join(',')})`)
         .order('created_at', { ascending: false }).limit(10),
     ]);
     const activeWars = warsRes.data || [];
