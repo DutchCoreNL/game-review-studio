@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
 import { Map, Crosshair, ShoppingBag, Building2, Menu, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -6,21 +7,22 @@ import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
 
-const NAV_ITEMS: { id: GameView | 'menu'; label: string; icon: LucideIcon }[] = [
-  { id: 'city', label: 'KAART', icon: Map },
-  { id: 'ops', label: 'ACTIES', icon: Crosshair },
-  { id: 'market', label: 'HANDEL', icon: ShoppingBag },
-  { id: 'garage', label: 'IMPERIUM', icon: Building2 },
-  { id: 'menu', label: 'MENU', icon: Menu },
-];
-
 interface GameNavProps {
   onMenuOpen: () => void;
 }
 
 export function GameNav({ onMenuOpen }: GameNavProps) {
   const { view, setView, state } = useGame();
+  const { t } = useLanguage();
   const { digest } = useDailyDigest();
+
+  const NAV_ITEMS: { id: GameView | 'menu'; label: string; icon: LucideIcon }[] = useMemo(() => [
+    { id: 'city', label: t.nav.map, icon: Map },
+    { id: 'ops', label: t.nav.actions, icon: Crosshair },
+    { id: 'market', label: t.nav.trade, icon: ShoppingBag },
+    { id: 'garage', label: t.nav.empire, icon: Building2 },
+    { id: 'menu', label: t.nav.menu, icon: Menu },
+  ], [t]);
 
   const badges = useMemo(() => {
     const b: Partial<Record<string, number>> = {};
@@ -36,7 +38,6 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
     return b;
   }, [state.activeContracts, state.hitContracts, state.districtDemands, state.streetEventQueue, state.nightReport, digest]);
 
-  // Check if current view belongs to a nav group
   const isInGroup = (navId: string): boolean => {
     if (navId === 'city') return ['city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop'].includes(view);
     if (navId === 'ops') return ['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign', 'raids'].includes(view);

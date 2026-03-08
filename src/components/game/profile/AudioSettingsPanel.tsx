@@ -1,21 +1,12 @@
 // Audio settings panel for ProfileView
 import { useState, useEffect } from 'react';
 import { SectionHeader } from '../ui/SectionHeader';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX, Music, Zap, Wind } from 'lucide-react';
 import { getVolume, setVolume, isMuted, toggleMute } from '@/game/sounds';
 import { setMusicVolume } from '@/game/sounds/ambientMusic';
 import { setAmbianceVolume } from '@/game/sounds/cityAmbiance';
-
-interface AudioLayer {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  getVol: () => number;
-  setVol: (v: number) => void;
-  defaultVol: number;
-  max: number;
-}
 
 const STORAGE_KEY = 'noxhaven_audio_prefs';
 
@@ -31,6 +22,7 @@ function savePrefs(prefs: Record<string, number>) {
 }
 
 export function AudioSettingsPanel() {
+  const { t, lang, setLang } = useLanguage();
   const [muted, setMuted] = useState(isMuted());
   const [volumes, setVolumes] = useState<Record<string, number>>(() => {
     const saved = loadPrefs();
@@ -42,7 +34,6 @@ export function AudioSettingsPanel() {
     };
   });
 
-  // Apply saved volumes on mount
   useEffect(() => {
     setVolume(volumes.master);
     setMusicVolume(volumes.music);
@@ -53,12 +44,10 @@ export function AudioSettingsPanel() {
     const newVols = { ...volumes, [id]: val };
     setVolumes(newVols);
     savePrefs(newVols);
-
     switch (id) {
       case 'master': setVolume(val); break;
       case 'music': setMusicVolume(val); break;
       case 'ambiance': setAmbianceVolume(val); break;
-      // SFX uses master gain, stored for reference
     }
   };
 
@@ -68,15 +57,38 @@ export function AudioSettingsPanel() {
   };
 
   const layers: { id: string; label: string; icon: React.ReactNode; max: number; step: number }[] = [
-    { id: 'master', label: 'Master Volume', icon: <Volume2 size={14} />, max: 1, step: 0.05 },
-    { id: 'music', label: 'Muziek', icon: <Music size={14} />, max: 0.2, step: 0.01 },
-    { id: 'ambiance', label: 'Stadssfeer', icon: <Wind size={14} />, max: 0.15, step: 0.005 },
-    { id: 'sfx', label: 'Geluidseffecten', icon: <Zap size={14} />, max: 1, step: 0.05 },
+    { id: 'master', label: t.audio.masterVolume, icon: <Volume2 size={14} />, max: 1, step: 0.05 },
+    { id: 'music', label: t.audio.music, icon: <Music size={14} />, max: 0.2, step: 0.01 },
+    { id: 'ambiance', label: t.audio.cityAmbiance, icon: <Wind size={14} />, max: 0.15, step: 0.005 },
+    { id: 'sfx', label: t.audio.sfx, icon: <Zap size={14} />, max: 1, step: 0.05 },
   ];
 
   return (
     <>
-      <SectionHeader title="Audio Instellingen" icon={<Volume2 size={12} />} />
+      {/* Language switcher */}
+      <SectionHeader title={t.menu.language} icon={<span className="text-xs">🌐</span>} />
+      <div className="game-card mb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLang('nl')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded border text-xs font-ui font-semibold tracking-wider transition-all ${
+              lang === 'nl' ? 'border-gold/50 bg-gold/10 text-gold' : 'border-border bg-card/80 text-muted-foreground hover:border-muted-foreground/40'
+            }`}
+          >
+            🇳🇱 NL
+          </button>
+          <button
+            onClick={() => setLang('en')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded border text-xs font-ui font-semibold tracking-wider transition-all ${
+              lang === 'en' ? 'border-gold/50 bg-gold/10 text-gold' : 'border-border bg-card/80 text-muted-foreground hover:border-muted-foreground/40'
+            }`}
+          >
+            🇬🇧 EN
+          </button>
+        </div>
+      </div>
+
+      <SectionHeader title={t.audio.title} icon={<Volume2 size={12} />} />
       <div className="game-card mb-4">
         {/* Mute toggle */}
         <button
@@ -87,11 +99,9 @@ export function AudioSettingsPanel() {
         >
           <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
             {muted ? <VolumeX size={14} className="text-blood" /> : <Volume2 size={14} className="text-gold" />}
-            {muted ? 'GELUID UIT' : 'GELUID AAN'}
+            {muted ? t.audio.soundOff : t.audio.soundOn}
           </span>
-          <motion.div
-            className={`w-8 h-4 rounded-full relative ${muted ? 'bg-blood/30' : 'bg-gold/30'}`}
-          >
+          <motion.div className={`w-8 h-4 rounded-full relative ${muted ? 'bg-blood/30' : 'bg-gold/30'}`}>
             <motion.div
               className={`w-3.5 h-3.5 rounded-full absolute top-0.5 ${muted ? 'bg-blood' : 'bg-gold'}`}
               animate={{ left: muted ? '2px' : '14px' }}
@@ -132,7 +142,6 @@ export function AudioSettingsPanel() {
                     onChange={(e) => handleVolumeChange(layer.id, parseFloat(e.target.value))}
                     className="absolute inset-0 w-full opacity-0 cursor-pointer"
                   />
-                  {/* Thumb indicator */}
                   <motion.div
                     className="absolute w-3 h-3 rounded-full bg-gold border-2 border-card shadow-lg pointer-events-none"
                     style={{ left: `calc(${pct}% - 6px)` }}
