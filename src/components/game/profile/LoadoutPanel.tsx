@@ -49,16 +49,16 @@ function LoadoutPresets() {
 
   const handleSave = () => {
     if (presets.length >= 5) {
-      showToast('Maximum 5 presets bereikt', 'error');
+      showToast('Maximum 5 presets bereikt', true);
       return;
     }
     dispatch({ type: 'SAVE_LOADOUT_PRESET', name: `Loadout ${presets.length + 1}` });
-    showToast('Loadout opgeslagen!', 'success');
+    showToast('Loadout opgeslagen!');
   };
 
   const handleLoad = (presetId: string) => {
     dispatch({ type: 'LOAD_LOADOUT_PRESET', presetId });
-    showToast('Loadout geladen!', 'success');
+    showToast('Loadout geladen!');
   };
 
   const handleDelete = (presetId: string) => {
