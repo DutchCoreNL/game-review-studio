@@ -1054,6 +1054,16 @@ export function AdminPanel() {
           </div>
         </div>
       )}
+
+      {/* Player Full Detail Popup */}
+      {playerDetailPopup && playerDetailPopup.detail && (
+        <AdminPlayerDetailPopup
+          entry={playerDetailPopup.entry}
+          detail={playerDetailPopup.detail}
+          onClose={() => setPlayerDetailPopup(null)}
+          showToast={showToast}
+        />
+      )}
     </ViewWrapper>
   );
 }
