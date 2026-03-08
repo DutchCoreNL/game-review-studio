@@ -134,6 +134,7 @@ export type Database = {
           level: number
           loc: string
           max_hp: number
+          personality: string
           prestige_level: number
           rep: number
           username: string
@@ -153,6 +154,7 @@ export type Database = {
           level?: number
           loc?: string
           max_hp?: number
+          personality?: string
           prestige_level?: number
           rep?: number
           username: string
@@ -172,6 +174,7 @@ export type Database = {
           level?: number
           loc?: string
           max_hp?: number
+          personality?: string
           prestige_level?: number
           rep?: number
           username?: string
