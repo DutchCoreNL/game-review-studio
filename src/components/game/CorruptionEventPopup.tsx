@@ -2,12 +2,15 @@ import { useGame } from '@/contexts/GameContext';
 import { CORRUPT_CONTACTS } from '@/game/constants';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Shield, X } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGameString } from '@/i18n/gameData';
 import { GameButton } from './ui/GameButton';
 import { CONTACT_IMAGES } from '@/assets/items/index';
 import corruptionBg from '@/assets/items/event-corruption.jpg';
 
 export function CorruptionEventPopup() {
   const { state, dispatch } = useGame();
+  const { lang } = useLanguage();
 
   if (!state.pendingCorruptionEvent) return null;
 
@@ -44,7 +47,7 @@ export function CorruptionEventPopup() {
             </div>
             <div>
               <h3 className={`font-bold text-sm ${isBetrayal ? 'text-blood' : 'text-gold'}`}>
-                {isBetrayal ? '⚠️ VERRAAD!' : 'Corruptie Event'}
+                {isBetrayal ? `⚠️ ${getGameString(lang, 'VERRAAD!', 'VERRAAD!')}` : getGameString(lang, 'Corruptie Event', 'Corruptie Event')}
               </h3>
               {def && (
                 <p className="text-[0.5rem] text-muted-foreground">
@@ -67,7 +70,7 @@ export function CorruptionEventPopup() {
             fullWidth
             onClick={() => dispatch({ type: 'DISMISS_CORRUPTION_EVENT' })}
           >
-            BEGREPEN
+            {getGameString(lang, 'BEGREPEN', 'BEGREPEN')}
           </GameButton>
         </div>
       </motion.div>
