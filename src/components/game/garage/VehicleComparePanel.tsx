@@ -21,11 +21,19 @@ export function VehicleComparePanel() {
   const leftObj = owned.find(v => v.id === leftId);
   const rightObj = owned.find(v => v.id === rightId);
 
+  // Calculate max values dynamically from all vehicles
+  const allMaxes = VEHICLES.reduce((acc, v) => ({
+    storage: Math.max(acc.storage, v.storage),
+    speed: Math.max(acc.speed, v.speed),
+    armor: Math.max(acc.armor, v.armor),
+    charm: Math.max(acc.charm, v.charm),
+  }), { storage: 1, speed: 1, armor: 1, charm: 1 });
+
   const stats = [
-    { label: 'Opslag', key: 'storage' as const, max: 30 },
-    { label: 'Snelheid', key: 'speed' as const, max: 8 },
-    { label: 'Pantser', key: 'armor' as const, max: 6 },
-    { label: 'Charm', key: 'charm' as const, max: 20 },
+    { label: 'Opslag', key: 'storage' as const, max: allMaxes.storage },
+    { label: 'Snelheid', key: 'speed' as const, max: allMaxes.speed },
+    { label: 'Pantser', key: 'armor' as const, max: allMaxes.armor },
+    { label: 'Charm', key: 'charm' as const, max: allMaxes.charm },
   ];
 
   return (
