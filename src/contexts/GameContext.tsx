@@ -2481,7 +2481,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Apply rewards
       s.money += dungResult.money;
       s.stats.totalEarned += dungResult.money;
-      s.player.xp += dungResult.xp;
+      Engine.gainXp(s, dungResult.xp, 'dungeon');
       if (dungResult.scrap > 0) s.scrapMaterials = (s.scrapMaterials || 0) + dungResult.scrap;
       // Loot box rewards → auto-open and add items
       for (const boxTier of dungResult.lootBoxRewards) {
