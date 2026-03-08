@@ -2425,6 +2425,163 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    // ========== UNDERWORLD ECONOMY ACTIONS ==========
+    case 'RECRUIT_ARMS_CONTACT': {
+      if (!s.armsNetwork) s.armsNetwork = createInitialArmsNetwork();
+      const recruitCost = getContactRecruitCost(s.armsNetwork.networkLevel);
+      if (s.money < recruitCost) return s;
+      const maxContacts = s.armsNetwork.networkLevel + 2;
+      if (s.armsNetwork.contacts.length >= maxContacts) return s;
+      s.money -= recruitCost;
+      s.stats.totalSpent += recruitCost;
+      const newContact = generateContact(action.district, s.armsNetwork.contacts);
+      s.armsNetwork.contacts.push(newContact);
+      return s;
+    }
+
+    case 'DELIVER_ARMS': {
+      if (!s.armsNetwork) return s;
+      const contact = s.armsNetwork.contacts.find(c => c.id === action.contactId);
+      if (!contact || contact.status !== 'active') return s;
+      const result = processDelivery(contact, action.quantity, s.heat, s.personalHeat, s.armsNetwork.networkLevel, s.day);
+      if (result.intercepted) {
+        s.armsNetwork.interceptedShipments++;
+        contact.trustLevel = Math.max(0, contact.trustLevel + result.trustGain);
+        s.heat += result.heatGain;
+      } else {
+        s.money += result.revenue;
+        s.stats.totalEarned += result.revenue;
+        s.armsNetwork.totalRevenue += result.revenue;
+        contact.totalDelivered += action.quantity;
+        contact.totalEarned += result.revenue;
+        contact.trustLevel = Math.min(100, contact.trustLevel + result.trustGain);
+        contact.lastDeliveryDay = s.day;
+        s.heat += result.heatGain;
+      }
+      return s;
+    }
+
+    case 'UPGRADE_ARMS_NETWORK': {
+      if (!s.armsNetwork) return s;
+      if (s.armsNetwork.networkLevel >= 5) return s;
+      const upgCost = getNetworkUpgradeCost(s.armsNetwork.networkLevel);
+      if (s.money < upgCost) return s;
+      s.money -= upgCost;
+      s.stats.totalSpent += upgCost;
+      s.armsNetwork.networkLevel++;
+      s.armsNetwork.weeklyCapacity = getWeeklyCapacity(s.armsNetwork.networkLevel);
+      return s;
+    }
+
+    case 'BUY_STASH_HOUSE': {
+      const hasSafehouse = s.safehouses.some(sh => sh.district === action.district);
+      if (!hasSafehouse) return s;
+      const existingStash = s.stashHouses.find(st => st.district === action.district && !st.discovered);
+      if (existingStash) return s;
+      const stashCost = getStashPurchaseCost(action.district);
+      if (s.money < stashCost) return s;
+      s.money -= stashCost;
+      s.stats.totalSpent += stashCost;
+      const shLevel = s.safehouses.find(sh => sh.district === action.district)?.level || 1;
+      s.stashHouses.push(createStashHouse(action.district, shLevel, s.day));
+      return s;
+    }
+
+    case 'UPGRADE_STASH_HOUSE': {
+      const stash = s.stashHouses.find(st => st.id === action.stashId);
+      if (!stash || stash.discovered || stash.level >= 3) return s;
+      const stUpgCost = getStashUpgradeCost(stash.level);
+      if (s.money < stUpgCost) return s;
+      s.money -= stUpgCost;
+      s.stats.totalSpent += stUpgCost;
+      stash.level++;
+      stash.capacity += 15;
+      return s;
+    }
+
+    case 'DEPOSIT_STASH': {
+      const stashDep = s.stashHouses.find(st => st.id === action.stashId);
+      if (!stashDep || stashDep.discovered) return s;
+      const remaining = stashDep.capacity - getStashUsed(stashDep);
+      const qty = Math.min(action.amount, s.inventory[action.goodId] || 0, remaining);
+      if (qty <= 0) return s;
+      s.inventory[action.goodId] = (s.inventory[action.goodId] || 0) - qty;
+      stashDep.storedGoods[action.goodId] = (stashDep.storedGoods[action.goodId] || 0) + qty;
+      return s;
+    }
+
+    case 'WITHDRAW_STASH': {
+      const stashWith = s.stashHouses.find(st => st.id === action.stashId);
+      if (!stashWith || stashWith.discovered) return s;
+      const stQty = Math.min(action.amount, stashWith.storedGoods[action.goodId] || 0);
+      if (stQty <= 0) return s;
+      stashWith.storedGoods[action.goodId] = (stashWith.storedGoods[action.goodId] || 0) - stQty;
+      s.inventory[action.goodId] = (s.inventory[action.goodId] || 0) + stQty;
+      return s;
+    }
+
+    case 'UPGRADE_SMUGGLE_ROUTE': {
+      const route = s.smuggleRoutes.find(r => r.id === action.routeId);
+      if (!route || route.level >= 3) return s;
+      const routeUpgCost = 5000 + route.level * 8000;
+      if (s.money < routeUpgCost) return s;
+      s.money -= routeUpgCost;
+      s.stats.totalSpent += routeUpgCost;
+      route.level++;
+      return s;
+    }
+
+    case 'SPECIALIZE_ROUTE': {
+      const specRoute = s.smuggleRoutes.find(r => r.id === action.routeId);
+      if (!specRoute) return s;
+      if (s.money < 3000) return s;
+      s.money -= 3000;
+      s.stats.totalSpent += 3000;
+      specRoute.specialization = action.goodId;
+      return s;
+    }
+
+    case 'ASSIGN_ROUTE_ESCORT': {
+      const escRoute = s.smuggleRoutes.find(r => r.id === action.routeId);
+      if (!escRoute) return s;
+      escRoute.escort = action.crewName;
+      escRoute.escortRole = action.crewRole;
+      return s;
+    }
+
+    case 'REMOVE_ROUTE_ESCORT': {
+      const remRoute = s.smuggleRoutes.find(r => r.id === action.routeId);
+      if (!remRoute) return s;
+      remRoute.escort = null;
+      remRoute.escortRole = null;
+      return s;
+    }
+
+    case 'LAUNDER_METHOD': {
+      const method = LAUNDER_METHODS.find(m => m.id === action.methodId);
+      if (!method) return s;
+      if (!isMethodUnlocked(method.id, s.ownedDistricts, s.player.level, s.propertyId)) return s;
+      const cap = getMethodCapacity(method, s.ownedBusinesses, s.ownedDistricts.includes('neon'));
+      const used = s.launderMethodsUsed[action.methodId] || 0;
+      const remaining = cap - used;
+      const actual = Math.min(action.amount, s.dirtyMoney, remaining);
+      if (actual <= 0) return s;
+      const cleanAmount = Math.floor(actual * method.cleanRate);
+      const heatGain = Math.max(1, Math.floor(actual / 1000 * method.heatPerUnit));
+      s.dirtyMoney -= actual;
+      s.money += cleanAmount;
+      s.stats.totalEarned += cleanAmount;
+      s.heat += heatGain;
+      s.launderMethodsUsed[action.methodId] = used + actual;
+      s.washUsedToday += actual;
+      return s;
+    }
+
+    case 'DISMISS_INSIDER_TIP_MARKET': {
+      s.insiderTips = (s.insiderTips || []).filter(t => t.id !== action.tipId);
+      return s;
+    }
+
     // ========== LOOT CRATE ACTIONS ==========
     case 'OPEN_LOOT_CRATE': {
       const crateDef = getCrateDef(action.tier);
