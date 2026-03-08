@@ -84,7 +84,7 @@ export function DuelArenaPanel({ currentDistrict }: { currentDistrict: string })
 
   const handleChallenge = async (targetId: string) => {
     setChallenging(targetId);
-    const res = await gameApi.invoke('pvp_attack', { targetId });
+    const res = await gameApi.pvpCombatStart(targetId);
     showMsg(res.message);
     if (res.success) fetchData();
     setChallenging(null);
