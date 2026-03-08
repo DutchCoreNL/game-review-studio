@@ -1,87 +1,77 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+# Arsenaal Verbeteringen — Analyse & Suggesties
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+## Huidige Staat
+Het arsenaalsysteem is al uitgebreid met:
+- **Procedurele generatie**: 8 merken × 7 wapen-frames × 7 lopen × 7 magazines × 7 accessoires = 19.000+ combinaties
+- **Gear**: 6 merken × 10 frames (5 armor + 5 gadget) × 7 mods
+- **Progression**: Upgrade (lvl 1-15), Fusion (3→1 rarity up), Accessory Swap, Mastery XP (5 levels)
+- **Acquisitie**: Combat loot, Zwarte Markt, Loot Crates, Daily Rewards, Salvage/Crafting
+- **Unique weapons**: Handgemaakte legendarische wapens met lore
+- **UI**: Noir-stijl thumbnails, stat bars, rarity kleuren, lock/mastery systeem
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+## Wat Ontbreekt / Kan Beter
 
----
+### 1. Weapon Set Bonussen
+Als je meerdere items van hetzelfde merk uitrust (bijv. Noxforge wapen + Noxforge armor), krijg je een setbonus. Dit stimuleert thematisch verzamelen.
+- 2-delig: kleine bonus (+5% damage of +10 HP)
+- 3-delig (wapen + armor + gadget): krachtige bonus (+15% alle stats of uniek effect)
+- UI indicator op equipped items die laat zien welke set actief is
 
-## Plan: Arsenaal Acquisitie Systeem
+### 2. Wapen Skins / Cosmetiek
+Visuele customization voor wapens — verandert de border/glow kleur van de WeaponCard.
+- Skins als zeldzame drops of Zwarte Markt exclusives
+- Puur cosmetisch maar geeft eigenaarschap
+- Bijv: "Neon Rood", "Gold Plated", "Skull Camo"
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+### 3. Enchantments / Socket Systeem
+Voeg een extra laag toe bovenop accessoires — enchantments die je kunt socketten:
+- "Vampirisch" (+5% lifesteal), "Snelheid" (+1 fire rate), "Gepantserd" (+10% armor pierce)
+- Enchantments droppen als losse items, je socket ze in een wapen/gear
+- Max 1 enchantment per item, kan vervangen worden (oude gaat verloren)
+- Geeft een nieuwe crafting sink en extra diepte
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+### 4. Gear Durability / Slijtage
+Items verliezen conditie bij gebruik in combat. Moet gerepareerd worden met geld of scrap.
+- 100% → 50%: geen effect. Onder 50%: stats dalen proportioneel
+- Reparatie kost scrap (1-5 afhankelijk van rarity) of geld
+- Legendary items slijten 50% langzamer
+- Voegt een onderhoudskost toe als gold sink
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+### 5. Wapen Vergrendelingsuitdagingen (Challenges)
+Specifieke kill-challenges die een permanente bonus unlocken voor dat wapen:
+- "100 kills met dit wapen" → +5% crit
+- "Win 10 gevechten zonder geraakt te worden" → +1 accuracy
+- Geeft een reden om één wapen lang te gebruiken naast mastery
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
+### 6. Blueprint / Recepten Systeem
+In plaats van alleen random crafting, voeg blueprints toe die je kunt vinden:
+- Blueprint specificeert exact welk item je krijgt (merk + frame + rarity)
+- Kost scrap + geld om te craftten
+- Blueprints droppen van bosses, story arcs, of Zwarte Markt
+- Geeft gerichte farming doelen
 
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+### 7. Loadout Presets
+Sla meerdere loadout-configuraties op en wissel snel tussen sets:
+- "Stealth Build": silenced pistol + cloak + scanner
+- "Tank Build": LMG + exosuit + shield
+- Snel wisselen vanuit het loadout-scherm
+- Max 3-5 presets
 
 ---
 
-## Technisch overzicht
+## Impact vs Complexiteit
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+| # | Feature | Impact | Complexiteit |
+|---|---------|--------|-------------|
+| 1 | Set Bonussen | Hoog — stimuleert verzamelen | Medium |
+| 3 | Enchantments | Hoog — nieuwe progressielaag | Medium-Hoog |
+| 7 | Loadout Presets | Hoog — QoL | Laag |
+| 5 | Challenges | Medium-Hoog — engagement | Medium |
+| 6 | Blueprints | Medium — gerichte doelen | Medium |
+| 2 | Wapen Skins | Medium — visueel plezier | Laag |
+| 4 | Durability | Medium — gold sink | Medium |
 
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Alle wijzigingen zijn client-side (GameState + UI), geen database migraties nodig.
 
