@@ -34,6 +34,10 @@ export function SmuggleRoutesPanel() {
       good: newGood,
       active: true,
       daysActive: 0,
+      level: 1,
+      specialization: null,
+      escort: null,
+      escortRole: null,
     };
 
     dispatch({ type: 'CREATE_ROUTE', route });
