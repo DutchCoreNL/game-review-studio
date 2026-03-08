@@ -409,6 +409,7 @@ export function OperationsView() {
 }
 
 function ContractCard({ contract, crew, isExpanded, onToggle, onAssign, onDrop }: { contract: ActiveContract; crew: GameState['crew']; isExpanded: boolean; onToggle: () => void; onAssign: (crewIndex: number) => void; onDrop: () => void }) {
+  const { t } = useLanguage();
   const bestRole = BEST_ROLE[contract.type] || '';
   const icon = CONTRACT_ICONS[contract.type] || <Crosshair size={16} />;
   const color = CONTRACT_COLORS[contract.type] || 'text-foreground';
