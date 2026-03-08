@@ -287,6 +287,8 @@ export function generateWeapon(level: number, forcedRarity?: WeaponRarity, lootR
     level,
     sellValue,
     equipped: false,
+    durability: 100,
+    challenges: [],
   };
 }
 

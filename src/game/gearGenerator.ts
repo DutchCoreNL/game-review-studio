@@ -239,6 +239,7 @@ export function generateGear(level: number, type: GearType, forcedRarity?: GearR
     equipped: false,
     locked: false,
     masteryXp: 0,
+    durability: 100,
   };
 }
 
