@@ -353,6 +353,20 @@ type GameAction =
   | { type: 'RENAME_LOADOUT_PRESET'; presetId: string; name: string }
   // Weapon Challenge actions
   | { type: 'UPDATE_WEAPON_CHALLENGE'; weaponId: string; challengeType: 'kill' | 'perfect_kill' }
+  // Underworld Economy actions
+  | { type: 'RECRUIT_ARMS_CONTACT'; district: import('../game/types').DistrictId }
+  | { type: 'DELIVER_ARMS'; contactId: string; quantity: number }
+  | { type: 'UPGRADE_ARMS_NETWORK' }
+  | { type: 'BUY_STASH_HOUSE'; district: import('../game/types').DistrictId }
+  | { type: 'UPGRADE_STASH_HOUSE'; stashId: string }
+  | { type: 'DEPOSIT_STASH'; stashId: string; goodId: import('../game/types').GoodId; amount: number }
+  | { type: 'WITHDRAW_STASH'; stashId: string; goodId: import('../game/types').GoodId; amount: number }
+  | { type: 'UPGRADE_SMUGGLE_ROUTE'; routeId: string }
+  | { type: 'SPECIALIZE_ROUTE'; routeId: string; goodId: import('../game/types').GoodId }
+  | { type: 'ASSIGN_ROUTE_ESCORT'; routeId: string; crewName: string; crewRole: import('../game/types').CrewRole }
+  | { type: 'REMOVE_ROUTE_ESCORT'; routeId: string }
+  | { type: 'LAUNDER_METHOD'; methodId: string; amount: number }
+  | { type: 'DISMISS_INSIDER_TIP_MARKET'; tipId: string }
   // Internal sync actions
   | { type: 'CLEAR_PENDING_XP' }
   | { type: 'SYNC_SERVER_XP'; data: { newXp: number; newLevel: number; newNextXp: number; newSP: number; streak: number; totalXp?: number; levelUps?: number } };
