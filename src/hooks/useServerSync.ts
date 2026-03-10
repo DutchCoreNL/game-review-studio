@@ -187,7 +187,8 @@ export function useServerSync(
         showToast(result.message);
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
-          mergeServerState(localDispatch, stateResult.data);
+          // Always skip economy fields after actions — cloud save is the source of truth
+          mergeServerState(localDispatch, stateResult.data, true);
         }
       } else {
         showToast(result.message, true);
