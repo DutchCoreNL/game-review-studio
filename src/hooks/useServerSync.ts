@@ -187,7 +187,8 @@ export function useServerSync(
         showToast(result.message);
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
-          mergeServerState(localDispatch, stateResult.data);
+          // Always skip economy fields after actions — cloud save is the source of truth
+          mergeServerState(localDispatch, stateResult.data, true);
         }
       } else {
         showToast(result.message, true);
@@ -237,10 +238,10 @@ function mergeServerState(dispatch: (action: any) => void, data: Record<string, 
       personalHeat: ps.personal_heat ?? undefined,
       loc: ps.loc ?? undefined,
       policeRel: ps.police_rel ?? undefined,
-      energy: ps.energy ?? 100,
-      maxEnergy: ps.max_energy ?? 100,
-      nerve: ps.nerve ?? 50,
-      maxNerve: ps.max_nerve ?? 50,
+      energy: ps.energy ?? undefined,
+      maxEnergy: ps.max_energy ?? undefined,
+      nerve: ps.nerve ?? undefined,
+      maxNerve: ps.max_nerve ?? undefined,
       energyRegenAt: ps.energy_regen_at ?? null,
       nerveRegenAt: ps.nerve_regen_at ?? null,
       travelCooldownUntil: ps.travel_cooldown_until ?? null,
