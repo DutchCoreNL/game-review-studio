@@ -180,22 +180,30 @@ export function useServerSync(
       return;
     }
 
+    // Optimistic update: apply action locally FIRST so UI updates immediately
+    localDispatch(action);
+
     setSyncState(s => ({ ...s, syncing: true }));
     try {
       const result = await invokeGameAction(mapping.action as any, mapping.payload(action));
       if (result.success) {
-        showToast(result.message);
+        if (result.message) showToast(result.message);
+        // Merge non-economy fields from server (cooldowns, heat, energy, etc.)
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
-          // Always skip economy fields after actions — cloud save is the source of truth
           mergeServerState(localDispatch, stateResult.data, true);
         }
       } else {
         showToast(result.message, true);
+        // Server rejected — refetch full state to revert the optimistic update
+        const stateResult = await invokeGameAction('get_state');
+        if (stateResult.success && stateResult.data) {
+          mergeServerState(localDispatch, stateResult.data, false);
+        }
       }
     } catch (e: any) {
       showToast('Verbindingsfout met server.', true);
-      localDispatch(action);
+      // Keep optimistic local state on network error (will sync on next cloud save)
     }
     setSyncState(s => ({ ...s, syncing: false, lastSync: new Date() }));
   }, [user, localDispatch, showToast]);

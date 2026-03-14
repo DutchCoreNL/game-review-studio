@@ -77,7 +77,7 @@ export function MarketView() {
   const charmBonus = Math.floor(((totalCharm * 0.02) + (state.rep / 5000)) * 100);
   const districtPrices = serverPrices?.[state.loc] || {};
 
-  const handleTrade = async (gid: GoodId) => {
+  const handleTrade = (gid: GoodId) => {
     const actualQty = quantity === 0
       ? (tradeMode === 'buy' ? state.maxInv - invCount : (state.inventory[gid] || 0))
       : quantity;
@@ -86,17 +86,8 @@ export function MarketView() {
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
-    setTrading(true);
-    const res = await gameApi.trade(gid, tradeMode, actualQty);
-    setTrading(false);
-
-    if (res.success) {
-      const good = GOODS.find(g => g.id === gid);
-      showToast(res.message || `${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
-      dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
-    } else {
-      showToast(res.message || 'Handel mislukt.', true);
-    }
+    // Only dispatch — serverDispatch handles the server call AND local state update
+    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
   };
 
   return (
