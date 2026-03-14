@@ -4403,7 +4403,6 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         try {
           const res = await import('@/lib/gameApi').then(m => m.gameApi.getMarketPrices());
           if (res.success && res.data?.prices) {
-            // Server prices available — set them into state
             const prices: Record<string, Record<string, number>> = {};
             const trends: Record<string, string> = {};
             Object.entries(res.data.prices as Record<string, Record<string, any>>).forEach(([distId, goods]) => {
@@ -4413,17 +4412,15 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
                 trends[gid] = data.trend || data.price_trend || 'stable';
               });
             });
-            const s = { ...state, prices, priceTrends: { ...state.priceTrends, ...trends } };
-            // Contracts generated server-side via gameApi.acceptContract()
-            rawDispatch({ type: 'SET_STATE', state: s });
+            // Use targeted SET_PRICES instead of full SET_STATE to avoid overwriting economy
+            rawDispatch({ type: 'SET_PRICES', prices, priceTrends: trends } as any);
             return;
           }
         } catch {}
         // Fallback: generate locally
         const s = { ...state };
         Engine.generatePrices(s);
-        // Contracts generated server-side via gameApi.acceptContract()
-        rawDispatch({ type: 'SET_STATE', state: s });
+        rawDispatch({ type: 'SET_PRICES', prices: s.prices, priceTrends: s.priceTrends } as any);
       })();
     }
   }, []);
