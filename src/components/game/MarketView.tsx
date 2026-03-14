@@ -5,7 +5,6 @@ import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi, ShoppingBag } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { gameApi } from '@/lib/gameApi';
 import { supabase } from '@/integrations/supabase/client';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
