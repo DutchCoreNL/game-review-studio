@@ -1,87 +1,71 @@
 
+Doel: cloud save, geld en inventaris 100% consistent maken tussen client en backend zodat handel niet meer “succesvol” lijkt maar daarna faalt.
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+1) Wat nu fout gaat (bevestigd)
+- Er zijn twee waarheden:
+  - `player_state` kolommen + `player_inventory` (server-acties gebruiken dit)
+  - `player_state.save_data` (cloud save/client)
+- In de huidige `save_state` wordt vooral `save_data` geüpdatet, niet consequent de kolommen/tabellen die `trade` gebruikt.
+- Gevolg: server ziet ander geld/voorraad dan UI.
+- Daarnaast overschrijft de app soms state met stale objecten via `SET_STATE` (o.a. `OperationsView`, `ContractsPanel`, `SkillTreePanel`, price bootstrap in `GameContext`).
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+2) Implementatieplan (in deze volgorde)
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+A. Backend sync-laag hard maken (belangrijkste fix)
+- Bestand: `supabase/functions/game-action/index.ts`
+- Maak helper `syncStateFromSaveData(userId, saveData)` die deze bronnen gelijk trekt:
+  - `player_state` kernvelden: money, dirty_money, rep, karma, hp/max_hp, day, loc, energy/nerve, etc.
+  - `player_inventory` vanuit `saveData.inventory` (+ `inventoryCosts`)
+  - `player_gear` vanuit `saveData.ownedGear`
+  - actieve vehicle/loadout waar relevant
+- Roep helper aan in:
+  - `handleSaveState` (na validatie, vóór response)
+  - optioneel defensive fallback vóór `handleTrade` als inventory/kolommen leeg of duidelijk out-of-sync zijn
+- Resultaat: server-acties en cloud save gebruiken dezelfde data.
 
----
+B. Server response echt terug in client-state mergen
+- Bestand: `src/hooks/useServerSync.ts`
+- Na succesvolle server-acties niet alleen cooldown/MMO velden mergen, maar óók economie/inventory waar server authoritatief is.
+- Breid `mergeServerState` uit met:
+  - inventory + inventoryCosts
+  - ownedGear, vehicles/activeVehicle
+  - money/dirtyMoney/hp/rep/day wanneer actie dat raakt
+- Maak merge-strategie per actie:
+  - `TRADE`, `BUY_GEAR`, `BUY_VEHICLE`, `WASH_MONEY`, `BUY_BUSINESS` => full economic merge
+  - `TRAVEL`/pure cooldown acties => beperkte merge
 
-## Plan: Arsenaal Acquisitie Systeem
+C. Stale stateRef fixen voor cloud save
+- Bestand: `src/hooks/useServerSync.ts` + `src/contexts/GameContext.tsx`
+- `stateRef` direct updaten op elke relevante state change (niet alleen via 2s debounce pad), zodat autosave en conflict-resolutie altijd nieuwste state zien.
+- Cloud autosave trigger behouden, maar met “dirty + throttled” strategie (bijv. elke 10–15s bij economische wijzigingen) naast 2-min interval.
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+D. Gevaarlijke SET_STATE patronen verwijderen
+- Bestanden:
+  - `src/components/game/OperationsView.tsx`
+  - `src/components/game/ops/ContractsPanel.tsx`
+  - `src/components/game/profile/SkillTreePanel.tsx`
+  - `src/contexts/GameContext.tsx` (price bootstrap effect)
+- Vervang brede `SET_STATE` met stale snapshots door gerichte actions/merges:
+  - contract toevoegen/verwijderen via specifieke reducer actions
+  - prestige/skills via `SYNC_SKILLS` of dedicated fields, niet `SET_STATE` met `get_state` payload
+  - prijs-bootstrap: alleen prijzen/trends patchen, niet hele state vervangen
+- Resultaat: geen random terugval van geld/hp door late async responses.
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+3) Technische details
+- Kernprincipe: één server-waarheid voor server-acties.
+- `save_data` blijft volledige cloud snapshot; genormaliseerde tabellen worden bij save gesynchroniseerd zodat server-acties direct met actuele data werken.
+- `get_state` payload moet volledig bruikbaar zijn voor client-merge zonder globale state-replace.
+- Geen schema-migratie nodig voor eerste fix (alleen logic), tenzij we later een `last_synced_from_save_at` kolom willen toevoegen voor observability.
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+4) Validatie (end-to-end)
+- Scenario 1: kopen/verkopen in snelle reeks (1x, 5x, MAX), daarna refresh → geld/inventory identiek.
+- Scenario 2: lokaal veel progressie (geld/HP wijzigen), daarna direct trade → geen “te weinig geld/niet op voorraad” mismatch.
+- Scenario 3: handmatige cloud save + heropenen op tweede device/tab → exact dezelfde stats.
+- Scenario 4: contract/prestige flow → geen state reset door `SET_STATE`.
+- Extra controlequery: `player_state.money` vs `save_data.money` en `player_inventory` vs `save_data.inventory` mogen niet meer structureel divergeren.
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
-
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
-
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
-
----
-
-## Technisch overzicht
-
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
-
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
-
+5) Uitvoeringsvolgorde
+1. Edge function sync helper + save/trade integratie
+2. `useServerSync` merge-strategie uitbreiden
+3. `SET_STATE` anti-patterns vervangen
+4. E2E testmatrix draaien op preview + Vercel
