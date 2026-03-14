@@ -3693,6 +3693,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (ss.day !== undefined) s.day = ss.day;
       if (ss.washUsedToday !== undefined) s.washUsedToday = ss.washUsedToday;
       if (ss.endgamePhase !== undefined) s.endgamePhase = ss.endgamePhase;
+      // Inventory & gear: server-authoritative after economy actions
+      if (ss.inventory !== undefined) s.inventory = ss.inventory;
+      if (ss.inventoryCosts !== undefined) s.inventoryCosts = ss.inventoryCosts;
+      if (ss.ownedGear !== undefined) s.ownedGear = ss.ownedGear;
       // Energy/nerve/cooldowns
       if (ss.energy !== undefined) s.energy = ss.energy;
       if (ss.maxEnergy !== undefined) s.maxEnergy = ss.maxEnergy;
@@ -3721,6 +3725,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.gangDistricts = ss.gangDistricts;
       }
       s.serverSynced = true;
+      return s;
+    }
+
+    // Targeted contract mutations (replaces dangerous SET_STATE patterns)
+    case 'ADD_CONTRACT': {
+      const contract = (action as any).contract;
+      if (contract && !s.activeContracts.find((c: any) => c.id === contract.id)) {
+        s.activeContracts.push(contract);
+      }
+      return s;
+    }
+    case 'REMOVE_CONTRACT': {
+      const contractId = (action as any).contractId;
+      const repPenalty = (action as any).repPenalty || 0;
+      s.activeContracts = s.activeContracts.filter((c: any) => c.id !== contractId);
+      if (repPenalty > 0) s.rep = Math.max(0, s.rep - repPenalty);
+      return s;
+    }
+    case 'SET_PRICES': {
+      const { prices, priceTrends } = action as any;
+      if (prices) s.prices = prices;
+      if (priceTrends) s.priceTrends = { ...s.priceTrends, ...priceTrends };
       return s;
     }
 
