@@ -24,7 +24,6 @@ export function MarketView() {
   const [quantity, setQuantity] = useState(1);
   const [serverPrices, setServerPrices] = useState<Record<string, Record<string, MarketData>> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [trading, setTrading] = useState(false);
 
   const fetchPrices = useCallback(async () => {
     setLoading(true);
