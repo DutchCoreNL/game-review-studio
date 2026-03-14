@@ -1825,6 +1825,7 @@ export type Database = {
           max_energy: number
           max_hp: number
           max_nerve: number
+          merit_points: number
           money: number
           nerve: number
           nerve_regen_at: string
@@ -1840,6 +1841,7 @@ export type Database = {
           save_data: Json | null
           save_version: number | null
           skill_points: number
+          stat_points: number
           stats: Json
           stats_casino_lost: number
           stats_casino_won: number
@@ -1892,6 +1894,7 @@ export type Database = {
           max_energy?: number
           max_hp?: number
           max_nerve?: number
+          merit_points?: number
           money?: number
           nerve?: number
           nerve_regen_at?: string
@@ -1907,6 +1910,7 @@ export type Database = {
           save_data?: Json | null
           save_version?: number | null
           skill_points?: number
+          stat_points?: number
           stats?: Json
           stats_casino_lost?: number
           stats_casino_won?: number
@@ -1959,6 +1963,7 @@ export type Database = {
           max_energy?: number
           max_hp?: number
           max_nerve?: number
+          merit_points?: number
           money?: number
           nerve?: number
           nerve_regen_at?: string
@@ -1974,6 +1979,7 @@ export type Database = {
           save_data?: Json | null
           save_version?: number | null
           skill_points?: number
+          stat_points?: number
           stats?: Json
           stats_casino_lost?: number
           stats_casino_won?: number

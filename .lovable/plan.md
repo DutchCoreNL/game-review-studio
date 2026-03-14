@@ -1,55 +1,87 @@
 
 
-## Level-up & Skill Systeem Analyse — Bevindingen
+## Analyse: Huidige verkrijgbaarheid van arsenaal
 
-### Gevonden problemen
+**Wat er nu is:**
+- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
+- Unique weapons van campaign bosses (chapter 6-8)
+- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
+- Legacy gear shop (statische items — zou vervangen moeten zijn)
 
-**1. Server geeft GEEN merit points bij level-up (BUG)**
-- **Client** (`src/game/engine.ts:1526`): geeft correct `getMeritPointsForLevelUp()` merit points per level-up
-- **Server** (`supabase/functions/game-action/index.ts:3780-3795`): geeft alleen SP en milestone SP, maar **geen merit points**
-- De server update `player_state` zonder `merit_points` kolom te verhogen
-- Resultaat: na server sync verdwijnen lokaal verdiende merit points
+**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
+- Geen shop voor procedureel gegenereerde wapens/gear
+- Geen dagelijkse/wekelijkse beloningen
+- Geen crafting of materialen
+- Geen garantie-mechanisme (pity system)
+- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
+- Geen manier om gericht te farmen voor specifiek type equipment
 
-**2. Server geeft GEEN stat points bij level-up (BUG)**
-- **Client** (`engine.ts:1517`): geeft +1 `statPoints` per level-up
-- **Server** (`game-action/index.ts:3785`): geeft alleen `SP_PER_LEVEL` (skill points), maar **geen stat_points**
-- `SYNC_SERVER_XP` (`GameContext.tsx:3940`) overschrijft `skillPoints` met server waarde, maar raakt `statPoints` niet aan — dus lokale stat points overleven, maar de server weet er niks van
-- Bij een cloud reload gaan stat points mogelijk verloren als ze niet in `save_data` zitten
+---
 
-**3. Lokale level-up verwerkt maar 1 level tegelijk (MINOR)**
-- `gainXp()` in `engine.ts:1511-1533` doet `if (xp >= nextXp)` maar geen `while`-loop
-- Als een XP-gain meerdere levels overslaat (bijv. door milestones of grote XP), wordt slechts 1 level-up verwerkt
-- Server doet dit correct met een `while`-loop (`game-action:3781`)
+## Plan: Arsenaal Acquisitie Systeem
 
-**4. `SYNC_SERVER_XP` mist merit points sync**
-- De `SYNC_SERVER_XP` action (`GameContext.tsx:3935-3942`) synct `xp`, `level`, `nextXp`, `skillPoints`, `streak` — maar **niet** `statPoints` of `meritPoints`
-- Na server XP sync zijn lokale merit/stat points out-of-sync met wat de server denkt
+### 1. Zwarte Markt (Procedurele Shop)
+Nieuw bestand `src/game/blackMarket.ts`:
+- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
+- Prijzen op basis van rarity en level (2-3x sellValue)
+- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
+- Koop met geld of dirty money (dirty money = 20% korting)
 
-### Wat klopt wel
-- XP-curve: beide zijden gebruiken `100 * 1.15^(level-1)` — consistent
-- SP per level: client (+2) en server (`SP_PER_LEVEL = 2`) komen overeen
-- Milestone SP bonussen: beide zijden laden `LEVEL_MILESTONES` en voegen `sp_bonus` toe
-- Milestone cash/rep rewards: server past deze correct toe
-- Skill tree unlock-logica (`canUnlockSkill`): tier/level/parent vereisten kloppen
-- Merit node unlock-logica (`canUnlockMeritNode`): prerequisite/cost checks kloppen
-- Prestige vereisten en SP carry-over: consistent
+### 2. Daily Reward Systeem
+Nieuw bestand `src/game/dailyRewards.ts`:
+- 7-daags login-beloningscyclus met escalerende rewards
+- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
+- Streak reset als je een dag mist
+- UI: popup bij eerste actie van de dag
 
-### Implementatieplan
+### 3. Loot Crates / Kisten
+Toevoeging aan bestaand systeem:
+- **Bronze Kist** (€5.000): common-rare pool
+- **Zilver Kist** (€15.000): uncommon-epic pool  
+- **Gouden Kist** (€40.000): rare-legendary pool
+- Elke kist bevat 1 wapen OF 1 gear item
+- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
 
-**A. Server-side: merit + stat points toevoegen aan level-up** (`supabase/functions/game-action/index.ts`)
-- In de `while`-loop bij level-up (regel 3781-3795):
-  - Track `meritGained` met dezelfde `getMeritPointsForLevelUp()` logica (1 per level + bonus bij milestones)
-  - Track `statPointsGained` (+1 per level)
-- Na de loop: update `player_state` met `merit_points` en `stat_points` increment
-- Return `meritGained` en `newStatPoints` in response data
+### 4. Story & Mission Gear Rewards
+Uitbreiding van bestaande systemen:
+- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
+- Story arcs (completionReward) → kans op procedureel wapen/gear
+- District stories → district-thematische gear (bijv. Port = marine-themed armor)
+- Gang arc milestones → gang-branded wapens
 
-**B. Client-side: multi-level-up fix** (`src/game/engine.ts`)
-- Verander `if (xp >= nextXp)` naar `while (xp >= nextXp)` loop zodat meerdere level-ups in 1 XP-gain correct verwerkt worden
+### 5. Crafting / Salvage Systeem
+Nieuw bestand `src/game/salvage.ts`:
+- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
+- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
+- **Crafting recepten**: 
+  - 15 scrap → random rare wapen/gear
+  - 40 scrap → random epic wapen/gear
+  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
+- Geeft een zinvol alternatief voor bulk-sell
 
-**C. SYNC_SERVER_XP uitbreiden** (`src/contexts/GameContext.tsx`)
-- Voeg `meritPoints` en `statPoints` toe aan de action data type
-- Sync deze velden vanuit server response
+### 6. Combat Streak & Achievement Rewards
+- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
+- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
+- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
 
-**D. Kolommen controleren** (database check)
-- Bevestigen dat `player_state` tabel `merit_points` en `stat_points` kolommen heeft; zo niet, migratie toevoegen
+---
+
+## Technisch overzicht
+
+| Component | Bestand | Wijziging |
+|-----------|---------|-----------|
+| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
+| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
+| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
+| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
+| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
+| Loot Crates UI | Integratie in BlackMarketView | — |
+| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
+| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
+| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
+| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
+| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
+| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
+
+Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
 

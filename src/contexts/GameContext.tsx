@@ -376,7 +376,7 @@ type GameAction =
   | { type: 'DISMISS_INSIDER_TIP_MARKET'; tipId: string }
   // Internal sync actions
   | { type: 'CLEAR_PENDING_XP' }
-  | { type: 'SYNC_SERVER_XP'; data: { newXp: number; newLevel: number; newNextXp: number; newSP: number; streak: number; totalXp?: number; levelUps?: number } };
+  | { type: 'SYNC_SERVER_XP'; data: { newXp: number; newLevel: number; newNextXp: number; newSP: number; streak: number; totalXp?: number; levelUps?: number; newMeritPoints?: number; newStatPoints?: number } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -3939,6 +3939,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.player.nextXp = action.data.newNextXp;
       s.player.skillPoints = action.data.newSP;
       s.xpStreak = action.data.streak;
+      // Sync merit points and stat points from server if provided
+      if (action.data.newMeritPoints !== undefined) {
+        s.meritPoints = action.data.newMeritPoints;
+      }
+      if (action.data.newStatPoints !== undefined) {
+        s.player.statPoints = action.data.newStatPoints;
+      }
       return s;
     }
 

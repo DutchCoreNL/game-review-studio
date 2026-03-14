@@ -1508,9 +1508,11 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
   const finalAmount = Math.floor(amount * weekMultiplier * prestigeMultiplier * meritXpMult);
 
   state.player.xp += finalAmount;
-  if (state.player.xp >= state.player.nextXp) {
+  let didLevelUp = false;
+  while (state.player.xp >= state.player.nextXp) {
     state.player.xp -= state.player.nextXp;
     state.player.level++;
+    didLevelUp = true;
     // Unified XP curve: use xpForLevel() instead of flat *1.4
     state.player.nextXp = xpForLevel(state.player.level);
     // +1 Stat Point per level-up (for raw stats)
@@ -1522,16 +1524,15 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     if (milestone && milestone.sp_bonus > 0) {
       state.player.skillPoints += milestone.sp_bonus;
     }
-    // Award merit points on level-up (fixed: was duplicated)
+    // Award merit points on level-up
     const meritGain = getMeritPointsForLevelUp(state.player.level);
     state.meritPoints = (state.meritPoints || 0) + meritGain;
     const oldMax = state.playerMaxHP;
     syncPlayerMaxHP(state);
     const hpGain = state.playerMaxHP - oldMax;
     if (hpGain > 0) state.playerHP = Math.min(state.playerMaxHP, state.playerHP + hpGain);
-    return true;
   }
-  return false;
+  return didLevelUp;
 }
 
 export function performSoloOp(state: GameState, opId: string): { success: boolean; message: string; nearMiss?: string } {
