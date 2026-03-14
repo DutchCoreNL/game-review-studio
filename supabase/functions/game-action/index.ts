@@ -728,6 +728,78 @@ async function handleInitPlayer(supabase: any, userId: string): Promise<ActionRe
   return { success: true, message: "Nieuwe speler aangemaakt!", data: { existing: false } };
 }
 
+// ========== SYNC HELPER: keep player_state columns + relational tables in sync with save_data ==========
+
+async function syncStateFromSaveData(supabase: any, userId: string, sd: any) {
+  try {
+    // 1) Sync player_state core columns from save_data
+    const stateUpdate: Record<string, any> = {};
+    if (sd.money !== undefined) stateUpdate.money = sd.money;
+    if (sd.dirtyMoney !== undefined) stateUpdate.dirty_money = sd.dirtyMoney;
+    if (sd.debt !== undefined) stateUpdate.debt = sd.debt;
+    if (sd.rep !== undefined) stateUpdate.rep = sd.rep;
+    if (sd.karma !== undefined) stateUpdate.karma = sd.karma;
+    if (sd.playerHP !== undefined) stateUpdate.hp = sd.playerHP;
+    if (sd.playerMaxHP !== undefined) stateUpdate.max_hp = sd.playerMaxHP;
+    if (sd.day !== undefined) stateUpdate.day = sd.day;
+    if (sd.loc !== undefined) stateUpdate.loc = sd.loc;
+    if (sd.energy !== undefined) stateUpdate.energy = sd.energy;
+    if (sd.maxEnergy !== undefined) stateUpdate.max_energy = sd.maxEnergy;
+    if (sd.nerve !== undefined) stateUpdate.nerve = sd.nerve;
+    if (sd.maxNerve !== undefined) stateUpdate.max_nerve = sd.maxNerve;
+    if (sd.heat !== undefined) stateUpdate.heat = sd.heat;
+    if (sd.personalHeat !== undefined) stateUpdate.personal_heat = sd.personalHeat;
+    if (sd.policeRel !== undefined) stateUpdate.police_rel = sd.policeRel;
+    if (sd.washUsedToday !== undefined) stateUpdate.wash_used_today = sd.washUsedToday;
+    if (sd.player) {
+      if (sd.player.level !== undefined) stateUpdate.level = sd.player.level;
+      if (sd.player.xp !== undefined) stateUpdate.xp = sd.player.xp;
+      if (sd.player.nextXp !== undefined) stateUpdate.next_xp = sd.player.nextXp;
+      if (sd.player.skillPoints !== undefined) stateUpdate.skill_points = sd.player.skillPoints;
+      if (sd.player.stats) stateUpdate.stats = sd.player.stats;
+      if (sd.player.loadout) stateUpdate.loadout = sd.player.loadout;
+    }
+
+    if (Object.keys(stateUpdate).length > 0) {
+      await supabase.from("player_state").update(stateUpdate).eq("user_id", userId);
+    }
+
+    // 2) Sync player_inventory from save_data.inventory
+    if (sd.inventory && typeof sd.inventory === 'object') {
+      // Delete existing inventory and re-insert from save_data
+      await supabase.from("player_inventory").delete().eq("user_id", userId);
+      const invRows: any[] = [];
+      for (const [goodId, qty] of Object.entries(sd.inventory)) {
+        if (typeof qty === 'number' && qty > 0) {
+          invRows.push({
+            user_id: userId,
+            good_id: goodId,
+            quantity: qty,
+            avg_cost: sd.inventoryCosts?.[goodId] || 0,
+          });
+        }
+      }
+      if (invRows.length > 0) {
+        await supabase.from("player_inventory").insert(invRows);
+      }
+    }
+
+    // 3) Sync player_gear from save_data.ownedGear
+    if (Array.isArray(sd.ownedGear)) {
+      await supabase.from("player_gear").delete().eq("user_id", userId);
+      const gearRows = sd.ownedGear.map((gearId: string) => ({
+        user_id: userId,
+        gear_id: gearId,
+      }));
+      if (gearRows.length > 0) {
+        await supabase.from("player_gear").insert(gearRows);
+      }
+    }
+  } catch (e) {
+    console.error("syncStateFromSaveData error (non-fatal):", e);
+  }
+}
+
 // ========== CLOUD SAVE / LOAD ==========
 
 async function handleSaveState(supabase: any, userId: string, payload: { saveData: any; day: number }): Promise<ActionResult> {
@@ -760,6 +832,10 @@ async function handleSaveState(supabase: any, userId: string, payload: { saveDat
   }).eq("user_id", userId);
 
   if (error) return { success: false, message: `Save mislukt: ${error.message}` };
+
+  // Sync relational tables from save_data so server-side actions (trade etc.) use consistent data
+  await syncStateFromSaveData(supabase, userId, cleanData);
+
   return { success: true, message: "Cloud save opgeslagen.", data: { saveVersion: newVersion } };
 }
 
