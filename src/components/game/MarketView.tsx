@@ -4,6 +4,7 @@ import { GoodId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi, ShoppingBag } from 'lucide-react';
+import { invokeGameAction } from '@/lib/gameApi';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ViewWrapper } from './ui/ViewWrapper';
