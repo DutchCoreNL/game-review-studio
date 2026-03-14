@@ -3939,6 +3939,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.player.nextXp = action.data.newNextXp;
       s.player.skillPoints = action.data.newSP;
       s.xpStreak = action.data.streak;
+      // Sync merit points and stat points from server if provided
+      if (action.data.newMeritPoints !== undefined) {
+        s.meritPoints = action.data.newMeritPoints;
+      }
+      if (action.data.newStatPoints !== undefined) {
+        s.player.statPoints = action.data.newStatPoints;
+      }
       return s;
     }
 

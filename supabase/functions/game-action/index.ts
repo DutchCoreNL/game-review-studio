@@ -3774,8 +3774,14 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
   let newLevel = ps.level;
   let newNextXp = ps.next_xp;
   let newSP = ps.skill_points;
+  let newMeritPoints = ps.merit_points || 0;
+  let newStatPoints = ps.stat_points || 0;
   let levelUps = 0;
   const milestoneRewards: MilestoneReward[] = [];
+
+  // Merit points per level-up config (mirrors client getMeritPointsForLevelUp)
+  const MERIT_POINTS_PER_LEVEL = 1;
+  const BONUS_MERIT_AT_LEVELS = [5, 10, 15, 20, 25, 30, 40, 50];
 
   // Process level ups with exponential curve
   while (newXp >= newNextXp) {
@@ -3783,6 +3789,12 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
     newLevel++;
     levelUps++;
     newSP += SP_PER_LEVEL;
+    // +1 stat point per level-up
+    newStatPoints += 1;
+    // Merit points: 1 per level + bonus at milestones
+    let meritGain = MERIT_POINTS_PER_LEVEL;
+    if (BONUS_MERIT_AT_LEVELS.includes(newLevel)) meritGain += 1;
+    newMeritPoints += meritGain;
     // Exponential XP curve instead of flat multiplier
     newNextXp = xpForLevel(newLevel);
 
