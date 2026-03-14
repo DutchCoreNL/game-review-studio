@@ -1,87 +1,58 @@
 
 
-## Analyse: Huidige verkrijgbaarheid van arsenaal
+## Cloud Save Systeem — Analyse & Bevindingen
 
-**Wat er nu is:**
-- Combat loot drops (wapens 5-60% kans, gear 3-50% kans, afhankelijk van rating/boss)
-- Unique weapons van campaign bosses (chapter 6-8)
-- Upgrade/Fusie/Mod swap (verbetering van bestaand spul)
-- Legacy gear shop (statische items — zou vervangen moeten zijn)
+### Wat werkt goed
+- **Save flow**: `handleSaveState` slaat `save_data` op, bumpt `save_version`, en roept `syncStateFromSaveData` aan om relationele tabellen te synchroniseren
+- **Load flow**: `handleLoadState` haalt `save_data` + metadata op; client vergelijkt cloud vs local op basis van dag + timestamp
+- **Conflict resolution**: "newest wins" logica (cloudDay vs localDay + timestamp) werkt correct
+- **Auto-save**: elke 2 minuten via interval, `stateRef` wordt onmiddellijk bijgewerkt (geen debounce)
+- **Economy merge**: na server-acties worden inventory/gear/money correct gemerged via `MERGE_SERVER_STATE`
+- **`syncStateFromSaveData`**: synct money, inventory, gear, player stats naar relationele tabellen bij elke cloud save
+- **`noxhaven_last_save_time`**: consistent gezet in zowel `engine.ts` als `GameContext.tsx` debounced save
+- **`merit_points` + `stat_points`**: kolommen bestaan in DB, server level-up logic is correct, `SYNC_SERVER_XP` synct ze
 
-**Wat ontbreekt — er is geen gestructureerd acquisitiesysteem:**
-- Geen shop voor procedureel gegenereerde wapens/gear
-- Geen dagelijkse/wekelijkse beloningen
-- Geen crafting of materialen
-- Geen garantie-mechanisme (pity system)
-- Story arcs, district stories en gang arcs geven alleen geld/rep, nooit gear
-- Geen manier om gericht te farmen voor specifiek type equipment
+### Gevonden problemen
 
----
+**1. `syncStateFromSaveData` mist `merit_points` en `stat_points` (BUG)**
+- Regel 731-765: de sync helper mapt `sd.player.skillPoints` → `skill_points`, maar **niet** `sd.meritPoints` → `merit_points` en `sd.player.statPoints` → `stat_points`
+- Bij cloud save worden deze waarden in `save_data` opgeslagen maar niet naar de kolommen geschreven
+- Server-side level-up (via `gain_xp`) schrijft ze wél naar kolommen
+- Risico: na cloud save + reload kunnen kolommen en save_data uit sync raken als er lokaal merit/stat points zijn gebruikt
 
-## Plan: Arsenaal Acquisitie Systeem
+**2. `MERGE_SERVER_STATE` mist `meritPoints` en `statPoints` (BUG)**
+- Regel 3683-3731: het `MERGE_SERVER_STATE` case mergt `player.skillPoints`, `player.stats`, `player.loadout` maar **niet** `meritPoints` of `player.statPoints`
+- Na een economy-actie worden deze velden niet van server naar client gesynct
+- Dit kan leiden tot desync als server een level-up verwerkt met merit/stat points
 
-### 1. Zwarte Markt (Procedurele Shop)
-Nieuw bestand `src/game/blackMarket.ts`:
-- Roulerende voorraad van 4-6 procedurele wapens + gear, ververst elke 3 in-game dagen
-- Prijzen op basis van rarity en level (2-3x sellValue)
-- Eén "featured item" slot met gegarandeerd rare+ kwaliteit
-- Koop met geld of dirty money (dirty money = 20% korting)
+**3. `mergeServerState` helper in `useServerSync.ts` mist `meritPoints`/`statPoints` (BUG)**
+- Regel 224-291: de merge functie stuurt `player.skillPoints` mee maar niet `meritPoints` of `statPoints` vanuit `ps.merit_points` / `ps.stat_points`
 
-### 2. Daily Reward Systeem
-Nieuw bestand `src/game/dailyRewards.ts`:
-- 7-daags login-beloningscyclus met escalerende rewards
-- Dag 1-3: geld/ammo, Dag 4-5: random gear, Dag 6: rare+ wapen, Dag 7: epic crate
-- Streak reset als je een dag mist
-- UI: popup bij eerste actie van de dag
+**4. Geen foutmelding bij cloud save failure voor gebruiker (MINOR)**
+- Regel 107: bij `catch` in `saveToCloud` wordt alleen `syncing: false` gezet, geen toast of error feedback
+- Gebruiker weet niet dat auto-save faalde
 
-### 3. Loot Crates / Kisten
-Toevoeging aan bestaand systeem:
-- **Bronze Kist** (€5.000): common-rare pool
-- **Zilver Kist** (€15.000): uncommon-epic pool  
-- **Gouden Kist** (€40.000): rare-legendary pool
-- Elke kist bevat 1 wapen OF 1 gear item
-- **Pity systeem**: na 10 kisten zonder epic+ = gegarandeerd epic
+**5. `SET_STATE` bij cloud load muteert het action object (MINOR)**
+- Regel 429-433: `loaded.backstory = s.backstory` muteert direct het action object i.p.v. de draft — dit is technisch onveilig met Immer maar werkt omdat `SET_STATE` de hele state vervangt
 
-### 4. Story & Mission Gear Rewards
-Uitbreiding van bestaande systemen:
-- Campaign chapter completions → gegarandeerde gear reward (naast de bestaande bonussen)
-- Story arcs (completionReward) → kans op procedureel wapen/gear
-- District stories → district-thematische gear (bijv. Port = marine-themed armor)
-- Gang arc milestones → gang-branded wapens
+### Implementatieplan
 
-### 5. Crafting / Salvage Systeem
-Nieuw bestand `src/game/salvage.ts`:
-- **Ontmantelen**: wapens/gear afbreken voor **onderdelen** (scrap)
-- Common = 1 scrap, uncommon = 3, rare = 8, epic = 20, legendary = 50
-- **Crafting recepten**: 
-  - 15 scrap → random rare wapen/gear
-  - 40 scrap → random epic wapen/gear
-  - 100 scrap → kies type (armor/gadget/wapen) + gegarandeerd epic+
-- Geeft een zinvol alternatief voor bulk-sell
+**A. `syncStateFromSaveData` uitbreiden** (`supabase/functions/game-action/index.ts`)
+- Voeg toe na de `sd.player` blok (rond regel 761):
+  - `if (sd.meritPoints !== undefined) stateUpdate.merit_points = sd.meritPoints;`
+  - `if (sd.player?.statPoints !== undefined) stateUpdate.stat_points = sd.player.statPoints;`
 
-### 6. Combat Streak & Achievement Rewards
-- Combat win-streak milestones (5, 10, 25 wins) → gegarandeerde drops
-- Specifieke achievements → unieke gear (bijv. "100 kills" → speciale armor)
-- Boss herhalingen (re-fight) → kleine kans op unique weapon als je die nog niet hebt
+**B. `mergeServerState` in `useServerSync.ts` uitbreiden** (regel 263-270)
+- Voeg `meritPoints: ps.merit_points` toe aan het economy-blok van de serverState
+- Voeg `statPoints: ps.stat_points` toe aan `player` sub-object
 
----
+**C. `MERGE_SERVER_STATE` reducer uitbreiden** (`src/contexts/GameContext.tsx`, regel 3714-3722)
+- Na `if (ss.player.loadout)`: voeg toe:
+  - `if (ss.player?.statPoints !== undefined) s.player.statPoints = ss.player.statPoints;`
+- Na de player blok: `if (ss.meritPoints !== undefined) s.meritPoints = ss.meritPoints;`
 
-## Technisch overzicht
+**D. Auto-save error feedback** (`src/hooks/useServerSync.ts`, regel 107)
+- Optioneel: log of toon een subtiele waarschuwing bij herhaalde save failures
 
-| Component | Bestand | Wijziging |
-|-----------|---------|-----------|
-| Zwarte Markt logica | `src/game/blackMarket.ts` | Nieuw |
-| Zwarte Markt UI | `src/components/game/shop/BlackMarketView.tsx` | Nieuw |
-| Daily Rewards logica | `src/game/dailyRewards.ts` | Nieuw |
-| Daily Rewards UI | `src/components/game/DailyRewardPopup.tsx` | Nieuw |
-| Loot Crates | `src/game/lootCrates.ts` | Nieuw |
-| Loot Crates UI | Integratie in BlackMarketView | — |
-| Salvage/Crafting | `src/game/salvage.ts` | Nieuw |
-| Salvage UI | `src/components/game/crafting/SalvageView.tsx` | Nieuw |
-| Story gear rewards | `src/game/campaign.ts`, `storyArcs.ts`, `districtStories.ts` | Uitbreiding completionReward |
-| Reducer actions | `src/contexts/GameContext.tsx` | Nieuwe actions |
-| State uitbreiding | `src/game/types.ts`, `constants.ts` | Nieuwe velden |
-| Navigatie | Sidebar componenten | Zwarte Markt + Crafting links |
-
-Alle wijzigingen zijn client-side, geen database migraties nodig. Het `GameState` type krijgt nieuwe velden: `blackMarketStock`, `blackMarketRefreshDay`, `dailyRewardDay`, `dailyRewardStreak`, `scrapMaterials`, `pityCounter`, `lootCratesPurchased`.
+Geen database migraties nodig — kolommen bestaan al.
 
