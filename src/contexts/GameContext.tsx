@@ -274,6 +274,9 @@ type GameAction =
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
+  | { type: 'ADD_CONTRACT'; contract: any }
+  | { type: 'REMOVE_CONTRACT'; contractId: number; repPenalty?: number }
+  | { type: 'SET_PRICES'; prices?: Record<string, Record<string, number>>; priceTrends?: Record<string, string> }
   | { type: 'AUTO_TICK'; isCatchUp?: boolean }
   | { type: 'SET_CATCH_UP_REPORT'; report: CatchUpReportData | null }
   | { type: 'RESET' }
