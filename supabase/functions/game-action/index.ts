@@ -3856,7 +3856,7 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
     message: levelUps > 0
       ? `+${totalXp} XP (×${multiplier.toFixed(2)}) — Level ${newLevel}! +${levelUps * SP_PER_LEVEL} SP${milestoneMsg}`
       : `+${totalXp} XP (×${multiplier.toFixed(2)})${bonusSummary ? ` [${bonusSummary}]` : ""}`,
-    data: { xpGained: totalXp, baseAmount: amount, multiplier, bonuses, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak, isFirstOfDay, milestoneRewards, restedConsumed, restedBonus },
+    data: { xpGained: totalXp, baseAmount: amount, multiplier, bonuses, newXp, newLevel, newNextXp, newSP, levelUps, streak: newStreak, isFirstOfDay, milestoneRewards, restedConsumed, restedBonus, newMeritPoints, newStatPoints },
   };
 }
 
