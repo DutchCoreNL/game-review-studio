@@ -237,15 +237,15 @@ export function MarketView() {
               </div>
               <button
                 onClick={() => handleTrade(g.id)}
-                disabled={disabled || trading}
+                disabled={disabled}
                 className={`px-3 py-1.5 rounded text-[0.65rem] font-bold uppercase transition-all ${
-                  disabled || trading
+                  disabled
                     ? 'bg-muted text-muted-foreground opacity-30'
                     : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold hover:bg-[hsl(var(--gold)/0.2)]'
                 }`}
               >
-                {trading ? '...' : tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
-                {effectiveQty > 1 && !disabled && !trading && (
+                {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
+                {effectiveQty > 1 && !disabled && (
                   <span className="block text-[0.45rem] opacity-70">€{totalPrice.toLocaleString()}</span>
                 )}
               </button>
