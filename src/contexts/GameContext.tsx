@@ -4233,6 +4233,11 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     serverDispatch(action);
   }, [serverDispatch]);
 
+  // Update stateRef IMMEDIATELY on every state change (no debounce) for cloud save accuracy
+  useEffect(() => {
+    updateStateRef(state);
+  }, [state, updateStateRef]);
+
   // Auto-save on state change (debounced) + check for new achievements + phase-up
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -4241,7 +4246,6 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     saveTimerRef.current = setTimeout(() => {
       Engine.saveGame(state);
       localStorage.setItem('noxhaven_last_save_time', Date.now().toString());
-      updateStateRef(state); // Keep cloud save ref in sync
     }, 2000);
 
     const prev = prevAchievementsRef.current;
