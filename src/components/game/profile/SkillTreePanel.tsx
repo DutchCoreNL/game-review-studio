@@ -98,10 +98,11 @@ export function SkillTreePanel() {
       const result = await gameApi.prestige();
       if (result.success) {
         showToast(result.message);
-        // Reload state
+        // Use MERGE_SERVER_STATE instead of full SET_STATE to avoid wiping state
         const stateResult = await gameApi.getState();
         if (stateResult.success && stateResult.data) {
-          dispatch({ type: 'SET_STATE', state: stateResult.data as any });
+          const ps = stateResult.data as any;
+          dispatch({ type: 'SYNC_SKILLS', skills: ps.unlockedSkills?.map((s: any) => ({ skillId: s.skill_id || s.skillId, level: s.level || 1 })) || [], skillPoints: ps.skill_points || ps.player?.skillPoints || 0 });
         }
       } else {
         showToast(result.message, true);

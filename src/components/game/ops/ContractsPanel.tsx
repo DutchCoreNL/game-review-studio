@@ -29,8 +29,7 @@ export function ContractsPanel() {
     try {
       const res = await gameApi.acceptContract();
       if (res.success && res.data?.contract) {
-        const newContracts = [...state.activeContracts, res.data.contract];
-        dispatch({ type: 'SET_STATE', state: { ...state, activeContracts: newContracts } } as any);
+        dispatch({ type: 'ADD_CONTRACT', contract: res.data.contract } as any);
         showToast(res.message);
       } else {
         showToast(res.message, true);
@@ -45,8 +44,7 @@ export function ContractsPanel() {
   const handleDropContract = async (contractId: number) => {
     const res = await gameApi.dropContract(contractId);
     if (res.success) {
-      const updated = state.activeContracts.filter(c => c.id !== contractId);
-      dispatch({ type: 'SET_STATE', state: { ...state, activeContracts: updated, rep: Math.max(0, state.rep - (res.data?.repPenalty || 0)) } } as any);
+      dispatch({ type: 'REMOVE_CONTRACT', contractId, repPenalty: res.data?.repPenalty || 0 } as any);
       showToast(res.message);
     } else {
       showToast(res.message, true);

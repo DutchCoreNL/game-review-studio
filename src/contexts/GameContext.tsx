@@ -274,6 +274,9 @@ type GameAction =
   | { type: 'SELL_NOXCRYSTAL'; amount: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'MERGE_SERVER_STATE'; serverState: Partial<GameState> }
+  | { type: 'ADD_CONTRACT'; contract: any }
+  | { type: 'REMOVE_CONTRACT'; contractId: number; repPenalty?: number }
+  | { type: 'SET_PRICES'; prices?: Record<string, Record<string, number>>; priceTrends?: Record<string, string> }
   | { type: 'AUTO_TICK'; isCatchUp?: boolean }
   | { type: 'SET_CATCH_UP_REPORT'; report: CatchUpReportData | null }
   | { type: 'RESET' }
@@ -3693,6 +3696,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (ss.day !== undefined) s.day = ss.day;
       if (ss.washUsedToday !== undefined) s.washUsedToday = ss.washUsedToday;
       if (ss.endgamePhase !== undefined) s.endgamePhase = ss.endgamePhase;
+      // Inventory & gear: server-authoritative after economy actions
+      if (ss.inventory !== undefined) s.inventory = ss.inventory;
+      if (ss.inventoryCosts !== undefined) s.inventoryCosts = ss.inventoryCosts;
+      if (ss.ownedGear !== undefined) s.ownedGear = ss.ownedGear;
       // Energy/nerve/cooldowns
       if (ss.energy !== undefined) s.energy = ss.energy;
       if (ss.maxEnergy !== undefined) s.maxEnergy = ss.maxEnergy;
@@ -3721,6 +3728,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.gangDistricts = ss.gangDistricts;
       }
       s.serverSynced = true;
+      return s;
+    }
+
+    // Targeted contract mutations (replaces dangerous SET_STATE patterns)
+    case 'ADD_CONTRACT': {
+      const contract = (action as any).contract;
+      if (contract && !s.activeContracts.find((c: any) => c.id === contract.id)) {
+        s.activeContracts.push(contract);
+      }
+      return s;
+    }
+    case 'REMOVE_CONTRACT': {
+      const contractId = (action as any).contractId;
+      const repPenalty = (action as any).repPenalty || 0;
+      s.activeContracts = s.activeContracts.filter((c: any) => c.id !== contractId);
+      if (repPenalty > 0) s.rep = Math.max(0, s.rep - repPenalty);
+      return s;
+    }
+    case 'SET_PRICES': {
+      const { prices, priceTrends } = action as any;
+      if (prices) s.prices = prices;
+      if (priceTrends) s.priceTrends = { ...s.priceTrends, ...priceTrends };
       return s;
     }
 
@@ -4204,6 +4233,11 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     serverDispatch(action);
   }, [serverDispatch]);
 
+  // Update stateRef IMMEDIATELY on every state change (no debounce) for cloud save accuracy
+  useEffect(() => {
+    updateStateRef(state);
+  }, [state, updateStateRef]);
+
   // Auto-save on state change (debounced) + check for new achievements + phase-up
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -4212,7 +4246,6 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     saveTimerRef.current = setTimeout(() => {
       Engine.saveGame(state);
       localStorage.setItem('noxhaven_last_save_time', Date.now().toString());
-      updateStateRef(state); // Keep cloud save ref in sync
     }, 2000);
 
     const prev = prevAchievementsRef.current;
@@ -4370,7 +4403,6 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         try {
           const res = await import('@/lib/gameApi').then(m => m.gameApi.getMarketPrices());
           if (res.success && res.data?.prices) {
-            // Server prices available — set them into state
             const prices: Record<string, Record<string, number>> = {};
             const trends: Record<string, string> = {};
             Object.entries(res.data.prices as Record<string, Record<string, any>>).forEach(([distId, goods]) => {
@@ -4380,17 +4412,15 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
                 trends[gid] = data.trend || data.price_trend || 'stable';
               });
             });
-            const s = { ...state, prices, priceTrends: { ...state.priceTrends, ...trends } };
-            // Contracts generated server-side via gameApi.acceptContract()
-            rawDispatch({ type: 'SET_STATE', state: s });
+            // Use targeted SET_PRICES instead of full SET_STATE to avoid overwriting economy
+            rawDispatch({ type: 'SET_PRICES', prices, priceTrends: trends } as any);
             return;
           }
         } catch {}
         // Fallback: generate locally
         const s = { ...state };
         Engine.generatePrices(s);
-        // Contracts generated server-side via gameApi.acceptContract()
-        rawDispatch({ type: 'SET_STATE', state: s });
+        rawDispatch({ type: 'SET_PRICES', prices: s.prices, priceTrends: s.priceTrends } as any);
       })();
     }
   }, []);
