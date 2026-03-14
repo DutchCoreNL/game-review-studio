@@ -3717,9 +3717,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (ss.player.xp !== undefined) s.player.xp = ss.player.xp;
         if (ss.player.nextXp !== undefined) s.player.nextXp = ss.player.nextXp;
         if (ss.player.skillPoints !== undefined) s.player.skillPoints = ss.player.skillPoints;
+        if (ss.player.statPoints !== undefined) s.player.statPoints = ss.player.statPoints;
         if (ss.player.stats) s.player.stats = ss.player.stats;
         if (ss.player.loadout) s.player.loadout = ss.player.loadout;
       }
+      if (ss.meritPoints !== undefined) s.meritPoints = ss.meritPoints;
       // Sync ownedDistricts from server (personal + gang territories combined)
       if (ss.allDistricts) {
         s.ownedDistricts = ss.allDistricts;

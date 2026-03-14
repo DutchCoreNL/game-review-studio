@@ -756,9 +756,11 @@ async function syncStateFromSaveData(supabase: any, userId: string, sd: any) {
       if (sd.player.xp !== undefined) stateUpdate.xp = sd.player.xp;
       if (sd.player.nextXp !== undefined) stateUpdate.next_xp = sd.player.nextXp;
       if (sd.player.skillPoints !== undefined) stateUpdate.skill_points = sd.player.skillPoints;
+      if (sd.player.statPoints !== undefined) stateUpdate.stat_points = sd.player.statPoints;
       if (sd.player.stats) stateUpdate.stats = sd.player.stats;
       if (sd.player.loadout) stateUpdate.loadout = sd.player.loadout;
     }
+    if (sd.meritPoints !== undefined) stateUpdate.merit_points = sd.meritPoints;
 
     if (Object.keys(stateUpdate).length > 0) {
       await supabase.from("player_state").update(stateUpdate).eq("user_id", userId);
