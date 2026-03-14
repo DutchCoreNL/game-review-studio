@@ -28,7 +28,7 @@ export function MarketView() {
 
   const fetchPrices = useCallback(async () => {
     setLoading(true);
-    const res = await gameApi.getMarketPrices();
+    const res = await invokeGameAction('get_market_prices');
     if (res.success && res.data?.prices) {
       setServerPrices(res.data.prices as any);
     }
