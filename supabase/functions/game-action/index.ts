@@ -3812,6 +3812,7 @@ async function handleGainXp(supabase: any, userId: string, ps: any, payload: { a
   const stateUpdate: any = {
     xp: newXp, level: newLevel, next_xp: newNextXp,
     skill_points: newSP, xp_streak: newStreak,
+    merit_points: newMeritPoints, stat_points: newStatPoints,
     last_action_at: new Date().toISOString(),
   };
 
