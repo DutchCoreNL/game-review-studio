@@ -4,8 +4,8 @@ import { GoodId } from '@/game/types';
 import { getPlayerStat } from '@/game/engine';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, RefreshCw, Wifi, ShoppingBag } from 'lucide-react';
+import { invokeGameAction } from '@/lib/gameApi';
 import { useState, useEffect, useCallback } from 'react';
-import { gameApi } from '@/lib/gameApi';
 import { supabase } from '@/integrations/supabase/client';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
@@ -25,11 +25,10 @@ export function MarketView() {
   const [quantity, setQuantity] = useState(1);
   const [serverPrices, setServerPrices] = useState<Record<string, Record<string, MarketData>> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [trading, setTrading] = useState(false);
 
   const fetchPrices = useCallback(async () => {
     setLoading(true);
-    const res = await gameApi.getMarketPrices();
+    const res = await invokeGameAction('get_market_prices');
     if (res.success && res.data?.prices) {
       setServerPrices(res.data.prices as any);
     }
@@ -77,7 +76,7 @@ export function MarketView() {
   const charmBonus = Math.floor(((totalCharm * 0.02) + (state.rep / 5000)) * 100);
   const districtPrices = serverPrices?.[state.loc] || {};
 
-  const handleTrade = async (gid: GoodId) => {
+  const handleTrade = (gid: GoodId) => {
     const actualQty = quantity === 0
       ? (tradeMode === 'buy' ? state.maxInv - invCount : (state.inventory[gid] || 0))
       : quantity;
@@ -86,17 +85,8 @@ export function MarketView() {
       return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
     }
 
-    setTrading(true);
-    const res = await gameApi.trade(gid, tradeMode, actualQty);
-    setTrading(false);
-
-    if (res.success) {
-      const good = GOODS.find(g => g.id === gid);
-      showToast(res.message || `${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
-      dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
-    } else {
-      showToast(res.message || 'Handel mislukt.', true);
-    }
+    // Only dispatch — serverDispatch handles the server call AND local state update
+    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
   };
 
   return (
@@ -247,15 +237,15 @@ export function MarketView() {
               </div>
               <button
                 onClick={() => handleTrade(g.id)}
-                disabled={disabled || trading}
+                disabled={disabled}
                 className={`px-3 py-1.5 rounded text-[0.65rem] font-bold uppercase transition-all ${
-                  disabled || trading
+                  disabled
                     ? 'bg-muted text-muted-foreground opacity-30'
                     : 'bg-[hsl(var(--gold)/0.1)] border border-gold text-gold hover:bg-[hsl(var(--gold)/0.2)]'
                 }`}
               >
-                {trading ? '...' : tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
-                {effectiveQty > 1 && !disabled && !trading && (
+                {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
+                {effectiveQty > 1 && !disabled && (
                   <span className="block text-[0.45rem] opacity-70">€{totalPrice.toLocaleString()}</span>
                 )}
               </button>
