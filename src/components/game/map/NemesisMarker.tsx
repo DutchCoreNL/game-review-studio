@@ -61,7 +61,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
       <g transform={`translate(${x}, ${y})`}>
         {/* Outermost menacing glow — slow breathe */}
         <motion.circle
-          r="18"
+          r={18}
           fill="none"
           stroke={hasRevenge ? "hsla(30, 90%, 50%, 0.15)" : "hsla(0, 80%, 40%, 0.12)"}
           strokeWidth="0.8"
@@ -74,7 +74,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
 
         {/* Mid glow ring — faster pulse */}
         <motion.circle
-          r="12"
+          r={12}
           fill="none"
           stroke={hasRevenge ? "hsla(30, 90%, 50%, 0.25)" : "hsla(0, 80%, 50%, 0.2)"}
           strokeWidth="1"
@@ -88,7 +88,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
 
         {/* Inner pulsing danger ring */}
         <motion.circle
-          r="8"
+          r={8}
           fill="none"
           stroke="hsla(0, 80%, 50%, 0.35)"
           strokeWidth="1.2"
@@ -101,7 +101,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
 
         {/* Red ambient glow fill */}
         <motion.circle
-          r="10"
+          r={10}
           fill="hsla(0, 80%, 40%, 0.06)"
           animate={{
             r: [10, 14, 10],
