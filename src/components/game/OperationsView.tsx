@@ -102,8 +102,10 @@ export function OperationsView() {
     setSelectedContract(null);
   };
 
-  const ironDiscount = state.ownedDistricts.includes('iron');
-  const costPerHp = ironDiscount ? 40 : 50;
+  // Engine.healCrew always charges a flat 50/hp (the Iron district discount was intentionally
+  // removed for the MMO rebalance — see the comment there), so this display must match or the
+  // button shows a lower price than what's actually deducted from state.money.
+  const costPerHp = 50;
 
   const tabs: SubTab<string>[] = [
     { id: 'solo', label: t.ops.solo, icon: <Crosshair size={12} /> },

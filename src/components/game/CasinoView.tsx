@@ -39,10 +39,7 @@ export function CasinoView() {
       }
       return next;
     });
-    if (won && amount > 1000) {
-      dispatch({ type: 'TRADE', gid: 'drugs', mode: 'buy', quantity: 0 });
-    }
-  }, [dispatch]);
+  }, []);
 
   if (isStorm) {
     return (

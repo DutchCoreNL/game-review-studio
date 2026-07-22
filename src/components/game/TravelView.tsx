@@ -232,7 +232,7 @@ function AbroadView({ destination, travel, onBuy, onReturn, heat, hasHelipad }: 
 
 // ─── Main Travel View ───
 export function TravelView() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const { travel, loading, hasArrived, startTravel, arriveAtDestination, buyGood, startReturn, completeReturn, cancelTravel } = useTravel();
   const [toast, setToast] = useState<string | null>(null);
   const [selectedDest, setSelectedDest] = useState<string | null>(null);
@@ -262,6 +262,9 @@ export function TravelView() {
             const cost = good.buyPrice * qty;
             if (state.money < cost) { setToast('Niet genoeg geld!'); return; }
             const res = await buyGood(id, qty);
+            // buyGood only records the purchased quantity in player_travel — it never touched
+            // state.money, so buying goods abroad was completely free regardless of price.
+            if (res.success) dispatch({ type: 'SPEND_MONEY', amount: cost });
             setToast(res.message);
           }}
           onReturn={async () => {
@@ -306,21 +309,37 @@ export function TravelView() {
               const caught = Math.random() * 100 < risk;
 
               if (caught && totalIllegal > 0) {
-                // Customs seized illegal goods
+                // Customs seized illegal goods — only legal goods survive and get liquidated.
+                let legalRevenue = 0;
                 const legalGoods: Record<string, number> = {};
                 if (dest) {
                   for (const [gId, qty] of Object.entries(purchased)) {
                     const good = dest.goods.find(g => g.id === gId);
-                    if (good && !good.illegal) legalGoods[gId] = qty;
+                    if (good && !good.illegal) {
+                      legalGoods[gId] = qty;
+                      legalRevenue += good.sellPrice * qty;
+                    }
                   }
                 }
                 await completeReturn();
+                // completeReturn only deletes the player_travel row — it never credited the
+                // sell value of the smuggled goods, so a successful smuggling run paid out
+                // nothing even when goods (or the legal remainder) genuinely made it through.
+                if (legalRevenue > 0) dispatch({ type: 'TRAVEL_SELL_GOODS', revenue: legalRevenue });
                 setToast(`🚨 Douane! Illegale goederen in beslag genomen! ${Object.keys(legalGoods).length > 0 ? 'Legale goederen behouden.' : ''}`);
               } else {
+                let revenue = 0;
+                if (dest) {
+                  for (const [gId, qty] of Object.entries(purchased)) {
+                    const good = dest.goods.find(g => g.id === gId);
+                    if (good) revenue += good.sellPrice * qty;
+                  }
+                }
                 const result = await completeReturn();
                 if (result.success) {
+                  if (revenue > 0) dispatch({ type: 'TRAVEL_SELL_GOODS', revenue });
                   const totalItems = Object.values(result.goods).reduce((s, v) => s + v, 0);
-                  setToast(`✅ Veilig thuisgekomen met ${totalItems} items!`);
+                  setToast(`✅ Veilig thuisgekomen met ${totalItems} items${revenue > 0 ? ` — €${revenue.toLocaleString()} verdiend!` : '!'}`);
                 }
               }
             } else {

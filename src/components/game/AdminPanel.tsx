@@ -760,7 +760,7 @@ export function AdminPanel() {
             onConfirm={async () => {
               setConfirmGlobalReset(false);
               setActionLoading('global_reset');
-              try { const r = await adminCall('global_reset'); showToast(`✅ ${r.message}`); fetchWorldStats(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
+              try { const r = await adminCall('global_reset', { confirm: 'RESET_ALL_DATA' }); showToast(`✅ ${r.message}`); fetchWorldStats(); } catch (e: any) { showToast(`❌ ${e.message}`, true); }
               setActionLoading(null);
             }}
             onCancel={() => setConfirmGlobalReset(false)}

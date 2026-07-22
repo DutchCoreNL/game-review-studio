@@ -2616,7 +2616,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      player_public_status: {
+        Row: {
+          user_id: string
+          level: number
+          loc: string
+          prison_until: string | null
+          hospital_until: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

@@ -161,6 +161,22 @@ Houd beloningen realistisch: geld tussen -5000 en +15000, rep tussen -20 en +50,
       throw new Error("Invalid story structure");
     }
 
+    // Re-check the cooldown right before inserting. The initial check (above) and this insert
+    // are separated by the AI generation call, which gave two concurrent requests from the
+    // same user a wide window to both pass the original check before either landed its insert
+    // — re-validating here shrinks that race down to the gap between this check and the
+    // insert itself, instead of the whole AI call duration.
+    const { data: recentAgain } = await supabaseAdmin.from("personal_story_events")
+      .select("id")
+      .eq("user_id", user.id)
+      .gt("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(1);
+    if (recentAgain && recentAgain.length > 0) {
+      return new Response(JSON.stringify({ success: false, message: "Je kunt maar 1 verhaal per 30 minuten ontvangen." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Save to database
     const { data: storyEvent, error: insertErr } = await supabaseAdmin.from("personal_story_events").insert({
       user_id: user.id,

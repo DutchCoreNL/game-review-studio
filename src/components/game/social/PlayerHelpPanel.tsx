@@ -36,8 +36,10 @@ export function PlayerHelpPanel({ type, onResult }: PlayerHelpPanelProps) {
     const now = new Date().toISOString();
     const field = type === 'prison' ? 'prison_until' : 'hospital_until';
 
+    // player_state itself is owner-only via RLS; this cross-player lookup uses the narrow
+    // player_public_status view, which only exposes user_id/level/loc/prison_until/hospital_until.
     const { data } = await supabase
-      .from('player_state')
+      .from('player_public_status')
       .select(`user_id, level, ${field}`)
       .neq('user_id', user.id)
       .gt(field, now)

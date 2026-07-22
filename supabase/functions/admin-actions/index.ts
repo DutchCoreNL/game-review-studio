@@ -84,9 +84,12 @@ serve(async (req) => {
 
     if (action === 'ban_player') {
       if (!targetUserId) return bad('userId required');
-      await adminClient.from('leaderboard_entries').delete().eq('user_id', targetUserId);
+      // Ban first, then clean up the leaderboard entry — if updateUserById fails (bad id, auth
+      // API hiccup), the leaderboard entry must not already be gone while the account remains
+      // unbanned. Previously the delete ran first with no rollback on ban failure.
       const { error } = await adminClient.auth.admin.updateUserById(targetUserId, { ban_duration: '876000h' });
       if (error) throw error;
+      await adminClient.from('leaderboard_entries').delete().eq('user_id', targetUserId);
       await logAction('ban_player');
       return ok({ ok: true, message: 'Player banned' });
     }
@@ -206,11 +209,13 @@ serve(async (req) => {
       if (!multiplier || multiplier <= 0) return bad('Valid multiplier required');
       const { data: prices, error: fetchErr } = await adminClient.from('market_prices').select('id, current_price');
       if (fetchErr) throw fetchErr;
+      let failed = 0;
       for (const p of (prices || [])) {
-        await adminClient.from('market_prices').update({ current_price: Math.round(p.current_price * multiplier) }).eq('id', p.id);
+        const { error } = await adminClient.from('market_prices').update({ current_price: Math.round(p.current_price * multiplier) }).eq('id', p.id);
+        if (error) failed++;
       }
-      await logAction('bulk_update_prices', { multiplier, count: prices?.length });
-      return ok({ ok: true, message: `${prices?.length} prices updated with x${multiplier}` });
+      await logAction('bulk_update_prices', { multiplier, count: prices?.length, failed });
+      return ok({ ok: failed === 0, message: `${(prices?.length || 0) - failed}/${prices?.length || 0} prices updated with x${multiplier}` });
     }
 
     // ============ BOT ACTIONS ============
@@ -268,11 +273,13 @@ serve(async (req) => {
     if (action === 'randomize_bot_locations') {
       const { data: bots, error: fetchErr } = await adminClient.from('bot_players').select('id');
       if (fetchErr) throw fetchErr;
+      let failed = 0;
       for (const bot of (bots || [])) {
-        await adminClient.from('bot_players').update({ loc: DISTRICTS[Math.floor(Math.random() * DISTRICTS.length)] }).eq('id', bot.id);
+        const { error } = await adminClient.from('bot_players').update({ loc: DISTRICTS[Math.floor(Math.random() * DISTRICTS.length)] }).eq('id', bot.id);
+        if (error) failed++;
       }
-      await logAction('randomize_bot_locations', { count: bots?.length });
-      return ok({ ok: true, message: `${bots?.length} bot locations randomized` });
+      await logAction('randomize_bot_locations', { count: bots?.length, failed });
+      return ok({ ok: failed === 0, message: `${(bots?.length || 0) - failed}/${bots?.length || 0} bot locations randomized` });
     }
 
     // ============ WORLD STATS ============
@@ -340,21 +347,27 @@ serve(async (req) => {
       if (fetchErr) throw fetchErr;
       let sent = 0;
       for (const p of (allPlayers || [])) {
-        await adminClient.from('player_messages').insert({
+        const { error } = await adminClient.from('player_messages').insert({
           sender_id: user.id,
           receiver_id: p.user_id,
           subject: subject || '📢 Broadcast',
           body: messageBody,
         });
-        sent++;
+        if (!error) sent++;
       }
-      await logAction('send_broadcast', { subject, recipients: sent });
-      return ok({ ok: true, message: `Broadcast sent to ${sent} players` });
+      await logAction('send_broadcast', { subject, recipients: sent, total: allPlayers?.length });
+      return ok({ ok: true, message: `Broadcast sent to ${sent}/${allPlayers?.length || 0} players` });
     }
 
     // ============ GLOBAL RESET ============
 
     if (action === 'global_reset') {
+      // Wipes essentially all player data platform-wide from a single request — require an
+      // explicit confirmation string in the body so this can't be triggered by a mis-click or
+      // a replayed/forged request that only got the action name right.
+      if (body.confirm !== 'RESET_ALL_DATA') {
+        return bad('Confirmation required: include confirm: "RESET_ALL_DATA" in the request body.');
+      }
       // Delete all player data across all tables
       const tables = [
         'player_skills', 'player_crew', 'player_gear', 'player_inventory',
@@ -364,36 +377,67 @@ serve(async (req) => {
         'gang_chat', 'gang_invites', 'gang_members', 'gang_territories', 'gang_wars',
         'district_influence', 'news_events',
       ];
+      // Track failures instead of silently reporting full success when a delete/update fails.
+      const failures: string[] = [];
       for (const t of tables) {
-        await adminClient.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        const { error } = await adminClient.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) failures.push(`${t}: ${error.message}`);
       }
       // Reset player_state to defaults
-      await adminClient.from('player_state').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const r1 = await adminClient.from('player_state').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (r1.error) failures.push(`player_state: ${r1.error.message}`);
       // Reset leaderboard
-      await adminClient.from('leaderboard_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const r2 = await adminClient.from('leaderboard_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (r2.error) failures.push(`leaderboard_entries: ${r2.error.message}`);
       // Delete gangs
-      await adminClient.from('gangs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const r3 = await adminClient.from('gangs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (r3.error) failures.push(`gangs: ${r3.error.message}`);
       // Reset market prices
-      await adminClient.from('market_prices').update({ current_price: 100, buy_volume: 0, sell_volume: 0, price_trend: 'stable' }).neq('id', '00000000-0000-0000-0000-000000000000');
+      const r4 = await adminClient.from('market_prices').update({ current_price: 100, buy_volume: 0, sell_volume: 0, price_trend: 'stable' }).neq('id', '00000000-0000-0000-0000-000000000000');
+      if (r4.error) failures.push(`market_prices: ${r4.error.message}`);
       // Reset world state
-      await adminClient.from('world_state').update({ world_day: 1, time_of_day: 'day', current_weather: 'clear' }).eq('id', 1);
+      const r5 = await adminClient.from('world_state').update({ world_day: 1, time_of_day: 'day', current_weather: 'clear' }).eq('id', 1);
+      if (r5.error) failures.push(`world_state: ${r5.error.message}`);
       // Reset faction relations
-      await adminClient.from('faction_relations').update({ global_relation: 0, boss_hp: 100, boss_max_hp: 100, conquest_progress: 0, conquest_phase: 'none', status: 'active', conquered_by: null, conquered_at: null, vassal_owner_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      await logAction('global_reset', { tables_cleared: tables.length });
-      return ok({ ok: true, message: 'Global reset complete — alle spelerdata gewist' });
+      const r6 = await adminClient.from('faction_relations').update({ global_relation: 0, boss_hp: 100, boss_max_hp: 100, conquest_progress: 0, conquest_phase: 'none', status: 'active', conquered_by: null, conquered_at: null, vassal_owner_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
+      if (r6.error) failures.push(`faction_relations: ${r6.error.message}`);
+
+      await logAction('global_reset', { tables_cleared: tables.length, failures });
+      return ok({
+        ok: failures.length === 0,
+        message: failures.length === 0
+          ? 'Global reset complete — alle spelerdata gewist'
+          : `Global reset voltooid met ${failures.length} fout(en) — controleer de logs`,
+        failures,
+      });
     }
 
     // ============ FORCE WORLD TICK ============
 
     if (action === 'force_world_tick') {
-      // Call the world-tick function
+      // world-tick now requires the shared CRON_SECRET header (it's a cron-only endpoint —
+      // see its own Deno.serve guard); this admin action is a legitimate caller, so it forwards
+      // the same secret. Also check res.ok before parsing JSON — a non-200/non-JSON response
+      // previously threw an unhandled error inside the try block on `result.phase` access.
       const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/world-tick`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+          'x-cron-secret': Deno.env.get('CRON_SECRET') || '',
+        },
         body: JSON.stringify({ time: new Date().toISOString() }),
       });
-      const result = await res.json();
+      let result: Record<string, unknown>;
+      try {
+        result = await res.json();
+      } catch {
+        return bad(`World tick gaf een ongeldig antwoord (status ${res.status}).`);
+      }
+      if (!res.ok) {
+        await logAction('force_world_tick', { error: result, status: res.status });
+        return bad(`World tick mislukt (status ${res.status}): ${result?.error || 'onbekende fout'}`);
+      }
       await logAction('force_world_tick', result);
       return ok({ ok: true, message: `World tick uitgevoerd: ${result.phase || 'ok'}`, result });
     }
@@ -437,7 +481,13 @@ serve(async (req) => {
       const amount = body.amount || 10000;
       const { data: ps } = await adminClient.from('player_state').select('money').eq('user_id', targetUserId).single();
       if (!ps) return bad('Player state not found');
-      await adminClient.from('player_state').update({ money: Number(ps.money) + amount }).eq('user_id', targetUserId);
+      // Guard the write against the value just read (compare-and-swap): if the player's own
+      // in-game actions changed `money` in the meantime, this update matches zero rows instead
+      // of silently clobbering whatever they just did with a value computed from stale data.
+      const { data: applied } = await adminClient.from('player_state')
+        .update({ money: Number(ps.money) + amount })
+        .eq('user_id', targetUserId).eq('money', ps.money).select('user_id').maybeSingle();
+      if (!applied) return bad('Speler is net gewijzigd door een eigen actie — probeer opnieuw.');
       await logAction('grant_cash', { amount });
       return ok({ ok: true, message: `€${amount.toLocaleString()} toegekend` });
     }
@@ -457,7 +507,10 @@ serve(async (req) => {
         nextXp = Math.floor(nextXp * 1.4);
         sp += 2;
       }
-      await adminClient.from('player_state').update({ xp, level, next_xp: nextXp, skill_points: sp }).eq('user_id', targetUserId);
+      const { data: applied } = await adminClient.from('player_state')
+        .update({ xp, level, next_xp: nextXp, skill_points: sp })
+        .eq('user_id', targetUserId).eq('xp', ps.xp).eq('level', ps.level).select('user_id').maybeSingle();
+      if (!applied) return bad('Speler is net gewijzigd door een eigen actie — probeer opnieuw.');
       await logAction('grant_xp', { amount, newLevel: level });
       return ok({ ok: true, message: `${amount} XP toegekend (nu level ${level})` });
     }
@@ -516,7 +569,8 @@ serve(async (req) => {
       if (!userId || !district) return bad('userId and district required');
       const validDistricts = ['low', 'neon', 'iron', 'port', 'crown'];
       if (!validDistricts.includes(district)) return bad('Invalid district');
-      await adminClient.from('player_state').update({ loc: district }).eq('user_id', userId);
+      const { error } = await adminClient.from('player_state').update({ loc: district }).eq('user_id', userId);
+      if (error) throw error;
       await logAction('teleport_player', { userId, username: tpUser, district });
       return ok({ ok: true, message: `${tpUser || userId} geteleporteerd naar ${district}` });
     }
@@ -550,7 +604,8 @@ serve(async (req) => {
       const updates: Record<string, unknown> = {};
       for (const key of allowed) { if (stats[key] !== undefined) updates[key] = stats[key]; }
       if (Object.keys(updates).length === 0) return bad('No valid fields');
-      await adminClient.from('gangs').update(updates).eq('id', gangId);
+      const { error } = await adminClient.from('gangs').update(updates).eq('id', gangId);
+      if (error) throw error;
       await logAction('edit_gang', { gangId, changes: updates });
       return ok({ ok: true, message: 'Gang updated' });
     }
@@ -558,25 +613,38 @@ serve(async (req) => {
     if (action === 'delete_gang') {
       const { gangId } = body;
       if (!gangId) return bad('gangId required');
-      // Delete related data first
-      await adminClient.from('gang_members').delete().eq('gang_id', gangId);
-      await adminClient.from('gang_chat').delete().eq('gang_id', gangId);
-      await adminClient.from('gang_invites').delete().eq('gang_id', gangId);
-      await adminClient.from('gang_territories').delete().eq('gang_id', gangId);
-      await adminClient.from('gang_wars').delete().or(`attacker_gang_id.eq.${gangId},defender_gang_id.eq.${gangId}`);
-      await adminClient.from('gang_alliances').delete().or(`gang_a_id.eq.${gangId},gang_b_id.eq.${gangId}`);
-      await adminClient.from('gang_story_arcs').delete().eq('gang_id', gangId);
-      await adminClient.from('heist_sessions').delete().eq('gang_id', gangId);
-      await adminClient.from('organized_crimes').delete().eq('gang_id', gangId);
-      await adminClient.from('gangs').delete().eq('id', gangId);
-      await logAction('delete_gang', { gangId });
+      // Delete related data first — collect errors instead of silently continuing, since a
+      // failure partway through (e.g. an FK the cascade order missed) previously still
+      // reported full success even though the gang could be left half-deleted.
+      const deleteFailures: string[] = [];
+      const steps: [string, () => Promise<{ error: unknown }>][] = [
+        ['gang_members', () => adminClient.from('gang_members').delete().eq('gang_id', gangId)],
+        ['gang_chat', () => adminClient.from('gang_chat').delete().eq('gang_id', gangId)],
+        ['gang_invites', () => adminClient.from('gang_invites').delete().eq('gang_id', gangId)],
+        ['gang_territories', () => adminClient.from('gang_territories').delete().eq('gang_id', gangId)],
+        ['gang_wars', () => adminClient.from('gang_wars').delete().or(`attacker_gang_id.eq.${gangId},defender_gang_id.eq.${gangId}`)],
+        ['gang_alliances', () => adminClient.from('gang_alliances').delete().or(`gang_a_id.eq.${gangId},gang_b_id.eq.${gangId}`)],
+        ['gang_story_arcs', () => adminClient.from('gang_story_arcs').delete().eq('gang_id', gangId)],
+        ['heist_sessions', () => adminClient.from('heist_sessions').delete().eq('gang_id', gangId)],
+        ['organized_crimes', () => adminClient.from('organized_crimes').delete().eq('gang_id', gangId)],
+        ['gangs', () => adminClient.from('gangs').delete().eq('id', gangId)],
+      ];
+      for (const [table, run] of steps) {
+        const { error } = await run();
+        if (error) deleteFailures.push(`${table}: ${(error as { message?: string })?.message || 'unknown error'}`);
+      }
+      await logAction('delete_gang', { gangId, failures: deleteFailures });
+      if (deleteFailures.length > 0) {
+        return ok({ ok: false, message: `Gang deletion had ${deleteFailures.length} error(s) — check logs`, failures: deleteFailures });
+      }
       return ok({ ok: true, message: 'Gang and all related data deleted' });
     }
 
     if (action === 'kick_gang_member') {
       const { gangId, userId: kickUserId } = body;
       if (!gangId || !kickUserId) return bad('gangId and userId required');
-      await adminClient.from('gang_members').delete().eq('gang_id', gangId).eq('user_id', kickUserId);
+      const { error } = await adminClient.from('gang_members').delete().eq('gang_id', gangId).eq('user_id', kickUserId);
+      if (error) throw error;
       await logAction('kick_gang_member', { gangId, userId: kickUserId });
       return ok({ ok: true, message: 'Member kicked' });
     }
@@ -584,7 +652,8 @@ serve(async (req) => {
     if (action === 'promote_gang_member') {
       const { gangId, userId: promoteUserId, newRole } = body;
       if (!gangId || !promoteUserId || !newRole) return bad('gangId, userId and newRole required');
-      await adminClient.from('gang_members').update({ role: newRole }).eq('gang_id', gangId).eq('user_id', promoteUserId);
+      const { error } = await adminClient.from('gang_members').update({ role: newRole }).eq('gang_id', gangId).eq('user_id', promoteUserId);
+      if (error) throw error;
       await logAction('promote_gang_member', { gangId, userId: promoteUserId, newRole });
       return ok({ ok: true, message: `Promoted to ${newRole}` });
     }
@@ -602,7 +671,8 @@ serve(async (req) => {
     if (action === 'end_gang_war') {
       const { warId } = body;
       if (!warId) return bad('warId required');
-      await adminClient.from('gang_wars').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', warId);
+      const { error } = await adminClient.from('gang_wars').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', warId);
+      if (error) throw error;
       await logAction('end_gang_war', { warId });
       return ok({ ok: true, message: 'War ended' });
     }
@@ -620,7 +690,8 @@ serve(async (req) => {
     if (action === 'delete_alliance') {
       const { allianceId } = body;
       if (!allianceId) return bad('allianceId required');
-      await adminClient.from('gang_alliances').delete().eq('id', allianceId);
+      const { error } = await adminClient.from('gang_alliances').delete().eq('id', allianceId);
+      if (error) throw error;
       await logAction('delete_alliance', { allianceId });
       return ok({ ok: true, message: 'Alliance deleted' });
     }
@@ -639,16 +710,18 @@ serve(async (req) => {
       const updates: Record<string, unknown> = {};
       for (const key of allowed) { if (stats[key] !== undefined) updates[key] = stats[key]; }
       if (Object.keys(updates).length === 0) return bad('No valid fields');
-      await adminClient.from('faction_relations').update(updates).eq('id', factionId);
+      const { error } = await adminClient.from('faction_relations').update(updates).eq('id', factionId);
+      if (error) throw error;
       await logAction('edit_faction', { factionId, changes: updates });
       return ok({ ok: true, message: 'Faction updated' });
     }
 
     if (action === 'reset_all_faction_bosses') {
-      await adminClient.from('faction_relations').update({
+      const { error } = await adminClient.from('faction_relations').update({
         boss_hp: 100, boss_max_hp: 100, conquest_progress: 0, conquest_phase: 'none', status: 'active',
         conquered_by: null, conquered_at: null, vassal_owner_id: null,
       }).neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
       await logAction('reset_all_faction_bosses');
       return ok({ ok: true, message: 'All faction bosses reset' });
     }
@@ -669,7 +742,8 @@ serve(async (req) => {
     if (action === 'delete_bounty') {
       const { bountyId } = body;
       if (!bountyId) return bad('bountyId required');
-      await adminClient.from('player_bounties').delete().eq('id', bountyId);
+      const { error } = await adminClient.from('player_bounties').delete().eq('id', bountyId);
+      if (error) throw error;
       await logAction('delete_bounty', { bountyId });
       return ok({ ok: true, message: 'Bounty deleted' });
     }
@@ -682,7 +756,8 @@ serve(async (req) => {
     if (action === 'cancel_auction') {
       const { auctionId } = body;
       if (!auctionId) return bad('auctionId required');
-      await adminClient.from('live_auctions').update({ status: 'cancelled' }).eq('id', auctionId);
+      const { error } = await adminClient.from('live_auctions').update({ status: 'cancelled' }).eq('id', auctionId);
+      if (error) throw error;
       await logAction('cancel_auction', { auctionId });
       return ok({ ok: true, message: 'Auction cancelled' });
     }
@@ -861,7 +936,8 @@ serve(async (req) => {
 
     if (action === 'delete_player_villa') {
       if (!targetUserId) return bad('userId required');
-      await adminClient.from('player_villa').delete().eq('user_id', targetUserId);
+      const { error } = await adminClient.from('player_villa').delete().eq('user_id', targetUserId);
+      if (error) throw error;
       await logAction('delete_player_villa', { targetUserId });
       return ok({ ok: true, message: 'Villa deleted' });
     }
@@ -876,9 +952,10 @@ serve(async (req) => {
     if (action === 'resolve_tribunal_case') {
       const { caseId, verdict: caseVerdict } = body;
       if (!caseId || !caseVerdict) return bad('caseId and verdict required');
-      await adminClient.from('tribunal_cases').update({
+      const { error } = await adminClient.from('tribunal_cases').update({
         status: 'resolved', verdict: caseVerdict, resolved_at: new Date().toISOString(),
       }).eq('id', caseId);
+      if (error) throw error;
       await logAction('resolve_tribunal_case', { caseId, verdict: caseVerdict });
       return ok({ ok: true, message: 'Case resolved' });
     }
@@ -886,8 +963,10 @@ serve(async (req) => {
     if (action === 'delete_tribunal_case') {
       const { caseId } = body;
       if (!caseId) return bad('caseId required');
-      await adminClient.from('tribunal_votes').delete().eq('case_id', caseId);
-      await adminClient.from('tribunal_cases').delete().eq('id', caseId);
+      const { error: votesErr } = await adminClient.from('tribunal_votes').delete().eq('case_id', caseId);
+      if (votesErr) throw votesErr;
+      const { error: caseErr } = await adminClient.from('tribunal_cases').delete().eq('id', caseId);
+      if (caseErr) throw caseErr;
       await logAction('delete_tribunal_case', { caseId });
       return ok({ ok: true, message: 'Case and votes deleted' });
     }
@@ -902,7 +981,8 @@ serve(async (req) => {
     if (action === 'cancel_trade_offer') {
       const { offerId } = body;
       if (!offerId) return bad('offerId required');
-      await adminClient.from('trade_offers').update({ status: 'cancelled' }).eq('id', offerId);
+      const { error } = await adminClient.from('trade_offers').update({ status: 'cancelled' }).eq('id', offerId);
+      if (error) throw error;
       await logAction('cancel_trade_offer', { offerId });
       return ok({ ok: true, message: 'Trade offer cancelled' });
     }
@@ -1103,7 +1183,8 @@ serve(async (req) => {
     if (action === 'delete_gang_mole') {
       const { moleId } = body;
       if (!moleId) return bad('moleId required');
-      await adminClient.from('gang_moles').delete().eq('id', moleId);
+      const { error } = await adminClient.from('gang_moles').delete().eq('id', moleId);
+      if (error) throw error;
       await logAction('delete_gang_mole', { moleId });
       return ok({ ok: true, message: 'Mole deleted' });
     }

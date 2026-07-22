@@ -95,6 +95,7 @@ type GameAction =
   | { type: 'TRAVEL'; to: DistrictId }
   | { type: 'BUY_DISTRICT'; id: DistrictId }
   | { type: 'SPEND_MONEY'; amount: number }
+  | { type: 'TRAVEL_SELL_GOODS'; revenue: number }
   // END_TURN removed — MMO uses AUTO_TICK only
   | { type: 'DISMISS_NIGHT_REPORT' }
   | { type: 'RECRUIT' }
@@ -647,6 +648,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.money < amt) return s;
       s.money -= amt;
       s.stats.totalSpent += amt;
+      return s;
+    }
+
+    case 'TRAVEL_SELL_GOODS': {
+      // Liquidates goods bought abroad (useTravel.ts) at their sellPrice — this table isn't
+      // part of state.inventory (the travel goods use their own exotic ids like 'swiss_gold',
+      // not GoodId), so the round-trip profit is credited directly here instead.
+      const revenue = action.revenue || 0;
+      if (revenue > 0) {
+        s.money += revenue;
+        s.stats.totalEarned += revenue;
+      }
       return s;
     }
 
