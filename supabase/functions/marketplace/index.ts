@@ -71,12 +71,32 @@ Deno.serve(async (req) => {
       // ========== BUY FROM MARKETPLACE ==========
       case "buy_listing": {
         const { listingId } = params;
-        const { data: listing } = await supabase.from("market_listings").select("*").eq("id", listingId).eq("status", "active").single();
-        if (!listing) return json({ error: "Listing not found or expired" }, 404);
-        if (listing.seller_id === user.id) return json({ error: "Cannot buy your own listing" }, 400);
+
+        // Atomically claim the listing by flipping active -> sold in one conditional UPDATE.
+        // Reading the row first and only marking it sold at the very end (as before) left a
+        // window where two concurrent buy_listing calls could both pass the "active" check
+        // before either wrote back — both buyers get charged/receive goods and the seller
+        // gets paid twice for one real listing. A row-level UPDATE ... WHERE status='active'
+        // is atomic: only one concurrent request can ever match and claim it.
+        const { data: listing, error: claimErr } = await supabase
+          .from("market_listings")
+          .update({ status: "sold" })
+          .eq("id", listingId)
+          .eq("status", "active")
+          .select()
+          .maybeSingle();
+        if (claimErr || !listing) return json({ error: "Listing not found or expired" }, 404);
+
+        if (listing.seller_id === user.id) {
+          await supabase.from("market_listings").update({ status: "active" }).eq("id", listingId);
+          return json({ error: "Cannot buy your own listing" }, 400);
+        }
 
         const totalCost = listing.price_per_unit * listing.quantity;
-        if (playerState.money < totalCost) return json({ error: "Not enough money" }, 400);
+        if (playerState.money < totalCost) {
+          await supabase.from("market_listings").update({ status: "active" }).eq("id", listingId);
+          return json({ error: "Not enough money" }, 400);
+        }
 
         // Deduct money from buyer
         await supabase.from("player_state").update({ money: playerState.money - totalCost }).eq("user_id", user.id);
@@ -97,8 +117,7 @@ Deno.serve(async (req) => {
           await supabase.from("player_inventory").insert({ user_id: user.id, good_id: listing.good_id, quantity: listing.quantity, avg_cost: listing.price_per_unit });
         }
 
-        // Mark listing as sold
-        await supabase.from("market_listings").update({ status: "sold" }).eq("id", listingId);
+        // Listing was already atomically marked "sold" when it was claimed above.
 
         // Log trade for price influence
         await supabase.from("market_player_trades").insert({

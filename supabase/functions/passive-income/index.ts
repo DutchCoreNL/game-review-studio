@@ -133,6 +133,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // This function grants passive income and ticks the market to every player and is meant to
+    // be invoked only by the scheduled cron job — it is not called from the client at all
+    // (`verify_jwt = false` in config.toml means Supabase's gateway lets anyone call it with no
+    // token). Without this check, anyone with the project URL could call it repeatedly to grant
+    // the whole player base unlimited income. The scheduled job must send this header; set the
+    // matching secret via `supabase secrets set CRON_SECRET=...`.
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

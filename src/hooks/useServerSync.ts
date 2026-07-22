@@ -10,6 +10,12 @@ const SERVER_ACTIONS = new Set([
   'BRIBE_POLICE', 'BUY_BUSINESS',
 ]);
 
+/** Actions that spend merit/stat points locally (no edge-function round trip) but
+ *  must be flushed to the cloud save before any subsequent economy merge — otherwise
+ *  a later get_state merge restores the server's stale merit_points/stat_points and
+ *  silently un-does the spend while keeping the purchased bonus. */
+const LOCAL_SPEND_ACTIONS = new Set(['UPGRADE_MERIT_NODE', 'UPGRADE_STAT']);
+
 /** Actions that modify economy — need full economic merge from server */
 const ECONOMY_ACTIONS = new Set([
   'TRADE', 'BUY_GEAR', 'BUY_VEHICLE', 'WASH_MONEY', 'WASH_MONEY_AMOUNT',
@@ -56,6 +62,9 @@ export function useServerSync(
   const cloudSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef<GameState | null>(null);
   const stateDirtyRef = useRef(false);
+  // True while a local merit/stat spend hasn't been confirmed saved to the cloud yet —
+  // guards against a concurrent economy merge reverting the spend (see LOCAL_SPEND_ACTIONS).
+  const pendingMeritStatSaveRef = useRef(false);
 
   // Keep a ref to the latest state — called on EVERY state change (not debounced)
   const updateStateRef = useCallback((state: GameState) => {
@@ -70,12 +79,12 @@ export function useServerSync(
     try {
       const result = await invokeGameAction('get_state');
       if (result.success && result.data) {
-        mergeServerState(localDispatch, result.data, cloudSaveLoadedRef.current);
+        mergeServerState(localDispatch, result.data, cloudSaveLoadedRef.current, pendingMeritStatSaveRef.current);
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else if (!result.success && result.message?.includes('Geen spelerstaat')) {
         const initResult = await invokeGameAction('init_player');
         if (initResult.success && initResult.data) {
-          mergeServerState(localDispatch, initResult.data, cloudSaveLoadedRef.current);
+          mergeServerState(localDispatch, initResult.data, cloudSaveLoadedRef.current, pendingMeritStatSaveRef.current);
         }
         setSyncState(s => ({ ...s, loading: false, lastSync: new Date() }));
       } else {
@@ -172,6 +181,19 @@ export function useServerSync(
 
   // Server-aware dispatch: intercepts server actions
   const serverDispatch = useCallback(async (action: any) => {
+    if (user && LOCAL_SPEND_ACTIONS.has(action.type)) {
+      localDispatch(action);
+      pendingMeritStatSaveRef.current = true;
+      // Give the stateRef effect time to pick up the post-spend state (mirrors the
+      // 500ms delay used after economy actions below) before pushing it to the cloud.
+      setTimeout(() => {
+        saveToCloud().finally(() => {
+          pendingMeritStatSaveRef.current = false;
+        });
+      }, 500);
+      return;
+    }
+
     if (!user || !SERVER_ACTIONS.has(action.type)) {
       localDispatch(action);
       return;
@@ -195,7 +217,7 @@ export function useServerSync(
         const isEconAction = ECONOMY_ACTIONS.has(action.type);
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
-          mergeServerState(localDispatch, stateResult.data, !isEconAction);
+          mergeServerState(localDispatch, stateResult.data, !isEconAction, pendingMeritStatSaveRef.current);
         }
         // Trigger immediate cloud save after economy actions to keep save_data in sync
         if (isEconAction) {
@@ -206,7 +228,7 @@ export function useServerSync(
         // Server rejected — full revert: merge everything including economy
         const stateResult = await invokeGameAction('get_state');
         if (stateResult.success && stateResult.data) {
-          mergeServerState(localDispatch, stateResult.data, false);
+          mergeServerState(localDispatch, stateResult.data, false, pendingMeritStatSaveRef.current);
         }
       }
     } catch (e: any) {
@@ -220,8 +242,11 @@ export function useServerSync(
 
 /** Merge server get_state response into local GameState via MERGE_SERVER_STATE dispatch.
  *  When skipEconomy is true (cloud save already loaded or non-economy action), we skip
- *  money/inventory/gear etc. to prevent overwriting recent local values. */
-function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>, skipEconomy = false) {
+ *  money/inventory/gear etc. to prevent overwriting recent local values.
+ *  When skipMeritStat is true, meritPoints/statPoints are additionally excluded even if
+ *  skipEconomy is false — used while a local merit/stat spend hasn't been confirmed
+ *  saved to the cloud yet, so the server's stale row can't revert it (see LOCAL_SPEND_ACTIONS). */
+function mergeServerState(dispatch: (action: any) => void, data: Record<string, any>, skipEconomy = false, skipMeritStat = false) {
   const ps = data.playerState || data;
 
   // Build inventory map from server's player_inventory rows
@@ -257,7 +282,7 @@ function mergeServerState(dispatch: (action: any) => void, data: Record<string, 
         playerHP: ps.hp ?? undefined,
         playerMaxHP: ps.max_hp ?? undefined,
         endgamePhase: ps.endgame_phase ?? undefined,
-        meritPoints: ps.merit_points ?? undefined,
+        meritPoints: skipMeritStat ? undefined : (ps.merit_points ?? undefined),
         inventory: inventoryData,
         inventoryCosts: inventoryCostsData,
         ownedGear: ownedGearData,
@@ -266,8 +291,11 @@ function mergeServerState(dispatch: (action: any) => void, data: Record<string, 
           xp: ps.xp ?? undefined,
           nextXp: ps.next_xp ?? undefined,
           skillPoints: ps.skill_points ?? undefined,
-          statPoints: ps.stat_points ?? undefined,
-          stats: ps.stats ?? undefined,
+          statPoints: skipMeritStat ? undefined : (ps.stat_points ?? undefined),
+          // `stats` holds the invested stat values themselves (incremented by UPGRADE_STAT) —
+          // must be excluded together with statPoints or the raw stat gain would be reverted
+          // even though the currency is protected.
+          stats: skipMeritStat ? undefined : (ps.stats ?? undefined),
           loadout: ps.loadout ?? undefined,
         },
       }),

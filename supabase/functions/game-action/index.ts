@@ -728,20 +728,50 @@ async function handleInitPlayer(supabase: any, userId: string): Promise<ActionRe
   return { success: true, message: "Nieuwe speler aangemaakt!", data: { existing: false } };
 }
 
+// ========== SAVE DATA VALIDATION ==========
+// The client submits its full local game state as a single JSON blob (save_data) and we
+// mirror the security-sensitive counters into dedicated columns. Without any bounds
+// checking, a client can set arbitrary values here (e.g. money: 999999999, level: 99,
+// statPoints: 99999, meritPoints: 999999) and instantly max out its own economy — every
+// other handler in this file trusts these columns as ground truth. This does not make
+// save_state fully server-authoritative (that would require deriving these values from a
+// transaction ledger instead of a client-submitted blob), but it closes the direct
+// out-of-range injection path by clamping to the same generous ceilings the game's own
+// progression design allows (see LEVEL_MILESTONES / MERIT_NODES on the client).
+const SAVE_LIMITS = {
+  money: { min: 0, max: 100_000_000 },
+  dirtyMoney: { min: 0, max: 100_000_000 },
+  debt: { min: 0, max: 50_000_000 },
+  rep: { min: 0, max: 1_000_000 },
+  karma: { min: -100, max: 100 },
+  day: { min: 1, max: 99_999 },
+  level: { min: 1, max: 50 },
+  xp: { min: 0, max: 10_000_000 },
+  nextXp: { min: 1, max: 10_000_000 },
+  skillPoints: { min: 0, max: 200 },
+  statPoints: { min: 0, max: 200 },
+  meritPoints: { min: 0, max: 500 },
+};
+
+function clampSaveNum(val: unknown, bounds: { min: number; max: number }): number | undefined {
+  if (typeof val !== "number" || !Number.isFinite(val)) return undefined;
+  return Math.min(bounds.max, Math.max(bounds.min, Math.floor(val)));
+}
+
 // ========== SYNC HELPER: keep player_state columns + relational tables in sync with save_data ==========
 
 async function syncStateFromSaveData(supabase: any, userId: string, sd: any) {
   try {
     // 1) Sync player_state core columns from save_data
     const stateUpdate: Record<string, any> = {};
-    if (sd.money !== undefined) stateUpdate.money = sd.money;
-    if (sd.dirtyMoney !== undefined) stateUpdate.dirty_money = sd.dirtyMoney;
-    if (sd.debt !== undefined) stateUpdate.debt = sd.debt;
-    if (sd.rep !== undefined) stateUpdate.rep = sd.rep;
-    if (sd.karma !== undefined) stateUpdate.karma = sd.karma;
+    if (sd.money !== undefined) stateUpdate.money = clampSaveNum(sd.money, SAVE_LIMITS.money) ?? 0;
+    if (sd.dirtyMoney !== undefined) stateUpdate.dirty_money = clampSaveNum(sd.dirtyMoney, SAVE_LIMITS.dirtyMoney) ?? 0;
+    if (sd.debt !== undefined) stateUpdate.debt = clampSaveNum(sd.debt, SAVE_LIMITS.debt) ?? 0;
+    if (sd.rep !== undefined) stateUpdate.rep = clampSaveNum(sd.rep, SAVE_LIMITS.rep) ?? 0;
+    if (sd.karma !== undefined) stateUpdate.karma = clampSaveNum(sd.karma, SAVE_LIMITS.karma) ?? 0;
     if (sd.playerHP !== undefined) stateUpdate.hp = sd.playerHP;
     if (sd.playerMaxHP !== undefined) stateUpdate.max_hp = sd.playerMaxHP;
-    if (sd.day !== undefined) stateUpdate.day = sd.day;
+    if (sd.day !== undefined) stateUpdate.day = clampSaveNum(sd.day, SAVE_LIMITS.day) ?? 1;
     if (sd.loc !== undefined) stateUpdate.loc = sd.loc;
     if (sd.energy !== undefined) stateUpdate.energy = sd.energy;
     if (sd.maxEnergy !== undefined) stateUpdate.max_energy = sd.maxEnergy;
@@ -752,15 +782,15 @@ async function syncStateFromSaveData(supabase: any, userId: string, sd: any) {
     if (sd.policeRel !== undefined) stateUpdate.police_rel = sd.policeRel;
     if (sd.washUsedToday !== undefined) stateUpdate.wash_used_today = sd.washUsedToday;
     if (sd.player) {
-      if (sd.player.level !== undefined) stateUpdate.level = sd.player.level;
-      if (sd.player.xp !== undefined) stateUpdate.xp = sd.player.xp;
-      if (sd.player.nextXp !== undefined) stateUpdate.next_xp = sd.player.nextXp;
-      if (sd.player.skillPoints !== undefined) stateUpdate.skill_points = sd.player.skillPoints;
-      if (sd.player.statPoints !== undefined) stateUpdate.stat_points = sd.player.statPoints;
+      if (sd.player.level !== undefined) stateUpdate.level = clampSaveNum(sd.player.level, SAVE_LIMITS.level) ?? 1;
+      if (sd.player.xp !== undefined) stateUpdate.xp = clampSaveNum(sd.player.xp, SAVE_LIMITS.xp) ?? 0;
+      if (sd.player.nextXp !== undefined) stateUpdate.next_xp = clampSaveNum(sd.player.nextXp, SAVE_LIMITS.nextXp) ?? 100;
+      if (sd.player.skillPoints !== undefined) stateUpdate.skill_points = clampSaveNum(sd.player.skillPoints, SAVE_LIMITS.skillPoints) ?? 0;
+      if (sd.player.statPoints !== undefined) stateUpdate.stat_points = clampSaveNum(sd.player.statPoints, SAVE_LIMITS.statPoints) ?? 0;
       if (sd.player.stats) stateUpdate.stats = sd.player.stats;
       if (sd.player.loadout) stateUpdate.loadout = sd.player.loadout;
     }
-    if (sd.meritPoints !== undefined) stateUpdate.merit_points = sd.meritPoints;
+    if (sd.meritPoints !== undefined) stateUpdate.merit_points = clampSaveNum(sd.meritPoints, SAVE_LIMITS.meritPoints) ?? 0;
 
     if (Object.keys(stateUpdate).length > 0) {
       await supabase.from("player_state").update(stateUpdate).eq("user_id", userId);
@@ -814,6 +844,24 @@ async function handleSaveState(supabase: any, userId: string, payload: { saveDat
   delete cleanData.pendingMinigame;
   delete cleanData.screenEffect;
 
+  // Clamp economy-sensitive fields in the stored blob itself — load_state and process-turn's
+  // single-player mode read save_data directly, so clamping only the derived columns below
+  // would leave this raw JSON blob (and anything that trusts it) unprotected.
+  if (cleanData.money !== undefined) cleanData.money = clampSaveNum(cleanData.money, SAVE_LIMITS.money) ?? 0;
+  if (cleanData.dirtyMoney !== undefined) cleanData.dirtyMoney = clampSaveNum(cleanData.dirtyMoney, SAVE_LIMITS.dirtyMoney) ?? 0;
+  if (cleanData.debt !== undefined) cleanData.debt = clampSaveNum(cleanData.debt, SAVE_LIMITS.debt) ?? 0;
+  if (cleanData.rep !== undefined) cleanData.rep = clampSaveNum(cleanData.rep, SAVE_LIMITS.rep) ?? 0;
+  if (cleanData.karma !== undefined) cleanData.karma = clampSaveNum(cleanData.karma, SAVE_LIMITS.karma) ?? 0;
+  if (cleanData.day !== undefined) cleanData.day = clampSaveNum(cleanData.day, SAVE_LIMITS.day) ?? 1;
+  if (cleanData.player) {
+    if (cleanData.player.level !== undefined) cleanData.player.level = clampSaveNum(cleanData.player.level, SAVE_LIMITS.level) ?? 1;
+    if (cleanData.player.xp !== undefined) cleanData.player.xp = clampSaveNum(cleanData.player.xp, SAVE_LIMITS.xp) ?? 0;
+    if (cleanData.player.nextXp !== undefined) cleanData.player.nextXp = clampSaveNum(cleanData.player.nextXp, SAVE_LIMITS.nextXp) ?? 100;
+    if (cleanData.player.skillPoints !== undefined) cleanData.player.skillPoints = clampSaveNum(cleanData.player.skillPoints, SAVE_LIMITS.skillPoints) ?? 0;
+    if (cleanData.player.statPoints !== undefined) cleanData.player.statPoints = clampSaveNum(cleanData.player.statPoints, SAVE_LIMITS.statPoints) ?? 0;
+  }
+  if (cleanData.meritPoints !== undefined) cleanData.meritPoints = clampSaveNum(cleanData.meritPoints, SAVE_LIMITS.meritPoints) ?? 0;
+
   // Check if player_state row exists; create if not
   const { data: existing } = await supabase.from("player_state")
     .select("save_version").eq("user_id", userId).maybeSingle();
@@ -830,7 +878,7 @@ async function handleSaveState(supabase: any, userId: string, payload: { saveDat
     save_data: cleanData,
     save_version: newVersion,
     last_save_at: new Date().toISOString(),
-    day: payload.day || cleanData.day || 1,
+    day: clampSaveNum(payload.day || cleanData.day, SAVE_LIMITS.day) ?? 1,
   }).eq("user_id", userId);
 
   if (error) return { success: false, message: `Save mislukt: ${error.message}` };

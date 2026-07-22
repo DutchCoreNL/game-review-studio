@@ -2993,6 +2993,44 @@ async function generateServerDistrictEvents(supabase: any, phase: string, weathe
 
 // ========== MOL DETECTIE & INTEL ==========
 
+// Grants rested XP to offline players based on real elapsed time since it was last granted
+// to them (rested_xp_synced_at), not on how often this tick happens to be invoked. The old
+// version derived the gain from last_action_at capped at 0.5h, so a still-offline player
+// received the same near-max gain on every single invocation of this function — since
+// world-tick runs far more often than once per 30 minutes (bots/moles processing on every
+// call), that let rested_xp balloon far faster than intended. Tracking a per-player sync
+// timestamp makes the accrual rate constant regardless of tick frequency.
+async function grantRestedXp(supabase: any) {
+  try {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: offlinePlayers } = await supabase.from('player_state')
+      .select('user_id, rested_xp, rested_xp_synced_at')
+      .lt('last_action_at', thirtyMinAgo)
+      .lt('rested_xp', 5000)
+      .limit(200);
+    if (!offlinePlayers || offlinePlayers.length === 0) return;
+
+    for (const p of offlinePlayers) {
+      const lastSync = p.rested_xp_synced_at ? new Date(p.rested_xp_synced_at).getTime() : Date.now();
+      const hoursSinceSync = (Date.now() - lastSync) / 3600000;
+      // Only grant once at least 30 minutes of real time has passed since the last grant,
+      // so re-invoking the tick sooner than that is a no-op instead of a duplicate reward.
+      if (hoursSinceSync < 0.5) continue;
+
+      // Matches the original design rate of +12 rested_xp per 30 minutes offline (~24/hour).
+      const cappedHours = Math.min(24, hoursSinceSync);
+      const gain = Math.floor(24 * cappedHours);
+      if (gain > 0) {
+        const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
+        await supabase.from('player_state').update({
+          rested_xp: newRested,
+          rested_xp_synced_at: new Date().toISOString(),
+        }).eq('user_id', p.user_id);
+      }
+    }
+  } catch (e) { console.error('Rested XP error:', e); }
+}
+
 async function processMoles(supabase: any) {
   try {
     // Get all active moles
@@ -3126,6 +3164,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Meant to be invoked only by the scheduled cron job, never by the client (`verify_jwt =
+    // false` in config.toml means Supabase's gateway lets anyone call it with no token).
+    // Without this check, anyone with the project URL could call it repeatedly to farm rested
+    // XP / bot activity or spam world-day advancement. The scheduled job must send this header;
+    // set the matching secret via `supabase secrets set CRON_SECRET=...`.
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -3153,26 +3203,7 @@ Deno.serve(async (req) => {
     if (!phaseChanged) {
       // Still process moles, rested XP, bots etc. on each tick
       await processMoles(supabase);
-      
-      // Rested XP
-      try {
-        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-        const { data: offlinePlayers } = await supabase.from('player_state')
-          .select('user_id, rested_xp, last_action_at')
-          .lt('last_action_at', thirtyMinAgo)
-          .lt('rested_xp', 5000)
-          .limit(200);
-        if (offlinePlayers && offlinePlayers.length > 0) {
-          for (const p of offlinePlayers) {
-            const hoursOffline = Math.min(24, (Date.now() - new Date(p.last_action_at).getTime()) / 3600000);
-            const gain = Math.floor(25 * Math.min(hoursOffline, 0.5));
-            if (gain > 0) {
-              const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
-              await supabase.from('player_state').update({ rested_xp: newRested }).eq('user_id', p.user_id);
-            }
-          }
-        }
-      } catch (e) { console.error('Rested XP error:', e); }
+      await grantRestedXp(supabase);
 
       await simulateBots(supabase, ws.time_of_day, ws.world_day);
 
@@ -3289,24 +3320,7 @@ Deno.serve(async (req) => {
     await processMoles(supabase);
 
     // ========== RESTED XP ACCUMULATION ==========
-    try {
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      const { data: offlinePlayers } = await supabase.from('player_state')
-        .select('user_id, rested_xp, last_action_at')
-        .lt('last_action_at', thirtyMinAgo)
-        .lt('rested_xp', 5000)
-        .limit(200);
-      if (offlinePlayers && offlinePlayers.length > 0) {
-        for (const p of offlinePlayers) {
-          const hoursOffline = Math.min(24, (Date.now() - new Date(p.last_action_at).getTime()) / 3600000);
-          const gain = Math.floor(25 * Math.min(hoursOffline, 0.5));
-          if (gain > 0) {
-            const newRested = Math.min(5000, (p.rested_xp || 0) + gain);
-            await supabase.from('player_state').update({ rested_xp: newRested }).eq('user_id', p.user_id);
-          }
-        }
-      }
-    } catch (e) { console.error('Rested XP error:', e); }
+    await grantRestedXp(supabase);
 
     // ========== SIMULATE BOT ACTIVITY ==========
     await simulateBots(supabase, nextPhase, resolvedDay);

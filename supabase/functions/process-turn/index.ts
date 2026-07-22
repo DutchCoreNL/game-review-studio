@@ -929,8 +929,21 @@ Deno.serve(async (req) => {
     
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || "single"; // "single" (player-triggered) or "batch" (cron)
-    
+
     if (mode === "batch") {
+      // Batch mode processes every active player's turn and is meant to be invoked only by
+      // the scheduled cron job — it previously had no admin/secret check at all (the anon key
+      // shipped in the client bundle is enough to satisfy Supabase's generic verify_jwt gate),
+      // so anyone could call it repeatedly to duplicate day-advance rewards for the whole
+      // player base. The scheduled job must send this header; set the matching secret via
+      // `supabase secrets set CRON_SECRET=...`.
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+        return new Response(JSON.stringify({ success: false, message: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Process all active players (called by cron/passive-income)
       const { data: players } = await supabase.from("player_state")
         .select("user_id, save_data, day, game_over")
