@@ -151,6 +151,8 @@ export function PvPCombatView() {
   const [lastDamage, setLastDamage] = useState<{ value: number; type: 'dealt' | 'taken' | 'heal' | 'crit'; key: number } | null>(null);
   const damageKey = useRef(0);
   const prevFinished = useRef(false);
+  const prevAttackerHP = useRef(combat?.attackerHP);
+  const prevDefenderHP = useRef(combat?.defenderHP);
 
   useEffect(() => {
     if (combat?.finished && !prevFinished.current) {
@@ -159,31 +161,33 @@ export function PvPCombatView() {
     prevFinished.current = combat?.finished ?? false;
   }, [combat?.finished, combat?.won]);
 
+  // Damage popups — must live in a useEffect (not a setTimeout inside the click handler),
+  // since a setTimeout callback closes over the `combat`/`state` from the render it was
+  // created in and never sees the post-dispatch value, so the "-X"/"+X" floating numbers
+  // never appeared. A useEffect keyed on the HP fields always re-runs with the current combat
+  // state once the reducer actually applies it (mirrors CombatView.tsx's ActiveCombat).
+  useEffect(() => {
+    if (!combat) return;
+    const dmgDealt = (prevDefenderHP.current ?? combat.defenderHP) - combat.defenderHP;
+    const dmgTaken = (prevAttackerHP.current ?? combat.attackerHP) - combat.attackerHP;
+    if (dmgDealt > 0) {
+      damageKey.current++;
+      setLastDamage({ value: dmgDealt, type: dmgDealt > 20 ? 'crit' : 'dealt', key: damageKey.current });
+    } else if (dmgTaken > 0) {
+      damageKey.current++;
+      setLastDamage({ value: dmgTaken, type: 'taken', key: damageKey.current });
+    }
+    prevAttackerHP.current = combat.attackerHP;
+    prevDefenderHP.current = combat.defenderHP;
+  }, [combat?.attackerHP, combat?.defenderHP]);
+
   if (!combat) return null;
 
   const availableSkills = getAvailableSkills(combat.attackerLevel);
   const comboReady = combat.attackerComboCounter >= COMBO_THRESHOLD;
 
   const handleAction = (action: 'attack' | 'heavy' | 'defend' | 'combo_finisher', skillId?: string) => {
-    const hpBefore = combat.attackerHP;
-    const enemyHpBefore = combat.defenderHP;
-
     dispatch({ type: 'PVP_COMBAT_ACTION', action, skillId });
-
-    // Show damage popup after state update
-    setTimeout(() => {
-      const newCombat = state.activePvPCombat;
-      if (!newCombat) return;
-      const dmgDealt = enemyHpBefore - newCombat.defenderHP;
-      const dmgTaken = hpBefore - newCombat.attackerHP;
-      if (dmgDealt > 0) {
-        damageKey.current++;
-        setLastDamage({ value: dmgDealt, type: dmgDealt > 20 ? 'crit' : 'dealt', key: damageKey.current });
-      } else if (dmgTaken > 0) {
-        damageKey.current++;
-        setLastDamage({ value: dmgTaken, type: 'taken', key: damageKey.current });
-      }
-    }, 50);
   };
 
   return (

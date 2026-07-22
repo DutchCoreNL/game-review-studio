@@ -28,7 +28,7 @@ export interface VillaState {
   vaultMoney: number; // money stored safely
   storedGoods: Partial<Record<GoodId, number>>; // goods stored safely
   storedAmmo: number;
-  helipadUsedToday: boolean;
+  helipadUsedToday: number; // uses today (see getMaxHelipadUses — 1 normally, 2 with prestige)
   purchaseDay: number;
   lastPartyDay: number; // day when last party was thrown (cooldown)
 }

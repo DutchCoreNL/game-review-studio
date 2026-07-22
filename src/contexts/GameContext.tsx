@@ -5,7 +5,7 @@ import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { MERIT_NODES, canUnlockMeritNode } from '../game/meritSystem';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
-import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction } from '../game/villa';
+import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction, canUseHelipad } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
 import * as MissionEngine from '../game/missions';
@@ -514,7 +514,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const moneyBefore = s.money;
       const invBefore = s.inventory[action.gid] || 0;
       const avgCostBefore = s.inventoryCosts[action.gid] || 0;
-      Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
+      const tradeResult = Engine.performTrade(s, action.gid, action.mode, action.quantity || 1);
+      // performTrade no-ops (no money/inventory change) when the trade can't go through, e.g.
+      // selling with empty inventory or buying with a full trunk/no capital — previously the
+      // heat/rep/daily-challenge side effects below still applied unconditionally, letting a
+      // no-op trade farm heat-free "trades" for challenge completion.
+      if (!tradeResult.success) return s;
       // Heat 2.0: trade heat goes to vehicle (transport of goods)
       const tradeHeat = action.mode === 'buy' ? 1 : 2;
       Engine.addVehicleHeat(s, tradeHeat);
@@ -548,9 +553,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Keep max 50 entries
         if (s.tradeLog.length > 50) s.tradeLog = s.tradeLog.slice(0, 50);
       }
-      // Daily challenge tracking
+      // Daily challenge tracking — count the actual traded quantity, not the requested one,
+      // since a partial fill (capped by trunk space or available capital) traded fewer.
       if (s.dailyProgress) {
-        s.dailyProgress.trades += action.quantity || 1;
+        s.dailyProgress.trades += tradedQty;
         if (action.mode === 'sell') {
           const tradeEarned = s.money - moneyBefore;
           if (tradeEarned > 0) s.dailyProgress.earned += tradeEarned;
@@ -968,17 +974,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'WASH_MONEY': {
       if ((s.hidingDays || 0) > 0) return s;
       if (s.dirtyMoney <= 0) return s;
-      const amount = Math.min(s.dirtyMoney, 3000 + (s.ownedDistricts.length * 1000));
+      // Was previously capped at a flat 3000 + districts*1000 that ignored washUsedToday
+      // entirely (district perk was also removed elsewhere, see getWashCapacity) — that let
+      // this quick-wash button bypass the daily laundering limit WASH_MONEY_AMOUNT enforces,
+      // by repeatedly washing the full cap multiple times per day.
+      const washCap = Engine.getWashCapacity(s);
+      const amount = Math.min(s.dirtyMoney, washCap.remaining);
+      if (amount <= 0) return s;
       s.dirtyMoney -= amount;
       let washed = amount;
       if (s.ownedDistricts.includes('neon')) washed = Math.floor(amount * 1.15);
       const clean = Math.floor(washed * 0.85);
       s.money += clean;
       s.stats.totalEarned += clean;
+      s.washUsedToday = (s.washUsedToday || 0) + amount;
       // Heat 2.0: washing generates personal heat (financial crime)
-      Engine.addPersonalHeat(s, 8);
+      Engine.addPersonalHeat(s, Math.max(1, Math.floor(amount / 500)));
       Engine.recomputeHeat(s);
-      Engine.gainXp(s, 5);
+      Engine.gainXp(s, Math.max(1, Math.floor(amount / 200)));
+      if (s.dailyProgress) { s.dailyProgress.washed += amount; }
+      syncChallenges(s);
       return s;
     }
 
@@ -3266,7 +3281,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (prop.id === 'villa' && !s.villa) {
         s.villa = {
           level: 1, modules: [], prestigeModules: [], vaultMoney: 0,
-          storedGoods: {}, storedAmmo: 0, helipadUsedToday: false,
+          storedGoods: {}, storedAmmo: 0, helipadUsedToday: 0,
           purchaseDay: s.day, lastPartyDay: 0,
         };
       }
@@ -3286,7 +3301,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         vaultMoney: 0,
         storedGoods: {},
         storedAmmo: 0,
-        helipadUsedToday: false,
+        helipadUsedToday: 0,
         purchaseDay: s.day,
         lastPartyDay: 0,
       };
@@ -3450,9 +3465,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'VILLA_HELIPAD_TRAVEL': {
-      if (!s.villa || !s.villa.modules.includes('helipad') || s.villa.helipadUsedToday) return s;
+      if (!s.villa || !s.villa.modules.includes('helipad') || !canUseHelipad(s)) return s;
       if ((s.hidingDays || 0) > 0 || s.prison) return s;
-      s.villa.helipadUsedToday = true;
+      s.villa.helipadUsedToday = (s.villa.helipadUsedToday || 0) + 1;
       s.loc = action.to;
       return s;
     }
@@ -4133,7 +4148,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.villa === undefined) saved.villa = null;
       if (saved.villa) {
         if (saved.villa.storedAmmo === undefined) saved.villa.storedAmmo = 0;
-        if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = false;
+        if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = 0;
         if (!saved.villa.storedGoods) saved.villa.storedGoods = {};
         if (saved.villa.lastPartyDay === undefined) saved.villa.lastPartyDay = 0;
         if (!saved.villa.prestigeModules) saved.villa.prestigeModules = [];

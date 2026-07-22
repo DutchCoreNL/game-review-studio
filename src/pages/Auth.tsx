@@ -54,6 +54,10 @@ export function Auth({ onBack, onAuth }: AuthProps) {
   };
 
   const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setError('Vul e-mailadres en wachtwoord in.');
+      return;
+    }
     setLoading(true);
     setError('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -65,6 +69,14 @@ export function Auth({ onBack, onAuth }: AuthProps) {
   const handleRegister = async () => {
     if (!username.trim() || username.length < 3) {
       setError('Username moet minimaal 3 tekens zijn');
+      return;
+    }
+    if (username.trim().length > 20) {
+      setError('Username mag maximaal 20 tekens zijn');
+      return;
+    }
+    if (!email.trim() || !password) {
+      setError('Vul e-mailadres en wachtwoord in.');
       return;
     }
     setLoading(true);

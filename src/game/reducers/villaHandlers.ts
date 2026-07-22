@@ -12,7 +12,7 @@ export function handleBuyVilla(s: GameState): void {
   s.stats.totalSpent += VILLA_COST;
   s.villa = {
     level: 1, modules: [], prestigeModules: [], vaultMoney: 0, storedGoods: {},
-    storedAmmo: 0, helipadUsedToday: false, purchaseDay: s.day, lastPartyDay: 0,
+    storedAmmo: 0, helipadUsedToday: 0, purchaseDay: s.day, lastPartyDay: 0,
   };
   addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
   Engine.checkAchievements(s);

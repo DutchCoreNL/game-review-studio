@@ -1,5 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
-import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, VILLA_PRESTIGE_UPGRADES, getVaultMax, getStorageMax } from '@/game/villa';
+import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, VILLA_PRESTIGE_UPGRADES, getVaultMax, getStorageMax, canUseHelipad, getMaxHelipadUses } from '@/game/villa';
 import { GOODS, DISTRICTS } from '@/game/constants';
 import { GoodId, DistrictId, VillaModuleId } from '@/game/types';
 import { CRAFT_RECIPES } from '@/game/crafting';
@@ -156,7 +156,7 @@ function OverviewTab() {
         {villa.modules.includes('kluis') && <InfoBox icon="🔐" label="Kluis" value={`€${villa.vaultMoney.toLocaleString()} / €${vaultMax.toLocaleString()}`} />}
         {villa.modules.includes('opslagkelder') && <InfoBox icon="📦" label="Opslag" value={`${storedCount} / ${storageMax}`} />}
         {villa.modules.includes('wapenkamer') && <InfoBox icon="🔫" label="Ammo Opslag" value={`${villa.storedAmmo}`} />}
-        {villa.modules.includes('helipad') && <InfoBox icon="🚁" label="Helipad" value={villa.helipadUsedToday ? 'Gebruikt' : 'Beschikbaar'} />}
+        {villa.modules.includes('helipad') && <InfoBox icon="🚁" label="Helipad" value={`${Math.min(villa.helipadUsedToday || 0, getMaxHelipadUses(state))}/${getMaxHelipadUses(state)} gebruikt`} />}
       </div>
 
       {/* Defense Score */}
@@ -216,7 +216,7 @@ function OverviewTab() {
       </div>
 
       {/* Helipad quick travel */}
-      {villa.modules.includes('helipad') && !villa.helipadUsedToday && (
+      {villa.modules.includes('helipad') && canUseHelipad(state) && (
         <HelipadTravel />
       )}
 

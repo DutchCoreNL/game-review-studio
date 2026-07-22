@@ -740,7 +740,7 @@ export function endTurn(state: GameState): NightReportData {
     if (villaProduction.cokeProduced > 0) report.villaCokeProduced = villaProduction.cokeProduced;
     if (villaProduction.labProduced > 0) report.villaLabProduced = villaProduction.labProduced;
     // Reset helipad daily
-    state.villa.helipadUsedToday = false;
+    state.villa.helipadUsedToday = 0;
 
     // Auto-init Drug Empire state when player has production modules
     if (!state.drugEmpire && shouldShowDrugEmpire(state)) {
@@ -1096,7 +1096,11 @@ export function endTurn(state: GameState): NightReportData {
   }
   // Property heat reduction
   if (currentProp?.bonuses?.heatReduction && state.heat > 0) {
-    state.heat = Math.max(0, state.heat - currentProp.bonuses.heatReduction);
+    // state.heat is a derived value (see recomputeHeat) — writing it directly here got wiped
+    // the moment any later trade/vehicle action called recomputeHeat(), silently un-doing this
+    // bonus. Reduce the actual source (personalHeat) instead and recompute.
+    addPersonalHeat(state, -currentProp.bonuses.heatReduction);
+    recomputeHeat(state);
   }
 
   // === POWER DECAY: defeated-but-not-conquered factions lose influence ===
@@ -1523,6 +1527,17 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     const milestone = getMilestone(state.player.level);
     if (milestone && milestone.sp_bonus > 0) {
       state.player.skillPoints += milestone.sp_bonus;
+    }
+    // Milestone cash/rep rewards — the server's handleGainXp already grants these (and they
+    // reach synced players via MERGE_SERVER_STATE), but this optimistic local preview never
+    // applied them, so a player without cloud sync (local-only save) permanently lost the
+    // milestone cash/rep since this is their only authoritative code path.
+    if (milestone) {
+      if (milestone.cash) {
+        state.money += milestone.cash;
+        state.stats.totalEarned += milestone.cash;
+      }
+      if (milestone.rep) state.rep += milestone.rep;
     }
     // Award merit points on level-up
     const meritGain = getMeritPointsForLevelUp(state.player.level);
@@ -2025,9 +2040,12 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       const stunIcon = procWeapon.accessory === 'cryo' ? '❄️' : '⚡';
       combat.logs.push(`${stunIcon} Vijand is ${procWeapon.accessory === 'cryo' ? 'bevroren' : 'STUNNED'}!`);
     }
-    // Heat reduction from silencer
+    // Heat reduction from silencer — see recomputeHeat: state.heat is derived, so mutate
+    // personalHeat (the actual source) instead of it getting silently wiped on the next
+    // trade/vehicle action's recomputeHeat() call.
     if (wpnHeatReduction > 0) {
-      state.heat = Math.max(0, state.heat - wpnHeatReduction);
+      addPersonalHeat(state, -wpnHeatReduction);
+      recomputeHeat(state);
     }
   }
 
@@ -2060,9 +2078,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       combat.stunned = true;
       combat.logs.push(`${ench.icon} ${ench.name}: Vijand STUNNED!`);
     }
-    // Heat reduction (stealthy)
+    // Heat reduction (stealthy) — mutate personalHeat, not the derived state.heat (see
+    // recomputeHeat), or the next trade/vehicle action silently wipes this bonus.
     if (eff.heatReduction && eff.heatReduction > 0) {
-      state.heat = Math.max(0, state.heat - eff.heatReduction);
+      addPersonalHeat(state, -eff.heatReduction);
+      recomputeHeat(state);
     }
     // Accuracy/crit/fireRate bonuses are already baked into weapon stats display,
     // but crit bonus should affect combat
@@ -2107,9 +2127,11 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     const eff = ench.effects;
     // Guardian: chance to halve incoming damage is applied in enemy attack phase below
     // Defense bonus is already reflected in gear stats
-    // Heat reduction from gear enchantments
+    // Heat reduction from gear enchantments — mutate personalHeat, not the derived state.heat
+    // (see recomputeHeat), or the next trade/vehicle action silently wipes this bonus.
     if (eff.heatReduction && eff.heatReduction > 0) {
-      state.heat = Math.max(0, state.heat - eff.heatReduction);
+      addPersonalHeat(state, -eff.heatReduction);
+      recomputeHeat(state);
     }
   }
 
@@ -2438,7 +2460,11 @@ export function performFactionAction(
   }
 
   state.familyRel[familyId] = Math.max(-100, Math.min(100, (state.familyRel[familyId] || 0) + relChange));
-  state.heat = Math.max(0, Math.min(100, state.heat + heatChange));
+  // Mutate personalHeat (the actual source, see recomputeHeat), not the derived state.heat —
+  // writing it directly here both got silently wiped by the next recomputeHeat() call AND
+  // bypassed the heat-freeze-event protection that addPersonalHeat enforces for heat gains.
+  addPersonalHeat(state, heatChange);
+  recomputeHeat(state);
   state.rep += repChange;
 
   // Register cooldown — one action per faction per day

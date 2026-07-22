@@ -59,7 +59,7 @@ function StatBoostOverlay({ gain, color }: { gain: number; color: string }) {
 }
 
 export function GymView() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const { t } = useLanguage();
   const [training, setTraining] = useState(false);
   const [selectedGym, setSelectedGym] = useState<string>(
@@ -75,7 +75,12 @@ export function GymView() {
     { id: 'dexterity', label: t.gym.dexterity, icon: Target, color: 'text-emerald', bgColor: 'bg-emerald-500', desc: t.gym.dexterityDesc },
   ];
 
-  const gymStats: Record<string, number> = (state as any).gymStats || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
+  // The server persists gym-trained values into player_state.stats (the same JSON column that
+  // also holds muscle/brains/charm — see the "gym_train" edge function handler), not into a
+  // "gymStats" field, which never existed anywhere in GameState. Reading the nonexistent
+  // top-level field meant this always fell back to the hardcoded defaults, forever, even right
+  // after a successful training session.
+  const gymStats: Record<string, number> = (state.player.stats as any) || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
   const currentGym = GYMS.find(g => g.id === selectedGym) || GYMS[0];
   const inCorrectDistrict = state.loc === currentGym.district;
   const hasLevel = state.player.level >= currentGym.reqLevel;
@@ -94,6 +99,11 @@ export function GymView() {
         setBoostAnim({ stat: statId, gain });
         toast.success(res.message);
         setTimeout(() => setBoostAnim(null), 1500);
+        // Persist the server's updated stat value locally — without this, the displayed
+        // number never moved even though the training genuinely succeeded server-side.
+        if (res.data?.gymStats) {
+          dispatch({ type: 'MERGE_SERVER_STATE', serverState: { player: { stats: res.data.gymStats } } as any });
+        }
       } else {
         toast.error(res.message);
       }

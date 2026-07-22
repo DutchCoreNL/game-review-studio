@@ -198,10 +198,15 @@ export function getVillaProtectedAmmo(state: GameState): number {
 
 // ========== HELIPAD ==========
 
+/** 1x/day normally, 2x/day with the 'helipad' prestige upgrade (see VILLA_PRESTIGE_UPGRADES). */
+export function getMaxHelipadUses(state: GameState): number {
+  return state.villa?.prestigeModules?.includes('helipad') ? 2 : 1;
+}
+
 export function canUseHelipad(state: GameState): boolean {
   if (!state.villa) return false;
   if (!state.villa.modules.includes('helipad')) return false;
-  return !state.villa.helipadUsedToday;
+  return (state.villa.helipadUsedToday || 0) < getMaxHelipadUses(state);
 }
 
 // ========== VILLA HIDING BONUS ==========

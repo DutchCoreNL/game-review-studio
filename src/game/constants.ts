@@ -110,7 +110,8 @@ export const GOODS: Good[] = [
 ];
 
 // ========== MARKET EVENTS ==========
-export type MarketEventId = 'drug_bust' | 'arms_deal' | 'data_leak' | 'art_forgery' | 'med_shortage' | 'port_blockade' | 'tech_boom' | 'luxury_auction' | 'cartel_war' | 'police_sweep';
+export type MarketEventId = 'drug_bust' | 'arms_deal' | 'data_leak' | 'art_forgery' | 'med_shortage' | 'port_blockade' | 'tech_boom' | 'luxury_auction' | 'cartel_war' | 'police_sweep'
+  | 'explosive_bust' | 'crypto_crash' | 'lab_explosion' | 'chip_shortage';
 
 export interface MarketEvent {
   id: MarketEventId;
@@ -131,10 +132,17 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: 'luxury_auction', name: '👑 Geheime Veiling', desc: 'Rijke verzamelaars bieden mee — kunstprijzen stijgen!', effects: { luxury: 1.8 }, duration: 1 },
   { id: 'cartel_war', name: '⚔️ Karteloorlog', desc: 'Kartels bevechten elkaar — drugs & wapens volatiel.', effects: { drugs: 1.6, weapons: 1.8 }, duration: 2 },
   { id: 'police_sweep', name: '🚔 Grote Razzia', desc: 'Politie overal — alle zwarte markt prijzen dalen.', effects: { drugs: 0.6, weapons: 0.6, tech: 0.7, luxury: 0.6, meds: 0.8, explosives: 0.5, crypto: 0.9, chemicals: 0.7, electronics: 0.7 }, duration: 1 },
-  { id: 'arms_deal' as MarketEventId, name: '💣 Explosievensmokkel', desc: 'Grote lading explosieven onderschept — prijzen stijgen!', effects: { explosives: 2.0 }, duration: 2 },
-  { id: 'data_leak' as MarketEventId, name: '₿ Crypto Crash', desc: 'Witwas-ring opgerold — crypto wallets waardeloos.', effects: { crypto: 0.4 }, duration: 1 },
-  { id: 'med_shortage' as MarketEventId, name: '🧪 Lab Explosie', desc: 'Groot clandestien lab ontploft — precursoren schaars!', effects: { chemicals: 2.3, drugs: 1.3 }, duration: 2 },
-  { id: 'tech_boom' as MarketEventId, name: '📱 Chipstekort', desc: 'Globaal chiptekort — gestolen chips extreem waardevol!', effects: { electronics: 2.2, tech: 1.4 }, duration: 2 },
+  // These four used to reuse arms_deal/data_leak/med_shortage/tech_boom's ids (force-cast with
+  // `as MarketEventId` to bypass the type error) — since MARKET_EVENTS is chosen by drawing a
+  // random array entry and then stored/compared purely by `.id` (see engine.ts:1134 and
+  // stocks.ts's event-driven stock correlation), colliding with an existing id meant drawing
+  // one of these instead of the original silently triggered that other event's stock-market
+  // effects (e.g. this "Chipstekort" event incorrectly boosting the shadow_tech/neon_media
+  // stocks that are meant to react to the real, data-focused "Tech Hausse" event).
+  { id: 'explosive_bust', name: '💣 Explosievensmokkel', desc: 'Grote lading explosieven onderschept — prijzen stijgen!', effects: { explosives: 2.0 }, duration: 2 },
+  { id: 'crypto_crash', name: '₿ Crypto Crash', desc: 'Witwas-ring opgerold — crypto wallets waardeloos.', effects: { crypto: 0.4 }, duration: 1 },
+  { id: 'lab_explosion', name: '🧪 Lab Explosie', desc: 'Groot clandestien lab ontploft — precursoren schaars!', effects: { chemicals: 2.3, drugs: 1.3 }, duration: 2 },
+  { id: 'chip_shortage', name: '📱 Chipstekort', desc: 'Globaal chiptekort — gestolen chips extreem waardevol!', effects: { electronics: 2.2, tech: 1.4 }, duration: 2 },
 ];
 
 // Spoilage rates per good (fraction lost per night, 0 = no spoilage)

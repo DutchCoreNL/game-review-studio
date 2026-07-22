@@ -202,7 +202,7 @@ export function JobsView() {
                     disabled={!canApply || loading}
                     onClick={() => handleApply(job.id)}
                   >
-                    {!hasLevel ? 'Te laag level' : !hasStat ? 'Stats te laag' : jobState?.currentJob ? 'Neem ontslag' : 'Solliciteren'}
+                    {!hasLevel ? 'Te laag level' : !hasStat ? 'Stats te laag' : jobState?.currentJob ? 'Al in dienst' : 'Solliciteren'}
                   </GameButton>
                 )}
               </div>
