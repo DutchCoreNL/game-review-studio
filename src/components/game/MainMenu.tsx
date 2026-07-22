@@ -24,7 +24,7 @@ const CREDITS = [
 
 type SubScreen = 'settings' | 'credits' | 'howto' | null;
 
-export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginClick, onLogoutClick }: MainMenuProps) {
+export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username, onLoginClick, onLogoutClick }: MainMenuProps) {
   const { t, lang, setLang } = useLanguage();
   const [show, setShow] = useState(false);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
@@ -203,8 +203,8 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, onLoginCl
 
               {isLoggedIn ? (
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded border border-emerald/30 bg-emerald/5 text-emerald text-xs font-ui font-semibold">
-                    <Wifi size={14} /> {t.menu.online}
+                  <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded border border-emerald/30 bg-emerald/5 text-emerald text-xs font-ui font-semibold truncate">
+                    <Wifi size={14} className="shrink-0" /> <span className="truncate">{username || t.menu.online}</span>
                   </div>
                   <MenuButton icon={<LogOut size={16} />} label={t.menu.logout} onClick={() => onLogoutClick?.()} className="flex-1" />
                 </div>

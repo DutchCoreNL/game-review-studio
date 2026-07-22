@@ -130,6 +130,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // validate() only bounds-checks the client-reported numbers — it never cross-checks them
+    // against this player's actual server-side data, so a client could self-report any
+    // in-range values (e.g. cash near the 50M cap while their real balance is much lower) to
+    // inflate their leaderboard entry. Worse, the "topPlayer" this sync feeds below is used to
+    // rescale every bot's level/rep/cash/crew, so a single spoofed sync distorts game balance
+    // for everyone. Override the client-reported economy fields with the authoritative values
+    // from player_state and the player's relational district/crew rows; only cosmetic fields
+    // without a server-side source of truth (backstory, is_hardcore) stay client-reported.
+    const { data: ps } = await adminClient
+      .from("player_state")
+      .select("money, day, level, rep, karma, prestige_level")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!ps) {
+      return new Response(JSON.stringify({ error: "No player state found" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { count: districtsOwned } = await adminClient
+      .from("player_districts")
+      .select("district_id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    const { count: crewSize } = await adminClient
+      .from("player_crew")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    result.data.rep = ps.rep ?? 0;
+    result.data.cash = ps.money ?? 0;
+    result.data.day = ps.day ?? 1;
+    result.data.level = ps.level ?? 1;
+    result.data.karma = ps.karma ?? 0;
+    result.data.prestige_level = ps.prestige_level ?? 0;
+    result.data.districts_owned = districtsOwned ?? 0;
+    result.data.crew_size = crewSize ?? 0;
+
     // Rate limit: max 1 sync per 10 seconds
     const { data: existing } = await adminClient
       .from("leaderboard_entries")

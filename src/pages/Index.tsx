@@ -13,7 +13,7 @@ const Index = () => {
   const [startHardcore, setStartHardcore] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [showAuth, setShowAuth] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, username, signOut } = useAuth();
 
   useEffect(() => {
     setHasSave(!!loadGame());
@@ -40,6 +40,13 @@ const Index = () => {
     setInGame(false);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+    // signOut() deletes the local save (see useAuth) so a different account signing in on
+    // this device afterward doesn't inherit it — reflect that in the menu's "Continue" state.
+    setHasSave(false);
+  };
+
   if (showAuth) {
     return <Auth onBack={() => setShowAuth(false)} onAuth={() => setShowAuth(false)} />;
   }
@@ -58,9 +65,9 @@ const Index = () => {
       onContinue={handleContinue}
       onNewGame={handleNewGame}
       isLoggedIn={!!user}
-      username={user ? undefined : undefined}
+      username={username ?? undefined}
       onLoginClick={() => setShowAuth(true)}
-      onLogoutClick={signOut}
+      onLogoutClick={handleLogout}
     />
   );
 };

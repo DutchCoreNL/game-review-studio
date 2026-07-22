@@ -168,6 +168,32 @@ interface ActionResult {
   data?: Record<string, any>;
 }
 
+// ========== CONCURRENCY-SAFE PLAYER_STATE UPDATE ==========
+// Every handler reads `ps` once at the top of the request and later writes back new values
+// computed from that snapshot (e.g. money: ps.money - cost) with a plain UPDATE. Two concurrent
+// requests from the same account (double-click, replay, multiple tabs) can both read the same
+// stale balance and the second write clobbers the first's result — e.g. losing a charge while
+// keeping the goods. Guarding the UPDATE with `.eq(field, ps[field])` for every field the
+// computed values were derived from makes it a compare-and-swap: if another request already
+// changed one of those fields, this UPDATE matches zero rows and we can detect that and reject
+// the action instead of silently applying a result based on stale data.
+async function casUpdatePlayerState(
+  supabase: any,
+  userId: string,
+  ps: any,
+  updates: Record<string, any>,
+  guardFields: string[],
+): Promise<boolean> {
+  let query = supabase.from("player_state").update(updates).eq("user_id", userId);
+  for (const field of guardFields) {
+    query = query.eq(field, ps[field] ?? 0);
+  }
+  const { data, error } = await query.select("user_id").maybeSingle();
+  return !error && !!data;
+}
+
+const CONCURRENT_MODIFICATION_MESSAGE = "Actie mislukt door een gelijktijdige wijziging. Probeer het opnieuw.";
+
 // ========== TRADE (SERVER-SIDE MARKET ECONOMY) ==========
 
 async function handleTrade(supabase: any, userId: string, ps: any, payload: { goodId: string; mode: "buy" | "sell"; quantity: number }): Promise<ActionResult> {
@@ -218,12 +244,13 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
     const newQty = currentQty + actualQty;
     const newAvgCost = newQty > 0 ? Math.floor(((currentQty * currentAvgCost) + totalCost) / newQty) : buyPrice;
 
-    await supabase.from("player_state").update({
+    const applied = await casUpdatePlayerState(supabase, userId, ps, {
       money: ps.money - totalCost, energy: ps.energy - energyCost,
       stats_total_spent: (ps.stats_total_spent || 0) + totalCost,
       stats_trades_completed: (ps.stats_trades_completed || 0) + actualQty,
       last_action_at: new Date().toISOString(),
-    }).eq("user_id", userId);
+    }, ["money", "energy"]);
+    if (!applied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
     await supabase.from("player_inventory").upsert(
       { user_id: userId, good_id: goodId, quantity: newQty, avg_cost: newAvgCost },
@@ -257,13 +284,14 @@ async function handleTrade(supabase: any, userId: string, ps: any, payload: { go
     const profitPerUnit = sellPrice - currentAvgCost;
     const nightLabel = timeMods.phase === 'night' ? ' 🌙' : timeMods.phase === 'dusk' ? ' 🌆' : '';
 
-    await supabase.from("player_state").update({
+    const applied = await casUpdatePlayerState(supabase, userId, ps, {
       money: ps.money + totalRevenue, rep: (ps.rep || 0) + repGain,
       energy: ps.energy - energyCost,
       stats_total_earned: (ps.stats_total_earned || 0) + totalRevenue,
       stats_trades_completed: (ps.stats_trades_completed || 0) + actualQty,
       last_action_at: new Date().toISOString(),
-    }).eq("user_id", userId);
+    }, ["money", "energy"]);
+    if (!applied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
     if (remainingQty <= 0) {
       await supabase.from("player_inventory").delete().eq("user_id", userId).eq("good_id", goodId);
@@ -621,7 +649,7 @@ async function handleWashMoney(supabase: any, userId: string, ps: any, payload: 
   const heatGain = Math.max(1, Math.floor(washAmt / 500));
   const xpGain = Math.max(1, Math.floor(washAmt / 200));
 
-  await supabase.from("player_state").update({
+  const applied = await casUpdatePlayerState(supabase, userId, ps, {
     dirty_money: (ps.dirty_money || 0) - washAmt,
     money: ps.money + cleanAmt,
     wash_used_today: used + washAmt,
@@ -631,7 +659,8 @@ async function handleWashMoney(supabase: any, userId: string, ps: any, payload: 
     stats_total_earned: (ps.stats_total_earned || 0) + cleanAmt,
     xp: ps.xp + xpGain,
     last_action_at: new Date().toISOString(),
-  }).eq("user_id", userId);
+  }, ["money", "dirty_money", "wash_used_today"]);
+  if (!applied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
   const fee = washAmt - cleanAmt;
   return {
@@ -699,13 +728,24 @@ async function handleBuyBusiness(supabase: any, userId: string, ps: any, payload
     if ((allBiz || []).length < biz.reqBusinessCount) return { success: false, message: `Je hebt minimaal ${biz.reqBusinessCount} businesses nodig.` };
   }
 
-  await supabase.from("player_state").update({
+  const applied = await casUpdatePlayerState(supabase, userId, ps, {
     money: ps.money - biz.cost,
     stats_total_spent: (ps.stats_total_spent || 0) + biz.cost,
     last_action_at: new Date().toISOString(),
-  }).eq("user_id", userId);
+  }, ["money"]);
+  if (!applied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
-  await supabase.from("player_businesses").insert({ user_id: userId, business_id: businessId });
+  const { error: insertErr } = await supabase.from("player_businesses").insert({ user_id: userId, business_id: businessId });
+  if (insertErr) {
+    // The UNIQUE(user_id, business_id) constraint rejected this insert — most likely a
+    // concurrent buy_business call for the same business already succeeded a moment ago.
+    // Refund the charge we just applied instead of leaving the player charged with nothing.
+    const { data: freshPs } = await supabase.from("player_state").select("money").eq("user_id", userId).maybeSingle();
+    if (freshPs) {
+      await supabase.from("player_state").update({ money: freshPs.money + biz.cost }).eq("user_id", userId);
+    }
+    return { success: false, message: "Je hebt deze business al." };
+  }
 
   return {
     success: true,
@@ -1555,7 +1595,7 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
       : null;
 
     // Update attacker
-    await supabase.from("player_state").update({
+    const attackApplied = await casUpdatePlayerState(supabase, userId, ps, {
       money: (ps.money || 0) + stolen,
       energy: ps.energy - energyCost,
       nerve: ps.nerve - nerveCost,
@@ -1563,7 +1603,8 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
       personal_heat: Math.min(100, (ps.personal_heat || 0) + 15),
       xp: (ps.xp || 0) + 50,
       last_action_at: now.toISOString(),
-    }).eq("user_id", userId);
+    }, ["money", "energy", "nerve"]);
+    if (!attackApplied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
     // Update real target (skip for bots)
     if (!isBot) {
@@ -1577,7 +1618,11 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
         targetUpdate.hospitalizations = (target.hospitalizations || 0) + 1;
         targetUpdate.hp = target.max_hp || 100;
       }
-      await supabase.from("player_state").update(targetUpdate).eq("user_id", targetUserId);
+      // Best-effort CAS on the target's side too — if their money/hp changed in the same
+      // instant (e.g. they were also mid-action), skip applying stale-based effects to them
+      // rather than clobbering whatever just happened to their row. The attacker's own state
+      // was already committed above regardless, same as the pre-existing (unguarded) behavior.
+      await casUpdatePlayerState(supabase, targetUserId, target, targetUpdate, ["money", "hp"]);
 
       // Rivalry & bounty logic only for real players
       await upsertRivalry(supabase, userId, targetUserId, 10, "pvp");
@@ -1594,9 +1639,13 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
         }
       }
       if (bountyBonus > 0) {
-        await supabase.from("player_state").update({
-          money: (ps.money || 0) + stolen + bountyBonus,
-        }).eq("user_id", userId);
+        // Guard against the known post-attack money value (attackApplied already committed
+        // ps.money + stolen above) instead of blind-overwriting with a value recomputed from
+        // the original stale ps.money.
+        await casUpdatePlayerState(
+          supabase, userId, { money: (ps.money || 0) + stolen },
+          { money: (ps.money || 0) + stolen + bountyBonus }, ["money"],
+        );
       }
     }
 
@@ -1629,7 +1678,8 @@ async function handleAttack(supabase: any, userId: string, ps: any, payload: { t
       attackerUpdate.hospitalizations = (ps.hospitalizations || 0) + 1;
       attackerUpdate.hp = ps.max_hp || 100;
     }
-    await supabase.from("player_state").update(attackerUpdate).eq("user_id", userId);
+    const lossApplied = await casUpdatePlayerState(supabase, userId, ps, attackerUpdate, ["energy", "nerve", "hp"]);
+    if (!lossApplied) return { success: false, message: CONCURRENT_MODIFICATION_MESSAGE };
 
     const hospitalMsg = hospitalUntil ? " Je bent gehospitaliseerd!" : "";
     return {

@@ -205,22 +205,59 @@ Deno.serve(async (req) => {
       // ========== ACCEPT TRADE OFFER ==========
       case "accept_trade_offer": {
         const { offerId } = params;
-        const { data: offer } = await supabase.from("trade_offers").select("*").eq("id", offerId).eq("receiver_id", user.id).eq("status", "pending").single();
-        if (!offer) return json({ error: "Offer not found" }, 404);
+
+        // Atomically claim the offer (pending -> accepted) before doing any transfers. Reading
+        // it as "pending" and only flipping it to "accepted" at the very end (as before) left a
+        // window where a double-click/replay of accept_trade_offer could pass the pending check
+        // twice and execute the same cash/goods transfer twice.
+        const { data: offer, error: claimErr } = await supabase
+          .from("trade_offers")
+          .update({ status: "accepted" })
+          .eq("id", offerId)
+          .eq("receiver_id", user.id)
+          .eq("status", "pending")
+          .select()
+          .maybeSingle();
+        if (claimErr || !offer) return json({ error: "Offer not found" }, 404);
 
         // Validate both parties still have the goods/cash
         const { data: senderState } = await supabase.from("player_state").select("money").eq("user_id", offer.sender_id).single();
-        if (!senderState) return json({ error: "Sender not found" }, 400);
+        if (!senderState) {
+          await supabase.from("trade_offers").update({ status: "pending" }).eq("id", offerId);
+          return json({ error: "Sender not found" }, 400);
+        }
 
         // Check sender has offer goods + cash
-        if (offer.offer_cash > 0 && senderState.money < offer.offer_cash) return json({ error: "Sender no longer has enough cash" }, 400);
+        if (offer.offer_cash > 0 && senderState.money < offer.offer_cash) {
+          await supabase.from("trade_offers").update({ status: "pending" }).eq("id", offerId);
+          return json({ error: "Sender no longer has enough cash" }, 400);
+        }
         // Check receiver has request goods + cash
-        if (offer.request_cash > 0 && playerState.money < offer.request_cash) return json({ error: "You don't have enough cash" }, 400);
+        if (offer.request_cash > 0 && playerState.money < offer.request_cash) {
+          await supabase.from("trade_offers").update({ status: "pending" }).eq("id", offerId);
+          return json({ error: "You don't have enough cash" }, 400);
+        }
 
-        // Transfer cash
+        // Transfer cash — guard each write against the balance just validated above (CAS) so a
+        // concurrent change to either party's money in this window is detected instead of
+        // silently clobbered.
         if (offer.offer_cash > 0 || offer.request_cash > 0) {
-          await supabase.from("player_state").update({ money: senderState.money - offer.offer_cash + offer.request_cash }).eq("user_id", offer.sender_id);
-          await supabase.from("player_state").update({ money: playerState.money - offer.request_cash + offer.offer_cash }).eq("user_id", user.id);
+          const { data: senderUpdated } = await supabase.from("player_state")
+            .update({ money: senderState.money - offer.offer_cash + offer.request_cash })
+            .eq("user_id", offer.sender_id).eq("money", senderState.money).select().maybeSingle();
+          if (!senderUpdated) {
+            await supabase.from("trade_offers").update({ status: "pending" }).eq("id", offerId);
+            return json({ error: "Concurrent balance change, please try again" }, 409);
+          }
+          const { data: receiverUpdated } = await supabase.from("player_state")
+            .update({ money: playerState.money - offer.request_cash + offer.offer_cash })
+            .eq("user_id", user.id).eq("money", playerState.money).select().maybeSingle();
+          if (!receiverUpdated) {
+            // Best-effort rollback of the sender's leg so money isn't created/destroyed.
+            await supabase.from("player_state").update({ money: senderState.money }).eq("user_id", offer.sender_id);
+            await supabase.from("trade_offers").update({ status: "pending" }).eq("id", offerId);
+            return json({ error: "Concurrent balance change, please try again" }, 409);
+          }
         }
 
         // Transfer offer goods (sender → receiver)
@@ -235,7 +272,7 @@ Deno.serve(async (req) => {
           await transferGoods(supabase, user.id, offer.sender_id, gid, qty);
         }
 
-        await supabase.from("trade_offers").update({ status: "accepted" }).eq("id", offerId);
+        // Offer was already atomically marked "accepted" when it was claimed above.
 
         // Notify sender
         await supabase.from("player_messages").insert({

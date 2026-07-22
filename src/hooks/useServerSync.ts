@@ -62,6 +62,18 @@ export function useServerSync(
   const cloudSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef<GameState | null>(null);
   const stateDirtyRef = useRef(false);
+  const syncedUserIdRef = useRef<string | null>(null);
+
+  // Defense in depth: if this hook instance ever outlives an account switch (GameProvider
+  // is currently remounted with a fresh key on every login, which already resets these refs,
+  // but nothing structurally prevents that from changing later), re-arm the initial sync so a
+  // different account's data gets fetched instead of silently reusing/overwriting the
+  // previous account's in-memory state.
+  if (user?.id !== syncedUserIdRef.current) {
+    syncedUserIdRef.current = user?.id ?? null;
+    initialSyncDone.current = false;
+    cloudSaveLoadedRef.current = false;
+  }
   // True while a local merit/stat spend hasn't been confirmed saved to the cloud yet —
   // guards against a concurrent economy merge reverting the spend (see LOCAL_SPEND_ACTIONS).
   const pendingMeritStatSaveRef = useRef(false);
