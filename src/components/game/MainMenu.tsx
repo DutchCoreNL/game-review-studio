@@ -2,6 +2,7 @@ import { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap, Skull } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthErrorMessage } from '@/lib/authErrors';
 import { useLanguage } from '@/contexts/LanguageContext';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
@@ -71,7 +72,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
 
     const { data, error: anonError } = await supabase.auth.signInAnonymously();
     if (anonError) {
-      setNickError(anonError.message);
+      setNickError(getAuthErrorMessage(anonError));
       setNickLoading(false);
       return;
     }
@@ -80,7 +81,7 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
         .from('profiles')
         .insert({ id: data.user.id, username: nickname.trim() });
       if (profileError) {
-        setNickError(profileError.message.includes('duplicate') ? t.menu.nickTaken : profileError.message);
+        setNickError(profileError.message.includes('duplicate') ? t.menu.nickTaken : getAuthErrorMessage(profileError));
         setNickLoading(false);
         return;
       }

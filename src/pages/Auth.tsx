@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthErrorMessage } from '@/lib/authErrors';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LogIn, UserPlus, Zap } from 'lucide-react';
 import menuBg from '@/assets/main-menu-bg.jpg';
@@ -32,7 +33,7 @@ export function Auth({ onBack, onAuth }: AuthProps) {
 
     const { data, error: anonError } = await supabase.auth.signInAnonymously();
     if (anonError) {
-      setError(anonError.message);
+      setError(getAuthErrorMessage(anonError));
       setLoading(false);
       return;
     }
@@ -43,7 +44,7 @@ export function Auth({ onBack, onAuth }: AuthProps) {
         .insert({ id: data.user.id, username: username.trim() });
 
       if (profileError) {
-        setError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : profileError.message);
+        setError(profileError.message.includes('duplicate') ? 'Nickname is al bezet' : getAuthErrorMessage(profileError));
         setLoading(false);
         return;
       }
@@ -61,7 +62,7 @@ export function Auth({ onBack, onAuth }: AuthProps) {
     setLoading(true);
     setError('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
+    if (error) setError(getAuthErrorMessage(error));
     else onAuth();
     setLoading(false);
   };
@@ -89,7 +90,7 @@ export function Auth({ onBack, onAuth }: AuthProps) {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(getAuthErrorMessage(signUpError));
       setLoading(false);
       return;
     }
@@ -100,7 +101,7 @@ export function Auth({ onBack, onAuth }: AuthProps) {
         .insert({ id: data.user.id, username: username.trim() });
 
       if (profileError) {
-        setError(profileError.message.includes('duplicate') ? 'Username is al bezet' : profileError.message);
+        setError(profileError.message.includes('duplicate') ? 'Username is al bezet' : getAuthErrorMessage(profileError));
         setLoading(false);
         return;
       }
