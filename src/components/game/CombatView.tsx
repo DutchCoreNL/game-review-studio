@@ -605,97 +605,49 @@ function ActiveCombat() {
             </div>
           )}
 
-          {/* ═══ CATEGORIZED ACTION CARDS ═══ */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {/* DIRECTE ACTIE */}
-            <div className="space-y-1.5">
-              <p className="text-[0.4rem] font-bold text-blood uppercase tracking-widest flex items-center gap-1">
-                <Swords size={7} /> Direct
-              </p>
-              <ActionCard
-                icon={<Swords size={12} className="text-blood" />}
-                title={env?.actions.attack.label || "Aanval"}
-                desc={env?.actions.attack.desc || "Betrouwbaar"}
-                borderColor="border-blood/40"
-                bgColor="bg-blood/5 hover:bg-blood/15"
-                onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }}
-              />
-              <ActionCard
-                icon={<Zap size={12} className="text-gold" />}
-                title={env?.actions.heavy.label || "Zware Klap"}
-                desc={env?.actions.heavy.desc || "Krachtig"}
-                borderColor="border-gold/40"
-                bgColor="bg-gold/5 hover:bg-gold/15"
-                onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'heavy' }); }}
-              />
-            </div>
-
-            {/* TACTISCH */}
-            <div className="space-y-1.5">
-              <p className="text-[0.4rem] font-bold text-emerald uppercase tracking-widest flex items-center gap-1">
-                <Shield size={7} /> Tactisch
-              </p>
-              <ActionCard
-                icon={<Shield size={12} className="text-emerald" />}
-                title={env?.actions.defend.label || "Verdedig"}
-                desc={env?.actions.defend.desc || "Block + Heal"}
-                borderColor="border-emerald/40"
-                bgColor="bg-emerald/5 hover:bg-emerald/15"
-                onClick={() => { playDefendSound(); dispatch({ type: 'COMBAT_ACTION', action: 'defend' }); }}
-              />
-              <ActionCard
-                icon={<MapPin size={12} className="text-game-purple" />}
-                title={env?.actions.environment.label || "Omgeving"}
-                desc={env?.actions.environment.desc || "Stun kans"}
-                borderColor="border-game-purple/40"
-                bgColor="bg-game-purple/5 hover:bg-game-purple/15"
-                onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'environment' }); }}
-              />
-            </div>
+          {/* ═══ THREE CORE ACTIONS ═══ */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <CombatAction
+              icon={<Swords size={16} />}
+              label={env?.actions.attack.label || "Aanval"}
+              sub={env?.actions.attack.desc || "Betrouwbaar"}
+              variant="blood"
+              onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'attack' }); }}
+            />
+            <CombatAction
+              icon={<Zap size={16} />}
+              label={env?.actions.heavy.label || "Zware Klap"}
+              sub={env?.actions.heavy.desc || "Krachtig"}
+              variant="gold"
+              onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'heavy' }); }}
+            />
+            <CombatAction
+              icon={<Shield size={16} />}
+              label={env?.actions.defend.label || "Verdedig"}
+              sub={env?.actions.defend.desc || "Block + Heal"}
+              variant="ice"
+              onClick={() => { playDefendSound(); dispatch({ type: 'COMBAT_ACTION', action: 'defend' }); }}
+            />
           </div>
 
-          {/* STRATEGISCH row */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <div>
-              <p className="text-[0.4rem] font-bold text-ice uppercase tracking-widest flex items-center gap-1 mb-1.5">
-                <Crosshair size={7} /> Strategisch
+          {/* ═══ MOMENTUM FINISHER ═══ */}
+          {combat.comboCounter >= COMBO_THRESHOLD ? (
+            <motion.button
+              onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
+              className="w-full py-2.5 rounded-lg border border-gold bg-gold/15 text-gold font-bold text-xs flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.97 }}
+              animate={{ boxShadow: ['0 0 0px hsl(var(--gold)/0)', '0 0 14px hsl(var(--gold)/0.55)', '0 0 0px hsl(var(--gold)/0)'] }}
+              transition={{ duration: 1.4, repeat: Infinity }}
+            >
+              <Flame size={14} /> Momentum Finisher — massieve schade + stun
+            </motion.button>
+          ) : (
+            <div className="w-full py-2 rounded-lg border border-border/30 bg-muted/5 text-center">
+              <p className="text-[0.5rem] text-muted-foreground flex items-center justify-center gap-1">
+                <Flame size={10} /> Momentum {combat.comboCounter}/{COMBO_THRESHOLD} — vul de meter met aanvallen
               </p>
-              {env && (
-                <ActionCard
-                  icon={<Crosshair size={12} className="text-ice" />}
-                  title={env.actions.tactical.label}
-                  desc={`${env.actions.tactical.desc} (${env.actions.tactical.stat.toUpperCase()})`}
-                  borderColor="border-ice/40"
-                  bgColor="bg-ice/5 hover:bg-ice/15"
-                  onClick={() => { playHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'tactical' }); }}
-                />
-              )}
             </div>
-
-            {/* SPECIAAL */}
-            <div>
-              <p className="text-[0.4rem] font-bold text-gold uppercase tracking-widest flex items-center gap-1 mb-1.5">
-                <Flame size={7} /> Speciaal
-              </p>
-              {combat.comboCounter >= COMBO_THRESHOLD ? (
-                <ActionCard
-                  icon={<Flame size={12} className="text-gold" />}
-                  title="Combo Finisher"
-                  desc="Massieve schade + stun"
-                  borderColor="border-gold/40"
-                  bgColor="bg-gold/10 hover:bg-gold/20"
-                  glow
-                  onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
-                />
-              ) : (
-                <div className="p-2 rounded-lg border border-border/30 bg-muted/5 text-center opacity-40">
-                  <Flame size={12} className="text-muted-foreground mx-auto mb-0.5" />
-                  <p className="text-[0.45rem] text-muted-foreground">Combo nodig</p>
-                  <p className="text-[0.4rem] text-muted-foreground/60">{combat.comboCounter}/{COMBO_THRESHOLD}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* Stance Selector */}
           <div>
