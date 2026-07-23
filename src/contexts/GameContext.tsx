@@ -11,6 +11,8 @@ import * as Engine from '../game/engine';
 import { simulateWorldDay } from '../game/world/simulate';
 import { generateWorld } from '../game/world/generateWorld';
 import { WORLD_SIM_VERSION } from '../game/world/types';
+import { JOBS, getJobSalary } from '../game/jobs';
+import { SKILL_NODES, canUnlockSkill } from '../game/skillTree';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
@@ -105,6 +107,10 @@ type GameAction =
   | { type: 'HEAL_CREW'; crewIndex: number }
   | { type: 'FIRE_CREW'; crewIndex: number }
   | { type: 'UPGRADE_STAT'; stat: StatId }
+  | { type: 'GYM_TRAIN'; gymStat: 'strength' | 'defense' | 'speed' | 'dexterity'; gymId: string }
+  | { type: 'APPLY_JOB'; jobId: string }
+  | { type: 'WORK_JOB' }
+  | { type: 'QUIT_JOB' }
   | { type: 'BUY_GEAR'; id: string }
   | { type: 'EQUIP'; id: string }
   | { type: 'UNEQUIP'; slot: string }
@@ -293,6 +299,7 @@ type GameAction =
   | { type: 'BUY_PROPERTY'; propertyId: string }
   // Skill Tree actions
   | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number }
+  | { type: 'UNLOCK_SKILL'; skillId: string }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
   // Weapon inventory actions
@@ -910,6 +917,62 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const hpGain = s.playerMaxHP - oldMax;
         if (hpGain > 0) s.playerHP = Math.min(s.playerMaxHP, s.playerHP + hpGain);
       }
+      return s;
+    }
+
+    case 'GYM_TRAIN': {
+      // Local gym training — trains strength/defense/speed/dexterity (separate from the
+      // muscle/brains/charm stat points) in exchange for energy. Gain scales with the gym's
+      // multiplier and whether the chosen stat is that gym's focus.
+      const GYM_ENERGY = 5;
+      if ((s.energy || 0) < GYM_ENERGY) return s;
+      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s;
+      if (!s.gymStats) s.gymStats = { strength: 1, defense: 1, speed: 1, dexterity: 1 };
+      const gymMults: Record<string, { mult: number; focus: string }> = {
+        lowrise_gym: { mult: 1.0, focus: 'strength' },
+        port_gym: { mult: 1.1, focus: 'defense' },
+        iron_gym: { mult: 1.25, focus: 'speed' },
+        neon_gym: { mult: 1.5, focus: 'dexterity' },
+        crown_gym: { mult: 2.0, focus: 'all' },
+      };
+      const gym = gymMults[action.gymId] || { mult: 1.0, focus: 'all' };
+      const isFocus = gym.focus === action.gymStat || gym.focus === 'all';
+      const baseGain = isFocus ? 2 : 1;
+      const gain = Math.max(1, Math.floor(baseGain * gym.mult * (0.8 + Math.random() * 0.4)));
+      s.gymStats[action.gymStat] = (s.gymStats[action.gymStat] || 1) + gain;
+      s.energy = Math.max(0, (s.energy || 0) - GYM_ENERGY);
+      if (s.energy < s.maxEnergy && !s.energyRegenAt) s.energyRegenAt = new Date(Date.now() + 60000).toISOString();
+      s._lastGymGain = { stat: action.gymStat, gain };
+      return s;
+    }
+
+    case 'APPLY_JOB': {
+      const jobDef = JOBS.find(j => j.id === action.jobId);
+      if (!jobDef) return s;
+      if (s.job) return s; // already employed
+      if (s.player.level < jobDef.reqLevel) return s;
+      if (jobDef.reqStat && (s.player.stats[jobDef.reqStat.stat] || 0) < jobDef.reqStat.value) return s;
+      s.job = { currentJob: jobDef.id, daysWorked: 0, promotion: 0, lastWorkedDay: 0 };
+      return s;
+    }
+
+    case 'WORK_JOB': {
+      if (!s.job) return s;
+      if (s.job.lastWorkedDay === s.day) return s; // already worked today
+      const jobDef = JOBS.find(j => j.id === s.job!.currentJob);
+      if (!jobDef) return s;
+      const salary = getJobSalary(jobDef, s.job.promotion);
+      s.money += salary;
+      s.stats.totalEarned += salary;
+      s.job.daysWorked += 1;
+      s.job.promotion = Math.floor(s.job.daysWorked / 10);
+      s.job.lastWorkedDay = s.day;
+      s._lastJobPay = salary;
+      return s;
+    }
+
+    case 'QUIT_JOB': {
+      s.job = null;
       return s;
     }
 
@@ -3901,6 +3964,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'UNLOCK_SKILL': {
+      // Local skill unlock/upgrade — validates via the shared canUnlockSkill rules, spends
+      // skill points, and adds/levels the node. Replaces the former server round-trip.
+      const node = SKILL_NODES.find(n => n.id === action.skillId);
+      if (!node) return s;
+      if (!s.unlockedSkills) s.unlockedSkills = [];
+      const check = canUnlockSkill(node, s.unlockedSkills, s.player.skillPoints, s.player.level, s.prestigeLevel || 0);
+      if (!check.canUnlock) return s;
+      s.player.skillPoints -= node.cost;
+      const existing = s.unlockedSkills.find(sk => sk.skillId === node.id);
+      if (existing) existing.level += 1;
+      else s.unlockedSkills.push({ skillId: node.id, level: 1 });
+      return s;
+    }
+
     case 'ADD_MARKET_ALERT': {
       const alert = action.alert as import('@/game/types').MarketAlert;
       s.marketAlerts.push(alert);
@@ -4256,6 +4334,9 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (!saved.world || saved.world.version !== WORLD_SIM_VERSION) {
         saved.world = generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, saved.player?.level || 1);
       }
+      // Gym & jobs migration
+      if (!saved.gymStats) saved.gymStats = { strength: 1, defense: 1, speed: 1, dexterity: 1 };
+      if (saved.job === undefined) saved.job = null;
       return saved;
     }
     const fresh = createInitialState();

@@ -1242,6 +1242,10 @@ export interface GameState {
   // Bot population + world state that makes single-player feel like a living MMO.
   world: import('../game/world/types').WorldSimState;
 
+  // ========== GYM & JOBS (local progression) ==========
+  gymStats: { strength: number; defense: number; speed: number; dexterity: number };
+  job: import('../game/jobs').PlayerJobState | null;
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
@@ -1249,6 +1253,8 @@ export interface GameState {
   _pendingXpGains: { amount: number; source: string }[]; // queued for server-side processing
   _lastWorldSummary?: import('../game/world/simulate').SimStepSummary; // last world-sim day result
   _catchUpWorldHeadlines?: string[]; // world events accumulated during a catch-up
+  _lastGymGain?: { stat: string; gain: number }; // last gym training result (transient)
+  _lastJobPay?: number; // last job payout (transient)
 }
 
 // ========== MARKET ALERT TYPES ==========

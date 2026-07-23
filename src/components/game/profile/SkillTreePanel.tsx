@@ -6,7 +6,6 @@ import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Brain, Gem, Star, Crown, Zap, Lock, ChevronRight, Trophy } from 'lucide-react';
-import { gameApi } from '@/lib/gameApi';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const BRANCH_ICONS: Record<SkillBranch, React.ReactNode> = {
@@ -73,43 +72,24 @@ export function SkillTreePanel() {
   const sp = state.player.skillPoints;
   const prestige = state.prestigeLevel || 0;
 
-  const handleUnlock = useCallback(async (skillId: string) => {
+  const handleUnlock = useCallback((skillId: string) => {
+    const node = SKILL_NODES.find(n => n.id === skillId);
+    if (!node) return;
+    const check = canUnlockSkill(node, state.unlockedSkills || [], state.player.skillPoints, state.player.level, state.prestigeLevel || 0);
+    if (!check.canUnlock) { showToast(check.reason || 'Kan skill niet ontgrendelen', true); return; }
     setUnlocking(skillId);
-    try {
-      const result = await gameApi.unlockSkill(skillId);
-      if (result.success) {
-        if (result.data) {
-          dispatch({ type: 'SYNC_SKILLS', skills: result.data.skills, skillPoints: result.data.skillPoints });
-        }
-        setJustUnlocked(skillId);
-        setTimeout(() => setJustUnlocked(null), 1200);
-        showToast(result.message);
-      } else {
-        showToast(result.message, true);
-      }
-    } catch {
-      showToast('Verbindingsfout', true);
-    }
+    dispatch({ type: 'UNLOCK_SKILL', skillId });
+    setJustUnlocked(skillId);
+    setTimeout(() => setJustUnlocked(null), 1200);
+    showToast(`${node.name} ontgrendeld!`);
     setUnlocking(null);
-  }, [dispatch, showToast]);
+  }, [dispatch, showToast, state.unlockedSkills, state.player.skillPoints, state.player.level, state.prestigeLevel]);
 
-  const handlePrestige = async () => {
-    try {
-      const result = await gameApi.prestige();
-      if (result.success) {
-        showToast(result.message);
-        // Use MERGE_SERVER_STATE instead of full SET_STATE to avoid wiping state
-        const stateResult = await gameApi.getState();
-        if (stateResult.success && stateResult.data) {
-          const ps = stateResult.data as any;
-          dispatch({ type: 'SYNC_SKILLS', skills: ps.unlockedSkills?.map((s: any) => ({ skillId: s.skill_id || s.skillId, level: s.level || 1 })) || [], skillPoints: ps.skill_points || ps.player?.skillPoints || 0 });
-        }
-      } else {
-        showToast(result.message, true);
-      }
-    } catch {
-      showToast('Verbindingsfout', true);
-    }
+  const handlePrestige = () => {
+    // Local prestige reset (createPrestigeReset) — keeps achievements/backstory, resets the run
+    // with prestige bonuses.
+    dispatch({ type: 'PRESTIGE_RESET' });
+    showToast('Prestige! Je begint opnieuw met blijvende bonussen.');
   };
 
   const branchNodes = SKILL_NODES.filter(n => n.branch === activeBranch);
@@ -137,7 +117,6 @@ export function SkillTreePanel() {
               {districtBonus > 0 && <span>{state.loc.toUpperCase()} +{(districtBonus * 100).toFixed(0)}%</span>}
               {streakBonus > 0 && <span>Streak +{(streakBonus * 100).toFixed(0)}%</span>}
               {prestigeBonus > 0 && <span>Prestige +{(prestigeBonus * 100).toFixed(0)}%</span>}
-              <span className="text-gold/60">+ gang/nacht/dag server-side</span>
             </div>
           </div>
         </div>

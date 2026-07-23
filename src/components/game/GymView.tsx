@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ViewWrapper } from './ui/ViewWrapper';
@@ -7,7 +7,6 @@ import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dumbbell, Shield, Zap, Target, Lock, Star } from 'lucide-react';
-import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
 import gymBg from '@/assets/gym-bg.jpg';
 
@@ -75,44 +74,37 @@ export function GymView() {
     { id: 'dexterity', label: t.gym.dexterity, icon: Target, color: 'text-emerald', bgColor: 'bg-emerald-500', desc: t.gym.dexterityDesc },
   ];
 
-  // The server persists gym-trained values into player_state.stats (the same JSON column that
-  // also holds muscle/brains/charm — see the "gym_train" edge function handler), not into a
-  // "gymStats" field, which never existed anywhere in GameState. Reading the nonexistent
-  // top-level field meant this always fell back to the hardcoded defaults, forever, even right
-  // after a successful training session.
-  const gymStats: Record<string, number> = (state.player.stats as any) || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
+  // Gym-trained values live in their own local GameState.gymStats (strength/defense/speed/
+  // dexterity) — trained via the GYM_TRAIN reducer action, fully offline.
+  const gymStats: Record<string, number> = (state.gymStats as any) || { strength: 1, defense: 1, speed: 1, dexterity: 1 };
   const currentGym = GYMS.find(g => g.id === selectedGym) || GYMS[0];
   const inCorrectDistrict = state.loc === currentGym.district;
   const hasLevel = state.player.level >= currentGym.reqLevel;
   const hasEnergy = state.energy >= ENERGY_COST;
 
-  const handleTrain = async (statId: string) => {
+  const handleTrain = (statId: string) => {
     if (training || !hasEnergy || !inCorrectDistrict || !hasLevel) return;
     setTraining(true);
     setLastResult(null);
     setBoostAnim(null);
-    try {
-      const res = await gameApi.gymTrain(statId, selectedGym);
-      if (res.success) {
-        const gain = res.data?.gain || 0;
-        setLastResult({ stat: statId, gain, message: res.message });
-        setBoostAnim({ stat: statId, gain });
-        toast.success(res.message);
-        setTimeout(() => setBoostAnim(null), 1500);
-        // Persist the server's updated stat value locally — without this, the displayed
-        // number never moved even though the training genuinely succeeded server-side.
-        if (res.data?.gymStats) {
-          dispatch({ type: 'MERGE_SERVER_STATE', serverState: { player: { stats: res.data.gymStats } } as any });
-        }
-      } else {
-        toast.error(res.message);
-      }
-    } catch {
-      toast.error(t.gym.connectionError);
-    } finally {
-      setTraining(false);
-    }
+    // The GYM_TRAIN reducer applies the gain and records it in _lastGymGain; the useEffect
+    // below reacts to that and drives the +gain animation.
+    dispatch({ type: 'GYM_TRAIN', gymStat: statId as any, gymId: selectedGym });
   };
+
+  // React to a completed training (reducer set _lastGymGain) — show the boost animation.
+  const lastGymGain = state._lastGymGain;
+  useEffect(() => {
+    if (training && lastGymGain) {
+      setLastResult({ stat: lastGymGain.stat, gain: lastGymGain.gain, message: `+${lastGymGain.gain} ${lastGymGain.stat}` });
+      setBoostAnim({ stat: lastGymGain.stat, gain: lastGymGain.gain });
+      toast.success(`+${lastGymGain.gain} ${lastGymGain.stat}!`);
+      const t = setTimeout(() => setBoostAnim(null), 1500);
+      setTraining(false);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.gymStats]);
 
   return (
     <ViewWrapper bg={gymBg}>

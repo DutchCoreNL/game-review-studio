@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
@@ -7,7 +6,6 @@ import { GameBadge } from './ui/GameBadge';
 import { StatBar } from './ui/StatBar';
 import { motion } from 'framer-motion';
 import { Briefcase, Clock, TrendingUp, Star, DollarSign, Wine, Car, Shield, Wrench, Calculator, Scale, Stethoscope, Building2, LucideIcon } from 'lucide-react';
-import { gameApi } from '@/lib/gameApi';
 import { toast } from 'sonner';
 import operationsBg from '@/assets/operations-bg.jpg';
 
@@ -35,42 +33,37 @@ const JOBS: JobDef[] = [
 ];
 
 export function JobsView() {
-  const { state } = useGame();
-  const [loading, setLoading] = useState(false);
-  const [jobState, setJobState] = useState<{
-    currentJob: string | null;
-    daysWorked: number;
-    promotion: number;
-    lastWorked: string | null;
-    canWork: boolean;
-  } | null>(null);
+  const { state, dispatch } = useGame();
+  const loading = false;
 
-  useEffect(() => { loadJobState(); }, []);
+  // Job state now lives in the local GameState (state.job) — no backend.
+  const jobState = state.job
+    ? {
+        currentJob: state.job.currentJob as string | null,
+        daysWorked: state.job.daysWorked,
+        promotion: state.job.promotion,
+        canWork: state.job.lastWorkedDay !== state.day,
+      }
+    : null;
 
-  const loadJobState = async () => {
-    const res = await gameApi.getJobs();
-    if (res.success && res.data) setJobState(res.data as any);
+  const handleApply = (jobId: string) => {
+    const job = JOBS.find(j => j.id === jobId);
+    if (!job) return;
+    if (state.player.level < job.reqLevel) { toast.error('Te laag level.'); return; }
+    if (job.reqStat && (state.player.stats[job.reqStat.stat as 'muscle' | 'brains' | 'charm'] || 0) < job.reqStat.value) { toast.error('Stats te laag.'); return; }
+    dispatch({ type: 'APPLY_JOB', jobId });
+    toast.success(`Aangenomen als ${job.name}!`);
   };
 
-  const handleApply = async (jobId: string) => {
-    setLoading(true);
-    const res = await gameApi.applyJob(jobId);
-    if (res.success) { toast.success(res.message); loadJobState(); } else { toast.error(res.message); }
-    setLoading(false);
+  const handleWork = () => {
+    if (!jobState?.canWork) return;
+    dispatch({ type: 'WORK_JOB' });
+    toast.success('Dagje gewerkt — salaris ontvangen!');
   };
 
-  const handleWork = async () => {
-    setLoading(true);
-    const res = await gameApi.workJob();
-    if (res.success) { toast.success(res.message); loadJobState(); } else { toast.error(res.message); }
-    setLoading(false);
-  };
-
-  const handleQuit = async () => {
-    setLoading(true);
-    const res = await gameApi.quitJob();
-    if (res.success) { toast.success(res.message); setJobState(prev => prev ? { ...prev, currentJob: null, daysWorked: 0, promotion: 0 } : null); } else { toast.error(res.message); }
-    setLoading(false);
+  const handleQuit = () => {
+    dispatch({ type: 'QUIT_JOB' });
+    toast.success('Ontslag genomen.');
   };
 
   const currentJobDef = jobState?.currentJob ? JOBS.find(j => j.id === jobState.currentJob) : null;

@@ -1997,6 +1997,9 @@ export function createInitialState(): import('./types').GameState {
     // Local MMO world simulation (bot population). Seeded from the current time so each new
     // game gets its own reproducible world.
     world: generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, 1),
+    // Gym & jobs (local progression)
+    gymStats: { strength: 1, defense: 1, speed: 1, dexterity: 1 },
+    job: null,
   };
 }
 
