@@ -47,11 +47,11 @@ function CityGlow() {
       <rect x="0" y="0" width="400" height="290" fill="url(#city-sky-glow)" />
       
       {/* District-specific ambient glows */}
-      <ellipse cx="75" cy="80" rx="50" ry="40" fill="url(#port-glow)" />
-      <ellipse cx="320" cy="75" rx="55" ry="40" fill="url(#crown-glow)" />
-      <ellipse cx="80" cy="220" rx="50" ry="35" fill="url(#iron-glow)" />
+      <ellipse cx={75} cy={80} rx={50} ry={40} fill="url(#port-glow)" />
+      <ellipse cx={320} cy={75} rx={55} ry={40} fill="url(#crown-glow)" />
+      <ellipse cx={80} cy={220} rx={50} ry={35} fill="url(#iron-glow)" />
       
-      <motion.ellipse cx="200" cy="175" rx="50" ry="35" fill="url(#neon-area-glow)"
+      <motion.ellipse cx={200} cy={175} rx={50} ry={35} fill="url(#neon-area-glow)"
         animate={{ opacity: [0.8, 1, 0.8] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
       
@@ -79,7 +79,7 @@ function HarborActivity() {
         animate={{ x: [10, 25, 10], y: [65, 68, 65] }}
         transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 3 }}>
         <path d="M -5,0 L 5,0 L 4,2.5 L -4,2.5 Z" fill="hsla(200, 30%, 20%, 0.5)" />
-        <rect x="-2" y="-1.5" width="4" height="1.5" fill="hsla(0, 40%, 25%, 0.4)" rx="0.3" />
+        <rect x="-2" y="-1.5" width="4" height="1.5" fill="hsla(0, 40%, 25%, 0.4)" rx={0.3} />
       </motion.g>
 
       {/* Boat 3 - small fishing boat */}
@@ -91,15 +91,15 @@ function HarborActivity() {
       </motion.g>
 
       {/* Buoys */}
-      <motion.circle cx="30" cy="80" r="1" fill="hsla(0, 70%, 45%, 0.4)"
+      <motion.circle cx={30} cy={80} r={1} fill="hsla(0, 70%, 45%, 0.4)"
         animate={{ y: [80, 82, 80] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.circle cx="25" cy="140" r="0.8" fill="hsla(120, 60%, 40%, 0.35)"
+      <motion.circle cx={25} cy={140} r={0.8} fill="hsla(120, 60%, 40%, 0.35)"
         animate={{ y: [140, 142, 140] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
-      <motion.circle cx="28" cy="250" r="0.7" fill="hsla(0, 70%, 45%, 0.3)"
+      <motion.circle cx={28} cy={250} r={0.7} fill="hsla(0, 70%, 45%, 0.3)"
         animate={{ y: [250, 252, 250] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }} />
       
       {/* Lighthouse beacon on pier */}
-      <motion.circle cx="46" cy="60" r="2.5"
+      <motion.circle cx={46} cy={60} r={2.5}
         fill="hsla(45, 80%, 50%, 0.15)"
         animate={{ opacity: [0.15, 0.45, 0.15], r: [2.5, 4, 2.5] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
@@ -130,11 +130,11 @@ function StreetLights({ roads }: { roads: string[] }) {
       {lights.map(l => (
         <g key={l.key}>
           <rect x={l.x - 0.3} y={l.y - 4} width="0.6" height="4" fill="hsla(0, 0%, 25%, 0.4)" />
-          <motion.circle cx={l.x} cy={l.y - 4} r="4"
+          <motion.circle cx={l.x} cy={l.y - 4} r={4}
             fill="hsla(45, 70%, 50%, 0.06)"
             animate={{ opacity: [0.06, 0.1, 0.06] }}
             transition={{ duration: l.flickerDur, repeat: Infinity, ease: 'easeInOut' }} />
-          <circle cx={l.x} cy={l.y - 4} r="0.8" fill="hsla(45, 80%, 60%, 0.25)" />
+          <circle cx={l.x} cy={l.y - 4} r={0.8} fill="hsla(45, 80%, 60%, 0.25)" />
         </g>
       ))}
     </g>
@@ -148,7 +148,7 @@ function Pedestrians({ roads }: { roads: string[] }) {
   return (
     <g pointerEvents="none" opacity="0.4">
       {pedRoads.map((road, i) => (
-        <motion.circle key={`ped-${i}`} r="0.7"
+        <motion.circle key={`ped-${i}`} r={0.7}
           fill={i % 2 === 0 ? 'hsla(45, 40%, 60%, 0.5)' : 'hsla(0, 0%, 70%, 0.4)'}
           animate={{ offsetDistance: i % 2 === 0 ? ['10%', '90%'] : ['90%', '10%'] }}
           transition={{ duration: 8 + i * 2.5, repeat: Infinity, ease: 'linear', delay: i * 1.8 }}
@@ -187,7 +187,7 @@ function SmuggleRouteLines({ routes, districtMeta }: { routes: SmuggleRoute[]; d
               animate={{ strokeDashoffset: [0, -16] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             />
-            <motion.circle r="1.5" fill={`hsla(${hue}, 70%, 55%, 0.6)`}
+            <motion.circle r={1.5} fill={`hsla(${hue}, 70%, 55%, 0.6)`}
               animate={{ cx: [from.cx, to.cx], cy: [from.cy, to.cy] }}
               transition={{ duration: 3 + i, repeat: Infinity, ease: 'linear' }}
             />
@@ -221,7 +221,7 @@ function DistrictActivity({ districtRep }: { districtRep: Record<DistrictId, num
               const ly = center.cy + Math.sin(angle) * dist;
               return (
                 <motion.circle key={`act-${id}-${i}`}
-                  cx={lx} cy={ly} r="0.8"
+                  cx={lx} cy={ly} r={0.8}
                   fill={`hsla(45, 70%, 55%, ${0.08 + intensity * 0.1})`}
                   animate={{ opacity: [0.05, 0.15 + intensity * 0.1, 0.05] }}
                   transition={{ duration: 2 + i, repeat: Infinity, ease: 'easeInOut', delay: i * 0.8 }}
@@ -248,7 +248,7 @@ function TrafficLights() {
       ].map((pos, i) => (
         <g key={`tl-${i}`}>
           <rect x={pos.x - 0.5} y={pos.y - 3} width="1" height="3" fill="hsla(0, 0%, 20%, 0.5)" />
-          <motion.circle cx={pos.x} cy={pos.y - 3.5} r="1"
+          <motion.circle cx={pos.x} cy={pos.y - 3.5} r={1}
             animate={{
               fill: [
                 'hsla(120, 70%, 45%, 0.6)',
@@ -276,7 +276,7 @@ function ParkDetails() {
         { x: 313, y: 63 },
       ].map((pos, i) => (
         <g key={`bench-${i}`}>
-          <rect x={pos.x} y={pos.y} width="4" height="1.5" fill="hsla(25, 30%, 18%, 0.4)" rx="0.3" />
+          <rect x={pos.x} y={pos.y} width="4" height="1.5" fill="hsla(25, 30%, 18%, 0.4)" rx={0.3} />
           <rect x={pos.x + 0.3} y={pos.y - 0.8} width="0.5" height="0.8" fill="hsla(25, 20%, 15%, 0.4)" />
           <rect x={pos.x + 3.2} y={pos.y - 0.8} width="0.5" height="0.8" fill="hsla(25, 20%, 15%, 0.4)" />
         </g>

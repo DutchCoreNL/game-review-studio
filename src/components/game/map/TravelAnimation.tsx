@@ -23,12 +23,12 @@ export function TravelAnimation({ from, to, districtMeta }: TravelAnimationProps
       <motion.g initial={{ x: startX, y: startY, scale: 1 }}
         animate={{ x: endX, y: endY, scale: [1, 1.3, 1] }}
         exit={{ opacity: 0, scale: 0 }} transition={{ duration: 0.8, ease: 'easeInOut' }}>
-        <motion.circle r="6" fill="none" stroke="hsla(45, 93%, 50%, 0.3)" strokeWidth="1"
+        <motion.circle r={6} fill="none" stroke="hsla(45, 93%, 50%, 0.3)" strokeWidth="1"
           animate={{ r: [5, 8, 5], opacity: [0.3, 0.1, 0.3] }} transition={{ duration: 0.5, repeat: Infinity }} />
-        <circle r="3" fill="hsl(45, 93%, 50%)" />
-        <circle r="1.5" fill="hsl(45, 93%, 70%)" />
+        <circle r={3} fill="hsl(45, 93%, 50%)" />
+        <circle r={1.5} fill="hsl(45, 93%, 70%)" />
       </motion.g>
-      <motion.circle cx={endX} cy={endY} r="3" fill="hsla(45, 93%, 50%, 0.5)"
+      <motion.circle cx={endX} cy={endY} r={3} fill="hsla(45, 93%, 50%, 0.5)"
         initial={{ r: 3, opacity: 0 }} animate={{ r: 20, opacity: [0, 0.3, 0] }}
         transition={{ duration: 0.6, delay: 0.7 }} />
     </g>

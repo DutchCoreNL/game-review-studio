@@ -65,20 +65,20 @@ function RainOverlay() {
       ))}
       
       {/* Puddles on ground */}
-      <motion.ellipse cx="100" cy="270" rx="15" ry="3" fill="hsla(210, 50%, 40%, 0.08)"
+      <motion.ellipse cx={100} cy={270} rx={15} ry={3} fill="hsla(210, 50%, 40%, 0.08)"
         animate={{ rx: [15, 16, 15], opacity: [0.08, 0.12, 0.08] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.ellipse cx="250" cy="260" rx="12" ry="2.5" fill="hsla(210, 50%, 40%, 0.06)"
+      <motion.ellipse cx={250} cy={260} rx={12} ry={2.5} fill="hsla(210, 50%, 40%, 0.06)"
         animate={{ rx: [12, 13, 12], opacity: [0.06, 0.1, 0.06] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
-      <motion.ellipse cx="340" cy="275" rx="10" ry="2" fill="hsla(210, 50%, 40%, 0.07)"
+      <motion.ellipse cx={340} cy={275} rx={10} ry={2} fill="hsla(210, 50%, 40%, 0.07)"
         animate={{ rx: [10, 11, 10], opacity: [0.07, 0.11, 0.07] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }} />
-      <ellipse cx="170" cy="265" rx="8" ry="1.8" fill="hsla(210, 50%, 40%, 0.05)" />
+      <ellipse cx={170} cy={265} rx={8} ry={1.8} fill="hsla(210, 50%, 40%, 0.05)" />
       
       {/* Rain splash effects */}
       {[80, 160, 280, 350].map((x, i) => (
-        <motion.circle key={`splash-${i}`} cx={x} cy={268 + i * 3} r="0.5"
+        <motion.circle key={`splash-${i}`} cx={x} cy={268 + i * 3} r={0.5}
           fill="hsla(210, 60%, 60%, 0.2)"
           animate={{ r: [0.5, 2, 0.5], opacity: [0.2, 0, 0.2] }}
           transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.3 + Math.random() }}
@@ -92,27 +92,27 @@ function FogOverlay() {
   return (
     <g pointerEvents="none">
       {/* Multiple organic fog layers */}
-      <motion.ellipse cx="100" cy="120" rx="120" ry="35"
+      <motion.ellipse cx={100} cy={120} rx={120} ry={35}
         fill="hsla(0, 0%, 80%, 0.03)"
         animate={{ cx: [100, 130, 100], ry: [35, 40, 35], opacity: [0.03, 0.06, 0.03] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <motion.ellipse cx="280" cy="170" rx="100" ry="45"
+      <motion.ellipse cx={280} cy={170} rx={100} ry={45}
         fill="hsla(0, 0%, 80%, 0.04)"
         animate={{ cx: [280, 260, 280], ry: [45, 50, 45], opacity: [0.04, 0.07, 0.04] }}
         transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
       />
-      <motion.ellipse cx="200" cy="80" rx="150" ry="30"
+      <motion.ellipse cx={200} cy={80} rx={150} ry={30}
         fill="hsla(0, 0%, 80%, 0.025)"
         animate={{ cx: [200, 220, 200], opacity: [0.025, 0.05, 0.025] }}
         transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 5 }}
       />
-      <motion.ellipse cx="60" cy="230" rx="80" ry="25"
+      <motion.ellipse cx={60} cy={230} rx={80} ry={25}
         fill="hsla(0, 0%, 80%, 0.035)"
         animate={{ cx: [60, 80, 60], opacity: [0.035, 0.06, 0.035] }}
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
       />
-      <motion.ellipse cx="350" cy="100" rx="60" ry="20"
+      <motion.ellipse cx={350} cy={100} rx={60} ry={20}
         fill="hsla(0, 0%, 80%, 0.03)"
         animate={{ cx: [350, 340, 350], opacity: [0.03, 0.055, 0.03] }}
         transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
@@ -158,10 +158,10 @@ function HeatwaveOverlay() {
       ))}
       
       {/* Extra steam from factories in heat */}
-      <motion.circle cx="166" cy="148" r="3" fill="hsla(30, 50%, 50%, 0.1)"
+      <motion.circle cx={166} cy={148} r={3} fill="hsla(30, 50%, 50%, 0.1)"
         animate={{ cy: [148, 138, 128], r: [3, 5, 7], opacity: [0.12, 0.06, 0] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeOut' }} />
-      <motion.circle cx="191" cy="152" r="2.5" fill="hsla(30, 50%, 50%, 0.08)"
+      <motion.circle cx={191} cy={152} r={2.5} fill="hsla(30, 50%, 50%, 0.08)"
         animate={{ cy: [152, 142, 132], r: [2.5, 4, 6], opacity: [0.1, 0.05, 0] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeOut', delay: 1.5 }} />
       

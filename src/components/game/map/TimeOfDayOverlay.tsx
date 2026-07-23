@@ -25,7 +25,7 @@ function DawnOverlay() {
       <rect x="0" y="0" width="400" height="290" fill="hsla(30, 80%, 50%, 0.06)" />
       {/* Horizon glow */}
       <motion.ellipse
-        cx="200" cy="280" rx="250" ry="60"
+        cx={200} cy={280} rx={250} ry={60}
         fill="hsla(25, 90%, 55%, 0.08)"
         animate={{ ry: [60, 70, 60], opacity: [0.08, 0.12, 0.08] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
@@ -56,7 +56,7 @@ function DuskOverlay() {
       <rect x="0" y="145" width="400" height="145" fill="hsla(320, 50%, 35%, 0.05)" />
       {/* Horizon glow — warm pink */}
       <motion.ellipse
-        cx="200" cy="280" rx="250" ry="50"
+        cx={200} cy={280} rx={250} ry={50}
         fill="hsla(340, 60%, 50%, 0.07)"
         animate={{ ry: [50, 55, 50], opacity: [0.07, 0.1, 0.07] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}

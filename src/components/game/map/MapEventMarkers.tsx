@@ -54,8 +54,8 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
               fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.35)' : 'hsla(220, 80%, 50%, 0.3)'}
               animate={{ r: isHighVehicleHeat ? [5, 8, 5] : [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
               transition={{ duration: isHighVehicleHeat ? 0.8 : 1.2, repeat: Infinity }} />
-            <circle cy={0} r="2.5" fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.7)' : 'hsla(220, 80%, 50%, 0.6)'} />
-            <motion.circle cy={0} r="1" fill="hsla(0, 80%, 50%, 0.8)"
+            <circle cy={0} r={2.5} fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.7)' : 'hsla(220, 80%, 50%, 0.6)'} />
+            <motion.circle cy={0} r={1} fill="hsla(0, 80%, 50%, 0.8)"
               animate={{ opacity: [1, 0, 1] }}
               transition={{ duration: isHighVehicleHeat ? 0.4 : 0.8, repeat: Infinity }} />
             {isHighVehicleHeat && (
@@ -70,7 +70,7 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
       return (
         <motion.g animate={{ y: [y - 1.5, y + 1.5, y - 1.5] }} transition={{ ...bounceTransition, delay: 0.3 }}>
           <g transform={`translate(${x}, 0)`}>
-            <circle cy={0} r="3" fill="hsla(30, 90%, 50%, 0.4)" />
+            <circle cy={0} r={3} fill="hsla(30, 90%, 50%, 0.4)" />
             <text textAnchor="middle" y="2.5" fontSize="4" fill="hsla(30, 90%, 60%, 0.9)">⚠</text>
           </g>
         </motion.g>
@@ -80,10 +80,10 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
         <motion.g animate={{ y: [y, y - 2, y], x: [x, x + 1, x - 1, x] }}
           transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}>
           <g>
-            <motion.circle r="3" fill="hsla(0, 80%, 45%, 0.4)"
+            <motion.circle r={3} fill="hsla(0, 80%, 45%, 0.4)"
               animate={{ r: [3, 5, 3], opacity: [0.4, 0.2, 0.4] }}
               transition={{ duration: 0.8, repeat: Infinity }} />
-            <circle r="2" fill="hsla(0, 80%, 45%, 0.6)" />
+            <circle r={2} fill="hsla(0, 80%, 45%, 0.6)" />
           </g>
         </motion.g>
       );
@@ -91,10 +91,10 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
       return (
         <motion.g animate={{ y: [y - 1, y + 1, y - 1] }} transition={{ ...bounceTransition, delay: 0.5 }}>
           <g transform={`translate(${x}, 0)`}>
-            <motion.circle cy={0} r="3" fill="hsla(45, 93%, 40%, 0.3)"
+            <motion.circle cy={0} r={3} fill="hsla(45, 93%, 40%, 0.3)"
               animate={{ r: [3, 5, 3], opacity: [0.3, 0.1, 0.3] }}
               transition={{ duration: 2, repeat: Infinity }} />
-            <circle cy={0} r="2" fill="hsla(45, 93%, 40%, 0.5)" />
+            <circle cy={0} r={2} fill="hsla(45, 93%, 40%, 0.5)" />
             <text textAnchor="middle" y="2" fontSize="3" fill="hsla(45, 93%, 60%, 0.9)">$</text>
           </g>
         </motion.g>
@@ -103,8 +103,8 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
       return (
         <motion.g animate={{ x: [x - 15, x + 15, x - 15], y: [y - 3, y + 3, y - 3] }}
           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
-          <circle r="2" fill="hsla(0, 0%, 60%, 0.5)" />
-          <motion.circle r="1" fill="hsla(0, 80%, 50%, 0.6)"
+          <circle r={2} fill="hsla(0, 0%, 60%, 0.5)" />
+          <motion.circle r={1} fill="hsla(0, 80%, 50%, 0.6)"
             animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 0.5, repeat: Infinity }} />
           <motion.line x1="-3" y1="3" x2="3" y2="3"
             stroke="hsla(0, 80%, 50%, 0.2)" strokeWidth="0.5"
@@ -118,8 +118,8 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
           style={{ offsetPath: `path("${event.roadIndex < (vehicleHeat ?? 0) ? '' : ''}")` }}
           animate={{ offsetDistance: ['0%', '100%'] }}
           transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}>
-          <rect x="-3" y="-1.5" width="6" height="3" rx="1" fill="hsla(0, 0%, 90%, 0.6)" />
-          <motion.circle r="1.5" fill="hsla(0, 80%, 50%, 0.7)"
+          <rect x="-3" y="-1.5" width="6" height="3" rx={1} fill="hsla(0, 0%, 90%, 0.6)" />
+          <motion.circle r={1.5} fill="hsla(0, 80%, 50%, 0.7)"
             animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 0.6, repeat: Infinity }} />
         </motion.g>
       );

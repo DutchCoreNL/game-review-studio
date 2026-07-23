@@ -149,12 +149,12 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           style={{ cursor: onVillaClick ? 'pointer' : 'default' }}>
           <rect x="180" y="25" width="40" height="35" fill="transparent" />
           {villa && (
-            <motion.circle cx="200" cy="45" r="18"
+            <motion.circle cx={200} cy={45} r={18}
               fill="none" stroke="hsla(45, 90%, 50%, 0.15)" strokeWidth="1"
               animate={{ r: [18, 22, 18], opacity: [0.15, 0.05, 0.15] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
           )}
-          <rect x="186" y="23" width="28" height="9" rx="2"
+          <rect x="186" y="23" width="28" height="9" rx={2}
             fill={villa ? 'hsla(45, 30%, 8%, 0.9)' : 'hsla(0, 0%, 5%, 0.7)'}
             stroke={villa ? 'hsl(45 60% 40%)' : 'hsl(0 0% 20%)'}
             strokeWidth={villa ? '1' : '0.5'} />
@@ -177,15 +177,15 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               onClick={(e) => { e.stopPropagation(); onSafehouseClick?.(); }}
               style={{ cursor: onSafehouseClick ? 'pointer' : 'default' }}>
               <rect x={sx - 6} y={sy - 6} width="12" height="12" fill="transparent" />
-              <motion.circle cx={sx} cy={sy} r="5"
+              <motion.circle cx={sx} cy={sy} r={5}
                 fill="hsla(145, 60%, 30%, 0.3)"
                 animate={{ r: [5, 7, 5], opacity: [0.3, 0.15, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
-              <circle cx={sx} cy={sy} r="4" fill="hsla(145, 50%, 15%, 0.8)" stroke="hsla(145, 60%, 40%, 0.5)" strokeWidth="0.5" />
+              <circle cx={sx} cy={sy} r={4} fill="hsla(145, 50%, 15%, 0.8)" stroke="hsla(145, 60%, 40%, 0.5)" strokeWidth="0.5" />
               <text x={sx} y={sy + 2.5} textAnchor="middle" fontSize="5" fill="hsla(145, 60%, 55%, 0.9)">🏠</text>
               {sh.level >= 2 && (
                 <>
-                  <motion.circle cx={sx + 4} cy={sy - 4} r="2" fill="hsla(45, 90%, 50%, 0.8)"
+                  <motion.circle cx={sx + 4} cy={sy - 4} r={2} fill="hsla(45, 90%, 50%, 0.8)"
                     animate={{ opacity: [0.8, 0.5, 0.8] }} transition={{ duration: 2, repeat: Infinity }} />
                   <text x={sx + 4} y={sy - 2.5} textAnchor="middle" fontSize="3" fill="hsl(0 0% 5%)" fontWeight="bold">{sh.level}</text>
                 </>
@@ -202,7 +202,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
             <rect key={`hit-${id}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h}
               fill={isSelected ? 'hsla(45, 93%, 40%, 0.05)' : 'transparent'}
               stroke={isSelected ? 'hsla(45, 93%, 40%, 0.2)' : 'transparent'}
-              strokeWidth="1" rx="4"
+              strokeWidth="1" rx={4}
               className="cursor-pointer" onClick={() => onSelectDistrict(id)} />
           );
         })}
@@ -226,27 +226,27 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           return (
             <g key={`label-${id}`} onClick={() => onSelectDistrict(id)} className="cursor-pointer">
               {isOwned && !isSelected && (
-                <motion.circle cx={meta.cx} cy={meta.cy} r="22"
+                <motion.circle cx={meta.cx} cy={meta.cy} r={22}
                   fill="none" stroke="hsla(0, 72%, 51%, 0.15)" strokeWidth="1.5"
                   animate={{ r: [20, 26, 20], opacity: [0.15, 0.05, 0.15], strokeWidth: [1.5, 0.8, 1.5] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
               )}
               {isOwned && !isSelected && (
-                <motion.circle cx={meta.cx} cy={meta.cy} r="15"
+                <motion.circle cx={meta.cx} cy={meta.cy} r={15}
                   fill="hsla(0, 72%, 51%, 0.04)"
                   animate={{ r: [15, 18, 15], opacity: [0.04, 0.01, 0.04] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
               )}
               {isSelected && (
-                <circle cx={meta.cx} cy={meta.cy} r="20" fill="hsla(45, 93%, 40%, 0.08)" filter="url(#district-glow)" />
+                <circle cx={meta.cx} cy={meta.cy} r={20} fill="hsla(45, 93%, 40%, 0.08)" filter="url(#district-glow)" />
               )}
-              <rect x={meta.cx - meta.labelW / 2} y={meta.cy - 8} width={meta.labelW} height="16" rx="3"
+              <rect x={meta.cx - meta.labelW / 2} y={meta.cy - 8} width={meta.labelW} height="16" rx={3}
                 fill={isSelected ? 'hsla(45, 93%, 40%, 0.2)' : 'hsla(0, 0%, 5%, 0.85)'}
                 stroke={isSelected ? 'hsl(45 93% 40%)' : isOwned ? 'hsl(0 72% 51%)' : 'hsl(0 0% 20%)'}
                 strokeWidth={isSelected ? '1.5' : '0.5'} />
               {isOwned && !isSelected && (
                 <motion.rect x={meta.cx - meta.labelW / 2} y={meta.cy - 8}
-                  width={meta.labelW} height="16" rx="3" fill="none"
+                  width={meta.labelW} height="16" rx={3} fill="none"
                   stroke="hsl(0 72% 51%)" strokeWidth="0.5"
                   animate={{ strokeOpacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
@@ -259,7 +259,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               </text>
               {isOwned && (
                 <g>
-                  <rect x={meta.cx - meta.labelW / 2 - 2} y={meta.cy + 10} width={meta.labelW + 4} height="10" rx="2"
+                  <rect x={meta.cx - meta.labelW / 2 - 2} y={meta.cy + 10} width={meta.labelW + 4} height="10" rx={2}
                     fill="hsla(0, 0%, 5%, 0.85)"
                     stroke="hsla(45, 93%, 40%, 0.25)" strokeWidth="0.5" />
                   <text x={meta.cx} y={meta.cy + 17} textAnchor="middle"
@@ -272,7 +272,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               )}
               {isOwned && (
                 <g transform={`translate(${meta.cx + meta.labelW / 2 - 2}, ${meta.cy - 10})`}>
-                  <motion.circle r="5" fill="hsl(0 72% 51%)"
+                  <motion.circle r={5} fill="hsl(0 72% 51%)"
                     animate={{ opacity: [0.8, 1, 0.8] }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
                   <text x="0" y="3" textAnchor="middle" fill="white" fontSize="6">♛</text>
@@ -282,7 +282,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
                 <motion.g transform={`translate(${meta.cx - meta.labelW / 2 + 2}, ${meta.cy - 10})`}
                   animate={{ y: [0, -1.5, 0] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
-                  <circle r="4" fill="hsl(45 93% 40%)" opacity="0.9" />
+                  <circle r={4} fill="hsl(45 93% 40%)" opacity="0.9" />
                   <text x="0" y="3" textAnchor="middle" fill="hsl(0 0% 5%)" fontSize="5" fontWeight="bold">$</text>
                 </motion.g>
               )}
@@ -303,7 +303,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           return (
             <rect key={`danger-${id}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h}
               fill={`hsla(${hue}, 70%, 40%, ${0.03 + intensity * 0.08})`}
-              rx="4" pointerEvents="none" />
+              rx={4} pointerEvents="none" />
           );
         })}
 
@@ -316,7 +316,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           const by = meta.cy - 2;
           return (
             <g key={`pcount-${id}`} pointerEvents="none">
-              <rect x={bx - 8} y={by - 5} width="16" height="10" rx="3"
+              <rect x={bx - 8} y={by - 5} width="16" height="10" rx={3}
                 fill="hsla(0, 0%, 5%, 0.85)" stroke="hsla(200, 60%, 50%, 0.4)" strokeWidth="0.5" />
               <text x={bx} y={by + 2.5} textAnchor="middle"
                 fill="hsla(200, 60%, 65%, 0.9)" fontSize="4.5" fontWeight="bold"
@@ -335,7 +335,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           const gangHue = tagHash % 360;
           return (
             <g key={`gtag-${t.district_id}`} pointerEvents="none">
-              <rect x={meta.cx - meta.labelW / 2} y={meta.cy + 9} width={meta.labelW} height="8" rx="2"
+              <rect x={meta.cx - meta.labelW / 2} y={meta.cy + 9} width={meta.labelW} height="8" rx={2}
                 fill="hsla(0, 0%, 5%, 0.85)" stroke={`hsla(${gangHue}, 60%, 45%, 0.4)`} strokeWidth="0.5" />
               <text x={meta.cx} y={meta.cy + 15} textAnchor="middle"
                 fill={`hsla(${gangHue}, 60%, 60%, 0.9)`} fontSize="4" fontWeight="bold"
@@ -362,7 +362,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
             <motion.g key={`ev-${ev.id}`}
               animate={{ scale: [1, 1.15, 1] }}
               transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>
-              <circle cx={ex} cy={ey} r="5" fill="hsla(0, 0%, 5%, 0.8)"
+              <circle cx={ex} cy={ey} r={5} fill="hsla(0, 0%, 5%, 0.8)"
                 stroke="hsla(0, 70%, 50%, 0.5)" strokeWidth="0.5" />
               <text x={ex} y={ey + 2.5} textAnchor="middle" fontSize="5">{icon}</text>
             </motion.g>
@@ -371,12 +371,12 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
 
         {/* === PLAYER MARKER === */}
         <g transform={`translate(${DISTRICT_META[playerLocation].cx}, ${DISTRICT_META[playerLocation].cy - 18})`}>
-          <motion.circle cy="0" r="5" fill="none" stroke="hsl(45 93% 40%)" strokeWidth="1" opacity="0.6"
+          <motion.circle cy={0} r={5} fill="none" stroke="hsl(45 93% 40%)" strokeWidth="1" opacity="0.6"
             animate={{ r: [5, 10, 5], opacity: [0.6, 0, 0.6] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
-          <circle cy="0" r="4" fill="hsl(45 93% 40%)" filter="url(#player-glow)" />
-          <circle cy="0" r="2" fill="hsl(45 93% 60%)" />
-          <rect x="-8" y="-14" width="16" height="8" rx="2" fill="hsl(45 93% 40%)" />
+          <circle cy={0} r={4} fill="hsl(45 93% 40%)" filter="url(#player-glow)" />
+          <circle cy={0} r={2} fill="hsl(45 93% 60%)" />
+          <rect x="-8" y="-14" width="16" height="8" rx={2} fill="hsl(45 93% 40%)" />
           <text x="0" y="-8" textAnchor="middle" fill="hsl(0 0% 5%)" fontSize="5" fontWeight="bold" fontFamily="Inter, sans-serif">JIJ</text>
         </g>
 
