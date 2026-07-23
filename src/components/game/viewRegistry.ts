@@ -13,7 +13,7 @@ const VillaView = React.lazy(() => import('./villa/VillaView').then(m => ({ defa
 const HospitalView = React.lazy(() => import('./HospitalView').then(m => ({ default: m.HospitalView })));
 const ChopShopView = React.lazy(() => import('./ChopShopView').then(m => ({ default: m.ChopShopView })));
 const GarageView = React.lazy(() => import('./garage/GarageView').then(m => ({ default: m.GarageView })));
-const GangView = React.lazy(() => import('./GangView').then(m => ({ default: m.GangView })));
+const OrganisatieView = React.lazy(() => import('./OrganisatieView').then(m => ({ default: m.OrganisatieView })));
 const HeistView = React.lazy(() => import('./heist/HeistView').then(m => ({ default: m.HeistView })));
 const BountyBoardPanel = React.lazy(() => import('./bounty/BountyBoardPanel').then(m => ({ default: m.BountyBoardPanel })));
 const DailyChallengesView = React.lazy(() => import('./DailyChallengesView').then(m => ({ default: m.DailyChallengesView })));
@@ -107,7 +107,7 @@ export const views: Record<string, React.ComponentType> = {
   gear: GearPanel,
   // Crew & Oorlog
   families: FamiliesPanel,
-  gang: GangView,
+  gang: OrganisatieView,
   war: WarViewLazy,
   corruption: CorruptionView,
   // Imperium

@@ -13,6 +13,12 @@ import { generateWorld } from '../game/world/generateWorld';
 import { WORLD_SIM_VERSION } from '../game/world/types';
 import { JOBS, getJobSalary } from '../game/jobs';
 import { SKILL_NODES, canUnlockSkill } from '../game/skillTree';
+import {
+  ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES, orgMaxMembers, orgPower,
+  orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen,
+  recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
+  type PlayerOrg, type OrgMember,
+} from '../game/organization';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
@@ -305,6 +311,13 @@ type GameAction =
   | { type: 'AUCTION_CLAIM'; auctionId: string }
   | { type: 'CREATE_AUCTION'; itemType: 'gear' | 'good' | 'vehicle'; itemId: string; startingPrice: number; quantity: number }
   | { type: 'BOT_TRADE'; botId: string; offerCash: number; offerGoods: Record<string, number>; requestCash: number; requestGoods: Record<string, number> }
+  | { type: 'FOUND_ORG'; name: string; tag: string }
+  | { type: 'ORG_RECRUIT' }
+  | { type: 'ORG_PROMOTE'; memberId: string }
+  | { type: 'ORG_DISMISS'; memberId: string }
+  | { type: 'ORG_BUY_UPGRADE'; upgradeId: string }
+  | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
+  | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
   // Weapon inventory actions
@@ -888,6 +901,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             remaining.push(auc);
           }
           s.world.auctions = remaining;
+        }
+      }
+
+      // ========== PLAYER ORGANIZATION ECONOMY ==========
+      // Controlled districts pay out; soldiers must be paid. Missed payroll bleeds
+      // loyalty, and a soldier who hits zero loyalty walks out.
+      if (s.org) {
+        const income = orgDailyIncome(s.org);
+        const upkeep = orgDailyUpkeep(s.org);
+        const regen = orgDailyLoyaltyRegen(s.org);
+        if (income > 0) { s.money += income; s.stats.totalEarned += income; }
+        if (s.money >= upkeep) {
+          s.money -= upkeep;
+          // Payroll met: loyalty holds and slowly recovers with any Erecode upgrade.
+          for (const m of s.org.members) m.loyalty = Math.min(100, m.loyalty + regen);
+        } else if (upkeep > 0) {
+          // Can't make payroll — morale collapses.
+          for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 15);
+          addPhoneMessage(s, 'system', `Je kon de loonlijst van [${s.org.tag}] niet betalen. De loyaliteit daalt.`, 'warning');
+        }
+        const leavers = s.org.members.filter(m => m.loyalty <= 0);
+        if (leavers.length > 0) {
+          s.org.members = s.org.members.filter(m => m.loyalty > 0);
+          addPhoneMessage(s, 'system', `${leavers.map(m => m.name).join(', ')} verliet de organisatie.`, 'threat');
         }
       }
 
@@ -4164,6 +4201,115 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'FOUND_ORG': {
+      if (s.org) return s;
+      if (s.rep < ORG_FOUND_MIN_REP) return s;
+      if (s.money < ORG_FOUND_COST) return s;
+      const name = (action.name || '').trim().slice(0, 28) || 'Naamloze Crew';
+      const tag = ((action.tag || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || 'ORG').slice(0, 4);
+      s.money -= ORG_FOUND_COST;
+      s.stats.totalSpent += ORG_FOUND_COST;
+      const org: PlayerOrg = {
+        name, tag, members: [], controlledDistricts: [], respect: 0, upgrades: [], foundedDay: s.day,
+      };
+      s.org = org;
+      addPhoneMessage(s, 'system', `Je hebt de organisatie [${tag}] ${name} opgericht. Tijd om soldaten te ronselen.`, 'opportunity');
+      return s;
+    }
+
+    case 'ORG_RECRUIT': {
+      if (!s.org) return s;
+      if (s.org.members.length >= orgMaxMembers(s.org)) return s;
+      const cost = recruitCost(s.org, s.player.level);
+      if (s.money < cost) return s;
+      // Draw a believable name from the living world (fallback to a generic handle).
+      const usedNames = new Set(s.org.members.map(m => m.name));
+      const pool = (s.world?.bots || []).filter(b => !usedNames.has(b.name));
+      const name = pool.length > 0
+        ? pool[Math.floor(Math.random() * pool.length)].name
+        : `Rekruut #${s.org.members.length + 1}`;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      const recruit: OrgMember = makeRecruit(name, s.player.level);
+      s.org.members.push(recruit);
+      s.org.respect += 2;
+      return s;
+    }
+
+    case 'ORG_PROMOTE': {
+      if (!s.org) return s;
+      const m = s.org.members.find(x => x.id === action.memberId);
+      if (!m) return s;
+      const target = nextRole(m.role);
+      if (!target) return s;
+      const cost = promoteCost(m);
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
+      m.role = target;
+      m.loyalty = Math.min(100, m.loyalty + 10);
+      s.org.respect += 3;
+      return s;
+    }
+
+    case 'ORG_DISMISS': {
+      if (!s.org) return s;
+      s.org.members = s.org.members.filter(x => x.id !== action.memberId);
+      return s;
+    }
+
+    case 'ORG_BUY_UPGRADE': {
+      if (!s.org) return s;
+      if (s.org.upgrades.includes(action.upgradeId)) return s;
+      const up = ORG_UPGRADES.find(u => u.id === action.upgradeId);
+      if (!up || s.money < up.cost) return s;
+      s.money -= up.cost;
+      s.stats.totalSpent += up.cost;
+      s.org.upgrades.push(up.id);
+      addPhoneMessage(s, 'system', `Organisatie-upgrade gekocht: ${up.name}.`, 'info');
+      return s;
+    }
+
+    case 'ORG_ATTACK_DISTRICT': {
+      if (!s.org || !s.world) return s;
+      if (s.org.members.length === 0) return s;
+      const gang = s.world.gangs.find(g => g.id === action.gangId);
+      if (!gang || !gang.controlledDistrict) return s;
+      const district = gang.controlledDistrict;
+      const won = resolveOrgAttack(orgPower(s.org), gang.power, Math.random);
+      if (won) {
+        gang.controlledDistrict = null;
+        gang.power = Math.max(10, Math.floor(gang.power * 0.7));
+        if (!s.org.controlledDistricts.includes(district)) s.org.controlledDistricts.push(district);
+        s.org.respect += 10;
+        s.rep += 20;
+        const loot = 5000 + Math.floor(Math.random() * 8000);
+        s.money += loot;
+        s.stats.totalEarned += loot;
+        // The push cost the crew — spread some fatigue as loyalty loss.
+        for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 4);
+        addPhoneMessage(s, 'system', `${DISTRICTS[district]?.name || district} veroverd op ${gang.name}! Buit: €${loot.toLocaleString()}.`, 'opportunity');
+      } else {
+        gang.power += 8;
+        s.org.respect = Math.max(0, s.org.respect - 3);
+        // A failed raid wounds the crew: biggest loyalty hit, may lose the weakest soldier.
+        for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 10);
+        if (s.org.members.length > 0 && Math.random() < 0.35) {
+          const weakest = [...s.org.members].sort((a, b) => a.loyalty - b.loyalty)[0];
+          s.org.members = s.org.members.filter(m => m.id !== weakest.id);
+          addPhoneMessage(s, 'system', `De aanval op ${DISTRICTS[district]?.name || district} mislukte. ${weakest.name} sneuvelde.`, 'threat');
+        } else {
+          addPhoneMessage(s, 'system', `De aanval op ${DISTRICTS[district]?.name || district} werd afgeslagen door ${gang.name}.`, 'warning');
+        }
+      }
+      return s;
+    }
+
+    case 'ORG_DISBAND': {
+      s.org = null;
+      return s;
+    }
+
     case 'ADD_MARKET_ALERT': {
       const alert = action.alert as import('@/game/types').MarketAlert;
       s.marketAlerts.push(alert);
@@ -4526,6 +4672,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       // Gym & jobs migration
       if (!saved.gymStats) saved.gymStats = { strength: 1, defense: 1, speed: 1, dexterity: 1 };
       if (saved.job === undefined) saved.job = null;
+      // Player organization migration
+      if (saved.org === undefined) saved.org = null;
       return saved;
     }
     const fresh = createInitialState();

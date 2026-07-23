@@ -1939,6 +1939,7 @@ export function createInitialState(): import('./types').GameState {
     lastStreetEventAt: null,
     gangDistricts: [],
     gangId: null,
+    org: null,
     // Skill Tree & Prestige
     unlockedSkills: [],
     prestigeLevel: 0,

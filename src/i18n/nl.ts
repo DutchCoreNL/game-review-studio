@@ -68,7 +68,7 @@ export const nl: Translations = {
     crewWar: 'CREW & OORLOG',
     crew: 'Crew',
     factions: 'Facties',
-    gang: 'Gang',
+    gang: 'Organisatie',
     organizedCrime: 'Organized Crime',
     war: 'Oorlog',
     corruption: 'Corruptie',

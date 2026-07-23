@@ -93,6 +93,7 @@ const GROUPS: NavGroupDef[] = [
   {
     id: 'garage', emoji: '🏛', label: t => t.sidebar.imperium, primary: 'garage',
     items: [
+      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
       { id: 'business', icon: Store, label: t => t.sidebar.business },
       { id: 'garage', icon: Car, label: t => t.sidebar.garage, badge: s => (s.carOrders?.filter(o => s.day >= o.deadline).length || 0) },
       { id: 'districts', icon: MapPin, label: t => t.sidebar.districts },

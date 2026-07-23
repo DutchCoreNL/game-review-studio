@@ -68,7 +68,7 @@ export const en: Translations = {
     crewWar: 'CREW & WAR',
     crew: 'Crew',
     factions: 'Factions',
-    gang: 'Gang',
+    gang: 'Organization',
     organizedCrime: 'Organized Crime',
     war: 'War',
     corruption: 'Corruption',
