@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { gameApi } from '@/lib/gameApi';
+import { selectMostWanted, selectRivals } from '@/game/world/botProfile';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
@@ -39,39 +39,69 @@ interface BountyEntry {
 }
 
 export function MostWantedView() {
-  const { state, showToast } = useGame();
+  const { state, dispatch, showToast } = useGame();
   const [tab, setTab] = useState<'wanted' | 'rivals' | 'bounties' | 'on_me'>('wanted');
-  const [mostWanted, setMostWanted] = useState<MostWantedEntry[]>([]);
-  const [myRivals, setMyRivals] = useState<RivalEntry[]>([]);
-  const [activeBounties, setActiveBounties] = useState<BountyEntry[]>([]);
-  const [myBounties, setMyBounties] = useState<{ id: string; placerName: string; amount: number }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [placingBounty, setPlacingBounty] = useState<string | null>(null);
   const [bountyAmount, setBountyAmount] = useState(5000);
 
-  const fetchData = async () => {
-    setLoading(true);
-    const res = await gameApi.getMostWanted();
-    if (res.success && res.data) {
-      setMostWanted(res.data.mostWanted || []);
-      setMyRivals(res.data.myRivals || []);
-      setActiveBounties(res.data.activeBounties || []);
-      setMyBounties(res.data.myBounties || []);
-    }
-    setLoading(false);
-  };
+  const loading = false;
 
-  useEffect(() => { fetchData(); }, []);
+  // The world's most notorious bots — highest combat rating / rep are the biggest targets.
+  const mostWanted: MostWantedEntry[] = useMemo(() =>
+    selectMostWanted(state.world, 12).map((b, i) => {
+      const placed = (state.placedBounties || []).find(p => p.targetId === b.id && p.status === 'active');
+      // Notoriety-based bounty: rep + combat rating, plus any bounty the player placed.
+      const notoriety = Math.floor((b.rep || 0) * 40 + ((b.combatRating || 1000) - 900) * 20);
+      return {
+        rank: i + 1,
+        userId: b.id,
+        username: b.name,
+        totalBounty: Math.max(1000, notoriety) + (placed?.reward || 0),
+        bountyCount: placed ? 1 : 0,
+      };
+    }), [state.world, state.placedBounties]);
 
-  const handlePlaceBounty = async (targetId: string) => {
-    const res = await gameApi.placeBounty(targetId, bountyAmount);
-    if (res.success) {
-      showToast(res.message || 'Premie geplaatst!');
-      setPlacingBounty(null);
-      fetchData();
-    } else {
-      showToast(res.message || 'Mislukt.', true);
+  // Bots that have a grudge against the player (PvP losses, placed bounties, revenge bounties).
+  const myRivals: RivalEntry[] = useMemo(() =>
+    selectRivals(state.world, 12).map(b => ({
+      userId: b.id,
+      username: b.name,
+      score: b.rivalry ?? 0,
+      source: (b.bountyOnPlayer ?? 0) > 0 ? 'bounty' : 'pvp',
+      level: b.level,
+      rep: b.rep,
+      loc: b.loc,
+      lastInteraction: '',
+    })), [state.world]);
+
+  // Bounties the player has placed on bots.
+  const activeBounties: BountyEntry[] = useMemo(() =>
+    (state.placedBounties || [])
+      .filter(b => b.status === 'active')
+      .map(b => ({
+        id: b.id,
+        targetId: b.targetId || '',
+        targetName: b.targetName,
+        placerName: b.placedBy || 'Jij',
+        amount: b.reward,
+        expiresAt: String(b.deadline),
+      })), [state.placedBounties]);
+
+  // Bots that have put a bounty on the player's head.
+  const myBounties = useMemo(() =>
+    (state.world?.bots || [])
+      .filter(b => (b.bountyOnPlayer ?? 0) > 0)
+      .map(b => ({ id: b.id, placerName: b.name, amount: b.bountyOnPlayer ?? 0 })), [state.world]);
+
+  const handlePlaceBounty = (targetId: string) => {
+    if (state.money < bountyAmount) {
+      showToast('Niet genoeg geld voor deze premie.', true);
+      return;
     }
+    const target = state.world?.bots.find(b => b.id === targetId);
+    dispatch({ type: 'PLACE_BOT_BOUNTY', botId: targetId, amount: bountyAmount });
+    showToast(`Premie van €${bountyAmount.toLocaleString()} op ${target?.name || 'doelwit'} geplaatst!`);
+    setPlacingBounty(null);
   };
 
   const totalBountyOnMe = myBounties.reduce((s, b) => s + b.amount, 0);
@@ -248,7 +278,7 @@ export function MostWantedView() {
                 </div>
               ) : (
                 activeBounties.map((b, i) => {
-                  const expiresIn = Math.max(0, Math.floor((new Date(b.expiresAt).getTime() - Date.now()) / 3600000));
+                  const expiresIn = Math.max(0, Number(b.expiresAt) - state.day);
                   return (
                     <motion.div
                       key={b.id}
@@ -263,7 +293,7 @@ export function MostWantedView() {
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-xs truncate">{b.targetName}</div>
                         <div className="text-[0.5rem] text-muted-foreground">
-                          Geplaatst door {b.placerName} • <Clock size={8} className="inline" /> {expiresIn}u
+                          Geplaatst door {b.placerName} • <Clock size={8} className="inline" /> {expiresIn}d
                         </div>
                       </div>
                       <span className="text-gold font-bold text-xs">€{b.amount.toLocaleString()}</span>

@@ -1,32 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { useAuth } from '@/hooks/useAuth';
-import { gameApi } from '@/lib/gameApi';
-import { supabase } from '@/integrations/supabase/client';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gavel, Clock, User, Coins, Plus, Shield, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Gavel, Clock, User, Coins, Plus, Shield, TrendingUp } from 'lucide-react';
 import { GEAR_IMAGES, GOOD_IMAGES, VEHICLE_IMAGES } from '@/assets/items/index';
-
-interface LiveAuction {
-  id: string;
-  seller_id: string;
-  seller_name: string;
-  item_type: string;
-  item_id: string;
-  item_name: string;
-  quantity: number;
-  starting_price: number;
-  current_bid: number;
-  current_bidder_id: string | null;
-  current_bidder_name: string | null;
-  bid_count: number;
-  min_increment: number;
-  ends_at: string;
-  original_ends_at: string;
-  status: string;
-}
+import { GEAR, VEHICLES } from '@/game/constants';
+import type { WorldAuction } from '@/game/world/types';
 
 const ITEM_IMAGES: Record<string, string> = {
   glock: GEAR_IMAGES.glock,
@@ -52,55 +32,38 @@ const ITEM_IMAGES: Record<string, string> = {
   ...VEHICLE_IMAGES,
 };
 
-function useCountdown(endsAt: string) {
-  const [timeLeft, setTimeLeft] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
+const MIN_INCREMENT = (bid: number) => Math.max(500, Math.floor(bid * 0.05));
 
-  useEffect(() => {
-    const update = () => {
-      const diff = new Date(endsAt).getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft('VERLOPEN'); setIsUrgent(true); return; }
-      const m = Math.floor(diff / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(m > 0 ? `${m}m ${s}s` : `${s}s`);
-      setIsUrgent(diff < 120000); // < 2 min
-    };
-    update();
-    const i = setInterval(update, 1000);
-    return () => clearInterval(i);
-  }, [endsAt]);
-
-  return { timeLeft, isUrgent };
-}
-
-function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string }) {
-  const { showToast } = useGame();
-  const { timeLeft, isUrgent } = useCountdown(auction.ends_at);
-  const [bidding, setBidding] = useState(false);
+function AuctionCard({ auction }: { auction: WorldAuction }) {
+  const { state, dispatch, showToast } = useGame();
   const [customBid, setCustomBid] = useState(0);
 
-  const minBid = auction.current_bid > 0
-    ? auction.current_bid + auction.min_increment
-    : auction.starting_price;
+  const daysLeft = auction.endsDay - state.day;
+  const isExpired = auction.status !== 'active' || daysLeft <= 0;
+  const isUrgent = !isExpired && daysLeft <= 1;
+  const timeLeft = isExpired ? 'VERLOPEN' : `${daysLeft}d`;
 
-  const isExpired = timeLeft === 'VERLOPEN';
-  const isSeller = auction.seller_id === userId;
-  const isWinner = auction.current_bidder_id === userId;
-  const image = ITEM_IMAGES[auction.item_id] || GOOD_IMAGES.drugs;
+  const increment = MIN_INCREMENT(auction.currentBid);
+  const minBid = auction.currentBid + increment;
+
+  const isSeller = auction.sellerBotId === null;
+  const isWinner = auction.topBidderId === 'player';
+  const image = ITEM_IMAGES[auction.itemId] || GOOD_IMAGES.drugs;
 
   useEffect(() => { setCustomBid(minBid); }, [minBid]);
 
-  const handleBid = async () => {
-    if (bidding) return;
-    setBidding(true);
-    const res = await gameApi.bidLiveAuction(auction.id, customBid);
-    showToast(res.message);
-    setBidding(false);
+  const handleBid = () => {
+    if (customBid < minBid) return;
+    if (state.money < customBid) { showToast('Niet genoeg geld voor dit bod.', true); return; }
+    dispatch({ type: 'AUCTION_BID', auctionId: auction.id, amount: customBid });
+    showToast(`Bod van €${customBid.toLocaleString()} geplaatst op ${auction.itemName}.`);
   };
 
-  const handleClaim = async () => {
-    const res = await gameApi.claimLiveAuction(auction.id);
-    showToast(res.message);
+  const handleClaim = () => {
+    if (isWinner) {
+      dispatch({ type: 'AUCTION_CLAIM', auctionId: auction.id });
+      showToast(`${auction.itemName} geclaimd!`);
+    }
   };
 
   return (
@@ -113,7 +76,7 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
     >
       {/* Banner */}
       <div className="relative h-16 overflow-hidden">
-        <img src={image} alt={auction.item_name} className="w-full h-full object-cover" />
+        <img src={image} alt={auction.itemName} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
 
         <div className={`absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.5rem] font-bold backdrop-blur-sm ${
@@ -123,17 +86,16 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
           {timeLeft}
         </div>
 
-        {auction.bid_count > 0 && (
+        {auction.bidCount > 0 && (
           <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.5rem] font-bold bg-game-purple/80 text-white backdrop-blur-sm">
             <TrendingUp size={8} />
-            {auction.bid_count} bod{auction.bid_count !== 1 ? 'en' : ''}
+            {auction.bidCount} bod{auction.bidCount !== 1 ? 'en' : ''}
           </div>
         )}
 
         <div className="absolute bottom-1 left-2 right-2">
           <h4 className="font-black text-xs text-game-purple drop-shadow-lg">
-            {auction.item_name}
-            {auction.quantity > 1 && <span className="text-muted-foreground ml-1">x{auction.quantity}</span>}
+            {auction.itemName}
           </h4>
         </div>
       </div>
@@ -143,29 +105,33 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
         <div className="flex items-center justify-between text-[0.55rem] mb-2">
           <div className="flex items-center gap-1 text-muted-foreground">
             <User size={9} />
-            <span>{auction.seller_name}</span>
+            <span>{auction.sellerName}</span>
           </div>
           <div className="flex items-center gap-1">
             <Coins size={9} className="text-gold" />
             <span className="font-bold text-gold">
-              {auction.current_bid > 0 ? `€${auction.current_bid.toLocaleString()}` : `Start €${auction.starting_price.toLocaleString()}`}
+              {auction.bidCount > 0 ? `€${auction.currentBid.toLocaleString()}` : `Start €${auction.startingPrice.toLocaleString()}`}
             </span>
           </div>
         </div>
 
-        {auction.current_bidder_name && (
+        {auction.topBidderName && (
           <div className="flex items-center gap-1 text-[0.5rem] text-emerald mb-2">
             <Shield size={8} />
-            Hoogste bieder: <span className="font-bold">{auction.current_bidder_name}</span>
+            Hoogste bieder: <span className="font-bold">{auction.topBidderName}</span>
             {isWinner && <span className="text-gold ml-1">(JIJ)</span>}
           </div>
         )}
 
         {/* Actions */}
         {isExpired ? (
-          <GameButton variant="gold" size="sm" fullWidth icon={<Gavel size={10} />} onClick={handleClaim}>
-            {isWinner ? 'CLAIM ITEM' : isSeller ? 'CLAIM TERUG' : 'SLUIT AF'}
-          </GameButton>
+          isWinner ? (
+            <GameButton variant="gold" size="sm" fullWidth icon={<Gavel size={10} />} onClick={handleClaim}>
+              CLAIM ITEM
+            </GameButton>
+          ) : (
+            <p className="text-[0.5rem] text-muted-foreground text-center">Veiling afgelopen</p>
+          )
         ) : isSeller ? (
           <p className="text-[0.5rem] text-muted-foreground text-center">Je eigen veiling</p>
         ) : (
@@ -177,13 +143,13 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
                 onChange={(e) => setCustomBid(Math.max(minBid, parseInt(e.target.value) || 0))}
                 className="flex-1 bg-muted/30 border border-border rounded px-2 py-1 text-[0.6rem] text-foreground"
                 min={minBid}
-                step={auction.min_increment}
+                step={increment}
               />
               <GameButton
                 variant="purple"
                 size="sm"
                 icon={<Gavel size={10} />}
-                disabled={bidding || customBid < minBid}
+                disabled={customBid < minBid || state.money < customBid}
                 onClick={handleBid}
               >
                 BIED
@@ -192,12 +158,6 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
             <p className="text-[0.45rem] text-muted-foreground text-center">
               Min. bod: €{minBid.toLocaleString()} · 5% fee bij verkoop
             </p>
-            {isUrgent && (
-              <div className="flex items-center justify-center gap-1 text-[0.45rem] text-blood">
-                <AlertTriangle size={8} />
-                Anti-snipe: bieden verlengt de veiling met 2 min
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -207,47 +167,14 @@ function AuctionCard({ auction, userId }: { auction: LiveAuction; userId: string
 
 export function LiveAuctionPanel() {
   const { state } = useGame();
-  const [auctions, setAuctions] = useState<LiveAuction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const { user } = useAuth();
-  const userId = user?.id || '';
 
-  const fetchAuctions = useCallback(async () => {
-    const res = await gameApi.getLiveAuctions();
-    if (res.success && res.data?.auctions) {
-      setAuctions(res.data.auctions);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchAuctions();
-  }, [fetchAuctions]);
-
-  // Realtime subscription for live updates
-  useEffect(() => {
-    const channel = supabase
-      .channel('live-auctions')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'live_auctions',
-      }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setAuctions(prev => [payload.new as LiveAuction, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setAuctions(prev => prev.map(a =>
-            a.id === (payload.new as LiveAuction).id ? payload.new as LiveAuction : a
-          ).filter(a => a.status === 'active'));
-        } else if (payload.eventType === 'DELETE') {
-          setAuctions(prev => prev.filter(a => a.id !== (payload.old as any).id));
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+  // Live auctions come straight from the local world sim — bots list items and outbid you.
+  const auctions = useMemo(() =>
+    (state.world?.auctions || [])
+      .filter(a => a.status === 'active' || (a.topBidderId === 'player'))
+      .sort((a, b) => a.endsDay - b.endsDay),
+    [state.world?.auctions]);
 
   return (
     <>
@@ -271,16 +198,12 @@ export function LiveAuctionPanel() {
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
-            <CreateAuctionForm onCreated={() => { setShowCreate(false); fetchAuctions(); }} />
+            <CreateAuctionForm onCreated={() => setShowCreate(false)} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {loading ? (
-        <div className="game-card text-center py-6">
-          <p className="text-[0.6rem] text-muted-foreground">Laden...</p>
-        </div>
-      ) : auctions.length === 0 ? (
+      {auctions.length === 0 ? (
         <div className="game-card text-center py-6 mb-4">
           <Gavel size={24} className="mx-auto mb-2 text-muted-foreground opacity-30" />
           <p className="text-[0.6rem] text-muted-foreground font-bold">Geen actieve veilingen</p>
@@ -290,7 +213,7 @@ export function LiveAuctionPanel() {
         <div className="space-y-3 mb-4">
           <AnimatePresence>
             {auctions.map(auction => (
-              <AuctionCard key={auction.id} auction={auction} userId={userId} />
+              <AuctionCard key={auction.id} auction={auction} />
             ))}
           </AnimatePresence>
         </div>
@@ -300,25 +223,23 @@ export function LiveAuctionPanel() {
 }
 
 function CreateAuctionForm({ onCreated }: { onCreated: () => void }) {
-  const { state, showToast } = useGame();
-  const [itemType, setItemType] = useState<'gear' | 'good' | 'vehicle'>('gear');
+  const { state, dispatch, showToast } = useGame();
+  const [itemType, setItemType] = useState<'gear' | 'vehicle'>('gear');
   const [itemId, setItemId] = useState('');
-  const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState(1000);
-  const [creating, setCreating] = useState(false);
 
-  // Get owned items
+  // Only gear and vehicles can be auctioned (single, unique items).
   const ownedGear = state.ownedGear || [];
-  const inventory = state.inventory || {};
-  const vehicles = state.ownedVehicles || [];
+  const vehicles = (state.ownedVehicles || []).filter(v => v.id !== state.activeVehicle);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!itemId || price < 500) return;
-    setCreating(true);
-    const res = await gameApi.createLiveAuction(itemType, itemId, price, itemType === 'good' ? quantity : 1);
-    showToast(res.message);
-    if (res.success) onCreated();
-    setCreating(false);
+    dispatch({ type: 'CREATE_AUCTION', itemType, itemId, startingPrice: price, quantity: 1 });
+    const name = itemType === 'vehicle'
+      ? VEHICLES.find(v => v.id === itemId)?.name
+      : GEAR.find(g => g.id === itemId)?.name;
+    showToast(`${name || itemId} in de veiling gezet.`);
+    onCreated();
   };
 
   return (
@@ -326,10 +247,10 @@ function CreateAuctionForm({ onCreated }: { onCreated: () => void }) {
       <h4 className="font-bold text-xs text-game-purple">Nieuw Item Veilen</h4>
 
       <div className="flex gap-1">
-        {(['gear', 'good', 'vehicle'] as const).map(t => (
+        {(['gear', 'vehicle'] as const).map(t => (
           <GameButton key={t} variant={itemType === t ? 'purple' : 'muted'} size="sm"
             onClick={() => { setItemType(t); setItemId(''); }}>
-            {t === 'gear' ? 'GEAR' : t === 'good' ? 'GOEDEREN' : 'VOERTUIG'}
+            {t === 'gear' ? 'GEAR' : 'VOERTUIG'}
           </GameButton>
         ))}
       </div>
@@ -340,30 +261,13 @@ function CreateAuctionForm({ onCreated }: { onCreated: () => void }) {
         className="w-full bg-muted/30 border border-border rounded px-2 py-1.5 text-[0.6rem] text-foreground"
       >
         <option value="">Selecteer item...</option>
-        {itemType === 'gear' && ownedGear.map((g: string) => (
-          <option key={g} value={g}>{g}</option>
+        {itemType === 'gear' && ownedGear.map((g) => (
+          <option key={g} value={g}>{GEAR.find(x => x.id === g)?.name || g}</option>
         ))}
-        {itemType === 'good' && Object.entries(inventory).filter(([_, qty]) => (qty as number) > 0).map(([id, qty]) => (
-          <option key={id} value={id}>{id} (x{qty as number})</option>
-        ))}
-        {itemType === 'vehicle' && vehicles.filter((v: any) => v.id !== state.activeVehicle).map((v: any) => (
-          <option key={v.id} value={v.id}>{v.id}</option>
+        {itemType === 'vehicle' && vehicles.map((v) => (
+          <option key={v.id} value={v.id}>{VEHICLES.find(x => x.id === v.id)?.name || v.id}</option>
         ))}
       </select>
-
-      {itemType === 'good' && itemId && (
-        <div>
-          <label className="text-[0.5rem] text-muted-foreground">Aantal</label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-full bg-muted/30 border border-border rounded px-2 py-1 text-[0.6rem] text-foreground"
-            min={1}
-            max={(inventory[itemId] as number) || 1}
-          />
-        </div>
-      )}
 
       <div>
         <label className="text-[0.5rem] text-muted-foreground">Startprijs (min. €500)</label>
@@ -377,10 +281,10 @@ function CreateAuctionForm({ onCreated }: { onCreated: () => void }) {
         />
       </div>
 
-      <GameButton variant="gold" size="sm" fullWidth disabled={!itemId || creating} onClick={handleCreate}>
-        {creating ? 'BEZIG...' : `VEILING STARTEN (30 min)`}
+      <GameButton variant="gold" size="sm" fullWidth disabled={!itemId} onClick={handleCreate}>
+        VEILING STARTEN (2 dagen)
       </GameButton>
-      <p className="text-[0.45rem] text-muted-foreground text-center">5% fee bij succesvolle verkoop · Anti-snipe bescherming</p>
+      <p className="text-[0.45rem] text-muted-foreground text-center">5% fee bij succesvolle verkoop · bots bieden mee</p>
     </div>
   );
 }

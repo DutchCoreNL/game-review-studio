@@ -1995,8 +1995,13 @@ export function createInitialState(): import('./types').GameState {
     insiderTips: [],
     launderMethodsUsed: {},
     // Local MMO world simulation (bot population). Seeded from the current time so each new
-    // game gets its own reproducible world.
-    world: generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, 1),
+    // game gets its own reproducible world. The world day tracks the real calendar (see
+    // useWorldState), so seed live auctions against it rather than day 1.
+    world: generateWorld(
+      (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0,
+      1,
+      Math.floor((Date.now() - new Date('2025-01-01T06:00:00').getTime()) / (24 * 60 * 60 * 1000)) + 1,
+    ),
     // Gym & jobs (local progression)
     gymStats: { strength: 1, defense: 1, speed: 1, dexterity: 1 },
     job: null,

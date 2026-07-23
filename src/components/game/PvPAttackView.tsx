@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/hooks/useAuth';
-import { gameApi } from '@/lib/gameApi';
+import { selectDuelOpponents, botToPvPInfo } from '@/game/world/botProfile';
 import { PvPPlayerInfo } from '@/game/types';
 import { GEAR as GEAR_DATA } from '@/game/constants';
 import { SectionHeader } from './ui/SectionHeader';
@@ -169,30 +169,23 @@ function PreCombatPreview({ player, target, onFight, onClose, canAttack }: {
 }
 
 export function PvPAttackView() {
-  const { state, dispatch, showToast } = useGame();
+  const { state, dispatch } = useGame();
   const { user } = useAuth();
   const [players, setPlayers] = useState<PlayerTarget[]>([]);
   const [loading, setLoading] = useState(false);
-  const [attacking, setAttacking] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<PlayerTarget | null>(null);
   const [lastResult, setLastResult] = useState<AttackResult | null>(null);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [messageTarget, setMessageTarget] = useState<{ userId: string; username: string } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<PlayerTarget | null>(null);
 
-  const fetchPlayers = useCallback(async () => {
-    if (!user) return;
+  const fetchPlayers = useCallback(() => {
     setLoading(true);
-    try {
-      const res = await gameApi.listPlayers();
-      if (res.success && res.data?.players) {
-        setPlayers(res.data.players);
-      }
-    } catch {
-      showToast('Kon spelers niet laden.', true);
-    }
+    // Opponents are living world bots near the player's district.
+    const opponents = selectDuelOpponents(state.world, state.loc, state.player.level, 12);
+    setPlayers(opponents.map(botToPvPInfo));
     setLoading(false);
-  }, [user, showToast]);
+  }, [state.world, state.loc, state.player.level]);
 
   useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
@@ -200,30 +193,16 @@ export function PvPAttackView() {
     return <PvPCombatView />;
   }
 
-  const executeAttack = async (target: PlayerTarget) => {
-    setAttacking(true);
+  const executeAttack = (target: PlayerTarget) => {
     setConfirmTarget(null);
-    try {
-      const res = await gameApi.attack(target.userId);
-      if (res.success && res.data) {
-        setLastResult(res.data as AttackResult);
-        showToast(res.message, !res.data.won);
-        fetchPlayers();
-        const stateRes = await gameApi.getState();
-        if (stateRes.success && stateRes.data) {}
-      } else {
-        showToast(res.message, true);
-      }
-    } catch {
-      showToast('Aanval mislukt door verbindingsfout.', true);
-    }
-    setAttacking(false);
+    // Start a real, turn-based duel against the bot — PvPCombatView takes over.
+    dispatch({ type: 'START_PVP_COMBAT', target });
   };
 
   const hasAttackCooldown = state.attackCooldownUntil && new Date(state.attackCooldownUntil) > new Date();
   const hasEnergy = state.energy >= 15;
   const hasNerve = state.nerve >= 10;
-  const canAttack = !hasAttackCooldown && hasEnergy && hasNerve && !attacking;
+  const canAttack = !hasAttackCooldown && hasEnergy && hasNerve;
 
   return (
     <ViewWrapper bg={pvpBg}>

@@ -4,6 +4,7 @@ import { GameButton } from '../ui/GameButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gavel, Clock, User, Coins } from 'lucide-react';
 import { GEAR_IMAGES, GOOD_IMAGES } from '@/assets/items/index';
+import { LiveAuctionPanel } from './LiveAuctionPanel';
 
 const REWARD_IMAGES: Record<string, string> = {
   glock: GEAR_IMAGES.glock,
@@ -33,11 +34,13 @@ export function AuctionPanel() {
     return (
       <>
         <SectionHeader title="Zwarte Markt Veiling" icon={<Gavel size={12} />} />
-        <div className="game-card mb-4 text-center py-6">
-          <Gavel size={24} className="mx-auto mb-2 text-muted-foreground opacity-30" />
-          <p className="text-[0.6rem] text-muted-foreground font-bold">Geen veilingen vandaag</p>
+        <div className="game-card mb-4 text-center py-5">
+          <Gavel size={22} className="mx-auto mb-2 text-muted-foreground opacity-30" />
+          <p className="text-[0.6rem] text-muted-foreground font-bold">Geen zwarte-markt items vandaag</p>
           <p className="text-[0.5rem] text-muted-foreground">Nieuwe items verschijnen elke paar dagen.</p>
         </div>
+        {/* Live world auctions (bots list items and bid against you) */}
+        <LiveAuctionPanel />
       </>
     );
   }
@@ -138,6 +141,8 @@ export function AuctionPanel() {
           })}
         </AnimatePresence>
       </div>
+      {/* Live world auctions (bots list items and bid against you) */}
+      <LiveAuctionPanel />
     </>
   );
 }

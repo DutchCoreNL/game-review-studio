@@ -6,11 +6,10 @@ import { SectionHeader } from './ui/SectionHeader';
 import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { GameButton } from './ui/GameButton';
-import { gameApi } from '@/lib/gameApi';
 import { useGame } from '@/contexts/GameContext';
 import { GOODS } from '@/game/constants';
 import { GoodId } from '@/game/types';
-import { supabase } from '@/integrations/supabase/client';
+import { buildBotProfile } from '@/game/world/botProfile';
 
 interface PlayerDetailProps {
   /** Either pass full player data (leaderboard) or just userId to fetch */
@@ -70,10 +69,20 @@ interface PublicProfile {
   districts: { id: string; name: string; rep: number }[];
   businesses: { id: string; name: string }[];
   crew: { name: string; role: string; level: number; spec: string | null }[];
+  bio?: string;
+  personality?: string;
+  combatRating?: number;
+  wins?: number;
+  losses?: number;
+  killStreak?: number;
+  gangName?: string | null;
+  gangRole?: string | null;
+  online?: boolean;
+  rivalry?: number;
 }
 
 export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps) {
-  const { state, showToast } = useGame();
+  const { state, dispatch, showToast } = useGame();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,19 +96,17 @@ export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps
 
   useEffect(() => {
     if (userId) {
-      setLoading(true);
-      gameApi.getPublicProfile(userId).then(res => {
-        if (res.success && res.data) {
-          setProfile(res.data as unknown as PublicProfile);
-        } else {
-          setError(res.message);
-        }
-        setLoading(false);
-      }).catch(() => {
-        setError('Kon profiel niet laden.');
-        setLoading(false);
-      });
+      // Build the profile locally from the world simulation (bots are real "players" now).
+      const built = buildBotProfile(state.world, userId, state.day);
+      if (built) {
+        setProfile(built as unknown as PublicProfile);
+        setError(null);
+      } else {
+        setError('Speler niet gevonden.');
+      }
+      setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Legacy mode: simple leaderboard data
@@ -327,29 +334,40 @@ export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps
                       <GameButton variant="muted" size="sm" className="flex-1" onClick={() => setShowTradeForm(false)}>Annuleer</GameButton>
                       <GameButton variant="gold" size="sm" className="flex-1" disabled={tradeSending ||
                         (tradeOfferCash === 0 && Object.values(tradeOfferGoods).every(v => !v) && tradeRequestCash === 0 && Object.values(tradeRequestGoods).every(v => !v))}
-                        onClick={async () => {
+                        onClick={() => {
+                          if (!userId) return;
                           setTradeSending(true);
                           const offerG = Object.fromEntries(Object.entries(tradeOfferGoods).filter(([, v]) => v > 0));
                           const reqG = Object.fromEntries(Object.entries(tradeRequestGoods).filter(([, v]) => v > 0));
-                          const res = await supabase.functions.invoke('marketplace', {
-                            body: {
-                              action: 'send_trade_offer',
-                              receiverId: userId,
-                              receiverName: profile?.username || 'Speler',
-                              offerGoods: offerG,
-                              offerCash: tradeOfferCash,
-                              requestGoods: reqG,
-                              requestCash: tradeRequestCash,
-                              message: tradeMessage || null,
-                            },
-                          });
-                          setTradeSending(false);
-                          if (res.data?.success) {
-                            showToast(`Handelsbod verzonden naar ${profile?.username}!`);
-                            setShowTradeForm(false);
-                          } else {
-                            showToast(res.data?.error || 'Kon bod niet versturen', true);
-                          }
+                          // The bot evaluates the offer locally: it accepts when the cash+goods
+                          // it receives is worth at least what it gives away (with a small margin
+                          // shaped by personality — berekenende bots drive a harder bargain).
+                          const goodsValue = (goods: Record<string, number>) =>
+                            Object.entries(goods).reduce((sum, [gid, q]) => {
+                              const good = GOODS.find(g => g.id === gid);
+                              return sum + (good?.base || 0) * q;
+                            }, 0);
+                          const receives = tradeRequestCash + goodsValue(reqG);
+                          const gives = tradeOfferCash + goodsValue(offerG);
+                          const margin = profile?.personality === 'berekenend' ? 1.05 : 0.9;
+                          const accepted = gives >= receives * margin;
+                          setTimeout(() => {
+                            setTradeSending(false);
+                            if (accepted) {
+                              dispatch({
+                                type: 'BOT_TRADE',
+                                botId: userId,
+                                offerCash: tradeOfferCash,
+                                offerGoods: offerG,
+                                requestCash: tradeRequestCash,
+                                requestGoods: reqG,
+                              });
+                              showToast(`${profile?.username} accepteerde je bod!`);
+                              setShowTradeForm(false);
+                            } else {
+                              showToast(`${profile?.username} wees je bod af — te weinig waarde.`, true);
+                            }
+                          }, 600);
                         }}>
                         {tradeSending ? '...' : 'Verstuur Bod'}
                       </GameButton>
@@ -361,7 +379,7 @@ export function PlayerDetailPopup({ player, userId, onClose }: PlayerDetailProps
 
             {profile.memberSince && (
               <p className="text-[0.4rem] text-muted-foreground text-right mt-2">
-                Lid sinds {new Date(profile.memberSince).toLocaleDateString('nl-NL')}
+                Lid sinds {profile.memberSince}
               </p>
             )}
           </>

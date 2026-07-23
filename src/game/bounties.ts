@@ -7,6 +7,7 @@ import { addPhoneMessage } from './newFeatures';
 
 export interface BountyContract {
   id: string;
+  targetId?: string; // world bot id this bounty is placed on (local MMO)
   targetName: string;
   targetType: 'player' | 'npc';
   reward: number;

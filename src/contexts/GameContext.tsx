@@ -300,6 +300,11 @@ type GameAction =
   // Skill Tree actions
   | { type: 'SYNC_SKILLS'; skills: { skillId: string; level: number }[]; skillPoints: number }
   | { type: 'UNLOCK_SKILL'; skillId: string }
+  | { type: 'PLACE_BOT_BOUNTY'; botId: string; amount: number }
+  | { type: 'AUCTION_BID'; auctionId: string; amount: number }
+  | { type: 'AUCTION_CLAIM'; auctionId: string }
+  | { type: 'CREATE_AUCTION'; itemType: 'gear' | 'good' | 'vehicle'; itemId: string; startingPrice: number; quantity: number }
+  | { type: 'BOT_TRADE'; botId: string; offerCash: number; offerGoods: Record<string, number>; requestCash: number; requestGoods: Record<string, number> }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
   // Weapon inventory actions
@@ -854,6 +859,35 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
         } catch (e) {
           console.error('World sim error:', e);
+        }
+
+        // Settle any player-listed auctions that have ended: pay out sales (5% house fee)
+        // or return unsold items to the player, then drop them from the world.
+        if (s.world.auctions?.some(a => a.sellerBotId === null && (a.status !== 'active' || s.day >= a.endsDay))) {
+          const remaining: typeof s.world.auctions = [];
+          for (const auc of s.world.auctions) {
+            const ended = auc.status !== 'active' || s.day >= auc.endsDay;
+            if (auc.sellerBotId === null && ended) {
+              if (auc.topBidderId && auc.topBidderId !== 'player') {
+                const proceeds = Math.floor(auc.currentBid * 0.95);
+                s.money += proceeds;
+                s.stats.totalEarned += proceeds;
+                addPhoneMessage(s, 'system', `Veiling verkocht: ${auc.itemName} voor €${auc.currentBid.toLocaleString()} (netto €${proceeds.toLocaleString()}).`, 'opportunity');
+              } else {
+                if (auc.itemType === 'vehicle') {
+                  if (!s.ownedVehicles.some(v => v.id === auc.itemId)) {
+                    s.ownedVehicles.push({ id: auc.itemId, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+                  }
+                } else if (!s.ownedGear.includes(auc.itemId)) {
+                  s.ownedGear.push(auc.itemId);
+                }
+                addPhoneMessage(s, 'system', `Veiling verlopen: ${auc.itemName} kwam terug in je bezit.`, 'info');
+              }
+              continue; // settled — remove from the world
+            }
+            remaining.push(auc);
+          }
+          s.world.auctions = remaining;
         }
       }
 
@@ -3938,20 +3972,50 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'END_PVP_COMBAT': {
       if (s.activePvPCombat) {
+        // If the opponent was a world bot, update its record so the rivalry feels persistent.
+        const oppId = s.activePvPCombat.defenderId;
+        const bot = s.world?.bots.find(b => b.id === oppId);
         if (s.activePvPCombat.won) {
           s.rep += 15;
-          const stolen = Math.floor(Math.random() * 2000 + 500);
+          // Steal a slice of the bot's actual wealth (more satisfying than a flat roll).
+          const stolen = bot
+            ? Math.max(500, Math.floor(bot.money * (0.08 + Math.random() * 0.12)))
+            : Math.floor(Math.random() * 2000 + 500);
           s.money += stolen;
           s.stats.totalEarned += stolen;
           s.lastRewardAmount = stolen;
           Engine.gainXp(s, 50);
+          if (bot) {
+            bot.money = Math.max(0, bot.money - stolen);
+            bot.losses = (bot.losses || 0) + 1;
+            bot.killStreak = 0;
+            bot.hp = Math.max(1, Math.floor((bot.maxHp || 100) * 0.25));
+            bot.rivalry = Math.min(100, (bot.rivalry || 0) + 25); // they want revenge now
+            bot.lastInteractedDay = s.day;
+            bot.combatRating = Math.max(800, (bot.combatRating || 1000) - 15);
+            // Claim a bounty the player placed on this bot, if any.
+            const claimed = (s.placedBounties || []).find((b) => b.targetId === oppId && b.status === 'active');
+            if (claimed) {
+              s.money += claimed.reward;
+              s.stats.totalEarned += claimed.reward;
+              s.placedBounties = (s.placedBounties || []).filter((b) => b.id !== claimed.id);
+              addPhoneMessage(s, 'system', `Premie geïnd: €${claimed.reward.toLocaleString()} voor het verslaan van ${bot.name}.`, 'opportunity');
+            }
+          }
         } else {
-          // PvP knockout — same as PvE: recover with penalties
+          // PvP knockout — recover with penalties
           s.playerHP = Math.max(1, Math.floor((s.playerMaxHP || 100) * 0.25));
           const pvpMoneyLost = Math.floor(s.money * 0.20);
           s.money -= pvpMoneyLost;
           s.rep = Math.max(0, s.rep - 15);
           s.hospitalizations = (s.hospitalizations || 0) + 1;
+          if (bot) {
+            bot.wins = (bot.wins || 0) + 1;
+            bot.killStreak = (bot.killStreak || 0) + 1;
+            bot.rivalry = Math.min(100, (bot.rivalry || 0) + 10);
+            bot.combatRating = (bot.combatRating || 1000) + 15;
+            bot.lastInteractedDay = s.day;
+          }
         }
         s.activePvPCombat = null;
       }
@@ -3976,6 +4040,127 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const existing = s.unlockedSkills.find(sk => sk.skillId === node.id);
       if (existing) existing.level += 1;
       else s.unlockedSkills.push({ skillId: node.id, level: 1 });
+      return s;
+    }
+
+    case 'PLACE_BOT_BOUNTY': {
+      const bot = s.world?.bots.find(b => b.id === action.botId);
+      if (!bot) return s;
+      if (action.amount <= 0 || s.money < action.amount) return s;
+      if (!s.placedBounties) s.placedBounties = [];
+      if (s.placedBounties.some(b => b.targetId === action.botId && b.status === 'active')) return s; // one at a time
+      s.money -= action.amount;
+      s.stats.totalSpent += action.amount;
+      s.placedBounties.push({
+        id: `bounty_${Date.now()}_${action.botId}`,
+        targetId: action.botId,
+        targetName: bot.name,
+        targetType: 'player',
+        reward: action.amount,
+        placedBy: 'Jij',
+        deadline: s.day + 14,
+        status: 'active',
+      });
+      // Placing a bounty makes them notice you — rivalry rises.
+      bot.rivalry = Math.min(100, (bot.rivalry || 0) + 15);
+      return s;
+    }
+
+    case 'AUCTION_BID': {
+      const auc = s.world?.auctions?.find(a => a.id === action.auctionId);
+      if (!auc || auc.status !== 'active') return s;
+      if (action.amount <= auc.currentBid) return s;
+      if (s.money < action.amount) return s;
+      // Refund is implicit — money is only deducted on claim/win; here we just record the top bid.
+      auc.currentBid = action.amount;
+      auc.topBidderId = 'player';
+      auc.topBidderName = 'Jij';
+      auc.bidCount += 1;
+      return s;
+    }
+
+    case 'AUCTION_CLAIM': {
+      const auc = s.world?.auctions?.find(a => a.id === action.auctionId);
+      if (!auc) return s;
+      if (auc.status === 'active' && s.day < auc.endsDay) return s; // not over yet
+      if (auc.topBidderId !== 'player') return s; // player didn't win
+      if (s.money < auc.currentBid) return s;
+      s.money -= auc.currentBid;
+      s.stats.totalSpent += auc.currentBid;
+      auc.status = 'sold';
+      // Grant the item.
+      if (auc.itemType === 'vehicle') {
+        if (!s.ownedVehicles.some(v => v.id === auc.itemId)) {
+          s.ownedVehicles.push({ id: auc.itemId, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
+        }
+      } else if (!s.ownedGear.includes(auc.itemId)) {
+        s.ownedGear.push(auc.itemId);
+      }
+      addPhoneMessage(s, 'system', `Veiling gewonnen: ${auc.itemName} voor €${auc.currentBid.toLocaleString()}.`, 'opportunity');
+      return s;
+    }
+
+    case 'CREATE_AUCTION': {
+      if (!s.world) return s;
+      if (!s.world.auctions) s.world.auctions = [];
+      if (action.startingPrice < 500) return s;
+      // Verify ownership and remove the item from the player (it's held in escrow by the house).
+      let itemName = action.itemId;
+      if (action.itemType === 'vehicle') {
+        if (action.itemId === s.activeVehicle) return s; // can't auction the car you're driving
+        const idx = s.ownedVehicles.findIndex(v => v.id === action.itemId);
+        if (idx === -1) return s;
+        s.ownedVehicles.splice(idx, 1);
+        itemName = VEHICLES.find(v => v.id === action.itemId)?.name || action.itemId;
+      } else {
+        // Gear (weapon/armor/gadget).
+        const idx = s.ownedGear.indexOf(action.itemId);
+        if (idx === -1) return s;
+        s.ownedGear.splice(idx, 1);
+        itemName = GEAR.find(g => g.id === action.itemId)?.name || action.itemId;
+      }
+      const gearType = GEAR.find(g => g.id === action.itemId)?.type;
+      s.world.auctions.unshift({
+        id: `auc_player_${Date.now()}_${Math.floor(Math.random() * 1e5)}`,
+        sellerBotId: null,
+        sellerName: 'Jij',
+        itemType: action.itemType === 'vehicle' ? 'vehicle' : (gearType || 'gear'),
+        itemId: action.itemId,
+        itemName,
+        startingPrice: action.startingPrice,
+        currentBid: action.startingPrice,
+        topBidderId: null,
+        topBidderName: null,
+        bidCount: 0,
+        endsDay: s.day + 2,
+        status: 'active',
+      });
+      addPhoneMessage(s, 'system', `${itemName} staat nu in de veiling (startprijs €${action.startingPrice.toLocaleString()}).`, 'info');
+      return s;
+    }
+
+    case 'BOT_TRADE': {
+      const bot = s.world?.bots.find(b => b.id === action.botId);
+      if (!bot) return s;
+      // Verify the player can actually deliver what they're offering.
+      if (s.money < action.offerCash) return s;
+      for (const [gid, qty] of Object.entries(action.offerGoods)) {
+        if ((s.inventory[gid as GoodId] || 0) < qty) return s;
+      }
+      // Apply the swap atomically.
+      s.money += action.requestCash - action.offerCash;
+      for (const [gid, qty] of Object.entries(action.offerGoods)) {
+        s.inventory[gid as GoodId] = (s.inventory[gid as GoodId] || 0) - qty;
+      }
+      const invCount = Object.values(s.inventory).reduce((a, b) => a + (b || 0), 0);
+      let capacity = s.maxInv - invCount;
+      for (const [gid, qty] of Object.entries(action.requestGoods)) {
+        const added = Math.min(qty, Math.max(0, capacity));
+        s.inventory[gid as GoodId] = (s.inventory[gid as GoodId] || 0) + added;
+        capacity -= added;
+      }
+      // A completed trade warms relations — rivalry cools a touch.
+      bot.rivalry = Math.max(0, (bot.rivalry || 0) - 5);
       return s;
     }
 
@@ -4330,9 +4515,13 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         if (r.escortRole === undefined) r.escortRole = null;
       });
       // Local MMO world simulation migration — generate a fresh bot world for saves that
-      // predate it, or rebuild if the schema version changed.
+      // predate it, or rebuild if the schema version changed. The world day is derived from
+      // the real calendar (see useWorldState), so seed auctions against that, not saved.day
+      // (which may still be its fresh-game default when this runs).
       if (!saved.world || saved.world.version !== WORLD_SIM_VERSION) {
-        saved.world = generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, saved.player?.level || 1);
+        const worldRef = new Date('2025-01-01T06:00:00').getTime();
+        const worldDay = Math.floor((Date.now() - worldRef) / (24 * 60 * 60 * 1000)) + 1;
+        saved.world = generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, saved.player?.level || 1, Math.max(saved.day || 1, worldDay));
       }
       // Gym & jobs migration
       if (!saved.gymStats) saved.gymStats = { strength: 1, defense: 1, speed: 1, dexterity: 1 };

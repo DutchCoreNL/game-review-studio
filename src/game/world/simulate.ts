@@ -41,9 +41,14 @@ export function simulateWorldDay(world: WorldSimState, gameDay: number, nowMs: n
     warsResolved: [], districtCaptures: [], notableFeed: [],
   };
 
-  // --- Presence: reshuffle who's "online" ---
+  // --- Presence: reshuffle who's "online" based on each bot's activity level, so hardcore
+  //     players are online far more often than casuals (feels like a real population). ---
   for (const bot of world.bots) {
-    bot.online = rand() < 0.3;
+    bot.online = rand() < 0.12 + (bot.activity ?? 0.5) * 0.5;
+    // Rivalry slowly cools off over time if the player leaves them alone.
+    if ((bot.rivalry ?? 0) > 0 && bot.lastInteractedDay > 0 && gameDay - bot.lastInteractedDay > 3) {
+      bot.rivalry = Math.max(0, bot.rivalry - 2);
+    }
   }
 
   // --- Bot economic/level drift: each bot does a little something ---
@@ -193,6 +198,59 @@ export function simulateWorldDay(world: WorldSimState, gameDay: number, nowMs: n
       }, nowMs, rand);
     }
   }
+
+  // --- Auctions: expire finished ones, bots occasionally list items and bid on active ones ---
+  if (!world.auctions) world.auctions = [];
+  for (const auc of world.auctions) {
+    if (auc.status !== 'active') continue;
+    if (gameDay >= auc.endsDay) {
+      auc.status = auc.topBidderId ? 'sold' : 'expired';
+      if (auc.status === 'sold' && auc.topBidderId !== 'player') {
+        addFeed(world, {
+          botId: auc.topBidderId, botName: auc.topBidderName || 'Iemand', icon: '🔨', district: null,
+          text: `won de veiling voor ${auc.itemName} (€${auc.currentBid.toLocaleString()})`, day: gameDay,
+        }, nowMs, rand);
+      }
+      continue;
+    }
+    // Bots outbid each other (and the player) to keep auctions competitive.
+    if (rand() < 0.45) {
+      const bidder = pick(rand, world.bots);
+      if (bidder.id !== auc.topBidderId && bidder.money > auc.currentBid * 1.15) {
+        auc.currentBid = Math.floor(auc.currentBid * (1.1 + rand() * 0.2));
+        auc.topBidderId = bidder.id;
+        auc.topBidderName = bidder.name;
+        auc.bidCount++;
+      }
+    }
+  }
+  // New bot-listed auctions (cap at ~6 active).
+  const activeAuctions = world.auctions.filter(a => a.status === 'active');
+  if (activeAuctions.length < 6 && rand() < 0.4) {
+    const seller = pick(rand, world.bots);
+    const itemPool = [
+      { type: 'weapon', id: 'sniper', name: 'Dragunov Sniper' },
+      { type: 'armor', id: 'skull_armor', name: 'Skull Plate Armor' },
+      { type: 'vehicle', id: 'lupoghini', name: 'Lupo-Ghini Strike' },
+      { type: 'gadget', id: 'quantum_deck', name: 'Quantum Deck' },
+      { type: 'weapon', id: 'obsidian_edge', name: 'Obsidian Edge' },
+    ];
+    const item = pick(rand, itemPool);
+    const startingPrice = randInt(rand, 8000, 60000);
+    world.auctions.unshift({
+      id: `auc_${nowMs}_${Math.floor(rand() * 1e5)}`,
+      sellerBotId: seller.id, sellerName: seller.name,
+      itemType: item.type, itemId: item.id, itemName: item.name,
+      startingPrice, currentBid: startingPrice, topBidderId: null, topBidderName: null,
+      bidCount: 0, endsDay: gameDay + randInt(rand, 1, 3), status: 'active',
+    });
+    addFeed(world, {
+      botId: seller.id, botName: seller.name, icon: '🏷️', district: seller.loc,
+      text: `zette ${item.name} in de veiling`, day: gameDay,
+    }, nowMs, rand);
+  }
+  // Cap stored auctions.
+  if (world.auctions.length > 30) world.auctions = world.auctions.slice(0, 30);
 
   // Collect a few headline lines for the catch-up report.
   summary.notableFeed = world.feed.slice(0, 4).map(f => `${f.icon} ${f.text}`);
