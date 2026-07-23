@@ -31,7 +31,6 @@ import { useState } from 'react';
 import { SkillTreePanel } from './profile/SkillTreePanel';
 import profileBg from '@/assets/profile-bg.jpg';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
-import { LinkAccountPanel } from './profile/LinkAccountPanel';
 import { AdminPanel } from './AdminPanel';
 import { MessagesView } from './MessagesView';
 import { useAdmin } from '@/hooks/useAdmin';
@@ -377,8 +376,6 @@ export function ProfileView() {
           </div>
         </>
       )}
-
-      <LinkAccountPanel />
 
       <div className="flex gap-2 mt-4">
         {onExitToMenu && (

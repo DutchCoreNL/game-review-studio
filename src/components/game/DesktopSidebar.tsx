@@ -1,16 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { GameView } from '@/game/types';
-import {
-  Map, Dices, Heart, Home, Building2, Wrench, Zap,
-  Crosshair, FileText, Target, Skull, Swords, Award, Calendar,
-  ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
-  Users, Handshake, Crown as CrownIcon,
-  Car, Store, MapPin,
-  Star, Shield, Trophy, Mail, Settings, Sparkles, BookOpen, Sword, Smartphone,
-  ShieldAlert, LucideIcon, Phone, Newspaper, GraduationCap, Plane, MessageCircle, Waypoints,
-  Package, Flame,
-} from 'lucide-react';
+import { Phone, Newspaper } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo, useState } from 'react';
@@ -20,15 +10,10 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
 import { formatGameDate } from '@/lib/gameDate';
 import { useWorldState, TIME_OF_DAY_ICONS } from '@/hooks/useWorldState';
-
-interface Category {
-  label: string;
-  icon: string;
-  items: { id: GameView; label: string; icon: LucideIcon }[];
-}
+import { buildNavGroups, ResolvedNavGroup } from './navConfig';
 
 // Map view to category label for auto-expand
-function getCategoryForView(v: string, cats: Category[]): string | null {
+function getCategoryForView(v: string, cats: ResolvedNavGroup[]): string | null {
   for (const cat of cats) {
     if (cat.items.some(i => i.id === v)) return cat.label;
   }
@@ -43,98 +28,7 @@ export function DesktopSidebar() {
   const worldState = useWorldState();
   const [showDigest, setShowDigest] = useState(false);
 
-  const allCategories = useMemo<Category[]>(() => {
-    const cats: Category[] = [
-      {
-        label: t.sidebar.city, icon: '🗺',
-        items: [
-          { id: 'city', label: t.sidebar.map, icon: Map },
-          { id: 'travel', label: t.sidebar.travel, icon: Plane },
-          { id: 'chat', label: t.sidebar.chat, icon: MessageCircle },
-          { id: 'casino', label: t.sidebar.casino, icon: Dices },
-          { id: 'hospital', label: t.sidebar.hospital, icon: Heart },
-          { id: 'safehouse', label: t.sidebar.safehouse, icon: Home },
-          { id: 'villa', label: t.sidebar.villa, icon: Building2 },
-          { id: 'chopshop', label: t.sidebar.chopShop, icon: Wrench },
-        ],
-      },
-      {
-        label: t.sidebar.actions, icon: '⚔',
-        items: [
-          { id: 'campaign', label: t.sidebar.campaign, icon: BookOpen },
-          { id: 'ops', label: t.sidebar.operations, icon: Crosshair },
-          { id: 'contracts', label: t.sidebar.contracts, icon: FileText },
-          { id: 'heists', label: t.sidebar.heists, icon: Target },
-          { id: 'bounties', label: t.sidebar.bounties, icon: Skull },
-          { id: 'pvp', label: t.sidebar.pvp, icon: Swords },
-          { id: 'challenges', label: t.sidebar.daily, icon: Calendar },
-          { id: 'hits', label: t.sidebar.hits, icon: Award },
-          { id: 'wanted', label: t.sidebar.mostWanted, icon: ShieldAlert },
-          { id: 'raids', label: t.sidebar.raids, icon: Flame },
-        ],
-      },
-      {
-        label: t.sidebar.trade, icon: '💰',
-        items: [
-          { id: 'market', label: t.sidebar.market, icon: ShoppingBag },
-          { id: 'analysis', label: t.sidebar.analysis, icon: BarChart3 },
-          { id: 'auction', label: t.sidebar.auction, icon: Gavel },
-          { id: 'stocks', label: t.sidebar.stocks, icon: TrendingUp },
-          { id: 'launder', label: t.sidebar.launder, icon: Droplets },
-          { id: 'gear', label: t.sidebar.gear, icon: ShieldCheck },
-          { id: 'black-market', label: t.sidebar.blackMarket, icon: Skull },
-          { id: 'salvage', label: t.sidebar.salvage, icon: Wrench },
-          { id: 'loot-boxes', label: t.sidebar.lootBoxes, icon: Package },
-        ],
-      },
-      {
-        label: t.sidebar.crewWar, icon: '👥',
-        items: [
-          { id: 'crew', label: t.sidebar.crew, icon: Users },
-          { id: 'families', label: t.sidebar.factions, icon: Users },
-          { id: 'gang', label: t.sidebar.gang, icon: Skull },
-          { id: 'organized-crimes', label: t.sidebar.organizedCrime, icon: Waypoints },
-          { id: 'war', label: t.sidebar.war, icon: Swords },
-          { id: 'corruption', label: t.sidebar.corruption, icon: Handshake },
-        ],
-      },
-      {
-        label: t.sidebar.imperium, icon: '🏛',
-        items: [
-          { id: 'business', label: t.sidebar.business, icon: Store },
-          { id: 'garage', label: t.sidebar.garage, icon: Car },
-          { id: 'districts', label: t.sidebar.districts, icon: MapPin },
-          { id: 'properties', label: t.sidebar.properties, icon: Home },
-        ],
-      },
-      {
-        label: t.sidebar.profile, icon: '👤',
-        items: [
-          { id: 'profile', label: t.sidebar.statsSkills, icon: BarChart3 },
-          { id: 'merit', label: t.sidebar.meritPoints, icon: Sparkles },
-          { id: 'gym', label: t.sidebar.gym, icon: Award },
-          { id: 'jobs', label: t.sidebar.jobs, icon: Star },
-          { id: 'education', label: t.sidebar.education, icon: GraduationCap },
-          { id: 'loadout', label: t.sidebar.loadout, icon: Shield },
-          { id: 'weapons', label: t.sidebar.weaponArsenal, icon: Sword },
-          { id: 'armor-arsenal', label: t.sidebar.armorArsenal, icon: Shield },
-          { id: 'gadget-arsenal', label: t.sidebar.gadgetArsenal, icon: Smartphone },
-          { id: 'contacts', label: t.sidebar.npcRelations, icon: Users },
-          { id: 'reputation', label: t.sidebar.reputation, icon: Star },
-          { id: 'arcs', label: t.sidebar.storyArcs, icon: Target },
-          { id: 'codex', label: t.sidebar.codex, icon: BookOpen },
-          { id: 'trophies', label: t.sidebar.trophies, icon: Trophy },
-          { id: 'leaderboard', label: t.sidebar.leaderboard, icon: CrownIcon },
-          { id: 'messages', label: t.sidebar.messages, icon: Mail },
-          { id: 'settings', label: t.sidebar.settings, icon: Settings },
-        ],
-      },
-    ];
-    if (isAdmin) {
-      cats.push({ label: t.sidebar.admin, icon: '🛡', items: [{ id: 'admin', label: t.sidebar.adminPanel, icon: ShieldAlert }] });
-    }
-    return cats;
-  }, [isAdmin, t]);
+  const allCategories = useMemo(() => buildNavGroups(t, state, isAdmin), [isAdmin, t, state]);
 
   const activeCat = getCategoryForView(view, allCategories);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(activeCat ? [activeCat] : [allCategories[0]?.label]));
@@ -175,7 +69,7 @@ export function DesktopSidebar() {
                 onClick={() => toggleCat(cat.label)}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-[0.55rem] font-bold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
               >
-                <span className="text-xs">{cat.icon}</span>
+                <span className="text-xs">{cat.emoji}</span>
                 <span className="flex-1 text-left">{cat.label}</span>
                 {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </button>

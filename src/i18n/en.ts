@@ -382,8 +382,8 @@ export const en: Translations = {
     confirmChoice: 'Confirm Choice',
   },
   onlinePlayers: {
-    title: 'Online Players',
-    online: 'online',
+    title: 'Active in the City',
+    online: 'active',
     here: 'here',
   },
   codex: {
