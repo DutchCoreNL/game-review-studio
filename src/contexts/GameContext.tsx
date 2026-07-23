@@ -8,6 +8,9 @@ import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIE
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction, canUseHelipad } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
+import { simulateWorldDay } from '../game/world/simulate';
+import { generateWorld } from '../game/world/generateWorld';
+import { WORLD_SIM_VERSION } from '../game/world/types';
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
@@ -39,7 +42,6 @@ import { startCampaignMission, canStartMission, getMissionDef, advanceCampaignMi
 import { PROPERTIES, canAffordProperty, getCurrentProperty } from '../game/properties';
 import { CRAFT_RECIPES as VILLA_CRAFT_RECIPES, canCraft as villaCanCraft } from '../game/crafting';
 import { createPvPCombatState, pvpCombatTurn } from '../game/combatSkills';
-import { syncLeaderboard } from '@/lib/syncLeaderboard';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
 import { createInitialArmsNetwork, generateContact, getContactRecruitCost, processDelivery, getNetworkUpgradeCost, getWeeklyCapacity } from '../game/armsDealing';
 import { createStashHouse, getStashUsed, getStashRemaining, getStashUpgradeCost, getStashPurchaseCost } from '../game/stashHouses';
@@ -58,6 +60,7 @@ export interface CatchUpReportData {
   levelUps: number;
   businessIncome: number;
   districtIncome: number;
+  worldHeadlines?: string[]; // "while you were away" bot-world events
 }
 
 interface XpBreakdownData {
@@ -828,20 +831,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (!s.pendingCinematic) { const c = checkCinematicTrigger(s); if (c) s.pendingCinematic = c; }
       }
       
+      // ========== LOCAL MMO WORLD SIMULATION ==========
+      // Advance the bot population one day so the world keeps living around the player.
+      if (s.world) {
+        try {
+          const stepSummary = simulateWorldDay(s.world, s.day, Date.now());
+          s._lastWorldSummary = stepSummary;
+          // During catch-up (multiple ticks at once), accumulate the notable world events so
+          // the "while you were away" report can surface what changed in the world.
+          if ((action as any).isCatchUp) {
+            if (!s._catchUpWorldHeadlines) s._catchUpWorldHeadlines = [];
+            for (const line of [...stepSummary.districtCaptures, ...stepSummary.warsResolved]) {
+              if (s._catchUpWorldHeadlines.length < 6) s._catchUpWorldHeadlines.push(line);
+            }
+          }
+        } catch (e) {
+          console.error('World sim error:', e);
+        }
+      }
+
       // Update lastTickAt timestamp
       s.lastTickAt = new Date().toISOString();
-      
+
       // Auto-dismiss night report after setting it (make it non-blocking)
       // The night report will auto-dismiss in 8 seconds via the NightReport component
-      
-      // Sync leaderboard (fire-and-forget, ignore rate limit errors)
-      syncLeaderboard({
-        rep: s.rep, cash: s.money, day: s.day, level: s.player.level,
-        districts_owned: s.ownedDistricts.length, crew_size: s.crew.length,
-        karma: s.karma || 0, backstory: s.backstory || null,
-        prestige_level: s.prestigeLevel || 0,
-        is_hardcore: s.hardcoreMode || false,
-      }).catch(() => {});
       return s;
     }
 
@@ -851,7 +864,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SET_CATCH_UP_REPORT': {
-      (s as any).catchUpReport = action.report;
+      if (action.report) {
+        // Fold in the world headlines the catch-up ticks accumulated, then clear the buffer.
+        const headlines = s._catchUpWorldHeadlines || [];
+        (s as any).catchUpReport = { ...action.report, worldHeadlines: headlines };
+      } else {
+        (s as any).catchUpReport = null;
+      }
+      s._catchUpWorldHeadlines = [];
       return s;
     }
 
@@ -4231,6 +4251,11 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         if (r.escort === undefined) r.escort = null;
         if (r.escortRole === undefined) r.escortRole = null;
       });
+      // Local MMO world simulation migration — generate a fresh bot world for saves that
+      // predate it, or rebuild if the schema version changed.
+      if (!saved.world || saved.world.version !== WORLD_SIM_VERSION) {
+        saved.world = generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, saved.player?.level || 1);
+      }
       return saved;
     }
     const fresh = createInitialState();

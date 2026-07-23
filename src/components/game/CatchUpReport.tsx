@@ -1,6 +1,6 @@
 import { useGame, type CatchUpReportData } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2 } from 'lucide-react';
+import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2, Globe } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { useEffect, useRef } from 'react';
 
@@ -175,6 +175,34 @@ export function CatchUpReport() {
                 color="text-emerald-400"
                 delay={next()}
               />
+            )}
+
+            {/* World headlines — what happened in Noxhaven while away */}
+            {report.worldHeadlines && report.worldHeadlines.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: next(), duration: 0.35 }}
+                className="mt-1 pt-2 border-t border-border/40"
+              >
+                <div className="flex items-center gap-2 mb-1.5 text-[0.6rem] uppercase tracking-wider text-muted-foreground font-bold">
+                  <Globe size={12} className="text-primary" />
+                  <span>In Noxhaven</span>
+                </div>
+                <div className="space-y-1">
+                  {report.worldHeadlines.map((line, i) => (
+                    <motion.p
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: next(0.08), duration: 0.3 }}
+                      className="text-[0.65rem] text-foreground/80 leading-snug"
+                    >
+                      • {line}
+                    </motion.p>
+                  ))}
+                </div>
+              </motion.div>
             )}
 
             {/* Dismiss hint */}

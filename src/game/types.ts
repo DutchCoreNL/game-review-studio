@@ -1238,11 +1238,17 @@ export interface GameState {
   insiderTips: import('../game/marketFluctuations').InsiderTipData[];
   launderMethodsUsed: Partial<Record<string, number>>; // methodId -> amount used today
 
+  // ========== LOCAL MMO WORLD SIMULATION ==========
+  // Bot population + world state that makes single-player feel like a living MMO.
+  world: import('../game/world/types').WorldSimState;
+
   // ========== REDUCER META (transient, not persisted) ==========
   _finalBossWon?: boolean;
   _lastFactionResult?: any;
   _completedArcFlashbackId?: string;
   _pendingXpGains: { amount: number; source: string }[]; // queued for server-side processing
+  _lastWorldSummary?: import('../game/world/simulate').SimStepSummary; // last world-sim day result
+  _catchUpWorldHeadlines?: string[]; // world events accumulated during a catch-up
 }
 
 // ========== MARKET ALERT TYPES ==========

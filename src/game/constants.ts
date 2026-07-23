@@ -15,6 +15,7 @@ export const MAX_AMMO = 500;
 // ========== SPECIAL AMMO ==========
 
 import { SpecialAmmoDef, SpecialAmmoType } from './types';
+import { generateWorld } from './world/generateWorld';
 
 export const SPECIAL_AMMO: SpecialAmmoDef[] = [
   {
@@ -1993,6 +1994,9 @@ export function createInitialState(): import('./types').GameState {
     marketPriceModifiers: [],
     insiderTips: [],
     launderMethodsUsed: {},
+    // Local MMO world simulation (bot population). Seeded from the current time so each new
+    // game gets its own reproducible world.
+    world: generateWorld((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0, 1),
   };
 }
 
