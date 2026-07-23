@@ -15,6 +15,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId } from './weaponGenerator';
+import { baseHitDamage } from './combat/damage';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -1881,7 +1882,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   switch (action) {
     case 'attack':
       if (isMelee) {
-        playerDamage = Math.floor(8 + muscle * 2.5 + wpnDamage * 0.4 + Math.random() * 6);
+        playerDamage = baseHitDamage('light', muscle, wpnDamage);
         // Crit check
         if (Math.random() < wpnCritChance) {
           playerDamage = Math.floor(playerDamage * 1.8);
@@ -1894,7 +1895,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       } else if (hasAmmo) {
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
         syncAmmoTotal(state);
-        playerDamage = Math.floor((8 + muscle * 2.5 + wpnDamage * 0.4 + Math.random() * 6) * wpnAccuracy);
+        playerDamage = Math.floor(baseHitDamage('light', muscle, wpnDamage) * wpnAccuracy);
         // Crit check
         if (Math.random() < wpnCritChance) {
           playerDamage = Math.floor(playerDamage * 1.8);
@@ -1905,14 +1906,14 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
           combat.logs.push(`Je slaat toe voor ${playerDamage} schade! 🔫 (-1 kogel)`);
         }
       } else {
-        playerDamage = Math.floor((8 + muscle * 2.5 + Math.random() * 6) * 0.5);
+        playerDamage = Math.floor(baseHitDamage('light', muscle, 0) * 0.5);
         combat.logs.push(`⚠️ Geen kogels! Melee aanval voor ${playerDamage} schade (50%).`);
       }
       break;
     case 'heavy':
       if (isMelee) {
         if (Math.random() < 0.6 + (muscle * 0.03)) {
-          playerDamage = Math.floor(15 + muscle * 3.5 + wpnDamage * 0.6 + Math.random() * 10);
+          playerDamage = baseHitDamage('heavy', muscle, wpnDamage);
           if (Math.random() < wpnCritChance * 1.5) {
             playerDamage = Math.floor(playerDamage * 2.0);
             combat.logs.push(`💥 KRITIEKE ZWARE KLAP! ${playerDamage} schade! ⚔️`);
@@ -1928,7 +1929,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 2);
         syncAmmoTotal(state);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
-          playerDamage = Math.floor((15 + muscle * 3.5 + wpnDamage * 0.6 + Math.random() * 10) * wpnAccuracy);
+          playerDamage = Math.floor(baseHitDamage('heavy', muscle, wpnDamage) * wpnAccuracy);
           if (env) {
             combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' 🔫🔫');
           } else {
@@ -1940,10 +1941,10 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
       } else if (currentTypeAmmo > 0) {
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
         syncAmmoTotal(state);
-        playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+        playerDamage = baseHitDamage('light', muscle, 0);
         combat.logs.push(`⚠️ Te weinig kogels voor zware klap. Normale aanval: ${playerDamage} schade.`);
       } else {
-        playerDamage = Math.floor((15 + muscle * 3.5 + Math.random() * 10) * 0.5);
+        playerDamage = Math.floor(baseHitDamage('heavy', muscle, 0) * 0.5);
         if (Math.random() < 0.6 + (muscle * 0.03)) {
           combat.logs.push(`⚠️ Geen kogels! Zware melee voor ${playerDamage} schade (50%).`);
         } else {

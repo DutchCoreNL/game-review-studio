@@ -59,11 +59,27 @@ export interface ResolveAttackResult {
 }
 
 /**
- * The canonical base hit shared by PvE and PvP.
+ * The canonical additive base-hit term shared by PvE and PvP:
  *   light: 8 + muscle*2.5 + weaponDmg*0.4 + spread(6)
- *   heavy: hitChance = 0.6 + muscle*0.03 + (accuracy-0.7)*0.3
- *          15 + muscle*3.5 + weaponDmg*0.6 + spread(10)
- * With bare fists (weapon omitted) this reproduces the legacy no-weapon formula.
+ *   heavy: 15 + muscle*3.5 + weaponDmg*0.6 + spread(10)
+ * This is the single source of the raw hit magnitude; callers layer their own
+ * accuracy / crit / stance / enchantment modifiers on top.
+ */
+export function baseHitDamage(
+  kind: 'light' | 'heavy',
+  muscle: number,
+  weaponDamage: number,
+  rand: () => number = Math.random,
+): number {
+  const dmg = kind === 'heavy'
+    ? 15 + muscle * 3.5 + weaponDamage * 0.6 + rand() * 10
+    : 8 + muscle * 2.5 + weaponDamage * 0.4 + rand() * 6;
+  return Math.max(1, Math.floor(dmg));
+}
+
+/**
+ * PvP-style hit resolution: the shared base term plus a heavy-attack hit check
+ * where a more accurate weapon connects more often. Light attacks always land.
  */
 export function resolveAttack(p: ResolveAttackParams): ResolveAttackResult {
   const rand = p.rand || Math.random;
@@ -72,10 +88,6 @@ export function resolveAttack(p: ResolveAttackParams): ResolveAttackResult {
   if (p.kind === 'heavy') {
     const hitChance = 0.6 + p.muscle * 0.03 + (w.accuracy - 0.7) * 0.3;
     if (rand() >= hitChance) return { damage: 0, missed: true };
-    const dmg = 15 + p.muscle * 3.5 + w.damage * 0.6 + rand() * 10;
-    return { damage: Math.max(1, Math.floor(dmg)), missed: false };
   }
-
-  const dmg = 8 + p.muscle * 2.5 + w.damage * 0.4 + rand() * 6;
-  return { damage: Math.max(1, Math.floor(dmg)), missed: false };
+  return { damage: baseHitDamage(p.kind, p.muscle, w.damage, rand), missed: false };
 }
