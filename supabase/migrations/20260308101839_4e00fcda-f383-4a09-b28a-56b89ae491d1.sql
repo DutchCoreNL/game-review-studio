@@ -1,1 +1,0 @@
-ALTER TABLE public.bot_players ADD COLUMN IF NOT EXISTS personality text NOT NULL DEFAULT 'balanced';

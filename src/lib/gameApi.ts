@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { playCasino } from "@/game/casino/localCasino";
 
 export type GameAction =
   | "init_player" | "get_state" | "save_state" | "load_state"
@@ -82,20 +82,36 @@ interface GameActionResult {
   data?: Record<string, any>;
 }
 
+// This game is fully local — there is no backend. Most gameplay runs through the local reducer
+// (GameContext); the actions below are the ones that used to be server-only. Casino is fully
+// reimplemented locally. The remaining server-only MMO features (PvP-vs-players, auctions,
+// tribunals, gang server ops, moles, undercover, etc.) are not available in single-player and
+// return a clear soft failure so their panels degrade gracefully instead of hanging.
 export async function invokeGameAction(
   action: GameAction,
   payload?: Record<string, any>
 ): Promise<GameActionResult> {
-  const { data, error } = await supabase.functions.invoke("game-action", {
-    body: { action, payload },
-  });
+  switch (action) {
+    case "casino_play":
+      return playCasino(payload?.game, payload?.bet, payload?.choice);
 
-  if (error) {
-    console.error("Game action error:", error);
-    return { success: false, message: error.message || "Verbindingsfout." };
+    // Read-only listing/state actions: return empty local results (panels show "leeg").
+    case "get_live_auctions":
+    case "get_most_wanted":
+    case "get_world_raids":
+    case "list_players":
+    case "list_gangs":
+    case "get_gang_invites":
+    case "get_moles":
+    case "get_tribunal_cases":
+    case "get_undercover_missions":
+    case "get_gang_alliances":
+    case "get_gang_arcs":
+      return { success: true, message: "OK", data: { items: [], list: [] } };
+
+    default:
+      return { success: false, message: "Deze functie is niet beschikbaar in het lokale spel." };
   }
-
-  return data as GameActionResult;
 }
 
 export const gameApi = {
@@ -241,10 +257,8 @@ export const gameApi = {
   contributeNpcMood: (npcId: string, change: number) =>
     invokeGameAction("contribute_npc_mood", { npcId, change }),
 
-  // Server-side turn processing (MMO)
-  processTurn: () => supabase.functions.invoke('process-turn', { body: { mode: 'single' } })
-    .then(res => res.data ? { success: res.data.success, message: res.data.message, data: res.data.data } : { success: false, message: 'Server error' })
-    .catch(err => ({ success: false, message: err.message })),
+  // Turn processing is fully local via the reducer's AUTO_TICK — no server round-trip.
+  processTurn: async () => ({ success: true, message: 'Lokaal verwerkt.', data: {} }),
 
   // World Raids
   attackWorldRaid: (raidId: string) => invokeGameAction("attack_world_raid", { raidId }),

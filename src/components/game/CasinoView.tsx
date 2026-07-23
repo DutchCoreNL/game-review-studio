@@ -1,6 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CasinoGame } from '@/game/types';
 import { SectionHeader } from './ui/SectionHeader';
 import { BlackjackGame } from './casino/BlackjackGame';
@@ -25,7 +25,18 @@ export function CasinoView() {
   const isStorm = state.weather === 'storm';
   const vipBonuses = getVipBonus(state);
 
+  // The local casino engine returns net results but not an absolute new balance, so apply the
+  // money change here (via a ref to avoid a stale closure). This is the single place casino
+  // winnings/losses hit the player's money now that there is no server.
+  const moneyRef = useRef(state.money);
+  moneyRef.current = state.money;
+
   const handleResult = useCallback((won: boolean | null, amount: number) => {
+    if (amount !== 0) {
+      const next = Math.max(0, moneyRef.current + amount);
+      moneyRef.current = next;
+      dispatch({ type: 'SET_MONEY', amount: next });
+    }
     setSessionStats(prev => {
       const next = { ...prev };
       next.sessionProfit += amount;
@@ -39,7 +50,7 @@ export function CasinoView() {
       }
       return next;
     });
-  }, []);
+  }, [dispatch]);
 
   if (isStorm) {
     return (
