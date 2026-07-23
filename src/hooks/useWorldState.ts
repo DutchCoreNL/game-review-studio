@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import type { WeatherType } from '@/game/types';
 
 export type TimeOfDay = 'dawn' | 'day' | 'dusk' | 'night';
@@ -23,68 +22,70 @@ export interface WorldState {
   maintenanceMessage: string | null;
 }
 
-const DEFAULT_STATE: WorldState = {
-  worldDay: 1,
-  timeOfDay: 'day',
-  weather: 'clear',
-  nextCycleAt: new Date().toISOString(),
-  activeEvent: null,
-  maintenanceMode: false,
-  maintenanceMessage: null,
-};
+const WEATHER_TYPES: WeatherType[] = ['clear', 'rain', 'fog', 'heatwave', 'storm'];
+const WEATHER_WEIGHTS = [40, 25, 15, 10, 10];
+
+// Time-of-day derived from the real local clock (was server-driven; now fully local):
+// Dawn 06-12, Day 12-18, Dusk 18-24, Night 00-06.
+function getPhaseFromRealTime(): { phase: TimeOfDay; nextCycleAt: string } {
+  const now = new Date();
+  const h = now.getHours();
+  let phase: TimeOfDay;
+  let nextBoundary: number;
+  if (h >= 6 && h < 12) { phase = 'dawn'; nextBoundary = 12; }
+  else if (h >= 12 && h < 18) { phase = 'day'; nextBoundary = 18; }
+  else if (h >= 18) { phase = 'dusk'; nextBoundary = 24; }
+  else { phase = 'night'; nextBoundary = 6; }
+  const next = new Date(now);
+  next.setMinutes(0, 0, 0);
+  next.setHours(nextBoundary % 24);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+  return { phase, nextCycleAt: next.toISOString() };
+}
+
+function getWorldDayFromDate(): number {
+  const ref = new Date('2025-01-01T06:00:00').getTime();
+  return Math.floor((Date.now() - ref) / (24 * 60 * 60 * 1000)) + 1;
+}
+
+// Deterministic weather per world-day so it stays stable within a day but varies day to day.
+function weatherForDay(day: number): WeatherType {
+  const total = WEATHER_WEIGHTS.reduce((a, b) => a + b, 0);
+  // Simple hash of the day → [0, total)
+  let r = ((day * 2654435761) % total + total) % total;
+  for (let i = 0; i < WEATHER_TYPES.length; i++) {
+    r -= WEATHER_WEIGHTS[i];
+    if (r < 0) return WEATHER_TYPES[i];
+  }
+  return 'clear';
+}
+
+function computeWorldState(): WorldState {
+  const { phase, nextCycleAt } = getPhaseFromRealTime();
+  const worldDay = getWorldDayFromDate();
+  return {
+    worldDay,
+    timeOfDay: phase,
+    weather: weatherForDay(worldDay),
+    nextCycleAt,
+    activeEvent: null,
+    maintenanceMode: false,
+    maintenanceMessage: null,
+  };
+}
 
 export function useWorldState() {
-  const [worldState, setWorldState] = useState<WorldState>(DEFAULT_STATE);
-  const [loading, setLoading] = useState(true);
+  const [worldState, setWorldState] = useState<WorldState>(computeWorldState);
 
   useEffect(() => {
-    // Initial fetch
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('world_state')
-        .select('*')
-        .eq('id', 1)
-        .single();
-      if (data) {
-        setWorldState({
-          worldDay: data.world_day,
-          timeOfDay: data.time_of_day as TimeOfDay,
-          weather: data.current_weather as WeatherType,
-          nextCycleAt: data.next_cycle_at,
-          activeEvent: (data as any).active_event ?? null,
-          maintenanceMode: (data as any).maintenance_mode ?? false,
-          maintenanceMessage: (data as any).maintenance_message ?? null,
-        });
-      }
-      setLoading(false);
-    };
-    fetch();
-
-    // Realtime subscription
-    const channel = supabase
-      .channel('world-state-changes')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'world_state',
-      }, (payload) => {
-        const d = payload.new as any;
-        setWorldState({
-          worldDay: d.world_day,
-          timeOfDay: d.time_of_day as TimeOfDay,
-          weather: d.current_weather as WeatherType,
-          nextCycleAt: d.next_cycle_at,
-          activeEvent: d.active_event ?? null,
-          maintenanceMode: d.maintenance_mode ?? false,
-          maintenanceMessage: d.maintenance_message ?? null,
-        });
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    // Re-evaluate the clock-driven world state every minute so the phase/countdown stays fresh.
+    const tick = () => setWorldState(computeWorldState());
+    tick();
+    const interval = setInterval(tick, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
-  return { ...worldState, loading };
+  return { ...worldState, loading: false };
 }
 
 // Time-of-day icons for UI

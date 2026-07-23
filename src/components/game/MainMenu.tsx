@@ -1,8 +1,7 @@
 import { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Wifi, WifiOff, LogOut, Zap, Skull } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { getAuthErrorMessage } from '@/lib/authErrors';
+import { Play, RotateCcw, Settings, BookOpen, Users, Volume2, VolumeX, Zap, Skull } from 'lucide-react';
+import { setNickname as setLocalNickname } from '@/lib/localProfile';
 import { useLanguage } from '@/contexts/LanguageContext';
 import menuBg from '@/assets/main-menu-bg.jpg';
 
@@ -10,10 +9,6 @@ interface MainMenuProps {
   hasSave: boolean;
   onNewGame: () => void;
   onContinue: () => void;
-  isLoggedIn?: boolean;
-  username?: string;
-  onLoginClick?: () => void;
-  onLogoutClick?: () => void;
 }
 
 const CREDITS = [
@@ -25,7 +20,7 @@ const CREDITS = [
 
 type SubScreen = 'settings' | 'credits' | 'howto' | null;
 
-export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username, onLoginClick, onLogoutClick }: MainMenuProps) {
+export function MainMenu({ hasSave, onNewGame, onContinue }: MainMenuProps) {
   const { t, lang, setLang } = useLanguage();
   const [show, setShow] = useState(false);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
@@ -33,7 +28,6 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
   const [muted, setMuted] = useState(false);
   const [nickname, setNickname] = useState('');
   const [nickError, setNickError] = useState('');
-  const [nickLoading, setNickLoading] = useState(false);
 
   const HOW_TO_PLAY = [
     t.howToPlay.trading,
@@ -67,26 +61,9 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
       setNickError(t.menu.nickMax);
       return;
     }
-    setNickLoading(true);
+    // Fully local — just remember the chosen handle for the leaderboard/chat and start.
     setNickError('');
-
-    const { data, error: anonError } = await supabase.auth.signInAnonymously();
-    if (anonError) {
-      setNickError(getAuthErrorMessage(anonError));
-      setNickLoading(false);
-      return;
-    }
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({ id: data.user.id, username: nickname.trim() });
-      if (profileError) {
-        setNickError(profileError.message.includes('duplicate') ? t.menu.nickTaken : getAuthErrorMessage(profileError));
-        setNickLoading(false);
-        return;
-      }
-    }
-    setNickLoading(false);
+    setLocalNickname(nickname.trim());
     onNewGame();
   };
 
@@ -158,8 +135,8 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
                 <MenuButton icon={<Play size={18} />} label={t.menu.continue} accent onClick={onContinue} />
               )}
 
-              {/* Nickname input for non-logged-in users */}
-              {!isLoggedIn && !hasSave && (
+              {/* Nickname input when starting fresh */}
+              {!hasSave && (
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
@@ -176,16 +153,16 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
                 <div className="flex flex-col gap-2">
                   <p className="text-xs text-center text-blood font-ui">{t.menu.confirmOverwrite}</p>
                   <div className="flex gap-2">
-                    <MenuButton icon={<Play size={16} />} label={t.menu.yesNewGame} accent onClick={isLoggedIn ? onNewGame : handleQuickNewGame} className="flex-1" />
+                    <MenuButton icon={<Play size={16} />} label={t.menu.yesNewGame} accent onClick={onNewGame} className="flex-1" />
                     <MenuButton icon={<RotateCcw size={16} />} label={t.menu.cancel} onClick={() => setConfirmNew(false)} className="flex-1" />
                   </div>
                 </div>
               ) : (
                 <MenuButton
-                  icon={isLoggedIn ? <Play size={18} /> : <Zap size={18} />}
-                  label={nickLoading ? t.menu.loading : t.menu.newGame}
+                  icon={hasSave ? <Play size={18} /> : <Zap size={18} />}
+                  label={t.menu.newGame}
                   accent={!hasSave}
-                  onClick={isLoggedIn ? handleNewGame : (hasSave ? handleNewGame : handleQuickNewGame)}
+                  onClick={hasSave ? handleNewGame : handleQuickNewGame}
                 />
               )}
 
@@ -199,19 +176,6 @@ export function MainMenu({ hasSave, onNewGame, onContinue, isLoggedIn, username,
               <MenuButton icon={<BookOpen size={18} />} label={t.menu.howToPlay} onClick={() => setSubScreen('howto')} />
               <MenuButton icon={<Settings size={18} />} label={t.menu.settings} onClick={() => setSubScreen('settings')} />
               <MenuButton icon={<Users size={18} />} label={t.menu.credits} onClick={() => setSubScreen('credits')} />
-
-              <div className="h-px bg-border/50 my-1" />
-
-              {isLoggedIn ? (
-                <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded border border-emerald/30 bg-emerald/5 text-emerald text-xs font-ui font-semibold truncate">
-                    <Wifi size={14} className="shrink-0" /> <span className="truncate">{username || t.menu.online}</span>
-                  </div>
-                  <MenuButton icon={<LogOut size={16} />} label={t.menu.logout} onClick={() => onLogoutClick?.()} className="flex-1" />
-                </div>
-              ) : (
-                <MenuButton icon={<WifiOff size={18} />} label={t.menu.login} onClick={() => onLoginClick?.()} />
-              )}
             </motion.div>
 
             {/* Version */}

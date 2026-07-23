@@ -1,74 +1,47 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useGame } from '@/contexts/GameContext';
+import { generateBotChatLine, seedBotChat, type ChatChannel, type ChatLine } from '@/game/world/chatter';
 
-export interface ChatMessage {
-  id: string;
-  user_id: string;
-  username: string;
-  channel: string;
-  message: string;
-  created_at: string;
-}
+export type { ChatChannel } from '@/game/world/chatter';
+export type ChatMessage = ChatLine;
 
-export type ChatChannel = 'global' | 'trade' | 'gang' | 'district';
-
+/**
+ * Local chat: ambient bot chatter generated from the world population, plus the player's own
+ * messages. No backend — the channel fills itself with believable underworld talk.
+ */
 export function useChat(channel: ChatChannel) {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const channelRef = useRef(channel);
-  channelRef.current = channel;
+  const { state } = useGame();
+  const worldRef = useRef(state.world);
+  worldRef.current = state.world;
+  const [messages, setMessages] = useState<ChatMessage[]>(() => seedBotChat(state.world, channel));
+  const [loading] = useState(false);
 
-  // Fetch recent messages
-  const fetchMessages = useCallback(async () => {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('channel', channel)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (data) setMessages((data as unknown as ChatMessage[]).reverse());
-    setLoading(false);
+  // Reseed when switching channels.
+  useEffect(() => {
+    setMessages(seedBotChat(worldRef.current, channel));
   }, [channel]);
 
+  // Periodically drop in a new bot line so the channel feels alive.
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
-  // Realtime subscription
-  useEffect(() => {
-    const sub = supabase
-      .channel(`chat-${channel}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `channel=eq.${channel}`,
-        },
-        (payload) => {
-          const msg = payload.new as unknown as ChatMessage;
-          if (msg.channel === channelRef.current) {
-            setMessages(prev => [...prev.slice(-99), msg]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(sub); };
+    const interval = setInterval(() => {
+      const line = generateBotChatLine(worldRef.current, channel);
+      if (line) setMessages(prev => [...prev.slice(-99), line]);
+    }, 12_000 + Math.random() * 12_000);
+    return () => clearInterval(interval);
   }, [channel]);
 
   const sendMessage = useCallback(async (text: string, username: string) => {
-    if (!user || !text.trim()) return;
-    await supabase.from('chat_messages').insert({
-      user_id: user.id,
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages(prev => [...prev.slice(-99), {
+      id: `chat_me_${Date.now()}`,
+      user_id: 'player',
       username,
       channel,
-      message: text.trim().slice(0, 500),
-    } as any);
-  }, [user, channel]);
+      message: trimmed.slice(0, 500),
+      created_at: new Date().toISOString(),
+    }]);
+  }, [channel]);
 
   return { messages, loading, sendMessage };
 }

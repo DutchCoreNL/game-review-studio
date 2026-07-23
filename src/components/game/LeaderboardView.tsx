@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useMemo } from 'react';
+import { useGame } from '@/contexts/GameContext';
 import { Trophy, Crown, Star, Users, MapPin, Coins, Calendar, Skull, Shield, Flame } from 'lucide-react';
 import { PrestigeBadge } from './ui/PrestigeBadge';
 import { GameBadge } from './ui/GameBadge';
@@ -31,79 +31,58 @@ interface LeaderboardEntry {
 }
 
 export function LeaderboardView({ embedded }: { embedded?: boolean }) {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { state } = useGame();
   const [sortBy, setSortBy] = useState<SortField>('rep');
   const [tab, setTab] = useState<LeaderboardTab>('global');
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardEntry | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const loading = false;
+  const currentUserId = 'player';
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
-    });
-  }, []);
-
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [sortBy, tab]);
-
-  const fetchLeaderboard = async () => {
-    setLoading(true);
+  // Build the leaderboard from the local world population plus the player.
+  const entries = useMemo<LeaderboardEntry[]>(() => {
     const TARGET_COUNT = 50;
+    const botEntries: LeaderboardEntry[] = (state.world?.bots || []).map(b => ({
+      id: b.id,
+      user_id: b.id,
+      username: b.name,
+      rep: b.rep,
+      cash: b.money,
+      day: state.day,
+      level: b.level,
+      districts_owned: 0,
+      crew_size: 0,
+      karma: 0,
+      backstory: null,
+      updated_at: new Date().toISOString(),
+      prestige_level: 0,
+    }));
 
-    let query = supabase
-      .from('leaderboard_entries')
-      .select('*')
-      .order(sortBy, { ascending: false })
-      .limit(TARGET_COUNT);
+    const playerEntry: LeaderboardEntry = {
+      id: 'player',
+      user_id: 'player',
+      username: 'Jij',
+      rep: state.rep,
+      cash: state.money,
+      day: state.day,
+      level: state.player.level,
+      districts_owned: state.ownedDistricts?.length || 0,
+      crew_size: state.crew?.length || 0,
+      karma: state.karma || 0,
+      backstory: state.backstory || null,
+      updated_at: new Date().toISOString(),
+      prestige_level: state.prestigeLevel || 0,
+      is_hardcore: state.hardcoreMode || false,
+    };
 
-    if (tab === 'legends') {
-      query = query.gte('level', 15).order('rep', { ascending: false });
-    }
-
-    const { data: realData } = await query;
-    const realEntries = (realData as LeaderboardEntry[]) || [];
-
-    if (tab === 'global') {
-      const botsNeeded = Math.max(0, TARGET_COUNT - realEntries.length);
-      if (botsNeeded > 0) {
-        const { data: bots } = await supabase
-          .from('bot_players')
-          .select('*')
-          .eq('is_active', true)
-          .limit(botsNeeded);
-
-        if (bots && bots.length > 0) {
-          const botEntries: LeaderboardEntry[] = bots.map((b: any) => ({
-            id: b.id,
-            user_id: `bot_${b.id}`,
-            username: b.username,
-            rep: b.rep,
-            cash: b.cash,
-            day: b.day,
-            level: b.level,
-            districts_owned: b.districts_owned,
-            crew_size: b.crew_size,
-            karma: b.karma,
-            backstory: b.backstory,
-            updated_at: b.created_at,
-            prestige_level: b.prestige_level || 0,
-          }));
-          realEntries.push(...botEntries);
-        }
-      }
-    }
-
-    realEntries.sort((a, b) => {
-      const valA = sortBy === 'cash' ? Number(a[sortBy]) : a[sortBy];
-      const valB = sortBy === 'cash' ? Number(b[sortBy]) : b[sortBy];
-      return (valB as number) - (valA as number);
+    let all = [...botEntries, playerEntry];
+    if (tab === 'legends') all = all.filter(e => e.level >= 15);
+    all.sort((a, b) => {
+      const valA = sortBy === 'cash' ? Number(a[sortBy]) : (a[sortBy] as number);
+      const valB = sortBy === 'cash' ? Number(b[sortBy]) : (b[sortBy] as number);
+      return valB - valA;
     });
-
-    setEntries(realEntries.slice(0, TARGET_COUNT));
-    setLoading(false);
-  };
+    return all.slice(0, TARGET_COUNT);
+  }, [state.world, state.rep, state.money, state.day, state.player.level, state.ownedDistricts, state.crew, state.karma, state.backstory, state.prestigeLevel, state.hardcoreMode, sortBy, tab]);
 
   const SORT_OPTIONS: { id: SortField; label: string; icon: React.ReactNode }[] = [
     { id: 'rep', label: 'REP', icon: <Star size={10} /> },
