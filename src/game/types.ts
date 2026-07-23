@@ -673,6 +673,9 @@ export interface PvPCombatState {
   combosLanded: number;
   attackerPvpDamageBonus?: number;
   stance: CombatStance;
+  // Weapon profiles feeding the shared damage core (so gear matters in duels).
+  attackerWeapon?: { damage: number; accuracy: number; critChance: number; isMelee: boolean };
+  defenderWeapon?: { damage: number; accuracy: number; critChance: number; isMelee: boolean };
 }
 
 export interface PvPPlayerInfo {

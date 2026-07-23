@@ -50,6 +50,7 @@ import { startCampaignMission, canStartMission, getMissionDef, advanceCampaignMi
 import { PROPERTIES, canAffordProperty, getCurrentProperty } from '../game/properties';
 import { CRAFT_RECIPES as VILLA_CRAFT_RECIPES, canCraft as villaCanCraft } from '../game/crafting';
 import { createPvPCombatState, pvpCombatTurn } from '../game/combatSkills';
+import { weaponProfileFromProc, weaponProfileForLevel } from '../game/combat/damage';
 import { handleCombatAction } from '../game/reducers/combatHandlers';
 import { createInitialArmsNetwork, generateContact, getContactRecruitCost, processDelivery, getNetworkUpgradeCost, getWeeklyCapacity } from '../game/armsDealing';
 import { createStashHouse, getStashUsed, getStashRemaining, getStashUpgradeCost, getStashPurchaseCost } from '../game/stashHouses';
@@ -3963,6 +3964,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.mmoPerkFlags?.pvpDamageBonus) {
         pvpState.attackerPvpDamageBonus = s.mmoPerkFlags.pvpDamageBonus;
       }
+      // Weapon profiles for the shared damage core — your equipped weapon now
+      // matters in duels, and the opponent fights with kit that scales to level.
+      pvpState.attackerWeapon = weaponProfileFromProc(s.weaponInventory?.find(w => w.equipped));
+      pvpState.defenderWeapon = weaponProfileForLevel(target.level);
       s.activePvPCombat = pvpState;
       s.screenEffect = 'shake';
       return s;

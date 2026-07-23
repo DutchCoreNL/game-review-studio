@@ -1,4 +1,5 @@
 import { CombatSkill, CombatBuff, PvPCombatState, CombatStance } from './types';
+import { resolveAttack, weaponProfileForLevel, FISTS, type WeaponProfile } from './combat/damage';
 
 // ========== STANCE DEFINITIONS ==========
 
@@ -238,17 +239,21 @@ export function pvpCombatTurn(
     s.logs.push(`${stanceMod.icon} Defensieve houding: +${stanceMod.healBonus} HP`);
   }
 
+  const attackerWeapon: WeaponProfile = s.attackerWeapon || FISTS;
+
   switch (action) {
     case 'attack': {
-      playerDamage = Math.floor(8 + muscle * 2.5 + Math.random() * 6);
+      const hit = resolveAttack({ kind: 'light', muscle, weapon: attackerWeapon });
+      playerDamage = hit.damage;
       if (hasDamageBoost) playerDamage = Math.floor(playerDamage * 1.3);
       s.logs.push(`⚔️ Aanval! ${playerDamage} schade.`);
       isAttackAction = true;
       break;
     }
     case 'heavy': {
-      if (Math.random() < 0.6 + muscle * 0.03) {
-        playerDamage = Math.floor(15 + muscle * 3.5 + Math.random() * 10);
+      const hit = resolveAttack({ kind: 'heavy', muscle, weapon: attackerWeapon });
+      if (!hit.missed) {
+        playerDamage = hit.damage;
         if (hasDamageBoost) playerDamage = Math.floor(playerDamage * 1.3);
         s.logs.push(`💥 ZWARE KLAP! ${playerDamage} schade!`);
       } else {
@@ -401,28 +406,27 @@ function enemyTurn(state: PvPCombatState): { newHP: number; damage: number; logs
   const defMuscle = state.defenderStats.muscle;
   const hpPct = state.defenderHP / state.defenderMaxHP;
   const logs: string[] = [];
+  const weapon: WeaponProfile = state.defenderWeapon || weaponProfileForLevel(state.defenderLevel);
 
   // AI decision: defend more when low HP
   const roll = Math.random();
   let damage = 0;
 
   if (hpPct < 0.3 && roll < 0.4) {
-    // Defend/heal
-    const heal = Math.floor(5 + defMuscle);
-    // Don't actually heal defender in this simplified model, just reduce damage output
     logs.push(`${state.defenderName} verdedigt zich.`);
     return { newHP: state.attackerHP, damage: 0, logs };
   } else if (roll < 0.3) {
-    // Heavy attack
-    if (Math.random() < 0.55) {
-      damage = Math.floor(12 + defMuscle * 2.5 + Math.random() * 8);
+    // Heavy attack — shared core
+    const hit = resolveAttack({ kind: 'heavy', muscle: defMuscle, weapon });
+    if (!hit.missed) {
+      damage = hit.damage;
       logs.push(`💥 ${state.defenderName} slaat hard toe! -${damage} HP`);
     } else {
       logs.push(`${state.defenderName} mist een zware aanval.`);
     }
   } else {
-    // Normal attack
-    damage = Math.floor(6 + defMuscle * 1.8 + Math.random() * 5);
+    // Normal attack — shared core
+    damage = resolveAttack({ kind: 'light', muscle: defMuscle, weapon }).damage;
     logs.push(`⚔️ ${state.defenderName} valt aan! -${damage} HP`);
   }
 
