@@ -32,7 +32,6 @@ import { SkillTreePanel } from './profile/SkillTreePanel';
 import profileBg from '@/assets/profile-bg.jpg';
 import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { AdminPanel } from './AdminPanel';
-import { MessagesView } from './MessagesView';
 import { useAdmin } from '@/hooks/useAdmin';
 
 const SLOT_ICONS: Record<string, React.ReactNode> = {
@@ -123,7 +122,6 @@ export function ProfileView() {
           { id: 'arcs', label: t.profile.arcs, icon: <Target size={11} /> },
           { id: 'trophies', label: t.profile.trophies, icon: <Trophy size={11} /> },
           { id: 'leaderboard', label: t.profile.online, icon: <Crown size={11} /> },
-          { id: 'messages', label: t.profile.mail, icon: <Mail size={11} /> },
           { id: 'imperium', label: t.profile.imperiumTab, icon: <Skull size={11} /> },
           { id: 'settings', label: t.profile.settingsTab, icon: <Settings size={11} /> },
           ...(isAdmin ? [{ id: 'admin', label: 'ADMIN', icon: <Shield size={11} />, badge: true }] : []),
@@ -236,7 +234,6 @@ export function ProfileView() {
       {profileTab === 'contacts' && <NpcRelationsPanel />}
       {profileTab === 'arcs' && <StoryArcsPanel />}
       {profileTab === 'leaderboard' && <LeaderboardView embedded />}
-      {profileTab === 'messages' && <MessagesView />}
       {profileTab === 'imperium' && (
         <>
           <VillaSummaryPanel />

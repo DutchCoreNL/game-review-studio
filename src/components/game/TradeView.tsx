@@ -13,8 +13,6 @@ import { AuctionPanel } from './trade/AuctionPanel';
 import { LiveAuctionPanel } from './trade/LiveAuctionPanel';
 import { StockMarketPanel } from './trade/StockMarketPanel';
 import { TradeLogPanel } from './trade/TradeLogPanel';
-import { GlobalMarketPanel } from './trade/GlobalMarketPanel';
-import { MarketplacePanel } from './trade/MarketplacePanel';
 import { ArmsDealingPanel } from './trade/ArmsDealingPanel';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
@@ -47,9 +45,7 @@ export function TradeView() {
 
   const tabs: SubTab<TradeSubTab>[] = [
     { id: 'market', label: t.trade.market, icon: <ShoppingBag size={11} /> },
-    { id: 'p2p', label: t.trade.p2p, icon: <Users size={11} /> },
     { id: 'analysis', label: t.trade.analysis, icon: <BarChart3 size={11} />, badge: hasProfitableRoute },
-    { id: 'global', label: t.trade.global, icon: <Globe size={11} /> },
     { id: 'auction', label: t.trade.auction, icon: <Gavel size={11} />, badge: (state.auctionItems?.length || 0) },
     { id: 'live_auction', label: t.trade.live, icon: <Gavel size={11} /> },
     { id: 'stocks', label: t.trade.stocks, icon: <TrendingUp size={11} />, badge: !!state.pendingInsiderTip },
@@ -80,9 +76,7 @@ export function TradeView() {
         <>
           <SubTabBar tabs={tabs} active={subTab} onChange={(id) => setSubTab(id as TradeSubTab)} />
           {subTab === 'market' && <MarketPanel />}
-          {subTab === 'p2p' && <MarketplacePanel />}
           {subTab === 'analysis' && <MarketAnalysisPanel />}
-          {subTab === 'global' && <GlobalMarketPanel />}
           {subTab === 'auction' && <AuctionPanel />}
           {subTab === 'live_auction' && <LiveAuctionPanel />}
           {subTab === 'stocks' && <StockMarketPanel />}
