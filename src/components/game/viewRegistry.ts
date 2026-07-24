@@ -2,7 +2,6 @@ import React from 'react';
 import { MapView } from './MapView';
 import { TradeView } from './TradeView';
 import { ProfileView } from './ProfileView';
-import { ImperiumView } from './ImperiumView';
 import { OperationsView } from './OperationsView';
 
 // Lazy-loaded standalone views
@@ -111,7 +110,6 @@ export const views: Record<string, React.ComponentType> = {
   war: WarViewLazy,
   corruption: CorruptionView,
   // Imperium
-  empire: ImperiumView,
   business: BusinessPanel,
   garage: GarageView,
   districts: DistrictLeaderboardPanel,
