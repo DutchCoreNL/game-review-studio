@@ -15,7 +15,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId } from './weaponGenerator';
-import { baseHitDamage } from './combat/damage';
+import { baseHitDamage, enemyBaseHit } from './combat/damage';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -2184,7 +2184,7 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
 
   // Enemy attack
   if (!combat.stunned) {
-    let enemyDamage = Math.floor(combat.enemyAttack * (0.7 + Math.random() * 0.6) * (state._ngPlusDifficultyScale || 1));
+    let enemyDamage = enemyBaseHit(combat.enemyAttack, Math.random, state._ngPlusDifficultyScale || 1);
     // Guardian enchantment: chance to halve damage
     if (guardianChance > 0 && Math.random() < guardianChance) {
       enemyDamage = Math.floor(enemyDamage * 0.5);

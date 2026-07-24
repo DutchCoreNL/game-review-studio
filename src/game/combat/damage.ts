@@ -78,6 +78,20 @@ export function baseHitDamage(
 }
 
 /**
+ * Raw enemy hit for a stat-block opponent (PvE bosses/nemeses defined by an
+ * `attack` value rather than muscle+weapon). Kept here so every raw damage
+ * magnitude in the game — player light/heavy AND enemy swing — has a single home.
+ * Callers apply their own guard/stance/armor reduction on top.
+ */
+export function enemyBaseHit(
+  enemyAttack: number,
+  rand: () => number = Math.random,
+  difficultyScale = 1,
+): number {
+  return Math.floor(enemyAttack * (0.7 + rand() * 0.6) * difficultyScale);
+}
+
+/**
  * PvP-style hit resolution: the shared base term plus a heavy-attack hit check
  * where a more accurate weapon connects more often. Light attacks always land.
  */

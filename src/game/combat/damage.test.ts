@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAttack, weaponProfileFromProc, weaponProfileForLevel, FISTS } from './damage';
+import { resolveAttack, weaponProfileFromProc, weaponProfileForLevel, enemyBaseHit, FISTS } from './damage';
 
 // Deterministic RNG helper: returns a fixed value.
 const fixed = (v: number) => () => v;
@@ -54,5 +54,19 @@ describe('weapon profiles', () => {
 
   it('scales an NPC weapon profile with level', () => {
     expect(weaponProfileForLevel(20).damage).toBeGreaterThan(weaponProfileForLevel(5).damage);
+  });
+});
+
+describe('enemyBaseHit', () => {
+  it('reproduces the stat-block swing formula', () => {
+    // enemyAttack 20, rand 0.5 -> 20 * (0.7 + 0.3) * 1 = 20
+    expect(enemyBaseHit(20, () => 0.5, 1)).toBe(20);
+    // rand 0 -> floor(20 * 0.7) = 14 ; rand 1 -> floor(20 * 1.2999…) = 25
+    expect(enemyBaseHit(20, () => 0, 1)).toBe(14);
+    expect(enemyBaseHit(20, () => 1, 1)).toBe(25);
+  });
+
+  it('applies the NG+ difficulty scale', () => {
+    expect(enemyBaseHit(20, () => 0.5, 1.5)).toBe(30);
   });
 });
