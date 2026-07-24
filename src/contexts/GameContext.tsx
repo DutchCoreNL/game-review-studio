@@ -20,8 +20,12 @@ import {
   ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
   ORG_PACT_MIN_RESPECT, orgRelation, orgRank,
   orgPactCost, orgOperationRewardMult, orgDefenseAdvantage, orgAllySupport,
-  type PlayerOrg, type OrgMember,
+  type PlayerOrg, type OrgMember, type RacketId,
 } from '../game/organization';
+import { resolveRacketTick } from '../game/rackets';
+
+/** Personal-heat level at which the idle empire gets raided by police. */
+const HEAT_RAID_THRESHOLD = 92;
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
@@ -324,6 +328,8 @@ type GameAction =
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
   | { type: 'ORG_RUN_OPERATION'; operationId: string }
   | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
+  | { type: 'ORG_ASSIGN_RACKET'; memberId: string; racket: RacketId | null }
+  | { type: 'ORG_ASSIGN_ALL'; racket: RacketId | null }
   | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
@@ -945,6 +951,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           addPhoneMessage(s, 'system', `${leavers.map(m => m.name).join(', ')} verliet de organisatie.`, 'threat');
           orgLog(`💔 ${leavers.map(m => m.name).join(', ')} verliet de organisatie`);
         }
+      }
+
+      // ========== RACKETS — the idle crew output ==========
+      // Every member you assigned to a racket produces this tick: extortion earns
+      // money, territory earns respect, laundering cools heat, recruiting lifts
+      // morale. Extortion and territory also stoke police heat (Groei vs. Hitte).
+      if (s.org && s.org.members.length > 0) {
+        const rt = resolveRacketTick(s.org);
+        if (rt.money > 0) { s.money += rt.money; s.stats.totalEarned += rt.money; }
+        if (rt.respect > 0) s.org.respect += rt.respect;
+        if (rt.loyaltyRegen > 0) {
+          for (const m of s.org.members) m.loyalty = Math.min(100, m.loyalty + rt.loyaltyRegen);
+        }
+        if (rt.heat !== 0) { Engine.addPersonalHeat(s, rt.heat); Engine.recomputeHeat(s); }
+        for (const line of rt.notes) orgLog(`💼 ${line}`);
+      }
+
+      // ========== HEAT RAID — the idle risk ==========
+      // Let the empire run too hot and the police kick the door in: you lose cash,
+      // maybe a district, and the heat resets. This is the pressure you idle-manage
+      // by keeping crew on the laundering racket.
+      if ((s.personalHeat || 0) >= HEAT_RAID_THRESHOLD && s.policeRel < 60) {
+        const lossPct = 0.2 + Math.random() * 0.2;
+        const lost = Math.floor(s.money * lossPct);
+        s.money = Math.max(0, s.money - lost);
+        let districtLine = '';
+        if (s.org && s.org.controlledDistricts.length > 0 && Math.random() < 0.4) {
+          const dropped = s.org.controlledDistricts.pop()!;
+          districtLine = ` en verloor ${DISTRICTS[dropped]?.name || dropped}`;
+        }
+        s.personalHeat = 35;
+        Engine.recomputeHeat(s);
+        addPhoneMessage(s, 'system', `🚔 INVAL! De politie viel binnen — je verloor €${lost.toLocaleString()}${districtLine}.`, 'threat');
+        orgLog(`🚔 Politie-inval: −€${lost.toLocaleString()}${districtLine}`);
       }
 
       // ========== RIVAL GANGS FIGHT BACK ==========
@@ -4326,6 +4366,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ORG_DISMISS': {
       if (!s.org) return s;
       s.org.members = s.org.members.filter(x => x.id !== action.memberId);
+      return s;
+    }
+
+    case 'ORG_ASSIGN_RACKET': {
+      if (!s.org) return s;
+      const m = s.org.members.find(x => x.id === action.memberId);
+      if (m) m.assignment = action.racket;
+      return s;
+    }
+
+    case 'ORG_ASSIGN_ALL': {
+      if (!s.org) return s;
+      for (const m of s.org.members) m.assignment = action.racket;
       return s;
     }
 

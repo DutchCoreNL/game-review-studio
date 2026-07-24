@@ -11,12 +11,20 @@ import type { DistrictId } from './types';
 
 export type OrgRole = 'soldaat' | 'luitenant' | 'onderbaas';
 
+/**
+ * The idle "posture" a crew member holds. Each member you assign to a racket
+ * contributes to that racket's output every world tick, so the empire runs itself
+ * (see src/game/rackets.ts). `null`/undefined means the member is idle (reserve).
+ */
+export type RacketId = 'afpersing' | 'territorium' | 'witwassen' | 'werving';
+
 export interface OrgMember {
   id: string;
   name: string;
   role: OrgRole;
   level: number;
   loyalty: number; // 0-100
+  assignment?: RacketId | null; // which racket this member runs each tick
 }
 
 export type OrgRelation = 'ally' | 'enemy';
@@ -241,6 +249,7 @@ export function makeRecruit(name: string, playerLevel: number, rand: () => numbe
     role: 'soldaat',
     level,
     loyalty: 60 + Math.floor(rand() * 20),
+    assignment: 'afpersing', // new crew start earning on the extortion racket
   };
 }
 
