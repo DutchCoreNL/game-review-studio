@@ -37,6 +37,7 @@ export const en: Translations = {
   },
   sidebar: {
     overview: 'OVERVIEW',
+    successor: 'Successor',
     city: 'CITY',
     map: 'Map',
     travel: 'Travel',

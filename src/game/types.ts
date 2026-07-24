@@ -13,7 +13,7 @@ export type GameView =
   | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'
   | 'crew' | 'families' | 'gang' | 'war' | 'corruption'
   | 'garage' | 'business' | 'districts' | 'properties' | 'travel' | 'chat' | 'organized-crimes'
-  | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings'
+  | 'profile' | 'skills' | 'loadout' | 'contacts' | 'reputation' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium-stats' | 'settings' | 'opvolger'
   | 'education' | 'gym' | 'jobs' | 'street_events' | 'merit'
   | 'empire' | 'admin' | 'weapons' | 'campaign' | 'codex' | 'armor-arsenal' | 'gadget-arsenal'
   | 'black-market' | 'salvage' | 'story-journal' | 'loot-boxes' | 'raids' | 'arms-dealing';
@@ -1188,6 +1188,7 @@ export interface GameState {
   // ========== PLAYER ORGANIZATION (local single-player) ==========
   org: import('./organization').PlayerOrg | null; // the player's own criminal outfit
   autoFence?: { owned: boolean; paused: boolean }; // passive contraband market (idle trade)
+  legacy?: import('./legacy').LegacyState; // prestige (successor) progress, survives resets
 
   // ========== SKILL TREE & PRESTIGE STATE ==========
   unlockedSkills: { skillId: string; level: number }[];

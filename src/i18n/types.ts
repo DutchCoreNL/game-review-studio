@@ -37,6 +37,7 @@ export interface Translations {
   };
   sidebar: {
     overview: string;
+    successor: string;
     city: string;
     map: string;
     travel: string;

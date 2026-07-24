@@ -24,6 +24,7 @@ import {
 } from '../game/organization';
 import { resolveRacketTick } from '../game/rackets';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
+import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
 
 /** Personal-heat level at which the idle empire gets raided by police. */
 const HEAT_RAID_THRESHOLD = 92;
@@ -333,6 +334,7 @@ type GameAction =
   | { type: 'ORG_ASSIGN_ALL'; racket: RacketId | null }
   | { type: 'BUY_AUTO_FENCE' }
   | { type: 'TOGGLE_AUTO_FENCE' }
+  | { type: 'RETIRE_SUCCESSOR' }
   | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
@@ -962,7 +964,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // morale. Extortion and territory also stoke police heat (Groei vs. Hitte).
       if (s.org && s.org.members.length > 0) {
         const rt = resolveRacketTick(s.org);
-        if (rt.money > 0) { s.money += rt.money; s.stats.totalEarned += rt.money; }
+        if (rt.money > 0) {
+          const g = Math.floor(rt.money * legacyIncomeMult(s));
+          s.money += g; s.stats.totalEarned += g;
+        }
         if (rt.respect > 0) s.org.respect += rt.respect;
         if (rt.loyaltyRegen > 0) {
           for (const m of s.org.members) m.loyalty = Math.min(100, m.loyalty + rt.loyaltyRegen);
@@ -979,7 +984,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           Engine.recomputeHeat(s);
           orgLog(`📦 Een smokkelzending werd onderschept`);
         } else {
-          const profit = autoFenceIncome(s);
+          const profit = Math.floor(autoFenceIncome(s) * legacyIncomeMult(s));
           if (profit > 0) {
             s.money += profit;
             s.stats.totalEarned += profit;
@@ -4071,6 +4076,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       Engine.generatePrices(fresh);
       // Contracts generated server-side via gameApi.acceptContract()
       fresh.dailyNews = generateDailyNews(fresh);
+      return fresh;
+    }
+
+    case 'RETIRE_SUCCESSOR': {
+      if (!canRetire(s)) return s;
+      const gain = computeLegacyGain(s);
+      const prev = getLegacy(s);
+      const nextLegacy = {
+        generation: prev.generation + 1,
+        points: prev.points + gain,
+        totalEarned: prev.totalEarned + gain,
+      };
+      // A fresh successor takes over — new crew, cash and level — but inherits the
+      // legacy points, which permanently boost income and starting cash.
+      const fresh = createInitialState();
+      Engine.generatePrices(fresh);
+      fresh.dailyNews = generateDailyNews(fresh);
+      fresh.legacy = nextLegacy;
+      fresh.money = legacyStartCash(nextLegacy.points);
+      fresh.backstory = s.backstory;      // same dynasty, same origin story
+      fresh.tutorialDone = true;          // the successor knows the ropes
+      fresh.settings = s.settings;        // keep player preferences
       return fresh;
     }
 

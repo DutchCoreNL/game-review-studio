@@ -37,6 +37,7 @@ export const nl: Translations = {
   },
   sidebar: {
     overview: 'OVERZICHT',
+    successor: 'Opvolger',
     city: 'STAD',
     map: 'Kaart',
     travel: 'Reizen',

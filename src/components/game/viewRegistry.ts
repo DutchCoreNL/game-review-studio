@@ -4,6 +4,7 @@ import { TradeView } from './TradeView';
 import { ProfileView } from './ProfileView';
 import { OperationsView } from './OperationsView';
 import { ImperiumDashboard } from './ImperiumDashboard';
+import { LegacyView } from './LegacyView';
 
 // Lazy-loaded standalone views
 const AdminPanelView = React.lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
@@ -82,6 +83,7 @@ const ArmsDealingViewLazy = React.lazy(() => import('./trade/ArmsDealingPanel').
 export const views: Record<string, React.ComponentType> = {
   // Imperium hub (idle command centre)
   overzicht: ImperiumDashboard,
+  opvolger: LegacyView,
   // Stad
   city: MapView,
   casino: CasinoView,
@@ -155,6 +157,6 @@ export function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 
   if (['overzicht', 'city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign', 'raids'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear', 'black-market', 'salvage', 'loot-boxes', 'arms-dealing'].includes(v)) return 'trade';
-  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs'].includes(v)) return 'empire';
+  if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs', 'opvolger'].includes(v)) return 'empire';
   return 'profile';
 }

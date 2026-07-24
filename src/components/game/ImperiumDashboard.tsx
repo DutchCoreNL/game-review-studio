@@ -10,6 +10,7 @@ import {
   afpersingIncome, territoriumRespect, witwassenCooling,
 } from '@/game/rackets';
 import { autoFenceActive, autoFenceIncome } from '@/game/tradeNetwork';
+import { canRetire, computeLegacyGain } from '@/game/legacy';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -136,6 +137,20 @@ export function ImperiumDashboard() {
             De hitte loopt gevaarlijk op — zet crew op <b>Witwassen</b> of koop de politie om, anders volgt een inval.
           </span>
         </motion.div>
+      )}
+
+      {/* Successor prompt — you've built enough to pass on a legacy */}
+      {canRetire(state) && (
+        <motion.button
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          onClick={() => setView('opvolger')}
+          className="w-full flex items-center gap-2 rounded-lg bg-gold/10 border border-gold/30 px-3 py-2 text-left">
+          <Crown size={14} className="text-gold shrink-0" />
+          <span className="text-[0.55rem] text-gold leading-snug flex-1">
+            Je imperium is groot genoeg om door te geven — ga met pensioen voor <b>+{computeLegacyGain(state)} erfenis</b>.
+          </span>
+          <ArrowRight size={12} className="text-gold shrink-0" />
+        </motion.button>
       )}
 
       {/* ═══ EMPIRE FEED ═══ */}

@@ -110,6 +110,7 @@ const GROUPS: NavGroupDef[] = [
     id: 'profile', emoji: '👤', label: t => t.sidebar.profile, primary: 'profile',
     items: [
       { id: 'profile', icon: BarChart3, label: t => t.sidebar.statsSkills },
+      { id: 'opvolger', icon: CrownIcon, label: t => t.sidebar.successor, badge: s => (s.legacy?.points || 0) },
       { id: 'merit', icon: Sparkles, label: t => t.sidebar.meritPoints, badge: s => (s.meritPoints || 0) },
       { id: 'gym', icon: Award, label: t => t.sidebar.gym },
       { id: 'jobs', icon: Star, label: t => t.sidebar.jobs },
