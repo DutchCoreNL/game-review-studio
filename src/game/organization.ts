@@ -36,6 +36,11 @@ export interface PlayerOrg {
 export const ORG_PACT_COST = 20000;
 export const ORG_PACT_MIN_RESPECT = 30;
 
+/** Combat power your allies lend to an attack or defense (a share of their strength). */
+export function orgAllySupport(allyPowers: number[]): number {
+  return Math.floor(allyPowers.reduce((s, p) => s + p, 0) * 0.25);
+}
+
 /** Your organisation's stance toward a world gang: ally, enemy, or neutral. */
 export function orgRelation(org: PlayerOrg | null | undefined, gangId: string): OrgRelation | 'neutral' {
   return org?.relations?.[gangId] ?? 'neutral';

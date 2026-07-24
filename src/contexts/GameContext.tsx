@@ -19,7 +19,7 @@ import {
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
   ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
   ORG_PACT_MIN_RESPECT, orgRelation, orgRank,
-  orgPactCost, orgOperationRewardMult, orgDefenseAdvantage,
+  orgPactCost, orgOperationRewardMult, orgDefenseAdvantage, orgAllySupport,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
 import * as MissionEngine from '../game/missions';
@@ -954,6 +954,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Allies keep the peace; sworn enemies press harder and more often.
         const candidates = s.world.gangs.filter(g => orgRelation(s.org, g.id) !== 'ally');
         const enemies = candidates.filter(g => orgRelation(s.org, g.id) === 'enemy');
+        // Allies rush to your aid, lending a share of their strength to the defence.
+        const allies = s.world.gangs.filter(g => orgRelation(s.org, g.id) === 'ally');
+        const allySupport = orgAllySupport(allies.map(g => g.power));
         const attemptChance = 0.2 + s.org.controlledDistricts.length * 0.08 + enemies.length * 0.06;
         if (candidates.length > 0 && Math.random() < attemptChance) {
           const orgPow = orgPower(s.org);
@@ -964,8 +967,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           const aggressor = pool.reduce((a, b) => (b.power > a.power ? b : a), pool[0]);
           if (aggressor) {
             const distName = DISTRICTS[contested]?.name || contested;
-            // You defend with a rank-scaled home advantage.
-            const gangWins = resolveOrgAttack(aggressor.power, orgPow * orgDefenseAdvantage(s.org), Math.random);
+            // You defend with a rank-scaled home advantage, plus any allied backup.
+            const gangWins = resolveOrgAttack(aggressor.power, orgPow * orgDefenseAdvantage(s.org) + allySupport, Math.random);
             if (gangWins) {
               s.org.controlledDistricts = s.org.controlledDistricts.filter(d => d !== contested);
               aggressor.controlledDistrict = contested as import('@/game/types').DistrictId;
@@ -977,8 +980,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             } else {
               aggressor.power = Math.max(10, aggressor.power - 6);
               s.org.respect += 4;
-              addPhoneMessage(s, 'system', `Je bemanning sloeg een aanval van ${aggressor.name} op ${distName} af.`, 'opportunity');
-              orgLog(`🛡️ Aanval van ${aggressor.name} op ${distName} afgeslagen`);
+              const backup = allySupport > 0 ? ` Bondgenoten stonden je bij (+${allySupport} kracht).` : '';
+              addPhoneMessage(s, 'system', `Je bemanning sloeg een aanval van ${aggressor.name} op ${distName} af.${backup}`, 'opportunity');
+              orgLog(`🛡️ Aanval van ${aggressor.name} op ${distName} afgeslagen${allySupport > 0 ? ' (met bondgenoten)' : ''}`);
             }
           }
         }
@@ -4343,6 +4347,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const gang = s.world.gangs.find(g => g.id === action.gangId);
       if (!gang || !gang.controlledDistrict) return s;
       const district = gang.controlledDistrict;
+      // Your other allies join the raid, lending a share of their strength.
+      const attackAllies = s.world.gangs.filter(g => g.id !== gang.id && orgRelation(s.org, g.id) === 'ally');
+      const attackAllySupport = orgAllySupport(attackAllies.map(g => g.power));
       // Attacking an ally is a betrayal — it ends the pact and costs you standing.
       if (orgRelation(s.org, gang.id) === 'ally') {
         if (!s.org.relations) s.org.relations = {};
@@ -4350,7 +4357,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.org.respect = Math.max(0, s.org.respect - 10);
         addPhoneMessage(s, 'system', `Je verraadde je pact met ${gang.name}. Het bondgenootschap is verbroken.`, 'threat');
       }
-      const won = resolveOrgAttack(orgPower(s.org), gang.power, Math.random);
+      const won = resolveOrgAttack(orgPower(s.org) + attackAllySupport, gang.power, Math.random);
       if (won) {
         gang.controlledDistrict = null;
         gang.power = Math.max(10, Math.floor(gang.power * 0.7));
@@ -4362,7 +4369,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         s.stats.totalEarned += loot;
         // The push cost the crew — spread some fatigue as loyalty loss.
         for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 4);
-        addPhoneMessage(s, 'system', `${DISTRICTS[district]?.name || district} veroverd op ${gang.name}! Buit: €${loot.toLocaleString()}.`, 'opportunity');
+        const backup = attackAllySupport > 0 ? ` Bondgenoten vochten mee (+${attackAllySupport} kracht).` : '';
+        addPhoneMessage(s, 'system', `${DISTRICTS[district]?.name || district} veroverd op ${gang.name}! Buit: €${loot.toLocaleString()}.${backup}`, 'opportunity');
       } else {
         gang.power += 8;
         s.org.respect = Math.max(0, s.org.respect - 3);

@@ -9,7 +9,7 @@ import {
   orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
   ORG_OPERATIONS, orgOperationSuccessChance, orgRank, nextOrgRank,
-  orgRelation, ORG_PACT_MIN_RESPECT, orgPactCost, unlockedRankPerks,
+  orgRelation, ORG_PACT_MIN_RESPECT, orgPactCost, unlockedRankPerks, orgAllySupport,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -105,6 +105,12 @@ function OrgDashboard() {
   const repPerDay = orgDailyRep(org);
   const maxMembers = orgMaxMembers(org);
   const rCost = recruitCost(org, state.player.level);
+
+  // Allies lend a share of their strength to your attacks and defence.
+  const allies = useMemo(() =>
+    (state.world?.gangs || []).filter(g => orgRelation(org, g.id) === 'ally'),
+    [state.world?.gangs, org]);
+  const allySupport = orgAllySupport(allies.map(g => g.power));
 
   // Rival gangs that still hold a district — your targets.
   const targets = useMemo(() =>
@@ -321,6 +327,14 @@ function OrgDashboard() {
             ))}
           </div>
         )}
+        {allySupport > 0 && (
+          <div className="flex items-center gap-1.5 my-1.5 rounded-md bg-emerald/10 border border-emerald/20 px-2 py-1">
+            <Shield size={11} className="text-emerald shrink-0" />
+            <span className="text-[0.5rem] text-emerald leading-snug">
+              {allies.length} bondgeno{allies.length === 1 ? 'ot' : 'ten'} steun{allies.length === 1 ? 't' : 'en'} je met <span className="font-bold">+{allySupport} kracht</span> bij aanval én verdediging.
+            </span>
+          </div>
+        )}
         <p className="text-[0.5rem] text-muted-foreground mb-1.5">Val een rivaliserende gang aan om hun district te veroveren:</p>
         {targets.length === 0 ? (
           <div className="game-card text-center py-4 text-[0.55rem] text-muted-foreground">
@@ -329,8 +343,11 @@ function OrgDashboard() {
         ) : (
           <div className="space-y-1.5">
             {targets.map(g => {
-              const total = power + g.power;
-              const chance = total > 0 ? Math.max(5, Math.min(95, Math.round((power / total) * 110 - 10))) : 50;
+              // Allies (other than this target) fight alongside you.
+              const support = orgAllySupport(allies.filter(a => a.id !== g.id).map(a => a.power));
+              const atkPow = power + support;
+              const total = atkPow + g.power;
+              const chance = total > 0 ? Math.max(5, Math.min(95, Math.round((atkPow / total) * 110 - 10))) : 50;
               const canAttack = org.members.length > 0;
               const rel = orgRelation(org, g.id);
               const canPact = org.respect >= ORG_PACT_MIN_RESPECT && state.money >= pactCost;
