@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Users, Swords, TrendingUp, TrendingDown, Coins, Shield, ChevronUp, X, MapPin, Skull, Sparkles, Plus, Star } from 'lucide-react';
+import { Crown, Users, Swords, TrendingUp, TrendingDown, Coins, Shield, ChevronUp, X, MapPin, Skull, Sparkles, Plus, Star, Briefcase, Zap, Clock } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS } from '@/game/constants';
 import { DistrictId } from '@/game/types';
@@ -8,6 +8,7 @@ import {
   ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES,
   orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
+  ORG_OPERATIONS, orgOperationSuccessChance,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -83,6 +84,13 @@ function OrgDashboard() {
   const { state, dispatch, showToast } = useGame();
   const org = state.org!;
   const [confirmDisband, setConfirmDisband] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const opCooldownMs = org.opCooldownUntil ? new Date(org.opCooldownUntil).getTime() - now : 0;
+  const onOpCooldown = opCooldownMs > 0;
 
   const power = orgPower(org);
   const income = orgDailyIncome(org);
@@ -221,6 +229,53 @@ function OrgDashboard() {
                 </motion.div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Crew operations */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <SectionHeader title="Crew Operaties" icon={<Briefcase size={12} />} />
+          {onOpCooldown && (
+            <span className="text-[0.5rem] text-blood flex items-center gap-1">
+              <Clock size={9} /> {Math.ceil(opCooldownMs / 1000)}s
+            </span>
+          )}
+        </div>
+        {org.members.length === 0 ? (
+          <div className="game-card text-center py-3 text-[0.55rem] text-muted-foreground">
+            Ronsel eerst soldaten om ze op klussen te sturen.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {ORG_OPERATIONS.map(op => {
+              const chance = Math.round(orgOperationSuccessChance(power, op) * 100);
+              const canRun = !onOpCooldown && state.energy >= op.energyCost && org.members.length > 0;
+              return (
+                <div key={op.id} className="game-card py-2 flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold">{op.name}</p>
+                    <p className="text-[0.45rem] text-muted-foreground">{op.desc}</p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[0.45rem]">
+                      <span className="text-gold">💰 €{op.baseReward.toLocaleString()}</span>
+                      <span className="text-ice">⭐ +{op.repReward}</span>
+                      <span className="flex items-center gap-0.5 text-muted-foreground"><Zap size={7} className="text-gold" />{op.energyCost}</span>
+                      <span className={chance >= 60 ? 'text-emerald' : chance >= 35 ? 'text-gold' : 'text-blood'}>{chance}% kans</span>
+                    </div>
+                  </div>
+                  <GameButton
+                    variant={canRun ? 'gold' : 'muted'} size="sm" disabled={!canRun}
+                    onClick={() => { dispatch({ type: 'ORG_RUN_OPERATION', operationId: op.id }); showToast(`${op.name} gestart...`); }}
+                  >
+                    Stuur
+                  </GameButton>
+                </div>
+              );
+            })}
+            {state.energy < ORG_OPERATIONS[0].energyCost && !onOpCooldown && (
+              <p className="text-[0.45rem] text-blood text-center">Te weinig energy voor operaties.</p>
+            )}
           </div>
         )}
       </div>

@@ -27,6 +27,32 @@ export interface PlayerOrg {
   respect: number;
   upgrades: string[];
   foundedDay: number;
+  opCooldownUntil?: string | null; // ISO — cooldown between crew operations
+}
+
+/** A job you can send your crew on for money/rep, scaled by organisation power. */
+export interface OrgOperation {
+  id: string;
+  name: string;
+  desc: string;
+  minPower: number;    // power at which success is comfortable
+  energyCost: number;
+  baseReward: number;  // base money on success
+  repReward: number;
+  risk: number;        // extra loyalty damage / injury chance on failure (0..1)
+}
+
+export const ORG_OPERATIONS: OrgOperation[] = [
+  { id: 'protection', name: 'Beschermingsgeld innen', desc: 'Laag risico. Vaste opbrengst uit de buurt.', minPower: 0, energyCost: 8, baseReward: 4000, repReward: 5, risk: 0.1 },
+  { id: 'transport', name: 'Transport overvallen', desc: 'Gemiddeld risico. Goede buit.', minPower: 45, energyCost: 15, baseReward: 12000, repReward: 15, risk: 0.25 },
+  { id: 'takeover', name: 'Vijandige overname', desc: 'Hoog risico. Grote buit en aanzien.', minPower: 100, energyCost: 25, baseReward: 28000, repReward: 35, risk: 0.4 },
+];
+
+export const ORG_OP_COOLDOWN_MS = 120000; // 2 minutes between operations
+
+/** Success chance for an operation given the organisation's power. */
+export function orgOperationSuccessChance(orgPow: number, op: OrgOperation): number {
+  return Math.max(0.1, Math.min(0.95, 0.45 + (orgPow - op.minPower) / 220));
 }
 
 export interface OrgUpgradeDef {

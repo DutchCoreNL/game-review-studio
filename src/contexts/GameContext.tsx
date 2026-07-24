@@ -17,6 +17,7 @@ import {
   ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES, orgMaxMembers, orgPower,
   orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen, orgDailyRep,
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
+  ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
 import * as MissionEngine from '../game/missions';
@@ -318,6 +319,7 @@ type GameAction =
   | { type: 'ORG_DISMISS'; memberId: string }
   | { type: 'ORG_BUY_UPGRADE'; upgradeId: string }
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
+  | { type: 'ORG_RUN_OPERATION'; operationId: string }
   | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
@@ -4340,6 +4342,41 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           addPhoneMessage(s, 'system', `De aanval op ${DISTRICTS[district]?.name || district} mislukte. ${weakest.name} sneuvelde.`, 'threat');
         } else {
           addPhoneMessage(s, 'system', `De aanval op ${DISTRICTS[district]?.name || district} werd afgeslagen door ${gang.name}.`, 'warning');
+        }
+      }
+      return s;
+    }
+
+    case 'ORG_RUN_OPERATION': {
+      if (!s.org || s.org.members.length === 0) return s;
+      const op = ORG_OPERATIONS.find(o => o.id === action.operationId);
+      if (!op) return s;
+      // Cooldown + energy gates.
+      if (s.org.opCooldownUntil && new Date(s.org.opCooldownUntil) > new Date()) return s;
+      if (s.energy < op.energyCost) return s;
+      s.energy = Math.max(0, s.energy - op.energyCost);
+      s.org.opCooldownUntil = new Date(Date.now() + ORG_OP_COOLDOWN_MS).toISOString();
+
+      const pow = orgPower(s.org);
+      const success = Math.random() < orgOperationSuccessChance(pow, op);
+      if (success) {
+        const reward = Math.floor(op.baseReward * (0.8 + Math.random() * 0.6) * (1 + pow / 400));
+        s.money += reward;
+        s.stats.totalEarned += reward;
+        s.rep += op.repReward;
+        Engine.gainXp(s, 20 + op.repReward);
+        s.org.respect += Math.ceil(op.repReward / 3);
+        for (const m of s.org.members) m.loyalty = Math.min(100, m.loyalty + 2);
+        addPhoneMessage(s, 'system', `Klus geslaagd: ${op.name}. Buit €${reward.toLocaleString()}, +${op.repReward} rep.`, 'opportunity');
+      } else {
+        // Failure: crew morale hit, and on a risky job someone may get hurt.
+        for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - Math.round(8 + op.risk * 20));
+        if (s.org.members.length > 1 && Math.random() < op.risk) {
+          const unlucky = s.org.members[Math.floor(Math.random() * s.org.members.length)];
+          unlucky.loyalty = Math.max(0, unlucky.loyalty - 30);
+          addPhoneMessage(s, 'system', `Klus mislukt: ${op.name}. ${unlucky.name} raakte gewond.`, 'threat');
+        } else {
+          addPhoneMessage(s, 'system', `Klus mislukt: ${op.name}. De crew komt met lege handen terug.`, 'warning');
         }
       }
       return s;
