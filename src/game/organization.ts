@@ -96,7 +96,13 @@ export function orgDailyIncome(org: PlayerOrg): number {
 }
 
 export function orgDailyLoyaltyRegen(org: PlayerOrg): number {
-  return ownedUpgrades(org).reduce((s, u) => s + (u.loyaltyRegen || 0), 0);
+  // Upgrade regen plus "territory pride": every district you hold keeps morale up.
+  return ownedUpgrades(org).reduce((s, u) => s + (u.loyaltyRegen || 0), 0) + org.controlledDistricts.length;
+}
+
+/** Passive reputation the organization earns per day from the turf it controls. */
+export function orgDailyRep(org: PlayerOrg): number {
+  return org.controlledDistricts.length * 6;
 }
 
 /** Cost to recruit the next member — scales with roster size and the player's level. */

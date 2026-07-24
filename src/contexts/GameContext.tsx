@@ -15,7 +15,7 @@ import { JOBS, getJobSalary } from '../game/jobs';
 import { SKILL_NODES, canUnlockSkill } from '../game/skillTree';
 import {
   ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES, orgMaxMembers, orgPower,
-  orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen,
+  orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen, orgDailyRep,
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
@@ -913,6 +913,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const upkeep = orgDailyUpkeep(s.org);
         const regen = orgDailyLoyaltyRegen(s.org);
         if (income > 0) { s.money += income; s.stats.totalEarned += income; }
+        // Territory earns passive reputation (your name spreads across your turf).
+        const orgRep = orgDailyRep(s.org);
+        if (orgRep > 0) s.rep += orgRep;
         if (s.money >= upkeep) {
           s.money -= upkeep;
           // Payroll met: loyalty holds and slowly recovers with any Erecode upgrade.

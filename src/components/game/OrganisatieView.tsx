@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Users, Swords, TrendingUp, TrendingDown, Coins, Shield, ChevronUp, X, MapPin, Skull, Sparkles, Plus } from 'lucide-react';
+import { Crown, Users, Swords, TrendingUp, TrendingDown, Coins, Shield, ChevronUp, X, MapPin, Skull, Sparkles, Plus, Star } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS } from '@/game/constants';
 import { DistrictId } from '@/game/types';
 import {
   ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES,
-  orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep,
+  orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
@@ -88,6 +88,7 @@ function OrgDashboard() {
   const income = orgDailyIncome(org);
   const upkeep = orgDailyUpkeep(org);
   const net = income - upkeep;
+  const repPerDay = orgDailyRep(org);
   const maxMembers = orgMaxMembers(org);
   const rCost = recruitCost(org, state.player.level);
 
@@ -146,6 +147,13 @@ function OrgDashboard() {
             {net >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />} netto €{net.toLocaleString()}/dag
           </span>
         </div>
+        {repPerDay > 0 && (
+          <div className="flex items-center justify-center gap-3 mt-1 text-[0.5rem] text-muted-foreground">
+            <span className="flex items-center gap-1"><Star size={8} className="text-gold" /> +{repPerDay} rep/dag</span>
+            <span className="flex items-center gap-1"><Sparkles size={8} className="text-emerald" /> +{org.controlledDistricts.length} loyaliteit/dag</span>
+            <span className="text-muted-foreground/70">uit {org.controlledDistricts.length} district{org.controlledDistricts.length !== 1 ? 'en' : ''}</span>
+          </div>
+        )}
       </div>
 
       {/* Roster */}
