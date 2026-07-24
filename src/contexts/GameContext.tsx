@@ -18,6 +18,7 @@ import {
   orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen, orgDailyRep,
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
   ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
+  ORG_PACT_COST, ORG_PACT_MIN_RESPECT, orgRelation,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
 import * as MissionEngine from '../game/missions';
@@ -320,6 +321,7 @@ type GameAction =
   | { type: 'ORG_BUY_UPGRADE'; upgradeId: string }
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
   | { type: 'ORG_RUN_OPERATION'; operationId: string }
+  | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
   | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
@@ -938,13 +940,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // The world reacts to your organization: each day a rival gang may try to
       // retake one of your districts. More territory = more heat = more attempts.
       if (s.org && s.world && s.org.controlledDistricts.length > 0) {
-        const attemptChance = 0.2 + s.org.controlledDistricts.length * 0.08;
-        if (Math.random() < attemptChance) {
+        // Allies keep the peace; sworn enemies press harder and more often.
+        const candidates = s.world.gangs.filter(g => orgRelation(s.org, g.id) !== 'ally');
+        const enemies = candidates.filter(g => orgRelation(s.org, g.id) === 'enemy');
+        const attemptChance = 0.2 + s.org.controlledDistricts.length * 0.08 + enemies.length * 0.06;
+        if (candidates.length > 0 && Math.random() < attemptChance) {
           const orgPow = orgPower(s.org);
           const contested = s.org.controlledDistricts[Math.floor(Math.random() * s.org.controlledDistricts.length)];
-          // Prefer a landless gang as the aggressor (hungry for turf); else the strongest.
-          const landless = s.world.gangs.filter(g => !g.controlledDistrict);
-          const pool = landless.length > 0 ? landless : s.world.gangs;
+          // Enemies strike first; otherwise a landless gang hungry for turf, else the strongest.
+          const landless = candidates.filter(g => !g.controlledDistrict);
+          const pool = enemies.length > 0 ? enemies : (landless.length > 0 ? landless : candidates);
           const aggressor = pool.reduce((a, b) => (b.power > a.power ? b : a), pool[0]);
           if (aggressor) {
             const distName = DISTRICTS[contested]?.name || contested;
@@ -4318,6 +4323,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const gang = s.world.gangs.find(g => g.id === action.gangId);
       if (!gang || !gang.controlledDistrict) return s;
       const district = gang.controlledDistrict;
+      // Attacking an ally is a betrayal — it ends the pact and costs you standing.
+      if (orgRelation(s.org, gang.id) === 'ally') {
+        if (!s.org.relations) s.org.relations = {};
+        s.org.relations[gang.id] = 'enemy';
+        s.org.respect = Math.max(0, s.org.respect - 10);
+        addPhoneMessage(s, 'system', `Je verraadde je pact met ${gang.name}. Het bondgenootschap is verbroken.`, 'threat');
+      }
       const won = resolveOrgAttack(orgPower(s.org), gang.power, Math.random);
       if (won) {
         gang.controlledDistrict = null;
@@ -4379,6 +4391,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         } else {
           addPhoneMessage(s, 'system', `Klus mislukt: ${op.name}. De crew komt met lege handen terug.`, 'warning');
         }
+      }
+      return s;
+    }
+
+    case 'ORG_SET_RELATION': {
+      if (!s.org) return s;
+      const gang = s.world?.gangs.find(g => g.id === action.gangId);
+      if (!gang) return s;
+      if (!s.org.relations) s.org.relations = {};
+      if (action.relation === 'ally') {
+        // Forming a pact costs money and a minimum standing.
+        if (s.org.respect < ORG_PACT_MIN_RESPECT || s.money < ORG_PACT_COST) return s;
+        s.money -= ORG_PACT_COST;
+        s.stats.totalSpent += ORG_PACT_COST;
+        s.org.relations[action.gangId] = 'ally';
+        addPhoneMessage(s, 'system', `Pact gesloten met ${gang.name}. Ze laten je territorium met rust.`, 'opportunity');
+      } else if (action.relation === 'enemy') {
+        s.org.relations[action.gangId] = 'enemy';
+        gang.power += 5; // they mobilise against you
+        addPhoneMessage(s, 'system', `Vete verklaard aan ${gang.name}. Verwacht tegenaanvallen.`, 'threat');
+      } else {
+        delete s.org.relations[action.gangId];
       }
       return s;
     }

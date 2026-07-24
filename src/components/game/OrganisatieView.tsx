@@ -9,6 +9,7 @@ import {
   orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
   ORG_OPERATIONS, orgOperationSuccessChance, orgRank, nextOrgRank,
+  orgRelation, ORG_PACT_COST, ORG_PACT_MIN_RESPECT,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -322,26 +323,57 @@ function OrgDashboard() {
               const total = power + g.power;
               const chance = total > 0 ? Math.max(5, Math.min(95, Math.round((power / total) * 110 - 10))) : 50;
               const canAttack = org.members.length > 0;
+              const rel = orgRelation(org, g.id);
+              const canPact = org.respect >= ORG_PACT_MIN_RESPECT && state.money >= ORG_PACT_COST;
               return (
-                <div key={g.id} className="game-card py-2 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold truncate">[{g.tag}] {g.name}</span>
+                <div key={g.id} className="game-card py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold truncate">[{g.tag}] {g.name}</span>
+                        {rel === 'ally' && <GameBadge variant="emerald" size="xs">🤝 Bondgenoot</GameBadge>}
+                        {rel === 'enemy' && <GameBadge variant="blood" size="xs">⚔️ Vete</GameBadge>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[0.45rem]">
+                        <span className="text-emerald">🏴 {DISTRICTS[g.controlledDistrict!]?.name || g.controlledDistrict}</span>
+                        <span className="text-blood">⚔ {g.power}</span>
+                        <span className={chance >= 55 ? 'text-emerald' : chance >= 35 ? 'text-gold' : 'text-blood'}>
+                          {chance}% kans
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[0.45rem]">
-                      <span className="text-emerald">🏴 {DISTRICTS[g.controlledDistrict!]?.name || g.controlledDistrict}</span>
-                      <span className="text-blood">⚔ {g.power}</span>
-                      <span className={chance >= 55 ? 'text-emerald' : chance >= 35 ? 'text-gold' : 'text-blood'}>
-                        {chance}% kans
-                      </span>
-                    </div>
+                    <GameButton variant={canAttack ? 'blood' : 'muted'} size="sm" disabled={!canAttack}
+                      onClick={() => { dispatch({ type: 'ORG_ATTACK_DISTRICT', gangId: g.id }); }}>
+                      <Swords size={10} /> {rel === 'ally' ? 'Verraad' : 'Aanval'}
+                    </GameButton>
                   </div>
-                  <GameButton variant={canAttack ? 'blood' : 'muted'} size="sm" disabled={!canAttack}
-                    onClick={() => {
-                      dispatch({ type: 'ORG_ATTACK_DISTRICT', gangId: g.id });
-                    }}>
-                    <Swords size={10} /> Aanval
-                  </GameButton>
+                  {/* Diplomacy controls */}
+                  <div className="flex gap-1 mt-1.5">
+                    {rel === 'neutral' && (
+                      <>
+                        <GameButton variant={canPact ? 'emerald' : 'muted'} size="sm" disabled={!canPact}
+                          onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'ally' }); showToast(`Pact gesloten met ${g.name}.`); }}>
+                          🤝 Pact €{(ORG_PACT_COST / 1000).toFixed(0)}k
+                        </GameButton>
+                        <GameButton variant="muted" size="sm"
+                          onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'enemy' }); showToast(`Vete verklaard aan ${g.name}.`, true); }}>
+                          ⚔️ Vete
+                        </GameButton>
+                      </>
+                    )}
+                    {rel === 'ally' && (
+                      <GameButton variant="muted" size="sm"
+                        onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'neutral' }); showToast(`Pact met ${g.name} beëindigd.`); }}>
+                        Pact beëindigen
+                      </GameButton>
+                    )}
+                    {rel === 'enemy' && (
+                      <GameButton variant="muted" size="sm"
+                        onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'neutral' }); showToast(`Vrede gesloten met ${g.name}.`); }}>
+                        Vrede sluiten
+                      </GameButton>
+                    )}
+                  </div>
                 </div>
               );
             })}

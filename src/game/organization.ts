@@ -19,6 +19,8 @@ export interface OrgMember {
   loyalty: number; // 0-100
 }
 
+export type OrgRelation = 'ally' | 'enemy';
+
 export interface PlayerOrg {
   name: string;
   tag: string;
@@ -28,6 +30,15 @@ export interface PlayerOrg {
   upgrades: string[];
   foundedDay: number;
   opCooldownUntil?: string | null; // ISO — cooldown between crew operations
+  relations?: Record<string, OrgRelation>; // world gang id -> pact/vendetta
+}
+
+export const ORG_PACT_COST = 20000;
+export const ORG_PACT_MIN_RESPECT = 30;
+
+/** Your organisation's stance toward a world gang: ally, enemy, or neutral. */
+export function orgRelation(org: PlayerOrg | null | undefined, gangId: string): OrgRelation | 'neutral' {
+  return org?.relations?.[gangId] ?? 'neutral';
 }
 
 /** A job you can send your crew on for money/rep, scaled by organisation power. */
