@@ -9,6 +9,7 @@ import {
   RACKETS, resolveRacketTick, racketMemberCount, idleMembers,
   afpersingIncome, territoriumRespect, witwassenCooling,
 } from '@/game/rackets';
+import { autoFenceActive, autoFenceIncome } from '@/game/tradeNetwork';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -45,7 +46,8 @@ export function ImperiumDashboard() {
 
   const tick = useMemo(() => resolveRacketTick(org), [org]);
   const upkeep = org ? orgDailyUpkeep(org) : 0;
-  const netMoney = tick.money - upkeep;
+  const fenceIncome = autoFenceActive(state) ? autoFenceIncome(state) : 0;
+  const netMoney = tick.money - upkeep + fenceIncome;
   const heat = Math.round(state.personalHeat || 0);
   const raidRisk = heat >= 80;
 

@@ -1187,6 +1187,7 @@ export interface GameState {
 
   // ========== PLAYER ORGANIZATION (local single-player) ==========
   org: import('./organization').PlayerOrg | null; // the player's own criminal outfit
+  autoFence?: { owned: boolean; paused: boolean }; // passive contraband market (idle trade)
 
   // ========== SKILL TREE & PRESTIGE STATE ==========
   unlockedSkills: { skillId: string; level: number }[];

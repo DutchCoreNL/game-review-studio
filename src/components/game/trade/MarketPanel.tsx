@@ -5,6 +5,7 @@ import { GoodId, TradeMode, AmmoType } from '@/game/types';
 import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { orgControlsDistrict } from '@/game/organization';
+import { AutoFencePanel } from './AutoFencePanel';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
@@ -262,6 +263,7 @@ export function MarketPanel() {
 
   return (
     <>
+      <AutoFencePanel />
       {orgControlsDistrict(state.org, state.loc) && (
         <div className="mb-1.5 text-[0.5rem] text-emerald bg-emerald/10 border border-emerald/20 rounded px-2 py-1 flex items-center justify-center gap-1">
           🏴 Jouw turf — −12% inkoop · +10% verkoop

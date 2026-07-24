@@ -23,6 +23,7 @@ import {
   type PlayerOrg, type OrgMember, type RacketId,
 } from '../game/organization';
 import { resolveRacketTick } from '../game/rackets';
+import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 
 /** Personal-heat level at which the idle empire gets raided by police. */
 const HEAT_RAID_THRESHOLD = 92;
@@ -330,6 +331,8 @@ type GameAction =
   | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
   | { type: 'ORG_ASSIGN_RACKET'; memberId: string; racket: RacketId | null }
   | { type: 'ORG_ASSIGN_ALL'; racket: RacketId | null }
+  | { type: 'BUY_AUTO_FENCE' }
+  | { type: 'TOGGLE_AUTO_FENCE' }
   | { type: 'ORG_DISBAND' }
   // Merit Points actions
   | { type: 'UPGRADE_MERIT_NODE'; payload: { nodeId: string } }
@@ -966,6 +969,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
         if (rt.heat !== 0) { Engine.addPersonalHeat(s, rt.heat); Engine.recomputeHeat(s); }
         for (const line of rt.notes) orgLog(`💼 ${line}`);
+      }
+
+      // ========== AUTO-FENCE — the passive contraband market ==========
+      if (autoFenceActive(s)) {
+        const seized = Math.random() < AUTO_FENCE_SEIZURE_CHANCE;
+        if (seized) {
+          Engine.addPersonalHeat(s, AUTO_FENCE_HEAT * 3);
+          Engine.recomputeHeat(s);
+          orgLog(`📦 Een smokkelzending werd onderschept`);
+        } else {
+          const profit = autoFenceIncome(s);
+          if (profit > 0) {
+            s.money += profit;
+            s.stats.totalEarned += profit;
+            orgLog(`📦 Auto-fence smokkelde €${profit.toLocaleString()} binnen`);
+          }
+          Engine.addPersonalHeat(s, AUTO_FENCE_HEAT);
+          Engine.recomputeHeat(s);
+        }
       }
 
       // ========== HEAT RAID — the idle risk ==========
@@ -4379,6 +4401,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ORG_ASSIGN_ALL': {
       if (!s.org) return s;
       for (const m of s.org.members) m.assignment = action.racket;
+      return s;
+    }
+
+    case 'BUY_AUTO_FENCE': {
+      if (s.autoFence?.owned) return s;
+      if (s.money < AUTO_FENCE_COST) return s;
+      s.money -= AUTO_FENCE_COST;
+      s.stats.totalSpent += AUTO_FENCE_COST;
+      s.autoFence = { owned: true, paused: false };
+      addPhoneMessage(s, 'system', 'Je hebt een auto-fence opgezet. De smokkel loopt nu vanzelf door.', 'opportunity');
+      return s;
+    }
+
+    case 'TOGGLE_AUTO_FENCE': {
+      if (!s.autoFence?.owned) return s;
+      s.autoFence.paused = !s.autoFence.paused;
       return s;
     }
 
