@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, TrendingUp, TrendingDown, Flame, Shield, Users, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Crown, TrendingUp, TrendingDown, Flame, Users, ArrowRight, AlertTriangle, Radio } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import {
   orgDailyUpkeep, orgRank, nextOrgRank, ROLE_LABEL, memberPower, type RacketId,
@@ -134,6 +134,23 @@ export function ImperiumDashboard() {
             De hitte loopt gevaarlijk op — zet crew op <b>Witwassen</b> of koop de politie om, anders volgt een inval.
           </span>
         </motion.div>
+      )}
+
+      {/* ═══ EMPIRE FEED ═══ */}
+      {(state.phone?.messages?.length || 0) > 0 && (
+        <div>
+          <SectionHeader title="Laatste gebeurtenissen" icon={<Radio size={12} />} />
+          <div className="game-card p-2 space-y-1.5">
+            {state.phone!.messages.slice(0, 4).map(m => (
+              <div key={m.id} className="flex items-start gap-2 text-[0.55rem]">
+                <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${
+                  m.type === 'threat' ? 'bg-blood' : m.type === 'opportunity' ? 'bg-emerald' : m.type === 'warning' ? 'bg-gold' : 'bg-muted-foreground'
+                }`} />
+                <span className="text-foreground/80 leading-snug">{m.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* ═══ RACKET ALLOCATION ═══ */}

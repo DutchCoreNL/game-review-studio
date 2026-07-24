@@ -52,6 +52,8 @@ const GROUPS: NavGroupDef[] = [
     id: 'city', emoji: '🏙', label: t => t.sidebar.overview, primary: 'overzicht',
     items: [
       { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, badge: s => (s.org?.members.filter(m => !m.assignment).length || 0) },
+      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
+      { id: 'districts', icon: MapPin, label: t => t.sidebar.districts },
       { id: 'city', icon: Map, label: t => t.sidebar.map },
       { id: 'travel', icon: Plane, label: t => t.sidebar.travel },
       { id: 'chat', icon: MessageCircle, label: t => t.sidebar.chat },
@@ -95,10 +97,8 @@ const GROUPS: NavGroupDef[] = [
   {
     id: 'garage', emoji: '🏛', label: t => t.sidebar.imperium, primary: 'garage',
     items: [
-      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
       { id: 'business', icon: Store, label: t => t.sidebar.business },
       { id: 'garage', icon: Car, label: t => t.sidebar.garage, badge: s => (s.carOrders?.filter(o => s.day >= o.deadline).length || 0) },
-      { id: 'districts', icon: MapPin, label: t => t.sidebar.districts },
       { id: 'properties', icon: Home, label: t => t.sidebar.properties },
       { id: 'families', icon: Users, label: t => t.sidebar.factions },
       { id: 'organized-crimes', icon: Waypoints, label: t => t.sidebar.organizedCrime },
