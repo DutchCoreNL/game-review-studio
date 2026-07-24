@@ -9,7 +9,7 @@ import {
   orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
   ORG_OPERATIONS, orgOperationSuccessChance, orgRank, nextOrgRank,
-  orgRelation, ORG_PACT_COST, ORG_PACT_MIN_RESPECT,
+  orgRelation, ORG_PACT_MIN_RESPECT, orgPactCost, unlockedRankPerks,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -95,6 +95,8 @@ function OrgDashboard() {
   const rank = orgRank(org);
   const next = nextOrgRank(org);
   const rankProgress = next ? Math.min(100, Math.round(((org.respect - rank.minRespect) / (next.minRespect - rank.minRespect)) * 100)) : 100;
+  const rankPerks = unlockedRankPerks(org);
+  const pactCost = orgPactCost(org);
 
   const power = orgPower(org);
   const income = orgDailyIncome(org);
@@ -176,6 +178,13 @@ function OrgDashboard() {
             <span>{next ? `${org.respect}/${next.minRespect} aanzien → ${next.name}` : 'Max rang bereikt'}</span>
           </div>
           <StatBar value={rankProgress} max={100} color="ice" height="sm" />
+          {rankPerks.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {rankPerks.map((p, i) => (
+                <span key={i} className="text-[0.4rem] text-ice bg-ice/10 border border-ice/20 rounded px-1 py-0.5">✓ {p}</span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -324,7 +333,7 @@ function OrgDashboard() {
               const chance = total > 0 ? Math.max(5, Math.min(95, Math.round((power / total) * 110 - 10))) : 50;
               const canAttack = org.members.length > 0;
               const rel = orgRelation(org, g.id);
-              const canPact = org.respect >= ORG_PACT_MIN_RESPECT && state.money >= ORG_PACT_COST;
+              const canPact = org.respect >= ORG_PACT_MIN_RESPECT && state.money >= pactCost;
               return (
                 <div key={g.id} className="game-card py-2">
                   <div className="flex items-center gap-2">
@@ -353,7 +362,7 @@ function OrgDashboard() {
                       <>
                         <GameButton variant={canPact ? 'emerald' : 'muted'} size="sm" disabled={!canPact}
                           onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'ally' }); showToast(`Pact gesloten met ${g.name}.`); }}>
-                          🤝 Pact €{(ORG_PACT_COST / 1000).toFixed(0)}k
+                          🤝 Pact €{(pactCost / 1000).toFixed(0)}k
                         </GameButton>
                         <GameButton variant="muted" size="sm"
                           onClick={() => { dispatch({ type: 'ORG_SET_RELATION', gangId: g.id, relation: 'enemy' }); showToast(`Vete verklaard aan ${g.name}.`, true); }}>

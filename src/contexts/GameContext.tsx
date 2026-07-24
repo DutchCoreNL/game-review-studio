@@ -18,7 +18,8 @@ import {
   orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen, orgDailyRep,
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
   ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
-  ORG_PACT_COST, ORG_PACT_MIN_RESPECT, orgRelation, orgRank,
+  ORG_PACT_MIN_RESPECT, orgRelation, orgRank,
+  orgPactCost, orgOperationRewardMult, orgDefenseAdvantage,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
 import * as MissionEngine from '../game/missions';
@@ -963,8 +964,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           const aggressor = pool.reduce((a, b) => (b.power > a.power ? b : a), pool[0]);
           if (aggressor) {
             const distName = DISTRICTS[contested]?.name || contested;
-            // You defend with a +20% home advantage.
-            const gangWins = resolveOrgAttack(aggressor.power, orgPow * 1.2, Math.random);
+            // You defend with a rank-scaled home advantage.
+            const gangWins = resolveOrgAttack(aggressor.power, orgPow * orgDefenseAdvantage(s.org), Math.random);
             if (gangWins) {
               s.org.controlledDistricts = s.org.controlledDistricts.filter(d => d !== contested);
               aggressor.controlledDistrict = contested as import('@/game/types').DistrictId;
@@ -4392,7 +4393,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const pow = orgPower(s.org);
       const success = Math.random() < orgOperationSuccessChance(pow, op);
       if (success) {
-        const reward = Math.floor(op.baseReward * (0.8 + Math.random() * 0.6) * (1 + pow / 400));
+        const reward = Math.floor(op.baseReward * (0.8 + Math.random() * 0.6) * (1 + pow / 400) * orgOperationRewardMult(s.org));
         s.money += reward;
         s.stats.totalEarned += reward;
         s.rep += op.repReward;
@@ -4420,10 +4421,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!gang) return s;
       if (!s.org.relations) s.org.relations = {};
       if (action.relation === 'ally') {
-        // Forming a pact costs money and a minimum standing.
-        if (s.org.respect < ORG_PACT_MIN_RESPECT || s.money < ORG_PACT_COST) return s;
-        s.money -= ORG_PACT_COST;
-        s.stats.totalSpent += ORG_PACT_COST;
+        // Forming a pact costs money (discounted by rank) and a minimum standing.
+        const pactCost = orgPactCost(s.org);
+        if (s.org.respect < ORG_PACT_MIN_RESPECT || s.money < pactCost) return s;
+        s.money -= pactCost;
+        s.stats.totalSpent += pactCost;
         s.org.relations[action.gangId] = 'ally';
         addPhoneMessage(s, 'system', `Pact gesloten met ${gang.name}. Ze laten je territorium met rust.`, 'opportunity');
       } else if (action.relation === 'enemy') {

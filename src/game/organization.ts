@@ -60,30 +60,65 @@ export const ORG_OPERATIONS: OrgOperation[] = [
   { id: 'takeover', name: 'Vijandige overname', desc: 'Hoog risico. Grote buit en aanzien.', minPower: 100, minRespect: 120, energyCost: 25, baseReward: 28000, repReward: 35, risk: 0.4 },
 ];
 
-/** Organisation rank, earned with respect. Higher ranks add roster slots. */
+/** Organisation rank, earned with respect. Higher ranks add roster slots + a perk. */
 export interface OrgRank {
   id: string;
   name: string;
   minRespect: number;
   bonusMemberSlots: number;
+  perk: string; // short description of this rank's cumulative bonus
 }
 
 export const ORG_RANKS: OrgRank[] = [
-  { id: 'bende', name: 'Straatbende', minRespect: 0, bonusMemberSlots: 0 },
-  { id: 'crew', name: 'Crew', minRespect: 40, bonusMemberSlots: 2 },
-  { id: 'syndicaat', name: 'Syndicaat', minRespect: 120, bonusMemberSlots: 4 },
-  { id: 'kartel', name: 'Kartel', minRespect: 300, bonusMemberSlots: 6 },
-  { id: 'imperium', name: 'Imperium', minRespect: 700, bonusMemberSlots: 8 },
+  { id: 'bende', name: 'Straatbende', minRespect: 0, bonusMemberSlots: 0, perk: 'Basis' },
+  { id: 'crew', name: 'Crew', minRespect: 40, bonusMemberSlots: 2, perk: '−25% pactkosten' },
+  { id: 'syndicaat', name: 'Syndicaat', minRespect: 120, bonusMemberSlots: 4, perk: '+€2.000 dagelijks inkomen' },
+  { id: 'kartel', name: 'Kartel', minRespect: 300, bonusMemberSlots: 6, perk: '+20% operatie-buit' },
+  { id: 'imperium', name: 'Imperium', minRespect: 700, bonusMemberSlots: 8, perk: '+10% thuisvoordeel bij verdediging' },
 ];
+
+/** Index of the org's current rank within ORG_RANKS. */
+export function orgRankIndex(org: PlayerOrg): number {
+  let idx = 0;
+  ORG_RANKS.forEach((r, i) => { if (org.respect >= r.minRespect) idx = i; });
+  return idx;
+}
 
 /** The org's current rank based on accumulated respect. */
 export function orgRank(org: PlayerOrg): OrgRank {
-  return [...ORG_RANKS].reverse().find(r => org.respect >= r.minRespect) || ORG_RANKS[0];
+  return ORG_RANKS[orgRankIndex(org)];
 }
 
 /** The next rank the org can reach, or null at max rank. */
 export function nextOrgRank(org: PlayerOrg): OrgRank | null {
   return ORG_RANKS.find(r => r.minRespect > org.respect) || null;
+}
+
+/** The cumulative rank perks the org has unlocked (all ranks up to the current). */
+export function unlockedRankPerks(org: PlayerOrg): string[] {
+  return ORG_RANKS.slice(1, orgRankIndex(org) + 1).map(r => r.perk);
+}
+
+// ---- Rank effect helpers (each gated by reaching the relevant rank) ----
+
+/** Pact cost after the Crew rank discount. */
+export function orgPactCost(org: PlayerOrg): number {
+  return Math.round(ORG_PACT_COST * (orgRankIndex(org) >= 1 ? 0.75 : 1));
+}
+
+/** Flat daily income bonus from the Syndicaat rank. */
+export function orgRankIncomeBonus(org: PlayerOrg): number {
+  return orgRankIndex(org) >= 2 ? 2000 : 0;
+}
+
+/** Operation payout multiplier from the Kartel rank. */
+export function orgOperationRewardMult(org: PlayerOrg): number {
+  return orgRankIndex(org) >= 3 ? 1.2 : 1;
+}
+
+/** Home-defense multiplier (applied to org power when a gang attacks your turf). */
+export function orgDefenseAdvantage(org: PlayerOrg): number {
+  return orgRankIndex(org) >= 4 ? 1.3 : 1.2;
 }
 
 export const ORG_OP_COOLDOWN_MS = 120000; // 2 minutes between operations
@@ -158,7 +193,7 @@ export function orgDailyUpkeep(org: PlayerOrg): number {
 
 export function orgDailyIncome(org: PlayerOrg): number {
   const districts = org.controlledDistricts.length * ORG_DISTRICT_INCOME;
-  return districts + ownedUpgrades(org).reduce((s, u) => s + (u.incomeBonus || 0), 0);
+  return districts + ownedUpgrades(org).reduce((s, u) => s + (u.incomeBonus || 0), 0) + orgRankIncomeBonus(org);
 }
 
 export function orgDailyLoyaltyRegen(org: PlayerOrg): number {
