@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
-import { Map, Crosshair, ShoppingBag, Building2, Menu, LucideIcon } from 'lucide-react';
+import { Crosshair, ShoppingBag, Building2, Menu, LayoutDashboard, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
@@ -17,8 +17,10 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
   const { t } = useLanguage();
   const { digest } = useDailyDigest();
 
-  const NAV_ITEMS: { id: GameView | 'menu'; label: string; icon: LucideIcon }[] = useMemo(() => [
-    { id: 'city', label: t.nav.map, icon: Map },
+  // `id` is the nav group (drives the active highlight + badges); `target` is the
+  // view the tab opens. The first tab opens the idle hub but stays grouped with the city.
+  const NAV_ITEMS: { id: GameView | 'menu'; target?: GameView; label: string; icon: LucideIcon }[] = useMemo(() => [
+    { id: 'city', target: 'overzicht', label: t.nav.overview, icon: LayoutDashboard },
     { id: 'ops', label: t.nav.actions, icon: Crosshair },
     { id: 'market', label: t.nav.trade, icon: ShoppingBag },
     { id: 'garage', label: t.nav.empire, icon: Building2 },
@@ -59,7 +61,7 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
               if (isMenu) {
                 onMenuOpen();
               } else {
-                setView(item.id as GameView);
+                setView((item.target || item.id) as GameView);
               }
             }}
             className={`flex flex-col items-center gap-0.5 text-[0.6rem] font-semibold transition-all duration-200 px-4 py-2 min-w-[60px] min-h-[44px] relative ${

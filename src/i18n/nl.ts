@@ -29,12 +29,14 @@ export const nl: Translations = {
   },
   nav: {
     map: 'KAART',
+    overview: 'IMPERIUM',
     actions: 'ACTIES',
     trade: 'HANDEL',
-    empire: 'IMPERIUM',
+    empire: 'GEBIED',
     menu: 'MENU',
   },
   sidebar: {
+    overview: 'OVERZICHT',
     city: 'STAD',
     map: 'Kaart',
     travel: 'Reizen',

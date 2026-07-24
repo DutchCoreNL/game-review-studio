@@ -29,12 +29,14 @@ export interface Translations {
   };
   nav: {
     map: string;
+    overview: string;
     actions: string;
     trade: string;
     empire: string;
     menu: string;
   };
   sidebar: {
+    overview: string;
     city: string;
     map: string;
     travel: string;

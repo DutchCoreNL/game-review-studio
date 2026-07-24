@@ -6,7 +6,8 @@ export type StatId = 'muscle' | 'brains' | 'charm';
 export type GymStatId = 'strength' | 'defense' | 'speed' | 'dexterity';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
-export type GameView = 
+export type GameView =
+  | 'overzicht'
   | 'city' | 'casino' | 'hospital' | 'safehouse' | 'villa' | 'chopshop'
   | 'ops' | 'contracts' | 'heists' | 'bounties' | 'pvp' | 'challenges' | 'hits' | 'wanted'
   | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'

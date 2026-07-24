@@ -29,12 +29,14 @@ export const en: Translations = {
   },
   nav: {
     map: 'MAP',
+    overview: 'EMPIRE',
     actions: 'ACTIONS',
     trade: 'TRADE',
-    empire: 'EMPIRE',
+    empire: 'TERRITORY',
     menu: 'MENU',
   },
   sidebar: {
+    overview: 'OVERVIEW',
     city: 'CITY',
     map: 'Map',
     travel: 'Travel',

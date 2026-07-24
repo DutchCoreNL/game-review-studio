@@ -4882,7 +4882,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     return fresh;
   });
 
-  const [view, setView] = React.useState<GameView>('city');
+  const [view, setView] = React.useState<GameView>('overzicht');
   const [tradeMode, setTradeMode] = React.useState<TradeMode>('buy');
   const [selectedDistrict, setSelectedDistrict] = React.useState<DistrictId | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
