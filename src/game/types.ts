@@ -1259,6 +1259,7 @@ export interface GameState {
   _pendingXpGains: { amount: number; source: string }[]; // queued for server-side processing
   _lastWorldSummary?: import('../game/world/simulate').SimStepSummary; // last world-sim day result
   _catchUpWorldHeadlines?: string[]; // world events accumulated during a catch-up
+  _catchUpOrgHeadlines?: string[]; // organisation events accumulated during a catch-up
   _lastGymGain?: { stat: string; gain: number }; // last gym training result (transient)
   _lastJobPay?: number; // last job payout (transient)
 }

@@ -1,6 +1,6 @@
 import { useGame, type CatchUpReportData } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2, Globe } from 'lucide-react';
+import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2, Globe, Crown } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { useEffect, useRef } from 'react';
 
@@ -191,6 +191,34 @@ export function CatchUpReport() {
                 </div>
                 <div className="space-y-1">
                   {report.worldHeadlines.map((line, i) => (
+                    <motion.p
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: next(0.08), duration: 0.3 }}
+                      className="text-[0.65rem] text-foreground/80 leading-snug"
+                    >
+                      • {line}
+                    </motion.p>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Organisation headlines — what happened to your outfit while away */}
+            {report.orgHeadlines && report.orgHeadlines.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: next(), duration: 0.35 }}
+                className="mt-1 pt-2 border-t border-border/40"
+              >
+                <div className="flex items-center gap-2 mb-1.5 text-[0.6rem] uppercase tracking-wider text-muted-foreground font-bold">
+                  <Crown size={12} className="text-gold" />
+                  <span>Je Organisatie</span>
+                </div>
+                <div className="space-y-1">
+                  {report.orgHeadlines.map((line, i) => (
                     <motion.p
                       key={i}
                       initial={{ opacity: 0, x: -10 }}

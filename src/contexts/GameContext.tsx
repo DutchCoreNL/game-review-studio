@@ -18,7 +18,7 @@ import {
   orgDailyIncome, orgDailyUpkeep, orgDailyLoyaltyRegen, orgDailyRep,
   recruitCost, promoteCost, makeRecruit, nextRole, resolveOrgAttack,
   ORG_OPERATIONS, ORG_OP_COOLDOWN_MS, orgOperationSuccessChance,
-  ORG_PACT_COST, ORG_PACT_MIN_RESPECT, orgRelation,
+  ORG_PACT_COST, ORG_PACT_MIN_RESPECT, orgRelation, orgRank,
   type PlayerOrg, type OrgMember,
 } from '../game/organization';
 import * as MissionEngine from '../game/missions';
@@ -72,6 +72,7 @@ export interface CatchUpReportData {
   businessIncome: number;
   districtIncome: number;
   worldHeadlines?: string[]; // "while you were away" bot-world events
+  orgHeadlines?: string[]; // "while you were away" organisation events
 }
 
 interface XpBreakdownData {
@@ -912,6 +913,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // ========== PLAYER ORGANIZATION ECONOMY ==========
       // Controlled districts pay out; soldiers must be paid. Missed payroll bleeds
       // loyalty, and a soldier who hits zero loyalty walks out.
+      // Collect notable org events for the "while you were away" catch-up report.
+      const isCatchUpTick = !!(action as { isCatchUp?: boolean }).isCatchUp;
+      const orgLog = (line: string) => {
+        if (!isCatchUpTick || !s.org) return;
+        if (!s._catchUpOrgHeadlines) s._catchUpOrgHeadlines = [];
+        if (s._catchUpOrgHeadlines.length < 6) s._catchUpOrgHeadlines.push(line);
+      };
+      const orgRankBefore = s.org ? orgRank(s.org).id : null;
       if (s.org) {
         const income = orgDailyIncome(s.org);
         const upkeep = orgDailyUpkeep(s.org);
@@ -933,6 +942,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (leavers.length > 0) {
           s.org.members = s.org.members.filter(m => m.loyalty > 0);
           addPhoneMessage(s, 'system', `${leavers.map(m => m.name).join(', ')} verliet de organisatie.`, 'threat');
+          orgLog(`💔 ${leavers.map(m => m.name).join(', ')} verliet de organisatie`);
         }
       }
 
@@ -962,13 +972,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               s.org.respect = Math.max(0, s.org.respect - 8);
               for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 6);
               addPhoneMessage(s, 'system', `${aggressor.name} heeft ${distName} heroverd op je organisatie!`, 'threat');
+              orgLog(`🏴 ${aggressor.name} heroverde ${distName}`);
             } else {
               aggressor.power = Math.max(10, aggressor.power - 6);
               s.org.respect += 4;
               addPhoneMessage(s, 'system', `Je bemanning sloeg een aanval van ${aggressor.name} op ${distName} af.`, 'opportunity');
+              orgLog(`🛡️ Aanval van ${aggressor.name} op ${distName} afgeslagen`);
             }
           }
         }
+      }
+
+      // Organisation rank-up during the away period.
+      if (s.org && orgRankBefore && orgRank(s.org).id !== orgRankBefore) {
+        orgLog(`⭐ Organisatie promoveerde tot ${orgRank(s.org).name}`);
       }
 
       // Update lastTickAt timestamp
@@ -986,13 +1003,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_CATCH_UP_REPORT': {
       if (action.report) {
-        // Fold in the world headlines the catch-up ticks accumulated, then clear the buffer.
+        // Fold in the world + organisation headlines the catch-up ticks accumulated.
         const headlines = s._catchUpWorldHeadlines || [];
-        (s as any).catchUpReport = { ...action.report, worldHeadlines: headlines };
+        const orgHeadlines = s._catchUpOrgHeadlines || [];
+        (s as any).catchUpReport = { ...action.report, worldHeadlines: headlines, orgHeadlines };
       } else {
         (s as any).catchUpReport = null;
       }
       s._catchUpWorldHeadlines = [];
+      s._catchUpOrgHeadlines = [];
       return s;
     }
 
