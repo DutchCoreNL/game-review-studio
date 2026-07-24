@@ -929,6 +929,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // ========== RIVAL GANGS FIGHT BACK ==========
+      // The world reacts to your organization: each day a rival gang may try to
+      // retake one of your districts. More territory = more heat = more attempts.
+      if (s.org && s.world && s.org.controlledDistricts.length > 0) {
+        const attemptChance = 0.2 + s.org.controlledDistricts.length * 0.08;
+        if (Math.random() < attemptChance) {
+          const orgPow = orgPower(s.org);
+          const contested = s.org.controlledDistricts[Math.floor(Math.random() * s.org.controlledDistricts.length)];
+          // Prefer a landless gang as the aggressor (hungry for turf); else the strongest.
+          const landless = s.world.gangs.filter(g => !g.controlledDistrict);
+          const pool = landless.length > 0 ? landless : s.world.gangs;
+          const aggressor = pool.reduce((a, b) => (b.power > a.power ? b : a), pool[0]);
+          if (aggressor) {
+            const distName = DISTRICTS[contested]?.name || contested;
+            // You defend with a +20% home advantage.
+            const gangWins = resolveOrgAttack(aggressor.power, orgPow * 1.2, Math.random);
+            if (gangWins) {
+              s.org.controlledDistricts = s.org.controlledDistricts.filter(d => d !== contested);
+              aggressor.controlledDistrict = contested as import('@/game/types').DistrictId;
+              aggressor.power += 10;
+              s.org.respect = Math.max(0, s.org.respect - 8);
+              for (const m of s.org.members) m.loyalty = Math.max(0, m.loyalty - 6);
+              addPhoneMessage(s, 'system', `${aggressor.name} heeft ${distName} heroverd op je organisatie!`, 'threat');
+            } else {
+              aggressor.power = Math.max(10, aggressor.power - 6);
+              s.org.respect += 4;
+              addPhoneMessage(s, 'system', `Je bemanning sloeg een aanval van ${aggressor.name} op ${distName} af.`, 'opportunity');
+            }
+          }
+        }
+      }
+
       // Update lastTickAt timestamp
       s.lastTickAt = new Date().toISOString();
 
