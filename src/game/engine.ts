@@ -16,7 +16,7 @@ import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, ref
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './weaponGenerator';
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
-import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS } from './organization';
+import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -1939,6 +1939,29 @@ export function applyDefensiveGearEffects(state: GameState): number {
   return guardianChance;
 }
 
+/**
+ * Crew backup: once you run an Organisation, a loyal member may pile onto your
+ * hit for bonus damage. Keeps the outfit relevant in the moment-to-moment fight,
+ * not just on its own screen. Fires only on an offensive hit (playerDamage > 0),
+ * with a modest chance and payout gated by crew size and loyalty so a shaky or
+ * tiny crew rarely shows up. Returns the bonus damage dealt (0 if no assist).
+ */
+export function applyCrewAssist(state: GameState, combat: CombatState, playerDamage: number, rand: () => number = Math.random): number {
+  const org = state.org;
+  if (!org || org.members.length === 0 || playerDamage <= 0 || combat.targetHP <= 0) return 0;
+  // Willing members only — low loyalty means they hang back.
+  const willing = org.members.filter(m => m.loyalty >= 30);
+  if (willing.length === 0) return 0;
+  const avgLoyalty = willing.reduce((s, m) => s + m.loyalty, 0) / willing.length;
+  const assistChance = Math.min(0.5, willing.length * 0.06 + avgLoyalty / 500);
+  if (rand() >= assistChance) return 0;
+  const helper = willing[Math.floor(rand() * willing.length)];
+  const bonus = Math.max(3, Math.floor(memberPower(helper) * 0.4));
+  combat.targetHP = Math.max(0, combat.targetHP - bonus);
+  combat.logs.push(`🤝 ${helper.name} valt mee aan voor ${bonus} schade!`);
+  return bonus;
+}
+
 export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical'): void {
   const combat = state.activeCombat;
   if (!combat || combat.finished) return;
@@ -2167,6 +2190,9 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
 
   // ===== GEAR ENCHANTMENT (defensive) — heat reduction + guardian chance =====
   const guardianChance = applyDefensiveGearEffects(state);
+
+  // ===== ORGANISATION CREW BACKUP — a loyal member piles onto your hit =====
+  applyCrewAssist(state, combat, playerDamage);
 
   if (combat.targetHP <= 0) {
     combat.finished = true;

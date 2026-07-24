@@ -85,6 +85,11 @@ function ActiveCombat() {
             <span className="text-[0.4rem] text-primary font-bold">🧠{state.player.stats.brains}</span>
             <span className="text-[0.4rem] text-gold font-bold">✨{state.player.stats.charm}</span>
           </div>
+          {(state.org?.members.length || 0) > 0 && (
+            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[0.4rem] font-bold text-emerald bg-emerald/10 border border-emerald/20 rounded px-1 py-0.5">
+              🤝 Crew ×{state.org!.members.length}
+            </span>
+          )}
         </div>
 
         {/* Enemy info - bottom right */}
