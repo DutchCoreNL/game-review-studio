@@ -7,8 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, CheckCircle, Lock, Clock, ChevronDown, ChevronUp, Flame, Shield } from 'lucide-react';
 import { useState } from 'react';
 
-/** All arcs combined */
-const ALL_ARCS = [...STORY_ARCS, ...BACKSTORY_ARCS];
+/**
+ * All arcs, deduped by id. STORY_ARCS already appends BACKSTORY_ARCS at module load
+ * (see storyArcs.ts), so spreading both would list the backstory arcs twice and
+ * collide on their React keys — dedupe defensively so the source can't drift.
+ */
+const ALL_ARCS = Array.from(
+  new Map([...STORY_ARCS, ...BACKSTORY_ARCS].map(arc => [arc.id, arc])).values(),
+);
 
 type ArcStatus = 'active' | 'completed' | 'locked';
 

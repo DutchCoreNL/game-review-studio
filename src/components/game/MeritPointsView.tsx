@@ -4,7 +4,7 @@ import { ViewWrapper } from './ui/ViewWrapper';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameBadge } from './ui/GameBadge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Lock, ChevronRight, Star, Sparkles } from 'lucide-react';
 import profileBg from '@/assets/profile-bg.jpg';
 
@@ -92,14 +92,16 @@ export function MeritPointsView() {
   );
 }
 
-function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, index }: {
+// forwardRef so AnimatePresence mode="popLayout" can attach its measurement ref to
+// the root motion.div — a plain function component here triggers a React ref warning.
+const MeritNodeCard = forwardRef<HTMLDivElement, {
   node: MeritNodeDef;
   currentLevel: number;
   canUnlock: { canUnlock: boolean; reason?: string };
   onUpgrade: () => void;
   flashing: boolean;
   index: number;
-}) {
+}>(function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, index }, ref) {
   const isMaxed = currentLevel >= node.maxLevel;
   const isLocked = !canUnlock.canUnlock && currentLevel === 0 && !!node.requires;
   const totalBonus = currentLevel * node.bonusPerLevel.value;
@@ -107,6 +109,7 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
@@ -193,7 +196,7 @@ function MeritNodeCard({ node, currentLevel, canUnlock, onUpgrade, flashing, ind
       </div>
     </motion.div>
   );
-}
+});
 
 function ActiveBonusesSummary({ meritNodes }: { meritNodes: Record<string, number> }) {
   const activeBonuses = MERIT_NODES
