@@ -4,6 +4,7 @@ import { playCoinSound, playPurchaseSound, playNegativeSound } from '@/game/soun
 import { GoodId, TradeMode, AmmoType } from '@/game/types';
 import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
+import { orgControlsDistrict } from '@/game/organization';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
 import { StatBar } from '../ui/StatBar';
@@ -261,6 +262,11 @@ export function MarketPanel() {
 
   return (
     <>
+      {orgControlsDistrict(state.org, state.loc) && (
+        <div className="mb-1.5 text-[0.5rem] text-emerald bg-emerald/10 border border-emerald/20 rounded px-2 py-1 flex items-center justify-center gap-1">
+          🏴 Jouw turf — −12% inkoop · +10% verkoop
+        </div>
+      )}
       <div className="flex items-center justify-between mb-1">
         <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
         <div className="flex items-center gap-1.5 mt-2">

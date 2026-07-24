@@ -16,6 +16,7 @@ import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, ref
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './weaponGenerator';
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
+import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS } from './organization';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -1446,6 +1447,10 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     if (state.mmoPerkFlags?.tradeDiscount) {
       buyPrice = Math.floor(buyPrice * (1 - state.mmoPerkFlags.tradeDiscount));
     }
+    // Organization turf: cheaper supply in districts your outfit controls.
+    if (orgControlsDistrict(state.org, state.loc)) {
+      buyPrice = Math.floor(buyPrice * (1 - ORG_TURF_BUY_DISCOUNT));
+    }
     if (getAverageHeat(state) > 50) buyPrice = Math.floor(buyPrice * 1.2);
 
     const actualQty = Math.min(maxBuy, Math.floor(state.money / buyPrice));
@@ -1478,6 +1483,10 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     // MMO Perk: Bankier trade bonus (better sell prices)
     if (state.mmoPerkFlags?.tradeDiscount) {
       sellPrice = Math.floor(sellPrice * (1 + state.mmoPerkFlags.tradeDiscount * 0.5));
+    }
+    // Organization turf: better fences in districts your outfit controls.
+    if (orgControlsDistrict(state.org, state.loc)) {
+      sellPrice = Math.floor(sellPrice * (1 + ORG_TURF_SELL_BONUS));
     }
     const totalRevenue = sellPrice * actualQty;
 

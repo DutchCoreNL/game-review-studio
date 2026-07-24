@@ -105,6 +105,15 @@ export function orgDailyRep(org: PlayerOrg): number {
   return org.controlledDistricts.length * 6;
 }
 
+/** Whether the player's organization controls a given district (its turf). */
+export function orgControlsDistrict(org: PlayerOrg | null | undefined, districtId: string): boolean {
+  return !!org && org.controlledDistricts.includes(districtId as DistrictId);
+}
+
+/** Trade edge on your own turf: buy this much cheaper, sell this much dearer. */
+export const ORG_TURF_BUY_DISCOUNT = 0.12; // -12% buy price
+export const ORG_TURF_SELL_BONUS = 0.10;   // +10% sell price
+
 /** Cost to recruit the next member — scales with roster size and the player's level. */
 export function recruitCost(org: PlayerOrg, playerLevel: number): number {
   return Math.round(3000 + org.members.length * 1500 + playerLevel * 200);
