@@ -36,6 +36,7 @@ export interface OrgOperation {
   name: string;
   desc: string;
   minPower: number;    // power at which success is comfortable
+  minRespect: number;  // organisation respect required to unlock
   energyCost: number;
   baseReward: number;  // base money on success
   repReward: number;
@@ -43,10 +44,36 @@ export interface OrgOperation {
 }
 
 export const ORG_OPERATIONS: OrgOperation[] = [
-  { id: 'protection', name: 'Beschermingsgeld innen', desc: 'Laag risico. Vaste opbrengst uit de buurt.', minPower: 0, energyCost: 8, baseReward: 4000, repReward: 5, risk: 0.1 },
-  { id: 'transport', name: 'Transport overvallen', desc: 'Gemiddeld risico. Goede buit.', minPower: 45, energyCost: 15, baseReward: 12000, repReward: 15, risk: 0.25 },
-  { id: 'takeover', name: 'Vijandige overname', desc: 'Hoog risico. Grote buit en aanzien.', minPower: 100, energyCost: 25, baseReward: 28000, repReward: 35, risk: 0.4 },
+  { id: 'protection', name: 'Beschermingsgeld innen', desc: 'Laag risico. Vaste opbrengst uit de buurt.', minPower: 0, minRespect: 0, energyCost: 8, baseReward: 4000, repReward: 5, risk: 0.1 },
+  { id: 'transport', name: 'Transport overvallen', desc: 'Gemiddeld risico. Goede buit.', minPower: 45, minRespect: 40, energyCost: 15, baseReward: 12000, repReward: 15, risk: 0.25 },
+  { id: 'takeover', name: 'Vijandige overname', desc: 'Hoog risico. Grote buit en aanzien.', minPower: 100, minRespect: 120, energyCost: 25, baseReward: 28000, repReward: 35, risk: 0.4 },
 ];
+
+/** Organisation rank, earned with respect. Higher ranks add roster slots. */
+export interface OrgRank {
+  id: string;
+  name: string;
+  minRespect: number;
+  bonusMemberSlots: number;
+}
+
+export const ORG_RANKS: OrgRank[] = [
+  { id: 'bende', name: 'Straatbende', minRespect: 0, bonusMemberSlots: 0 },
+  { id: 'crew', name: 'Crew', minRespect: 40, bonusMemberSlots: 2 },
+  { id: 'syndicaat', name: 'Syndicaat', minRespect: 120, bonusMemberSlots: 4 },
+  { id: 'kartel', name: 'Kartel', minRespect: 300, bonusMemberSlots: 6 },
+  { id: 'imperium', name: 'Imperium', minRespect: 700, bonusMemberSlots: 8 },
+];
+
+/** The org's current rank based on accumulated respect. */
+export function orgRank(org: PlayerOrg): OrgRank {
+  return [...ORG_RANKS].reverse().find(r => org.respect >= r.minRespect) || ORG_RANKS[0];
+}
+
+/** The next rank the org can reach, or null at max rank. */
+export function nextOrgRank(org: PlayerOrg): OrgRank | null {
+  return ORG_RANKS.find(r => r.minRespect > org.respect) || null;
+}
 
 export const ORG_OP_COOLDOWN_MS = 120000; // 2 minutes between operations
 
@@ -102,7 +129,9 @@ export function memberUpkeep(m: OrgMember): number {
 }
 
 export function orgMaxMembers(org: PlayerOrg): number {
-  return ORG_MAX_MEMBERS_BASE + ownedUpgrades(org).reduce((s, u) => s + (u.maxMembers || 0), 0);
+  return ORG_MAX_MEMBERS_BASE
+    + ownedUpgrades(org).reduce((s, u) => s + (u.maxMembers || 0), 0)
+    + orgRank(org).bonusMemberSlots;
 }
 
 export function orgPower(org: PlayerOrg): number {

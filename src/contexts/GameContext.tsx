@@ -4351,6 +4351,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!s.org || s.org.members.length === 0) return s;
       const op = ORG_OPERATIONS.find(o => o.id === action.operationId);
       if (!op) return s;
+      if (s.org.respect < op.minRespect) return s; // locked until enough respect
       // Cooldown + energy gates.
       if (s.org.opCooldownUntil && new Date(s.org.opCooldownUntil) > new Date()) return s;
       if (s.energy < op.energyCost) return s;

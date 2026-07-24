@@ -8,7 +8,7 @@ import {
   ORG_FOUND_COST, ORG_FOUND_MIN_REP, ORG_UPGRADES,
   orgMaxMembers, orgPower, orgDailyIncome, orgDailyUpkeep, orgDailyRep,
   recruitCost, promoteCost, memberPower, memberUpkeep, nextRole, ROLE_LABEL,
-  ORG_OPERATIONS, orgOperationSuccessChance,
+  ORG_OPERATIONS, orgOperationSuccessChance, orgRank, nextOrgRank,
 } from '@/game/organization';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -91,6 +91,9 @@ function OrgDashboard() {
   }, []);
   const opCooldownMs = org.opCooldownUntil ? new Date(org.opCooldownUntil).getTime() - now : 0;
   const onOpCooldown = opCooldownMs > 0;
+  const rank = orgRank(org);
+  const next = nextOrgRank(org);
+  const rankProgress = next ? Math.min(100, Math.round(((org.respect - rank.minRespect) / (next.minRespect - rank.minRespect)) * 100)) : 100;
 
   const power = orgPower(org);
   const income = orgDailyIncome(org);
@@ -118,7 +121,10 @@ function OrgDashboard() {
             </div>
             <div className="min-w-0">
               <p className="font-bold text-sm truncate">{org.name}</p>
-              <span className="text-[0.5rem] font-bold text-gold bg-gold/10 px-1.5 rounded">[{org.tag}]</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[0.5rem] font-bold text-gold bg-gold/10 px-1.5 rounded">[{org.tag}]</span>
+                <span className="text-[0.5rem] font-bold text-ice bg-ice/10 px-1.5 rounded">{rank.name}</span>
+              </div>
             </div>
           </div>
           <button onClick={() => setConfirmDisband(true)} className="text-muted-foreground hover:text-blood transition-colors">
@@ -162,6 +168,14 @@ function OrgDashboard() {
             <span className="text-muted-foreground/70">uit {org.controlledDistricts.length} district{org.controlledDistricts.length !== 1 ? 'en' : ''}</span>
           </div>
         )}
+        {/* Rank progress */}
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-[0.45rem] text-muted-foreground mb-0.5">
+            <span className="text-ice font-bold">{rank.name}</span>
+            <span>{next ? `${org.respect}/${next.minRespect} aanzien → ${next.name}` : 'Max rang bereikt'}</span>
+          </div>
+          <StatBar value={rankProgress} max={100} color="ice" height="sm" />
+        </div>
       </div>
 
       {/* Roster */}
@@ -250,25 +264,30 @@ function OrgDashboard() {
         ) : (
           <div className="space-y-1.5">
             {ORG_OPERATIONS.map(op => {
+              const locked = org.respect < op.minRespect;
               const chance = Math.round(orgOperationSuccessChance(power, op) * 100);
-              const canRun = !onOpCooldown && state.energy >= op.energyCost && org.members.length > 0;
+              const canRun = !locked && !onOpCooldown && state.energy >= op.energyCost && org.members.length > 0;
               return (
-                <div key={op.id} className="game-card py-2 flex items-center gap-2">
+                <div key={op.id} className={`game-card py-2 flex items-center gap-2 ${locked ? 'opacity-60' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold">{op.name}</p>
                     <p className="text-[0.45rem] text-muted-foreground">{op.desc}</p>
-                    <div className="flex items-center gap-2 mt-0.5 text-[0.45rem]">
-                      <span className="text-gold">💰 €{op.baseReward.toLocaleString()}</span>
-                      <span className="text-ice">⭐ +{op.repReward}</span>
-                      <span className="flex items-center gap-0.5 text-muted-foreground"><Zap size={7} className="text-gold" />{op.energyCost}</span>
-                      <span className={chance >= 60 ? 'text-emerald' : chance >= 35 ? 'text-gold' : 'text-blood'}>{chance}% kans</span>
-                    </div>
+                    {locked ? (
+                      <p className="text-[0.45rem] text-blood mt-0.5">🔒 Ontgrendelt bij {op.minRespect} aanzien</p>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-0.5 text-[0.45rem]">
+                        <span className="text-gold">💰 €{op.baseReward.toLocaleString()}</span>
+                        <span className="text-ice">⭐ +{op.repReward}</span>
+                        <span className="flex items-center gap-0.5 text-muted-foreground"><Zap size={7} className="text-gold" />{op.energyCost}</span>
+                        <span className={chance >= 60 ? 'text-emerald' : chance >= 35 ? 'text-gold' : 'text-blood'}>{chance}% kans</span>
+                      </div>
+                    )}
                   </div>
                   <GameButton
                     variant={canRun ? 'gold' : 'muted'} size="sm" disabled={!canRun}
                     onClick={() => { dispatch({ type: 'ORG_RUN_OPERATION', operationId: op.id }); showToast(`${op.name} gestart...`); }}
                   >
-                    Stuur
+                    {locked ? '🔒' : 'Stuur'}
                   </GameButton>
                 </div>
               );
