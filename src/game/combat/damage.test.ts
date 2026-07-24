@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAttack, weaponProfileFromProc, weaponProfileForLevel, enemyBaseHit, FISTS } from './damage';
+import { resolveAttack, weaponProfileFromProc, weaponProfileForLevel, enemyBaseHit, rollCrit, FISTS } from './damage';
 
 // Deterministic RNG helper: returns a fixed value.
 const fixed = (v: number) => () => v;
@@ -54,6 +54,28 @@ describe('weapon profiles', () => {
 
   it('scales an NPC weapon profile with level', () => {
     expect(weaponProfileForLevel(20).damage).toBeGreaterThan(weaponProfileForLevel(5).damage);
+  });
+});
+
+describe('rollCrit', () => {
+  it('multiplies damage on a crit and flags it', () => {
+    const r = rollCrit(20, 0.5, 1.8, fixed(0.1)); // roll below chance -> crit
+    expect(r.crit).toBe(true);
+    expect(r.damage).toBe(36); // floor(20 * 1.8)
+  });
+
+  it('leaves damage unchanged on no crit', () => {
+    const r = rollCrit(20, 0.5, 1.8, fixed(0.9)); // roll above chance
+    expect(r.crit).toBe(false);
+    expect(r.damage).toBe(20);
+  });
+
+  it('never crits (and never rolls) when chance is 0', () => {
+    let rolled = false;
+    const r = rollCrit(20, 0, 1.8, () => { rolled = true; return 0; });
+    expect(r.crit).toBe(false);
+    expect(r.damage).toBe(20);
+    expect(rolled).toBe(false);
   });
 });
 

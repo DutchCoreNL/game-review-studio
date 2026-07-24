@@ -78,6 +78,24 @@ export function baseHitDamage(
 }
 
 /**
+ * Shared critical-hit roll. With chance>0, rolls once and multiplies the damage
+ * on a hit. Each engine passes its own chance/multiplier (PvE weapon crit ×1.8,
+ * heavy ×2.0; stance crit ×1.5), so this centralizes crit rolling without
+ * changing any balance.
+ */
+export function rollCrit(
+  damage: number,
+  chance: number,
+  multiplier: number,
+  rand: () => number = Math.random,
+): { damage: number; crit: boolean } {
+  if (chance > 0 && rand() < chance) {
+    return { damage: Math.floor(damage * multiplier), crit: true };
+  }
+  return { damage, crit: false };
+}
+
+/**
  * Raw enemy hit for a stat-block opponent (PvE bosses/nemeses defined by an
  * `attack` value rather than muscle+weapon). Kept here so every raw damage
  * magnitude in the game — player light/heavy AND enemy swing — has a single home.

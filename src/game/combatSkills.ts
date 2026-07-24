@@ -1,5 +1,5 @@
 import { CombatSkill, CombatBuff, PvPCombatState, CombatStance } from './types';
-import { resolveAttack, weaponProfileForLevel, FISTS, type WeaponProfile } from './combat/damage';
+import { resolveAttack, rollCrit, weaponProfileForLevel, FISTS, type WeaponProfile } from './combat/damage';
 
 // ========== STANCE DEFINITIONS ==========
 
@@ -320,10 +320,11 @@ export function pvpCombatTurn(
     playerDamage = Math.floor(playerDamage * stanceMod.damageMod);
   }
 
-  // Stance crit bonus
-  if (playerDamage > 0 && stanceMod.critBonus > 0 && Math.random() < stanceMod.critBonus) {
-    playerDamage = Math.floor(playerDamage * 1.5);
-    s.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
+  // Stance crit bonus (shared crit roll)
+  if (playerDamage > 0) {
+    const c = rollCrit(playerDamage, stanceMod.critBonus, 1.5);
+    playerDamage = c.damage;
+    if (c.crit) s.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
   }
 
   // Apply damage

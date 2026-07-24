@@ -15,7 +15,7 @@ import { processSafehouseRaids } from './safehouseRaids';
 import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './weaponGenerator';
-import { baseHitDamage, enemyBaseHit } from './combat/damage';
+import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -1983,23 +1983,24 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
   switch (action) {
     case 'attack':
       if (isMelee) {
-        playerDamage = baseHitDamage('light', muscle, wpnDamage);
-        // Crit check
-        if (Math.random() < wpnCritChance) {
-          playerDamage = Math.floor(playerDamage * 1.8);
-          combat.logs.push(`💥 KRITIEK! ${playerDamage} schade! ⚔️`);
-        } else if (env) {
-          combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' ⚔️');
-        } else {
-          combat.logs.push(`Je slaat toe met ${procWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
+        {
+          const c = rollCrit(baseHitDamage('light', muscle, wpnDamage), wpnCritChance, 1.8);
+          playerDamage = c.damage;
+          if (c.crit) {
+            combat.logs.push(`💥 KRITIEK! ${playerDamage} schade! ⚔️`);
+          } else if (env) {
+            combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' ⚔️');
+          } else {
+            combat.logs.push(`Je slaat toe met ${procWeapon?.name || 'melee'} voor ${playerDamage} schade! ⚔️`);
+          }
         }
       } else if (hasAmmo) {
         state.ammoStock[activeAmmoType] = Math.max(0, (state.ammoStock[activeAmmoType] || 0) - 1);
         syncAmmoTotal(state);
-        playerDamage = Math.floor(baseHitDamage('light', muscle, wpnDamage) * wpnAccuracy);
+        const c = rollCrit(Math.floor(baseHitDamage('light', muscle, wpnDamage) * wpnAccuracy), wpnCritChance, 1.8);
+        playerDamage = c.damage;
         // Crit check
-        if (Math.random() < wpnCritChance) {
-          playerDamage = Math.floor(playerDamage * 1.8);
+        if (c.crit) {
           combat.logs.push(`💥 KRITIEK! ${playerDamage} schade! 🔫`);
         } else if (env) {
           combat.logs.push(fmt(pick(env.actions.attack.logs), { dmg: playerDamage }) + ' 🔫');
@@ -2014,9 +2015,9 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     case 'heavy':
       if (isMelee) {
         if (Math.random() < 0.6 + (muscle * 0.03)) {
-          playerDamage = baseHitDamage('heavy', muscle, wpnDamage);
-          if (Math.random() < wpnCritChance * 1.5) {
-            playerDamage = Math.floor(playerDamage * 2.0);
+          const c = rollCrit(baseHitDamage('heavy', muscle, wpnDamage), wpnCritChance * 1.5, 2.0);
+          playerDamage = c.damage;
+          if (c.crit) {
             combat.logs.push(`💥 KRITIEKE ZWARE KLAP! ${playerDamage} schade! ⚔️`);
           } else if (env) {
             combat.logs.push(fmt(pick(env.actions.heavy.logs), { dmg: playerDamage }) + ' ⚔️');
@@ -2115,9 +2116,10 @@ export function combatAction(state: GameState, action: 'attack' | 'heavy' | 'def
     playerDamage = Math.floor(playerDamage * stanceMod.damageMod);
   }
   // Stance crit bonus
-  if (playerDamage > 0 && stanceMod.critBonus > 0 && Math.random() < stanceMod.critBonus) {
-    playerDamage = Math.floor(playerDamage * 1.5);
-    combat.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
+  if (playerDamage > 0) {
+    const c = rollCrit(playerDamage, stanceMod.critBonus, 1.5);
+    playerDamage = c.damage;
+    if (c.crit) combat.logs.push(`💥 Stance CRIT! Schade verhoogd!`);
   }
   // Defensive stance heal-over-time
   if (stanceMod.healBonus > 0) {
