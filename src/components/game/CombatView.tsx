@@ -2,7 +2,7 @@ import { useGame } from '@/contexts/GameContext';
 import { FAMILIES, BOSS_DATA, COMBAT_ENVIRONMENTS, BOSS_COMBAT_OVERRIDES, CONQUEST_COMBAT_OVERRIDES, GEAR } from '@/game/constants';
 import { WEAPON_RARITY_COLORS, WEAPON_RARITY_LABEL } from '@/game/weaponGenerator';
 import { BOSS_PHASES, FINAL_BOSS_COMBAT_OVERRIDES } from '@/game/endgame';
-import { FamilyId, DistrictId, CombatStance } from '@/game/types';
+import { FamilyId } from '@/game/types';
 import { BOSS_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { SectionHeader } from './ui/SectionHeader';
@@ -11,346 +11,16 @@ import { StatBar } from './ui/StatBar';
 import { GameBadge } from './ui/GameBadge';
 import { TypewriterText } from './animations/TypewriterText';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Shield, Zap, MapPin, Heart, Skull, Crown, AlertTriangle, Crosshair, Flame, Trophy, Star } from 'lucide-react';
+import { Swords, Shield, Zap, Heart, Skull, Crown, AlertTriangle, Flame, Star } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { playHitSound, playHeavyHitSound, playDefendSound, playVictorySound, playDefeatSound } from '@/game/sounds';
-import { getAvailableSkills, isSkillOnCooldown, COMBO_THRESHOLD, BUFF_DEFS, STANCE_MODIFIERS } from '@/game/combatSkills';
+import { COMBO_THRESHOLD, BUFF_DEFS, STANCE_MODIFIERS } from '@/game/combatSkills';
 import { RARITY_COLORS, RARITY_BG, getStreakLabel } from '@/game/combatLoot';
+import {
+  StanceSelector, DamagePopup, AnimatedHPBar, TurnIndicator, CombatAction, SkillGrid,
+  ComboFinisher, CombatLog, STANCE_ACTIVE_COLORS, useCombatDamagePopups,
+} from './combat/CombatUI';
 
-// ========== Stance Selector ==========
-
-const STANCES: CombatStance[] = ['aggressive', 'balanced', 'defensive'];
-const STANCE_COLORS: Record<CombatStance, string> = {
-  aggressive: 'border-blood text-blood bg-blood/10',
-  balanced: 'border-gold text-gold bg-gold/10',
-  defensive: 'border-emerald text-emerald bg-emerald/10',
-};
-const STANCE_ACTIVE_COLORS: Record<CombatStance, string> = {
-  aggressive: 'border-blood bg-blood text-primary-foreground',
-  balanced: 'border-gold bg-gold text-background',
-  defensive: 'border-emerald bg-emerald text-primary-foreground',
-};
-
-function StanceSelector({ current, onChange, disabled }: {
-  current: CombatStance;
-  onChange: (s: CombatStance) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex gap-1.5 mb-3 justify-center">
-      {STANCES.map(s => {
-        const mod = STANCE_MODIFIERS[s];
-        const isActive = current === s;
-        return (
-          <motion.button
-            key={s}
-            onClick={() => !disabled && onChange(s)}
-            disabled={disabled}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded border text-[0.5rem] font-bold transition-all ${
-              isActive ? STANCE_ACTIVE_COLORS[s] : `${STANCE_COLORS[s]} opacity-60 hover:opacity-100`
-            } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-            whileTap={disabled ? {} : { scale: 0.95 }}
-            title={mod.desc}
-          >
-            <span>{mod.icon}</span>
-            <span className="uppercase tracking-wider">{mod.label}</span>
-          </motion.button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ========== Floating Damage Number ==========
-
-interface DamagePopupData {
-  id: number;
-  value: number;
-  type: 'dealt' | 'taken' | 'heal' | 'crit';
-}
-
-function DamagePopup({ value, type }: { value: number; type: 'dealt' | 'taken' | 'heal' | 'crit' }) {
-  const colorMap = { dealt: 'text-gold', taken: 'text-blood', heal: 'text-emerald', crit: 'text-gold' };
-  return (
-    <motion.div
-      initial={{ opacity: 1, y: 0, scale: type === 'crit' ? 1.8 : 1.2 }}
-      animate={{ opacity: 0, y: -40 }}
-      transition={{ duration: 0.9 }}
-      className={`absolute font-bold text-sm ${colorMap[type]} pointer-events-none z-50`}
-      style={{ textShadow: '0 0 8px currentColor' }}
-    >
-      {type === 'heal' ? '+' : type === 'crit' ? '💥 ' : '-'}{value}
-    </motion.div>
-  );
-}
-
-// ========== Action Card (Categorized) ==========
-
-function ActionCard({ icon, title, desc, borderColor, bgColor, onClick, glow }: {
-  icon: React.ReactNode; title: string; desc: string; borderColor: string; bgColor: string; onClick: () => void; glow?: boolean;
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      className={`w-full p-2 rounded-lg border ${borderColor} ${bgColor} text-left transition-all group relative overflow-hidden ${glow ? 'shadow-lg shadow-gold/20 animate-pulse' : ''}`}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.95 }}
-    >
-      <div className="flex items-start gap-2">
-        <div className="w-6 h-6 rounded-full bg-background/60 border border-border/40 flex items-center justify-center shrink-0">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <p className="text-[0.55rem] font-bold text-foreground leading-tight">{title}</p>
-          <p className="text-[0.4rem] text-muted-foreground leading-tight">{desc}</p>
-        </div>
-      </div>
-    </motion.button>
-  );
-}
-
-// ========== Combat Action Button (legacy) ==========
-
-function CombatAction({ icon, label, sub, onClick, variant }: {
-  icon: React.ReactNode; label: string; sub: string; onClick: () => void; variant: string;
-}) {
-  const [impactPulse, setImpactPulse] = useState(false);
-
-  const styles: Record<string, string> = {
-    blood: 'bg-blood text-primary-foreground',
-    gold: 'bg-gold/15 border border-gold text-gold',
-    muted: 'bg-muted border border-border text-foreground',
-    purple: 'bg-game-purple/15 border border-game-purple text-game-purple',
-    ice: 'bg-ice/15 border border-ice text-ice',
-  };
-
-  const handleClick = () => {
-    setImpactPulse(true);
-    setTimeout(() => setImpactPulse(false), 200);
-    onClick();
-  };
-
-  return (
-    <motion.button
-      onClick={handleClick}
-      className={`py-3 rounded ${styles[variant] || styles.muted} font-bold text-xs flex flex-col items-center gap-0.5 relative overflow-hidden`}
-      whileTap={{ scale: 0.92 }}
-    >
-      <AnimatePresence>
-        {impactPulse && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0.5 }}
-            animate={{ scale: 2.5, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0 rounded-full bg-white/20"
-            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%' }}
-          />
-        )}
-      </AnimatePresence>
-      {icon}
-      <span className="text-[0.55rem] leading-tight text-center px-1">{label}</span>
-      <span className="text-[0.45rem] font-normal opacity-70">{sub}</span>
-    </motion.button>
-  );
-}
-
-// ========== Animated HP Bar ==========
-
-function AnimatedHPBar({ label, current, max, color, flashColor }: {
-  label: string; current: number; max: number; color: 'blood' | 'gold' | 'emerald' | 'purple' | 'ice' | 'auto'; flashColor: string;
-}) {
-  const [flash, setFlash] = useState(false);
-  const prevHP = useRef(current);
-
-  useEffect(() => {
-    if (current < prevHP.current) {
-      setFlash(true);
-      const t = setTimeout(() => setFlash(false), 300);
-      prevHP.current = current;
-      return () => clearTimeout(t);
-    }
-    prevHP.current = current;
-  }, [current]);
-
-  return (
-    <motion.div animate={flash ? { x: [-2, 2, -2, 2, 0] } : {}} transition={{ duration: 0.3 }}>
-      <div className="flex justify-between text-[0.6rem] text-muted-foreground mb-1">
-        <span className="font-bold text-foreground">{label}</span>
-        <motion.span
-          key={current}
-          initial={{ scale: 1.3, color: `hsl(var(--${flashColor}))` }}
-          animate={{ scale: 1, color: 'hsl(var(--muted-foreground))' }}
-          transition={{ duration: 0.4 }}
-        >
-          {current}/{max}
-        </motion.span>
-      </div>
-      <div className="relative">
-        <StatBar value={current} max={max} color={color} height="lg" />
-        <AnimatePresence>
-          {flash && (
-            <motion.div
-              initial={{ opacity: 0.8 }}
-              animate={{ opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 rounded"
-              style={{ background: `hsl(var(--${flashColor}) / 0.4)` }}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
-  );
-}
-
-// ========== Skill Buttons ==========
-
-function SkillButtons({ combat, dispatch, playerLevel }: {
-  combat: { skillCooldowns: Record<string, number>; finished: boolean };
-  dispatch: (action: any) => void;
-  playerLevel: number;
-}) {
-  const skills = useMemo(() => getAvailableSkills(playerLevel), [playerLevel]);
-  const activeSkills = skills.filter(s => s.effect.type !== 'emergency_heal');
-
-  if (activeSkills.length === 0) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="mt-3"
-    >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <Zap size={9} className="text-game-purple" />
-        <span className="text-[0.5rem] font-bold text-game-purple uppercase tracking-wider">Skills</span>
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {activeSkills.map(skill => {
-          const onCooldown = isSkillOnCooldown(skill.id, combat.skillCooldowns);
-          const cd = combat.skillCooldowns[skill.id] || 0;
-          return (
-            <motion.button
-              key={skill.id}
-              disabled={onCooldown || combat.finished}
-              onClick={() => {
-                if (!onCooldown) {
-                  playHitSound();
-                  dispatch({ type: 'COMBAT_ACTION', action: 'skill', skillId: skill.id });
-                }
-              }}
-              className={`relative py-2 px-2 rounded text-[0.5rem] font-bold flex flex-col items-center gap-0.5 transition-all ${
-                onCooldown
-                  ? 'bg-muted/50 text-muted-foreground opacity-50 cursor-not-allowed'
-                  : 'bg-game-purple/15 border border-game-purple/40 text-game-purple hover:bg-game-purple/25'
-              }`}
-              whileTap={onCooldown ? {} : { scale: 0.92 }}
-            >
-              <span className="text-sm">{skill.icon}</span>
-              <span className="leading-tight text-center">{skill.name}</span>
-              {onCooldown && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded">
-                  <span className="text-[0.6rem] font-bold text-muted-foreground">{cd}🔄</span>
-                </div>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-}
-
-// ========== Enhanced Combat Log Entry ==========
-
-function CombatLogEntry({ log, index, turn }: { log: string; index: number; turn: number }) {
-  const isCrit = log.includes('KRITIEK') || log.includes('COMBO FINISHER') || log.includes('EXECUTIE');
-  const isVictory = log.includes('verslagen') || log.includes('STUNNED') || log.includes('geslaagd');
-  const isDefeat = log.includes('mislukt') || log.includes('Je bent verslagen');
-  const isEnemyAttack = log.includes('slaat terug') || log.includes('valt aan');
-  const isHeal = log.includes('+') && log.includes('HP');
-  const isBossDialogue = log.startsWith('Decker:') || log.startsWith('Voss:');
-
-  // Add icon prefix based on log type
-  let icon = '';
-  if (isCrit) icon = '💥 ';
-  else if (isVictory) icon = '🏆 ';
-  else if (isHeal) icon = '💚 ';
-  else if (isEnemyAttack) icon = '🩸 ';
-  else if (isDefeat) icon = '💀 ';
-  else if (log.includes('🛡️') || log.includes('Verdedig')) icon = '';
-  else if (!log.startsWith('🫁') && !log.startsWith('🔥') && !log.startsWith('💫') && !isBossDialogue) icon = '⚔️ ';
-
-  const className = isCrit
-    ? 'text-gold font-bold text-[0.65rem]'
-    : isVictory
-    ? 'text-gold font-bold'
-    : isDefeat || isEnemyAttack
-    ? 'text-blood'
-    : isBossDialogue
-    ? 'text-ice font-semibold italic'
-    : isHeal
-    ? 'text-emerald'
-    : 'text-muted-foreground';
-
-  return (
-    <motion.p
-      key={`${turn}-${index}`}
-      initial={{ opacity: 0, x: isEnemyAttack ? 10 : -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      className={`text-[0.6rem] py-0.5 ${className} ${isEnemyAttack ? 'border-l-2 border-blood/30 pl-2 ml-1' : ''}`}
-    >
-      {icon}{log}
-    </motion.p>
-  );
-}
-
-// ========== Turn Indicator ==========
-
-function TurnIndicator({ turn }: { turn: number }) {
-  return (
-    <motion.div
-      key={turn}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className="flex items-center justify-center gap-2 mb-3"
-    >
-      <div className="h-px flex-1 bg-border" />
-      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border">
-        <Swords size={8} className="text-muted-foreground" />
-        <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">
-          Beurt {turn}
-        </span>
-      </div>
-      <div className="h-px flex-1 bg-border" />
-    </motion.div>
-  );
-}
-
-// ========== Streak Indicator ==========
-
-function StreakIndicator({ streak }: { streak: number }) {
-  const label = getStreakLabel(streak);
-  if (!label || streak < 3) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-center gap-2 mb-2"
-    >
-      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/10 border border-gold/30">
-        <Flame size={10} className="text-gold" />
-        <span className="text-[0.55rem] font-bold text-gold">{label}</span>
-        <span className="text-[0.5rem] text-gold/70">×{streak}</span>
-      </div>
-    </motion.div>
-  );
-}
 
 // ========== Active Combat View ==========
 
@@ -358,55 +28,8 @@ function ActiveCombat() {
   const { state, dispatch } = useGame();
   const combat = state.activeCombat!;
   const prevFinished = useRef(false);
-  const prevPlayerHP = useRef(combat.playerHP);
-  const prevEnemyHP = useRef(combat.targetHP);
-  const [damagePopups, setDamagePopups] = useState<DamagePopupData[]>([]);
-  const popupIdRef = useRef(0);
-
-  // Track damage popups
-  useEffect(() => {
-    const playerDelta = prevPlayerHP.current - combat.playerHP;
-    const enemyDelta = prevEnemyHP.current - combat.targetHP;
-
-    const newPopups: DamagePopupData[] = [];
-
-    if (enemyDelta > 0) {
-      const lastLog = combat.logs[combat.logs.length - 1] || '';
-      const isCrit = lastLog.includes('KRITIEK') || lastLog.includes('COMBO FINISHER') || lastLog.includes('EXECUTIE');
-      newPopups.push({
-        id: popupIdRef.current++,
-        value: enemyDelta,
-        type: isCrit ? 'crit' : 'dealt',
-      });
-    }
-
-    if (playerDelta > 0) {
-      newPopups.push({
-        id: popupIdRef.current++,
-        value: playerDelta,
-        type: 'taken',
-      });
-    }
-
-    if (playerDelta < 0) {
-      // Player healed
-      newPopups.push({
-        id: popupIdRef.current++,
-        value: Math.abs(playerDelta),
-        type: 'heal',
-      });
-    }
-
-    if (newPopups.length > 0) {
-      setDamagePopups(prev => [...prev, ...newPopups]);
-      setTimeout(() => {
-        setDamagePopups(prev => prev.filter(p => !newPopups.find(n => n.id === p.id)));
-      }, 900);
-    }
-
-    prevPlayerHP.current = combat.playerHP;
-    prevEnemyHP.current = combat.targetHP;
-  }, [combat.playerHP, combat.targetHP, combat.turn]);
+  const lastLog = combat.logs[combat.logs.length - 1] || '';
+  const damagePopups = useCombatDamagePopups(combat.playerHP, combat.targetHP, combat.turn, lastLog);
 
   useEffect(() => {
     if (combat?.finished && !prevFinished.current) {
@@ -578,18 +201,7 @@ function ActiveCombat() {
       )}
 
       {/* ═══ COMBAT LOG ═══ */}
-      <div className="mb-3">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <div className="h-px flex-1 bg-border/40" />
-          <span className="text-[0.45rem] font-bold text-muted-foreground uppercase tracking-widest">Gevechtslog</span>
-          <div className="h-px flex-1 bg-border/40" />
-        </div>
-        <div className="game-card max-h-28 overflow-y-auto game-scroll p-2.5 space-y-0.5">
-          {combat.logs.slice(-6).map((log, i) => (
-            <CombatLogEntry key={`${combat.turn}-${i}`} log={log} index={i} turn={combat.turn} />
-          ))}
-        </div>
-      </div>
+      <CombatLog logs={combat.logs} turn={combat.turn} />
 
       {/* ═══ ACTIONS ═══ */}
       {!combat.finished ? (
@@ -631,23 +243,10 @@ function ActiveCombat() {
           </div>
 
           {/* ═══ MOMENTUM FINISHER ═══ */}
-          {combat.comboCounter >= COMBO_THRESHOLD ? (
-            <motion.button
-              onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
-              className="w-full py-2.5 rounded-lg border border-gold bg-gold/15 text-gold font-bold text-xs flex items-center justify-center gap-2"
-              whileTap={{ scale: 0.97 }}
-              animate={{ boxShadow: ['0 0 0px hsl(var(--gold)/0)', '0 0 14px hsl(var(--gold)/0.55)', '0 0 0px hsl(var(--gold)/0)'] }}
-              transition={{ duration: 1.4, repeat: Infinity }}
-            >
-              <Flame size={14} /> Momentum Finisher — massieve schade + stun
-            </motion.button>
-          ) : (
-            <div className="w-full py-2 rounded-lg border border-border/30 bg-muted/5 text-center">
-              <p className="text-[0.5rem] text-muted-foreground flex items-center justify-center gap-1">
-                <Flame size={10} /> Momentum {combat.comboCounter}/{COMBO_THRESHOLD} — vul de meter met aanvallen
-              </p>
-            </div>
-          )}
+          <ComboFinisher
+            count={combat.comboCounter}
+            onClick={() => { playHeavyHitSound(); dispatch({ type: 'COMBAT_ACTION', action: 'combo_finisher' }); }}
+          />
 
           {/* Stance Selector */}
           <div>
@@ -660,7 +259,12 @@ function ActiveCombat() {
           </div>
 
           {/* Skill Buttons */}
-          <SkillButtons combat={combat} dispatch={dispatch} playerLevel={state.player.level} />
+          <SkillGrid
+            playerLevel={state.player.level}
+            cooldowns={combat.skillCooldowns}
+            finished={combat.finished}
+            onUse={(skillId) => dispatch({ type: 'COMBAT_ACTION', action: 'skill', skillId })}
+          />
         </div>
       ) : (
         <CombatResult />
