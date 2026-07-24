@@ -434,6 +434,97 @@ function enemyTurn(state: PvPCombatState): { newHP: number; damage: number; logs
   return { newHP: Math.max(0, state.attackerHP - damage), damage, logs };
 }
 
+/**
+ * What a combat skill does, independent of which engine invokes it. Both the
+ * PvE (combatHandlers) and PvP (pvpCombatTurn) engines call this and then apply
+ * the outcome to their own state shape, so a skill behaves identically in both.
+ */
+export interface SkillOutcome {
+  damage: number;                                  // damage to the enemy
+  isAttack: boolean;
+  selfHeal: number;                                // HP to restore to the caster
+  selfBuffs: { id: string; duration: number }[];   // buffs to grant the caster
+  enemyStun: boolean;                              // whether the enemy is stunned
+  logs: string[];
+}
+
+export function resolveSkillEffect(
+  skill: CombatSkill,
+  stats: { muscle: number; brains: number; charm: number },
+  enemyHP: number,
+  enemyMaxHP: number,
+  rand: () => number = Math.random,
+): SkillOutcome {
+  const { muscle, brains, charm } = stats;
+  const out: SkillOutcome = { damage: 0, isAttack: false, selfHeal: 0, selfBuffs: [], enemyStun: false, logs: [] };
+  const eff = skill.effect;
+
+  switch (eff.type) {
+    case 'damage':
+      out.damage = Math.floor(muscle * 2 + (eff.value ?? 8) + rand() * 5);
+      out.logs.push(`${skill.icon} ${skill.name}! ${out.damage} schade!`);
+      out.isAttack = true;
+      break;
+    case 'buff':
+      out.selfBuffs.push({ id: eff.buffId!, duration: eff.duration! });
+      out.logs.push(`${skill.icon} ${skill.name} geactiveerd! ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
+      break;
+    case 'heal_and_buff':
+      out.selfHeal = eff.healAmount || 0;
+      out.selfBuffs.push({ id: eff.buffId!, duration: eff.duration! });
+      out.logs.push(`${skill.icon} ${skill.name}! +${eff.healAmount} HP, ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
+      break;
+    case 'multi_hit': {
+      const hits = eff.hits || 3;
+      let totalDmg = 0;
+      for (let i = 0; i < hits; i++) {
+        totalDmg += Math.floor((eff.damagePerHit || 6) + muscle * 0.8 + rand() * 3);
+      }
+      out.damage = totalDmg;
+      out.logs.push(`${skill.icon} ${skill.name}! ${hits}x treffer = ${totalDmg} totale schade!`);
+      out.isAttack = true;
+      break;
+    }
+    case 'crit': {
+      const baseDmg = Math.floor(10 + muscle * 2.5 + rand() * 8);
+      out.damage = Math.floor(baseDmg * (eff.multiplier || 2.5));
+      out.logs.push(`${skill.icon} ${skill.name}! KRITIEK! ${out.damage} schade!`);
+      out.isAttack = true;
+      break;
+    }
+    case 'stun': {
+      const statVal = eff.stat === 'charm' ? charm : eff.stat === 'brains' ? brains : muscle;
+      const chance = (eff.chance || 0.7) + statVal * 0.02;
+      if (rand() < chance) {
+        out.enemyStun = true;
+        out.damage = Math.floor(3 + charm);
+        out.logs.push(`${skill.icon} ${skill.name}! Vijand STUNNED! +${out.damage} schade.`);
+      } else {
+        out.logs.push(`${skill.icon} ${skill.name} mislukt!`);
+      }
+      out.isAttack = true;
+      break;
+    }
+    case 'execute': {
+      const thresholdHP = enemyMaxHP * (eff.thresholdPct || 0.3);
+      if (enemyHP <= thresholdHP) {
+        out.damage = Math.floor(muscle * 3 + (eff.bonusDamage || 25) + rand() * 10);
+        out.logs.push(`${skill.icon} ${skill.name}! Doelwit is zwak — ${out.damage} EXECUTIE schade!`);
+      } else {
+        out.damage = Math.floor(muscle * 2 + rand() * 8);
+        out.logs.push(`${skill.icon} ${skill.name}! ${out.damage} schade. (HP te hoog voor bonus)`);
+      }
+      out.isAttack = true;
+      break;
+    }
+    // emergency_heal is a passive, handled in the turn loop
+    default: break;
+  }
+
+  return out;
+}
+
+/** PvP adapter: applies a shared skill outcome to the attacker/defender state. */
 function applySkillEffect(
   skill: CombatSkill,
   state: PvPCombatState,
@@ -441,78 +532,13 @@ function applySkillEffect(
   brains: number,
   charm: number,
 ): { damage: number; newPlayerHP: number; newPlayerBuffs: CombatBuff[]; newEnemyBuffs: CombatBuff[]; logs: string[]; isAttack: boolean } {
-  const logs: string[] = [];
-  let damage = 0;
-  let newPlayerHP = state.attackerHP;
-  let newPlayerBuffs = [...state.attackerBuffs];
-  let newEnemyBuffs = [...state.defenderBuffs];
-  let isAttack = false;
-
-  const eff = skill.effect;
-
-  switch (eff.type) {
-    case 'damage':
-      damage = Math.floor(muscle * 2 + eff.value + Math.random() * 5);
-      logs.push(`${skill.icon} ${skill.name}! ${damage} schade!`);
-      isAttack = true;
-      break;
-    case 'buff':
-      newPlayerBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
-      logs.push(`${skill.icon} ${skill.name} geactiveerd! ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
-      break;
-    case 'heal_and_buff':
-      newPlayerHP = Math.min(state.attackerMaxHP, newPlayerHP + (eff.healAmount || 0));
-      newPlayerBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
-      logs.push(`${skill.icon} ${skill.name}! +${eff.healAmount} HP, ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
-      break;
-    case 'multi_hit': {
-      const hits = eff.hits || 3;
-      let totalDmg = 0;
-      for (let i = 0; i < hits; i++) {
-        const hit = Math.floor((eff.damagePerHit || 6) + muscle * 0.8 + Math.random() * 3);
-        totalDmg += hit;
-      }
-      damage = totalDmg;
-      logs.push(`${skill.icon} ${skill.name}! ${hits}x treffer = ${totalDmg} totale schade!`);
-      isAttack = true;
-      break;
-    }
-    case 'crit': {
-      const baseDmg = Math.floor(10 + muscle * 2.5 + Math.random() * 8);
-      damage = Math.floor(baseDmg * (eff.multiplier || 2.5));
-      logs.push(`${skill.icon} ${skill.name}! KRITIEK! ${damage} schade!`);
-      isAttack = true;
-      break;
-    }
-    case 'stun': {
-      const statVal = eff.stat === 'charm' ? charm : eff.stat === 'brains' ? brains : muscle;
-      const chance = (eff.chance || 0.7) + statVal * 0.02;
-      if (Math.random() < chance) {
-        newEnemyBuffs.push({ id: 'stun', name: 'Stunned', duration: 1, effect: 'stun' });
-        damage = Math.floor(3 + charm);
-        logs.push(`${skill.icon} ${skill.name}! Vijand STUNNED! +${damage} schade.`);
-      } else {
-        logs.push(`${skill.icon} ${skill.name} mislukt!`);
-      }
-      isAttack = true;
-      break;
-    }
-    case 'execute': {
-      const thresholdHP = state.defenderMaxHP * (eff.thresholdPct || 0.3);
-      if (state.defenderHP <= thresholdHP) {
-        damage = Math.floor(muscle * 3 + (eff.bonusDamage || 25) + Math.random() * 10);
-        logs.push(`${skill.icon} ${skill.name}! Doelwit is zwak — ${damage} EXECUTIE schade!`);
-      } else {
-        damage = Math.floor(muscle * 2 + Math.random() * 8);
-        logs.push(`${skill.icon} ${skill.name}! ${damage} schade. (HP te hoog voor bonus)`);
-      }
-      isAttack = true;
-      break;
-    }
-    case 'emergency_heal':
-      // Passive — handled in main loop
-      break;
+  const out = resolveSkillEffect(skill, { muscle, brains, charm }, state.defenderHP, state.defenderMaxHP);
+  const newPlayerBuffs = [...state.attackerBuffs];
+  const newEnemyBuffs = [...state.defenderBuffs];
+  for (const b of out.selfBuffs) {
+    newPlayerBuffs.push({ id: b.id, name: BUFF_DEFS[b.id]?.name || b.id, duration: b.duration, effect: b.id });
   }
-
-  return { damage, newPlayerHP, newPlayerBuffs, newEnemyBuffs, logs, isAttack };
+  if (out.enemyStun) newEnemyBuffs.push({ id: 'stun', name: 'Stunned', duration: 1, effect: 'stun' });
+  const newPlayerHP = Math.min(state.attackerMaxHP, state.attackerHP + out.selfHeal);
+  return { damage: out.damage, newPlayerHP, newPlayerBuffs, newEnemyBuffs, logs: out.logs, isAttack: out.isAttack };
 }

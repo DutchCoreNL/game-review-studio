@@ -2,7 +2,7 @@ import { GameState, FamilyId, FactionActionType } from '../types';
 import { syncChallenges } from './helpers';
 import { calculateCombatRating, rollCombatLoot, getStreakBonus, CombatStats } from '../combatLoot';
 import * as Engine from '../engine';
-import { COMBAT_SKILLS, isSkillOnCooldown, tickCooldowns, tickBuffs, hasActiveBuff, COMBO_THRESHOLD, COMBO_FINISHER_DAMAGE, COMBO_FINISHER_STUN_CHANCE, BUFF_DEFS, getAvailableSkills } from '../combatSkills';
+import { COMBAT_SKILLS, isSkillOnCooldown, tickCooldowns, tickBuffs, hasActiveBuff, COMBO_THRESHOLD, COMBO_FINISHER_DAMAGE, COMBO_FINISHER_STUN_CHANCE, BUFF_DEFS, getAvailableSkills, resolveSkillEffect } from '../combatSkills';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../newFeatures';
 import { calculateEndgamePhase, buildVictoryData, startFinalBoss, createBossPhase, createNewGamePlus, getDeckDialogue } from '../endgame';
 import { checkCinematicTrigger } from '../cinematics';
@@ -34,70 +34,18 @@ export function handleCombatAction(s: GameState, combatAction: 'attack' | 'heavy
     const muscle = Engine.getPlayerStat(s, 'muscle');
     const brains = Engine.getPlayerStat(s, 'brains');
     const charm = Engine.getPlayerStat(s, 'charm');
-    const eff = skill.effect;
-    let playerDamage = 0;
-    let isAttack = false;
-
-    switch (eff.type) {
-      case 'damage':
-        playerDamage = Math.floor(muscle * 2 + (eff.value || 8) + Math.random() * 5);
-        combat.logs.push(`${skill.icon} ${skill.name}! ${playerDamage} schade!`);
-        isAttack = true;
-        break;
-      case 'buff':
-        combat.activeBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
-        combat.logs.push(`${skill.icon} ${skill.name} geactiveerd! ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
-        break;
-      case 'heal_and_buff':
-        combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + (eff.healAmount || 0));
-        combat.activeBuffs.push({ id: eff.buffId!, name: BUFF_DEFS[eff.buffId!]?.name || eff.buffId!, duration: eff.duration!, effect: eff.buffId! });
-        combat.logs.push(`${skill.icon} ${skill.name}! +${eff.healAmount} HP, ${BUFF_DEFS[eff.buffId!]?.effect || ''}`);
-        break;
-      case 'multi_hit': {
-        const hits = eff.hits || 3;
-        let totalDmg = 0;
-        for (let i = 0; i < hits; i++) {
-          totalDmg += Math.floor((eff.damagePerHit || 6) + muscle * 0.8 + Math.random() * 3);
-        }
-        playerDamage = totalDmg;
-        combat.logs.push(`${skill.icon} ${skill.name}! ${hits}x treffer = ${totalDmg} totale schade!`);
-        isAttack = true;
-        break;
-      }
-      case 'crit': {
-        const baseDmg = Math.floor(10 + muscle * 2.5 + Math.random() * 8);
-        playerDamage = Math.floor(baseDmg * (eff.multiplier || 2.5));
-        combat.logs.push(`${skill.icon} ${skill.name}! KRITIEK! ${playerDamage} schade!`);
-        isAttack = true;
-        break;
-      }
-      case 'stun': {
-        const statVal = eff.stat === 'charm' ? charm : eff.stat === 'brains' ? brains : muscle;
-        const chance = (eff.chance || 0.7) + statVal * 0.02;
-        if (Math.random() < chance) {
-          combat.stunned = true;
-          playerDamage = Math.floor(3 + charm);
-          combat.logs.push(`${skill.icon} ${skill.name}! Vijand STUNNED! +${playerDamage} schade.`);
-        } else {
-          combat.logs.push(`${skill.icon} ${skill.name} mislukt!`);
-        }
-        isAttack = true;
-        break;
-      }
-      case 'execute': {
-        const thresholdHP = combat.enemyMaxHP * (eff.thresholdPct || 0.3);
-        if (combat.targetHP <= thresholdHP) {
-          playerDamage = Math.floor(muscle * 3 + (eff.bonusDamage || 25) + Math.random() * 10);
-          combat.logs.push(`${skill.icon} ${skill.name}! Doelwit is zwak — ${playerDamage} EXECUTIE schade!`);
-        } else {
-          playerDamage = Math.floor(muscle * 2 + Math.random() * 8);
-          combat.logs.push(`${skill.icon} ${skill.name}! ${playerDamage} schade. (HP te hoog voor bonus)`);
-        }
-        isAttack = true;
-        break;
-      }
-      default: break;
+    // Shared skill resolution — the same outcome PvP uses, applied to PvE state.
+    const outcome = resolveSkillEffect(skill, { muscle, brains, charm }, combat.targetHP, combat.enemyMaxHP);
+    combat.logs.push(...outcome.logs);
+    let playerDamage = outcome.damage;
+    const isAttack = outcome.isAttack;
+    if (outcome.selfHeal > 0) {
+      combat.playerHP = Math.min(combat.playerMaxHP, combat.playerHP + outcome.selfHeal);
     }
+    for (const b of outcome.selfBuffs) {
+      combat.activeBuffs.push({ id: b.id, name: BUFF_DEFS[b.id]?.name || b.id, duration: b.duration, effect: b.id });
+    }
+    if (outcome.enemyStun) combat.stunned = true;
 
     if (isAttack && playerDamage > 0) combat.comboCounter++;
     if (hasActiveBuff(combat.activeBuffs, 'damage_boost') && playerDamage > 0) {
