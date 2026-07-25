@@ -16,6 +16,8 @@ import { MissionEncounterView } from './MissionEncounterView';
 import { GameToast } from './GameToast';
 import { XpBreakdownPopup } from './XpBreakdownPopup';
 import { TutorialOverlay } from './TutorialOverlay';
+import { IncidentOverlay } from './IncidentOverlay';
+import { CatchUpReport } from './CatchUpReport';
 import { LoreNotification } from './codex/LoreNotification';
 import { DailyRewardPopup } from './DailyRewardPopup';
 
@@ -213,6 +215,9 @@ export function GameLayout() {
             <BackstorySelection onSelect={(id) => dispatch({ type: 'SELECT_BACKSTORY', backstoryId: id })} />
           ) : (
             <>
+              {/* The world demanding a decision outranks everything but a hard stop. */}
+              <IncidentOverlay />
+              <CatchUpReport />
               {state.gameOver && <GameOverScreen />}
               {state.prison && <PrisonOverlay />}
               {state.hospital && <HospitalStayOverlay />}

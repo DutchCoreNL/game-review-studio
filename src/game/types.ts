@@ -1189,6 +1189,12 @@ export interface GameState {
   org: import('./organization').PlayerOrg | null; // the player's own criminal outfit
   autoFence?: { owned: boolean; paused: boolean }; // passive contraband market (idle trade)
   legacy?: import('./legacy').LegacyState; // prestige (successor) progress, survives resets
+  /** Rival attention your rackets have stirred up, per district (0-100). */
+  districtAttention?: Partial<Record<DistrictId, number>>;
+  /** The situation currently demanding a decision, if any. */
+  activeIncident?: import('./incidents').ActiveIncident | null;
+  /** Outcome text of the last incident you resolved, shown as a result card. */
+  lastIncidentResult?: { title: string; message: string; icon: string } | null;
 
   // ========== SKILL TREE & PRESTIGE STATE ==========
   unlockedSkills: { skillId: string; level: number }[];

@@ -1,4 +1,5 @@
 import type { DistrictId } from './types';
+import { rollTrait } from './rackets';
 
 /**
  * Player-run criminal Organization — a local, single-player system.
@@ -12,11 +13,11 @@ import type { DistrictId } from './types';
 export type OrgRole = 'soldaat' | 'luitenant' | 'onderbaas';
 
 /**
- * The idle "posture" a crew member holds. Each member you assign to a racket
- * contributes to that racket's output every world tick, so the empire runs itself
- * (see src/game/rackets.ts). `null`/undefined means the member is idle (reserve).
+ * Which racket (a specific operation in a specific district — see src/game/rackets.ts)
+ * this crew member runs each day. `null`/undefined means they are resting, which
+ * slowly restores their loyalty.
  */
-export type RacketId = 'afpersing' | 'territorium' | 'witwassen' | 'werving';
+export type RacketId = string;
 
 export interface OrgMember {
   id: string;
@@ -24,7 +25,10 @@ export interface OrgMember {
   role: OrgRole;
   level: number;
   loyalty: number; // 0-100
-  assignment?: RacketId | null; // which racket this member runs each tick
+  assignment?: RacketId | null; // racket id this member works, or null when resting
+  trait?: import('./rackets').CrewTraitId; // personality: what they're good at
+  /** Days spent recovering after being hurt in an incident; they cannot work. */
+  injuredUntilDay?: number;
 }
 
 export type OrgRelation = 'ally' | 'enemy';
@@ -249,7 +253,8 @@ export function makeRecruit(name: string, playerLevel: number, rand: () => numbe
     role: 'soldaat',
     level,
     loyalty: 60 + Math.floor(rand() * 20),
-    assignment: 'afpersing', // new crew start earning on the extortion racket
+    assignment: null, // they report for duty; you decide where they work
+    trait: rollTrait(rand),
   };
 }
 

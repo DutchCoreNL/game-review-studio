@@ -20,7 +20,6 @@ import { useDailyDigest } from '@/hooks/useDailyDigest';
 import { DailyDigestPopup } from './DailyDigestPopup';
 import { Dices, Wrench, Home, Building2, Swords, Heart, Moon, FileText } from 'lucide-react';
 import { NightReport } from './NightReport';
-import { CatchUpReport } from './CatchUpReport';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
@@ -115,7 +114,6 @@ export function MapView() {
   return (
     <div className="relative">
       <HidingOverlay />
-      <CatchUpReport />
 
       {showNightReport && state.nightReport && (
         <NightReport onClose={() => setShowNightReport(false)} />

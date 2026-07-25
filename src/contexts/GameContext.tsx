@@ -22,7 +22,8 @@ import {
   orgPactCost, orgOperationRewardMult, orgDefenseAdvantage, orgAllySupport,
   type PlayerOrg, type OrgMember, type RacketId,
 } from '../game/organization';
-import { resolveRacketTick } from '../game/rackets';
+import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
+import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
 
@@ -330,6 +331,8 @@ type GameAction =
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
   | { type: 'ORG_RUN_OPERATION'; operationId: string }
   | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
+  | { type: 'RESOLVE_INCIDENT'; choiceId: string }
+  | { type: 'CLEAR_INCIDENT_RESULT' }
   | { type: 'ORG_ASSIGN_RACKET'; memberId: string; racket: RacketId | null }
   | { type: 'ORG_ASSIGN_ALL'; racket: RacketId | null }
   | { type: 'BUY_AUTO_FENCE' }
@@ -958,10 +961,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // ========== RACKETS — the idle crew output ==========
-      // Every member you assigned to a racket produces this tick: extortion earns
-      // money, territory earns respect, laundering cools heat, recruiting lifts
-      // morale. Extortion and territory also stoke police heat (Groei vs. Hitte).
+      // ========== RACKETS — your crew works Noxhaven ==========
+      // Each member runs a racket in a specific district: it pays, it heats you up,
+      // and it draws the attention of whoever considers that turf theirs. Members
+      // left resting recover their loyalty instead.
       if (s.org && s.org.members.length > 0) {
         const rt = resolveRacketTick(s.org);
         if (rt.money > 0) {
@@ -970,10 +973,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
         if (rt.respect > 0) s.org.respect += rt.respect;
         if (rt.loyaltyRegen > 0) {
-          for (const m of s.org.members) m.loyalty = Math.min(100, m.loyalty + rt.loyaltyRegen);
+          for (const m of s.org.members) {
+            if (!m.assignment) m.loyalty = Math.min(100, m.loyalty + rt.loyaltyRegen);
+          }
         }
         if (rt.heat !== 0) { Engine.addPersonalHeat(s, rt.heat); Engine.recomputeHeat(s); }
         for (const line of rt.notes) orgLog(`💼 ${line}`);
+
+        // Rival attention builds where you work, and bleeds off everywhere else.
+        if (!s.districtAttention) s.districtAttention = {};
+        const att = s.districtAttention;
+        for (const d of Object.keys(DISTRICTS) as import('@/game/types').DistrictId[]) {
+          const added = rt.attention[d] || 0;
+          const next = (att[d] || 0) + added - ATTENTION_DECAY_PER_DAY;
+          att[d] = Math.max(0, Math.min(100, next));
+        }
+
+        // Injured crew recover over time.
+        for (const m of s.org.members) {
+          if (m.injuredUntilDay && s.day >= m.injuredUntilDay) m.injuredUntilDay = undefined;
+        }
+      }
+
+      // ========== INCIDENTS — the world answers back ==========
+      // Only one situation waits for you at a time; a pending decision blocks new ones.
+      if (!s.activeIncident) {
+        const incident = rollIncident(s, Math.random);
+        if (incident) {
+          s.activeIncident = incident;
+          orgLog(`❗ ${incident.title}`);
+          addPhoneMessage(s, 'system', incident.title, incident.kind === 'kans' ? 'opportunity' : 'threat');
+        }
       }
 
       // ========== AUTO-FENCE — the passive contraband market ==========
@@ -4097,7 +4127,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       fresh.money = legacyStartCash(nextLegacy.points);
       fresh.backstory = s.backstory;      // same dynasty, same origin story
       fresh.tutorialDone = true;          // the successor knows the ropes
-      fresh.settings = s.settings;        // keep player preferences
       return fresh;
     }
 
@@ -4415,6 +4444,65 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ORG_DISMISS': {
       if (!s.org) return s;
       s.org.members = s.org.members.filter(x => x.id !== action.memberId);
+      return s;
+    }
+
+    case 'RESOLVE_INCIDENT': {
+      const inc = s.activeIncident as ActiveIncident | null | undefined;
+      if (!inc) return s;
+      const choice = inc.choices.find(c => c.id === action.choiceId);
+      if (!choice) return s;
+      if (choice.costMoney && s.money < choice.costMoney) return s;
+
+      // A gamble resolves to one of two outcomes; everything else is certain.
+      const succeeded = choice.successChance == null ? true : Math.random() < choice.successChance;
+      const outcome: IncidentOutcome = succeeded ? choice.outcome : (choice.failOutcome || choice.outcome);
+
+      if (outcome.money) {
+        s.money = Math.max(0, s.money + outcome.money);
+        if (outcome.money > 0) s.stats.totalEarned += outcome.money;
+        else s.stats.totalSpent += Math.abs(outcome.money);
+      }
+      if (outcome.heat) { Engine.addPersonalHeat(s, outcome.heat); Engine.recomputeHeat(s); }
+      if (outcome.respect && s.org) s.org.respect = Math.max(0, s.org.respect + outcome.respect);
+      if (outcome.loyalty && s.org) {
+        for (const m of s.org.members) m.loyalty = Math.max(0, Math.min(100, m.loyalty + outcome.loyalty));
+      }
+      if (outcome.attention && inc.district) {
+        if (!s.districtAttention) s.districtAttention = {};
+        const cur = s.districtAttention[inc.district] || 0;
+        s.districtAttention[inc.district] = Math.max(0, Math.min(100, cur + outcome.attention));
+      }
+      if (outcome.rivalPower && inc.district && s.world) {
+        const gang = s.world.gangs.find(g => g.controlledDistrict === inc.district);
+        if (gang) gang.power = Math.max(10, gang.power + outcome.rivalPower);
+      }
+      if (outcome.injureChance && s.org) {
+        const working = s.org.members.filter(m => m.assignment && !m.injuredUntilDay);
+        if (working.length > 0 && Math.random() < outcome.injureChance) {
+          const hurt = working[Math.floor(Math.random() * working.length)];
+          hurt.injuredUntilDay = s.day + 2 + Math.floor(Math.random() * 3);
+          hurt.assignment = null;
+          addPhoneMessage(s, 'system', `${hurt.name} raakte gewond en ligt er een paar dagen uit.`, 'warning');
+        }
+      }
+      if (outcome.pullOutOfDistrict && s.org) {
+        // Everyone in the affected district (or everyone, for a force-wide order) goes quiet.
+        for (const m of s.org.members) {
+          if (!m.assignment) continue;
+          const def = RACKET_BY_ID[m.assignment];
+          if (!inc.district || (def && def.district === inc.district)) m.assignment = null;
+        }
+      }
+
+      s.lastIncidentResult = { title: inc.title, message: outcome.message, icon: inc.icon };
+      s.activeIncident = null;
+      addPhoneMessage(s, 'system', outcome.message, succeeded ? 'info' : 'warning');
+      return s;
+    }
+
+    case 'CLEAR_INCIDENT_RESULT': {
+      s.lastIncidentResult = null;
       return s;
     }
 
