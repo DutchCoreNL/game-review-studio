@@ -29,6 +29,30 @@ import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLeg
 
 /** Personal-heat level at which the idle empire gets raided by police. */
 const HEAT_RAID_THRESHOLD = 92;
+
+/**
+ * What each origin gives you on day one: a crew name, a right hand with a fitting
+ * temperament, and a first racket already earning. This is what makes the game
+ * playable from the first second instead of gating the whole idle loop behind
+ * money and respect a new player cannot have.
+ */
+const ORIGIN_START = {
+  weduwnaar: {
+    crewName: 'De Nabestaanden', tag: 'NAB', respect: 10,
+    rightHand: 'Joris', trait: 'meedogenloos' as const, racket: 'low_protection',
+    opening: 'Je begon klein: een handvol winkeliers in Lowrise die liever jou betalen. Joris staat naast je.',
+  },
+  bankier: {
+    crewName: 'Het Kantoor', tag: 'KNT', respect: 10,
+    rightHand: 'Miriam', trait: 'gladjanus' as const, racket: 'low_runners',
+    opening: 'Je kent het systeem van binnenuit. Miriam regelt de koeriers terwijl jij de boeken doet.',
+  },
+  straatkind: {
+    crewName: 'De Steeg', tag: 'STG', respect: 10,
+    rightHand: 'Ayoub', trait: 'straatslim' as const, racket: 'low_runners',
+    opening: 'De straten van Lowrise waren altijd al van jou. Ayoub loopt de routes die jullie als kind liepen.',
+  },
+} as const;
 import * as MissionEngine from '../game/missions';
 import { startNemesisCombat, addPhoneMessage, resolveWarEvent, performSpionage, performSabotage, negotiateNemesis, scoutNemesis, checkNemesisWoundedRevenge } from '../game/newFeatures';
 import { createHeistPlan, performRecon, validateHeistPlan, startHeist as startHeistFn, executePhase, resolveComplication, HEIST_EQUIPMENT, HEIST_TEMPLATES } from '../game/heists';
@@ -2034,6 +2058,33 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SELECT_BACKSTORY': {
       applyBackstory(s, action.backstoryId as any);
+      // Your origin *is* the founding of your outfit. Without this the idle game
+      // is unreachable: a fresh player has €3.000 and 0 respect, while founding an
+      // organisation costs €25.000 and 40 respect. You start with a name, one
+      // loyal hand and a racket already running on your home streets.
+      const seed = ORIGIN_START[action.backstoryId as keyof typeof ORIGIN_START];
+      if (seed && !s.org) {
+        const firstHand: OrgMember = {
+          id: `om_start_${Date.now()}`,
+          name: seed.rightHand,
+          role: 'luitenant',
+          level: Math.max(1, s.player.level),
+          loyalty: 85,
+          assignment: seed.racket,
+          trait: seed.trait,
+        };
+        s.org = {
+          name: seed.crewName,
+          tag: seed.tag,
+          members: [firstHand],
+          controlledDistricts: [],
+          respect: seed.respect,
+          upgrades: [],
+          foundedDay: s.day,
+        };
+        s.districtAttention = {};
+        addPhoneMessage(s, 'system', seed.opening, 'opportunity');
+      }
       return s;
     }
 

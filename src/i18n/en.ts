@@ -236,7 +236,7 @@ export const en: Translations = {
     resetButton: 'NEW GAME',
     exitMenu: 'BACK TO MENU',
     linkAccount: 'Link Account',
-    mmoPerk: 'MMO Perk',
+    mmoPerk: 'Your start',
     upgraded: 'upgraded!',
     mainMenu: 'MAIN MENU',
     startOver: 'START OVER',

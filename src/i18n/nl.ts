@@ -236,7 +236,7 @@ export const nl: Translations = {
     resetButton: 'NIEUW SPEL',
     exitMenu: 'TERUG NAAR MENU',
     linkAccount: 'Account Koppelen',
-    mmoPerk: 'MMO Perk',
+    mmoPerk: 'Je start',
     upgraded: 'verhoogd!',
     mainMenu: 'HOOFDMENU',
     startOver: 'OPNIEUW BEGINNEN',
