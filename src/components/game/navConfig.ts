@@ -1,13 +1,8 @@
 import {
-  LayoutDashboard, Hand,
-  Map, Dices, Heart, Home, Building2, Wrench,
-  Crosshair, FileText, Target, Skull, Swords, Award, Calendar,
-  ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
-  Users, Handshake, Crown as CrownIcon,
-  Car, Store, MapPin, Hammer,
-  Star, Shield, Trophy, Settings, Sword, Smartphone,
-  ShieldAlert, LucideIcon, BookOpen, Sparkles, GraduationCap, Plane, MessageCircle, Waypoints,
-  Package, Flame,
+  Hand, LayoutDashboard, Crown as CrownIcon, Wrench,
+  ShoppingBag, Droplets, BarChart3,
+  Map, Dices, Home, Building2, Heart,
+  Trophy, BookOpen, Settings, ShieldAlert, LucideIcon,
 } from 'lucide-react';
 import type { GameView, GameState } from '@/game/types';
 import type { Translations } from '@/i18n/types';
@@ -16,21 +11,24 @@ import type { Translations } from '@/i18n/types';
  * SINGLE SOURCE OF TRUTH for in-game navigation.
  *
  * The bottom nav (GameNav), the mobile drawer (GameSidebar) and the desktop rail
- * (DesktopSidebar) all derive their structure from this file so the menu can never
- * drift between surfaces again. The game is single-player, so dead/broken
- * "multiplayer" destinations (the P2P gang panel, the player-to-player inbox,
- * orphaned stat panels) are intentionally absent here — they are simply not part
- * of the menu, which keeps every reachable screen a working one.
+ * (DesktopSidebar) all derive their structure from this file.
+ *
+ * Scope note: this game is a single-player mafia idle game built around one loop
+ * — work a job by hand, let your crew run rackets in the districts, sell and
+ * launder what you take, buy gear and crew, answer the incidents the city throws
+ * back, and eventually hand the empire to a successor. The menu lists exactly the
+ * screens that serve that loop or its setting. The old MMO/RPG destinations (PvP,
+ * bounties, world bosses, shared markets, the skill tree, the arsenals, contracts,
+ * factions, heists) are deliberately absent: they belong to a different game and
+ * their presence was what made this one feel like a wall of buttons.
  */
 
-export type NavGroupId = 'city' | 'ops' | 'market' | 'garage' | 'profile';
+export type NavGroupId = 'klus' | 'imperium' | 'handel' | 'uitrusting' | 'profile';
 
 interface NavItemDef {
   id: GameView;
   icon: LucideIcon;
-  /** Resolves the localized label from the translation dictionary. */
   label: (t: Translations) => string;
-  /** Optional live badge count/flag derived from game state. */
   badge?: (s: GameState) => number | boolean;
 }
 
@@ -38,92 +36,50 @@ interface NavGroupDef {
   id: NavGroupId;
   emoji: string;
   label: (t: Translations) => string;
-  /** The view the bottom-nav tab for this group opens. */
+  /** The view this group's bottom-nav tab opens. */
   primary: GameView;
   items: NavItemDef[];
 }
 
-/**
- * The 5 single-player sections. The old "Crew & Oorlog" group has been folded into
- * Imperium, matching the 5 bottom-nav tabs and the 5 music scenes.
- */
 const GROUPS: NavGroupDef[] = [
   {
-    id: 'city', emoji: '🏙', label: t => t.sidebar.overview, primary: 'klus',
+    id: 'klus', emoji: '✊', label: t => t.sidebar.score, primary: 'klus',
     items: [
       { id: 'klus', icon: Hand, label: t => t.sidebar.score },
-      { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, badge: s => (s.org?.members.filter(m => !m.assignment).length || 0) },
-      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
-      { id: 'districts', icon: MapPin, label: t => t.sidebar.districts },
       { id: 'city', icon: Map, label: t => t.sidebar.map },
-      { id: 'travel', icon: Plane, label: t => t.sidebar.travel },
-      { id: 'chat', icon: MessageCircle, label: t => t.sidebar.chat },
       { id: 'casino', icon: Dices, label: t => t.sidebar.casino },
-      { id: 'hospital', icon: Heart, label: t => t.sidebar.hospital },
       { id: 'safehouse', icon: Home, label: t => t.sidebar.safehouse },
       { id: 'villa', icon: Building2, label: t => t.sidebar.villa },
-      { id: 'chopshop', icon: Wrench, label: t => t.sidebar.chopShop },
+      { id: 'hospital', icon: Heart, label: t => t.sidebar.hospital },
     ],
   },
   {
-    id: 'ops', emoji: '⚔', label: t => t.sidebar.actions, primary: 'ops',
+    id: 'imperium', emoji: '🏙', label: t => t.sidebar.overview, primary: 'overzicht',
     items: [
-      { id: 'campaign', icon: BookOpen, label: t => t.sidebar.campaign },
-      { id: 'ops', icon: Crosshair, label: t => t.sidebar.operations, badge: s => (s.activeContracts?.length || 0) + (s.hitContracts?.length || 0) },
-      { id: 'contracts', icon: FileText, label: t => t.sidebar.contracts },
-      { id: 'heists', icon: Target, label: t => t.sidebar.heists },
-      { id: 'raids', icon: Flame, label: t => t.sidebar.raids, badge: s => (s.activeDungeon ? 1 : 0) },
-      { id: 'bounties', icon: Skull, label: t => t.sidebar.bounties },
-      { id: 'pvp', icon: Swords, label: t => t.sidebar.pvp },
-      { id: 'wanted', icon: ShieldAlert, label: t => t.sidebar.mostWanted },
-      { id: 'challenges', icon: Calendar, label: t => t.sidebar.daily },
-      { id: 'hits', icon: Award, label: t => t.sidebar.hits },
-      { id: 'crew', icon: Users, label: t => t.sidebar.crew, badge: s => (s.crew?.filter(c => c.hp < 100).length || 0) },
+      // Unassigned crew is the one thing you always want nudging you.
+      { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, badge: s => (s.org?.members.filter(m => !m.assignment && !m.injuredUntilDay).length || 0) },
+      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
+      { id: 'opvolger', icon: CrownIcon, label: t => t.sidebar.successor, badge: s => (s.legacy?.points || 0) },
     ],
   },
   {
-    id: 'market', emoji: '💰', label: t => t.sidebar.trade, primary: 'market',
+    id: 'handel', emoji: '💰', label: t => t.sidebar.trade, primary: 'market',
     items: [
       { id: 'market', icon: ShoppingBag, label: t => t.sidebar.market },
+      { id: 'launder', icon: Droplets, label: t => t.sidebar.launder, badge: s => (s.dirtyMoney || 0) > 0 },
       { id: 'analysis', icon: BarChart3, label: t => t.sidebar.analysis },
-      { id: 'auction', icon: Gavel, label: t => t.sidebar.auction, badge: s => (s.auctionItems?.length || 0) },
-      { id: 'stocks', icon: TrendingUp, label: t => t.sidebar.stocks, badge: s => !!s.pendingInsiderTip },
-      { id: 'launder', icon: Droplets, label: t => t.sidebar.launder },
-      { id: 'gear', icon: ShieldCheck, label: t => t.sidebar.gear },
-      { id: 'black-market', icon: Skull, label: t => t.sidebar.blackMarket },
-      { id: 'salvage', icon: Hammer, label: t => t.sidebar.salvage },
-      { id: 'loot-boxes', icon: Package, label: t => t.sidebar.lootBoxes },
     ],
   },
   {
-    id: 'garage', emoji: '🏛', label: t => t.sidebar.imperium, primary: 'garage',
+    id: 'uitrusting', emoji: '🧰', label: t => t.sidebar.equipment, primary: 'uitrusting',
     items: [
-      { id: 'business', icon: Store, label: t => t.sidebar.business },
-      { id: 'garage', icon: Car, label: t => t.sidebar.garage, badge: s => (s.carOrders?.filter(o => s.day >= o.deadline).length || 0) },
-      { id: 'properties', icon: Home, label: t => t.sidebar.properties },
-      { id: 'families', icon: Users, label: t => t.sidebar.factions },
-      { id: 'organized-crimes', icon: Waypoints, label: t => t.sidebar.organizedCrime },
-      { id: 'war', icon: Swords, label: t => t.sidebar.war },
-      { id: 'corruption', icon: Handshake, label: t => t.sidebar.corruption },
+      { id: 'uitrusting', icon: Wrench, label: t => t.sidebar.equipment },
     ],
   },
   {
     id: 'profile', emoji: '👤', label: t => t.sidebar.profile, primary: 'profile',
     items: [
       { id: 'profile', icon: BarChart3, label: t => t.sidebar.statsSkills },
-      { id: 'opvolger', icon: CrownIcon, label: t => t.sidebar.successor, badge: s => (s.legacy?.points || 0) },
-      { id: 'merit', icon: Sparkles, label: t => t.sidebar.meritPoints, badge: s => (s.meritPoints || 0) },
-      { id: 'gym', icon: Award, label: t => t.sidebar.gym },
-      { id: 'jobs', icon: Star, label: t => t.sidebar.jobs },
-      { id: 'education', icon: GraduationCap, label: t => t.sidebar.education },
-      { id: 'loadout', icon: Shield, label: t => t.sidebar.loadout },
-      { id: 'weapons', icon: Sword, label: t => t.sidebar.weaponArsenal, badge: s => (s.weaponInventory?.length || 0) },
-      { id: 'armor-arsenal', icon: Shield, label: t => t.sidebar.armorArsenal, badge: s => (s.armorInventory?.length || 0) },
-      { id: 'gadget-arsenal', icon: Smartphone, label: t => t.sidebar.gadgetArsenal, badge: s => (s.gadgetInventory?.length || 0) },
-      { id: 'contacts', icon: Users, label: t => t.sidebar.npcRelations },
-      { id: 'reputation', icon: Star, label: t => t.sidebar.reputation },
-      { id: 'leaderboard', icon: CrownIcon, label: t => t.sidebar.leaderboard },
-      { id: 'arcs', icon: Target, label: t => t.sidebar.storyArcs },
       { id: 'codex', icon: BookOpen, label: t => t.sidebar.codex },
       { id: 'trophies', icon: Trophy, label: t => t.sidebar.trophies },
       { id: 'settings', icon: Settings, label: t => t.sidebar.settings },

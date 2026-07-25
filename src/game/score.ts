@@ -1,5 +1,6 @@
 import type { DistrictId, GameState, GoodId } from './types';
 import { RACKET_BY_ID } from './rackets';
+import { equipTapBonus, equipCrewMultiplier, equipStashBonus } from './equipment';
 
 /**
  * DE KLUS — the hands-on core of the game.
@@ -110,7 +111,12 @@ export function makeJob(district: DistrictId, streak = 0, rand: () => number = M
 
 /** Work a single tap adds — your own hands, sharpened by experience. */
 export function tapPower(state: GameState): number {
-  return 1 + Math.floor((state.player?.level || 1) / 4);
+  return 1 + Math.floor((state.player?.level || 1) / 4) + equipTapBonus(state);
+}
+
+/** Total contraband your stash holds, base capacity plus storage upgrades. */
+export function stashCapacity(state: GameState): number {
+  return (state.maxInv || 15) + equipStashBonus(state);
 }
 
 /**
@@ -126,7 +132,7 @@ export function crewWorkPerSecond(state: GameState, district: DistrictId): numbe
     if (!def || def.district !== district) continue;
     work += 0.25 + (m.loyalty / 100) * 0.45;
   }
-  return work;
+  return work * equipCrewMultiplier(state);
 }
 
 export interface JobReward {
@@ -152,7 +158,7 @@ export function rollJobReward(
   const drops = 1 + Math.floor(rand() * 2) + Math.floor(job.tier / 2);
 
   const held = Object.values(state.inventory || {}).reduce((a: number, b) => a + (Number(b) || 0), 0);
-  const capacity = Math.max(0, (state.maxInv || 15) - held);
+  const capacity = Math.max(0, stashCapacity(state) - held);
   let stored = 0;
   let overflowUnits = 0;
 

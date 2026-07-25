@@ -30,6 +30,7 @@ export const en: Translations = {
   nav: {
     map: 'MAP',
     score: 'THE SCORE',
+    equipment: 'GEAR',
     overview: 'EMPIRE',
     actions: 'ACTIONS',
     trade: 'TRADE',
@@ -38,6 +39,7 @@ export const en: Translations = {
   },
   sidebar: {
     score: 'The Score',
+    equipment: 'Equipment',
     overview: 'OVERVIEW',
     successor: 'Successor',
     city: 'CITY',

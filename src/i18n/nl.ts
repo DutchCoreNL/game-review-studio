@@ -30,6 +30,7 @@ export const nl: Translations = {
   nav: {
     map: 'KAART',
     score: 'DE KLUS',
+    equipment: 'UITRUSTING',
     overview: 'IMPERIUM',
     actions: 'ACTIES',
     trade: 'HANDEL',
@@ -38,6 +39,7 @@ export const nl: Translations = {
   },
   sidebar: {
     score: 'De Klus',
+    equipment: 'Uitrusting',
     overview: 'OVERZICHT',
     successor: 'Opvolger',
     city: 'STAD',

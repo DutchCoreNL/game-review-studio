@@ -25,6 +25,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
+import { nextTier, canBuyTier, equipHeatShield, type EquipSlot } from '../game/equipment';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
 
@@ -356,6 +357,7 @@ type GameAction =
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
   | { type: 'ORG_RUN_OPERATION'; operationId: string }
   | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
+  | { type: 'BUY_EQUIPMENT'; slot: EquipSlot }
   | { type: 'SCORE_START'; district: DistrictId }
   | { type: 'SCORE_WORK'; amount: number }
   | { type: 'SCORE_CLEAR_REWARD' }
@@ -1006,6 +1008,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
         }
         if (rt.heat !== 0) { Engine.addPersonalHeat(s, rt.heat); Engine.recomputeHeat(s); }
+        // Your network quietly absorbs some heat and cools every district down.
+        const shield = equipHeatShield(s);
+        if (shield > 0) { Engine.addPersonalHeat(s, -shield); Engine.recomputeHeat(s); }
         for (const line of rt.notes) orgLog(`💼 ${line}`);
 
         // Rival attention builds where you work, and bleeds off everywhere else.
@@ -1013,7 +1018,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const att = s.districtAttention;
         for (const d of Object.keys(DISTRICTS) as import('@/game/types').DistrictId[]) {
           const added = rt.attention[d] || 0;
-          const next = (att[d] || 0) + added - ATTENTION_DECAY_PER_DAY;
+          const next = (att[d] || 0) + added - ATTENTION_DECAY_PER_DAY - equipHeatShield(s);
           att[d] = Math.max(0, Math.min(100, next));
         }
 
@@ -4499,6 +4504,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ORG_DISMISS': {
       if (!s.org) return s;
       s.org.members = s.org.members.filter(x => x.id !== action.memberId);
+      return s;
+    }
+
+    case 'BUY_EQUIPMENT': {
+      if (!canBuyTier(s, action.slot)) return s;
+      const tier = nextTier(s, action.slot)!;
+      s.money -= tier.cost;
+      s.stats.totalSpent += tier.cost;
+      if (!s.equipment) s.equipment = {};
+      s.equipment[action.slot] = (s.equipment[action.slot] || 0) + 1;
+      addPhoneMessage(s, 'system', `Aangeschaft: ${tier.name}.`, 'opportunity');
       return s;
     }
 

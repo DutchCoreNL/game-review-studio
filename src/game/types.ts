@@ -7,7 +7,7 @@ export type GymStatId = 'strength' | 'defense' | 'speed' | 'dexterity';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView =
-  | 'klus' | 'overzicht'
+  | 'klus' | 'overzicht' | 'uitrusting'
   | 'city' | 'casino' | 'hospital' | 'safehouse' | 'villa' | 'chopshop'
   | 'ops' | 'contracts' | 'heists' | 'bounties' | 'pvp' | 'challenges' | 'hits' | 'wanted'
   | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'
@@ -1191,6 +1191,8 @@ export interface GameState {
   legacy?: import('./legacy').LegacyState; // prestige (successor) progress, survives resets
   /** Rival attention your rackets have stirred up, per district (0-100). */
   districtAttention?: Partial<Record<DistrictId, number>>;
+  /** Owned tier per equipment track (see src/game/equipment.ts). */
+  equipment?: Partial<Record<import('./equipment').EquipSlot, number>>;
   /** The hands-on job you are currently working (see src/game/score.ts). */
   activeJob?: import('./score').ScoreJob | null;
   /** Jobs finished in the current run — later jobs get longer. */

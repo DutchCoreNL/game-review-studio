@@ -30,6 +30,7 @@ export interface Translations {
   nav: {
     map: string;
     score: string;
+    equipment: string;
     overview: string;
     actions: string;
     trade: string;
@@ -38,6 +39,7 @@ export interface Translations {
   };
   sidebar: {
     score: string;
+    equipment: string;
     overview: string;
     successor: string;
     city: string;

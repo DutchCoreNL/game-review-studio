@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
-import { Crosshair, ShoppingBag, Building2, Menu, LayoutDashboard, Hand, LucideIcon } from 'lucide-react';
+import { ShoppingBag, Menu, LayoutDashboard, Hand, Wrench, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
@@ -19,24 +19,26 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
 
   // `id` is the nav group (drives the active highlight + badges); `target` is the
   // view the tab opens. The first tab opens the idle hub but stays grouped with the city.
-  const NAV_ITEMS: { id: GameView | 'menu'; target?: GameView; label: string; icon: LucideIcon }[] = useMemo(() => [
-    { id: 'city', target: 'klus', label: t.nav.score, icon: Hand },
-    { id: 'ops', label: t.nav.actions, icon: Crosshair },
-    { id: 'market', label: t.nav.trade, icon: ShoppingBag },
-    { id: 'garage', label: t.nav.empire, icon: Building2 },
+  // `id` is the nav group (drives the active highlight + badges); `target` is the
+  // view the tab opens.
+  const NAV_ITEMS: { id: NavGroupId | 'menu'; target?: GameView; label: string; icon: LucideIcon }[] = useMemo(() => [
+    { id: 'klus', target: 'klus', label: t.nav.score, icon: Hand },
+    { id: 'imperium', target: 'overzicht', label: t.nav.overview, icon: LayoutDashboard },
+    { id: 'handel', target: 'market', label: t.nav.trade, icon: ShoppingBag },
+    { id: 'uitrusting', target: 'uitrusting', label: t.nav.equipment, icon: Wrench },
     { id: 'menu', label: t.nav.menu, icon: Menu },
   ], [t]);
 
   const badges = useMemo(() => {
     const b: Partial<Record<string, number>> = {};
     const opsCount = (state.activeContracts?.length || 0) + (state.hitContracts?.length || 0);
-    if (opsCount > 0) b.ops = opsCount;
+    if (opsCount > 0) b.imperium = opsCount;
     const streetCount = (state.streetEventQueue?.length || 0);
-    if (streetCount > 0) b.city = (b.city || 0) + streetCount;
+    if (streetCount > 0) b.klus = (b.klus || 0) + streetCount;
     const demandCount = state.districtDemands ? Object.values(state.districtDemands).filter(Boolean).length : 0;
-    if (demandCount > 0) b.market = demandCount;
+    if (demandCount > 0) b.handel = demandCount;
     const cityCount = (state.nightReport ? 1 : 0);
-    if (cityCount > 0) b.city = cityCount;
+    if (cityCount > 0) b.klus = cityCount;
     if (digest) b.menu = 1;
     return b;
   }, [state.activeContracts, state.hitContracts, state.districtDemands, state.streetEventQueue, state.nightReport, digest]);
