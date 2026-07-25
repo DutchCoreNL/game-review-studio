@@ -29,6 +29,7 @@ export const en: Translations = {
   },
   nav: {
     map: 'MAP',
+    score: 'THE SCORE',
     overview: 'EMPIRE',
     actions: 'ACTIONS',
     trade: 'TRADE',
@@ -36,6 +37,7 @@ export const en: Translations = {
     menu: 'MENU',
   },
   sidebar: {
+    score: 'The Score',
     overview: 'OVERVIEW',
     successor: 'Successor',
     city: 'CITY',

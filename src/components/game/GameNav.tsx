@@ -1,7 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GameView } from '@/game/types';
-import { Crosshair, ShoppingBag, Building2, Menu, LayoutDashboard, LucideIcon } from 'lucide-react';
+import { Crosshair, ShoppingBag, Building2, Menu, LayoutDashboard, Hand, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playNavClick } from '@/game/sounds/uiSounds';
 import { useMemo } from 'react';
@@ -20,7 +20,7 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
   // `id` is the nav group (drives the active highlight + badges); `target` is the
   // view the tab opens. The first tab opens the idle hub but stays grouped with the city.
   const NAV_ITEMS: { id: GameView | 'menu'; target?: GameView; label: string; icon: LucideIcon }[] = useMemo(() => [
-    { id: 'city', target: 'overzicht', label: t.nav.overview, icon: LayoutDashboard },
+    { id: 'city', target: 'klus', label: t.nav.score, icon: Hand },
     { id: 'ops', label: t.nav.actions, icon: Crosshair },
     { id: 'market', label: t.nav.trade, icon: ShoppingBag },
     { id: 'garage', label: t.nav.empire, icon: Building2 },

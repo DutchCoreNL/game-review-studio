@@ -7,7 +7,7 @@ export type GymStatId = 'strength' | 'defense' | 'speed' | 'dexterity';
 export type GearSlot = 'weapon' | 'armor' | 'gadget';
 export type TradeMode = 'buy' | 'sell';
 export type GameView =
-  | 'overzicht'
+  | 'klus' | 'overzicht'
   | 'city' | 'casino' | 'hospital' | 'safehouse' | 'villa' | 'chopshop'
   | 'ops' | 'contracts' | 'heists' | 'bounties' | 'pvp' | 'challenges' | 'hits' | 'wanted'
   | 'trade' | 'market' | 'analysis' | 'auction' | 'stocks' | 'launder' | 'gear'
@@ -1191,6 +1191,12 @@ export interface GameState {
   legacy?: import('./legacy').LegacyState; // prestige (successor) progress, survives resets
   /** Rival attention your rackets have stirred up, per district (0-100). */
   districtAttention?: Partial<Record<DistrictId, number>>;
+  /** The hands-on job you are currently working (see src/game/score.ts). */
+  activeJob?: import('./score').ScoreJob | null;
+  /** Jobs finished in the current run — later jobs get longer. */
+  jobStreak?: number;
+  /** Loot burst from the job you just finished, for the reward animation. */
+  lastJobReward?: { goods: Partial<Record<GoodId, number>>; dirtyMoney: number; overflowMoney: number; jobName: string } | null;
   /** The situation currently demanding a decision, if any. */
   activeIncident?: import('./incidents').ActiveIncident | null;
   /** Outcome text of the last incident you resolved, shown as a result card. */

@@ -29,6 +29,7 @@ export const nl: Translations = {
   },
   nav: {
     map: 'KAART',
+    score: 'DE KLUS',
     overview: 'IMPERIUM',
     actions: 'ACTIES',
     trade: 'HANDEL',
@@ -36,6 +37,7 @@ export const nl: Translations = {
     menu: 'MENU',
   },
   sidebar: {
+    score: 'De Klus',
     overview: 'OVERZICHT',
     successor: 'Opvolger',
     city: 'STAD',

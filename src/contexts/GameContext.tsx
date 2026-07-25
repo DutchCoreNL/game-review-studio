@@ -24,6 +24,7 @@ import {
 } from '../game/organization';
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
+import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
 
@@ -355,6 +356,9 @@ type GameAction =
   | { type: 'ORG_ATTACK_DISTRICT'; gangId: string }
   | { type: 'ORG_RUN_OPERATION'; operationId: string }
   | { type: 'ORG_SET_RELATION'; gangId: string; relation: 'ally' | 'enemy' | 'neutral' }
+  | { type: 'SCORE_START'; district: DistrictId }
+  | { type: 'SCORE_WORK'; amount: number }
+  | { type: 'SCORE_CLEAR_REWARD' }
   | { type: 'RESOLVE_INCIDENT'; choiceId: string }
   | { type: 'CLEAR_INCIDENT_RESULT' }
   | { type: 'ORG_ASSIGN_RACKET'; memberId: string; racket: RacketId | null }
@@ -4498,6 +4502,49 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
+    case 'SCORE_START': {
+      if (!districtUnlocked(s, action.district)) return s;
+      s.activeJob = makeJob(action.district, s.jobStreak || 0);
+      return s;
+    }
+
+    case 'SCORE_WORK': {
+      // Progress comes from your taps and from crew working that district.
+      const job = s.activeJob;
+      if (!job) return s;
+      job.progress += action.amount;
+      if (job.progress < job.required) return s;
+
+      // Finished: pay out contraband + dirty cash, then line up the next one.
+      const reward = rollJobReward(s, job);
+      if (!s.inventory) s.inventory = {};
+      for (const [gid, qty] of Object.entries(reward.goods)) {
+        s.inventory[gid as GoodId] = (s.inventory[gid as GoodId] || 0) + (qty || 0);
+      }
+      const dirty = reward.dirtyMoney + reward.overflowMoney;
+      s.dirtyMoney = (s.dirtyMoney || 0) + dirty;
+      s.stats.totalEarned += dirty;
+      // Working a district by hand is noticed there just like a racket is.
+      if (!s.districtAttention) s.districtAttention = {};
+      const d = job.district;
+      s.districtAttention[d] = Math.min(100, (s.districtAttention[d] || 0) + job.tier);
+      Engine.addPersonalHeat(s, Math.max(1, Math.round(job.tier / 2)));
+      Engine.recomputeHeat(s);
+
+      s.lastJobReward = {
+        goods: reward.goods, dirtyMoney: reward.dirtyMoney,
+        overflowMoney: reward.overflowMoney, jobName: job.name,
+      };
+      s.jobStreak = (s.jobStreak || 0) + 1;
+      s.activeJob = makeJob(d, s.jobStreak);
+      return s;
+    }
+
+    case 'SCORE_CLEAR_REWARD': {
+      s.lastJobReward = null;
+      return s;
+    }
+
     case 'RESOLVE_INCIDENT': {
       const inc = s.activeIncident as ActiveIncident | null | undefined;
       if (!inc) return s;
@@ -5086,7 +5133,7 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
     return fresh;
   });
 
-  const [view, setView] = React.useState<GameView>('overzicht');
+  const [view, setView] = React.useState<GameView>('klus');
   const [tradeMode, setTradeMode] = React.useState<TradeMode>('buy');
   const [selectedDistrict, setSelectedDistrict] = React.useState<DistrictId | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
@@ -5145,6 +5192,22 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state, showToast]);
+
+  // ========== JOB TICKER (real time) ==========
+  // The rest of the game moves in 30-minute day ticks, but the job you are
+  // working has to feel alive: crew assigned in that district push the bar
+  // forward every second, whether or not your hands are on it.
+  const jobStateRef = useRef(state);
+  jobStateRef.current = state;
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = jobStateRef.current;
+      if (!s?.activeJob || s.gameOver) return;
+      const work = crewWorkPerSecond(s, s.activeJob.district);
+      if (work > 0) dispatch({ type: 'SCORE_WORK', amount: work });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [dispatch]);
 
   // ========== AUTO-TICK SYSTEM (replaces manual END_TURN) ==========
   // Every tickIntervalMinutes (default 30 min) of real time = 1 game day

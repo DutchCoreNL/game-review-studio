@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard,
+  LayoutDashboard, Hand,
   Map, Dices, Heart, Home, Building2, Wrench,
   Crosshair, FileText, Target, Skull, Swords, Award, Calendar,
   ShoppingBag, BarChart3, Gavel, TrendingUp, Droplets, ShieldCheck,
@@ -49,8 +49,9 @@ interface NavGroupDef {
  */
 const GROUPS: NavGroupDef[] = [
   {
-    id: 'city', emoji: '🏙', label: t => t.sidebar.overview, primary: 'overzicht',
+    id: 'city', emoji: '🏙', label: t => t.sidebar.overview, primary: 'klus',
     items: [
+      { id: 'klus', icon: Hand, label: t => t.sidebar.score },
       { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, badge: s => (s.org?.members.filter(m => !m.assignment).length || 0) },
       { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
       { id: 'districts', icon: MapPin, label: t => t.sidebar.districts },

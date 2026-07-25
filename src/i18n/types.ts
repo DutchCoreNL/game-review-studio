@@ -29,6 +29,7 @@ export interface Translations {
   };
   nav: {
     map: string;
+    score: string;
     overview: string;
     actions: string;
     trade: string;
@@ -36,6 +37,7 @@ export interface Translations {
     menu: string;
   };
   sidebar: {
+    score: string;
     overview: string;
     successor: string;
     city: string;
