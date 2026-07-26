@@ -17,6 +17,7 @@ import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './weaponGenerator';
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
+import { RACKET_BY_ID } from './rackets';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -2332,13 +2333,41 @@ export function getBestTradeRoute(state: GameState): { good: GoodId; buyDistrict
   return best;
 }
 
+/**
+ * How much dirty money you can put through the wash in a day.
+ *
+ * This used to be a flat €3.000 plus whatever front businesses you owned — and
+ * businesses are no longer reachable, so it was pinned at €3.000 forever while
+ * jobs pay thousands each. Dirty cash piled up faster than any legal route could
+ * absorb it. Throughput now scales with the two things you actually build for it:
+ * the crew you put on laundering rackets, and how deep your Netwerk runs.
+ */
+/** Share of laundered money you keep; the rest is the launderers' cut. */
+export const WASH_KEEP_RATE = 0.85;
+
+export const WASH_BASE_CAPACITY = 6000;
+export const WASH_PER_LAUNDERER = 5000;
+export const WASH_PER_NETWORK_TIER = 6000;
+
 export function getWashCapacity(state: GameState): { total: number; used: number; remaining: number } {
-  let total = 3000;
+  let total = WASH_BASE_CAPACITY;
+
+  // Every crew member running a laundering racket widens the pipe.
+  const launderers = (state.org?.members || []).filter(m => {
+    if (!m.assignment || m.injuredUntilDay) return false;
+    return RACKET_BY_ID[m.assignment]?.kind === 'schoon';
+  }).length;
+  total += launderers * WASH_PER_LAUNDERER;
+
+  // A deeper network means more places to put the money.
+  total += (state.equipment?.netwerk || 0) * WASH_PER_NETWORK_TIER;
+
+  // Legacy front businesses still count for anyone who owns them.
   state.ownedBusinesses.forEach(bid => {
     const biz = BUSINESSES.find(b => b.id === bid);
     if (biz) total += biz.clean;
   });
-  // District perk removed (MMO)
+
   const used = state.washUsedToday || 0;
   return { total, used, remaining: Math.max(0, total - used) };
 }

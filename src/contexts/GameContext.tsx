@@ -25,7 +25,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
-import { BASE_STASH_SLOTS } from '../game/engine';
+import { BASE_STASH_SLOTS, WASH_KEEP_RATE } from '../game/engine';
 import { nextTier, canBuyTier, equipHeatShield, type EquipSlot } from '../game/equipment';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
@@ -1348,15 +1348,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const amount = Math.min(s.dirtyMoney, washCap.remaining);
       if (amount <= 0) return s;
       s.dirtyMoney -= amount;
-      let washed = amount;
-      if (s.ownedDistricts.includes('neon')) washed = Math.floor(amount * 1.15);
-      const clean = Math.floor(washed * 0.85);
+      const clean = Math.floor(amount * WASH_KEEP_RATE);
       s.money += clean;
       s.stats.totalEarned += clean;
       s.washUsedToday = (s.washUsedToday || 0) + amount;
-      // Heat 2.0: washing generates personal heat (financial crime)
-      Engine.addPersonalHeat(s, Math.max(1, Math.floor(amount / 500)));
-      Engine.recomputeHeat(s);
+      // Laundering no longer adds heat. It used to, which directly contradicted the
+      // Witwasserij racket — the whole point of putting crew on laundering is that it
+      // *cools* you down. The 15% the launderers keep is the cost of the service.
       Engine.gainXp(s, Math.max(1, Math.floor(amount / 200)));
       if (s.dailyProgress) { s.dailyProgress.washed += amount; }
       syncChallenges(s);

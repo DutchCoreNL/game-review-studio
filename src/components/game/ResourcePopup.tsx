@@ -192,50 +192,6 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
           </button>
         </motion.div>
       )}
-
-      {/* Vehicle Heat */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            <Car size={14} className="text-gold" />
-            <span className="text-xs font-bold">Voertuig Heat</span>
-            {activeVehicle && <span className="text-[0.5rem] text-muted-foreground">({activeVehicle.name})</span>}
-          </div>
-          <span className={`text-xs font-bold ${getDangerColor(vehicleHeat)}`}>{vehicleHeat}% — {vDanger}</span>
-        </div>
-        <div className="h-2.5 bg-muted rounded-full overflow-hidden mb-2">
-          <motion.div
-            className={`h-full rounded-full ${getBarColor(vehicleHeat)}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${vehicleHeat}%` }}
-            transition={{ duration: 0.5 }}
-          />
-        </div>
-        <div className="flex gap-2 text-[0.55rem]">
-          <span className="text-emerald">Afname: -{vDecay}/dag</span>
-          {vehicleHeat > 40 && <span className="text-gold">⚠ Checkpoint risico</span>}
-          {vehicleHeat > 70 && <span className="text-blood">⚠ Smokkel onderschepping</span>}
-        </div>
-
-        {/* Omkatten button */}
-        <button
-          onClick={() => {
-            dispatch({ type: 'REKAT_VEHICLE', vehicleId: state.activeVehicle });
-            showToast(`${activeVehicle?.name || 'Voertuig'} omgekat! Heat → 0`);
-          }}
-          disabled={!canRekat || vehicleHeat === 0}
-          className="w-full mt-2 py-2 rounded text-xs font-bold bg-[hsl(var(--gold)/0.1)] border border-gold text-gold disabled:opacity-30 flex items-center justify-center gap-1.5"
-        >
-          <Wrench size={12} /> OMKATTEN (€{rekatCost.toLocaleString()})
-          {activeObj && (activeObj.rekatCooldown || 0) > 0 && (
-            <span className="text-muted-foreground ml-1">({activeObj.rekatCooldown}d cooldown)</span>
-          )}
-        </button>
-      </div>
-
-      {/* Divider */}
-      <div className="border-t border-border my-3" />
-
       {/* Personal Heat */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
@@ -328,7 +284,7 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
       )}
 
       <p className="text-[0.6rem] text-muted-foreground mt-3 italic">
-        Voertuig heat stijgt bij handel & reizen. Persoonlijke heat stijgt bij combat, witwassen & mislukte missies. Hoge heat = meer controles, boetes en invallen.
+        Hitte stijgt van je rackets en van klussen die je zelf draait — hoe rijker het district, hoe sneller. Zet crew op Witwasserij of bouw je Netwerk uit om af te koelen. Loopt de hitte te hoog op, dan volgt een inval.
       </p>
     </div>
   );
@@ -348,7 +304,7 @@ function LevelPanel() {
     <div>
       <div className="flex items-center gap-2 mb-4">
         <Star size={18} className="text-gold" />
-        <h3 className="font-bold text-sm uppercase tracking-wider">Level & Skills</h3>
+        <h3 className="font-bold text-sm uppercase tracking-wider">Level & Eigenschappen</h3>
       </div>
 
       <div className="text-center mb-4">
@@ -417,7 +373,7 @@ function LevelPanel() {
       </div>
 
       <p className="text-[0.6rem] text-muted-foreground mt-4 italic">
-        Elke level-up geeft +1 Stat Point voor eigenschappen. Elke 5 levels ontvang je Skill Points voor de skill tree.
+        Elke level-up geeft +1 statpunt. Kracht verhoogt je tikkracht, Vernuft wat je buit opbrengt, en Charisma hoe snel je crew werkt.
       </p>
     </div>
   );
