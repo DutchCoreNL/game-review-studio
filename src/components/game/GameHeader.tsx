@@ -10,6 +10,7 @@ import { getKarmaAlignment, getKarmaLabel } from '@/game/karma';
 import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
 import { ResourceTile } from './header/ResourceTile';
+import { tapPower, stashCapacity } from '@/game/score';
 import { HeatTile } from './header/HeatTile';
 import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
@@ -89,6 +90,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
   const ammo = ammoStock[activeAmmoType] || 0;
   const ammoLabel = AMMO_TYPE_LABELS[activeAmmoType]?.label || 'KOGELS';
   const xpPct = state.player.nextXp > 0 ? (state.player.xp / state.player.nextXp) * 100 : 0;
+  const stashUsed = Object.values(state.inventory || {}).reduce((a: number, b) => a + (Number(b) || 0), 0);
   const isGoldenHour = !!state.goldenHour;
 
   // Week event with XP bonus detection
@@ -188,54 +190,39 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
         </div>
       </div>
 
-      {/* Row 2: Resource chips — grouped with separator */}
+      {/* Row 2: the five numbers this game is actually played on.
+          HP / karma / ammo / energy / nerve and the travel-crime-attack-heist
+          cooldowns belonged to the retired RPG systems and only added noise. */}
       <div className="flex items-stretch gap-1 overflow-x-auto no-scrollbar">
-        {/* Player stats group */}
-        <ResourceTile label="HP" value={`${state.playerHP}/${state.playerMaxHP}`}
-          color={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : state.playerHP < state.playerMaxHP * 0.6 ? 'text-gold' : 'text-emerald'}
-          icon={<Heart size={8} className={state.playerHP < state.playerMaxHP * 0.3 ? 'text-blood' : 'text-emerald'} />}
-          pulse={state.playerHP < state.playerMaxHP * 0.3}
-          tooltip={t.header.healthTooltip}
-          onTap={() => setPopup('hp')}
-        />
-
+        {/* Level — drives how much every tap is worth */}
         <div className="relative">
           <ResourceTile label="LVL" value={state.player.level} color="text-gold"
-            tooltip={t.header.levelTooltip} onTap={() => setPopup('level')} />
+            tooltip={`Elk level maakt je tik krachtiger. Nu +${tapPower(state)} per tik.`}
+            onTap={() => setPopup('level')} />
           <div className="absolute -bottom-0.5 left-1 right-1">
             <Progress value={xpPct} className="h-[2px] bg-muted/30" />
           </div>
-          {((state.player.statPoints || 0) + state.player.skillPoints) > 0 && (
-            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
-              className={`absolute -top-1 -right-1 w-3.5 h-3.5 ${state.player.skillPoints > 0 ? 'bg-gold' : 'bg-emerald'} text-secondary-foreground rounded-full text-[0.35rem] font-bold flex items-center justify-center z-10`}>
-              +{(state.player.statPoints || 0) + state.player.skillPoints}
-            </motion.span>
-          )}
         </div>
 
-        <ResourceTile label="REP" value={state.rep} color="text-gold"
-          tooltip={t.header.repTooltip} onTap={() => setPopup('rep')} />
+        {/* Respect — gates rackets and equipment */}
+        <ResourceTile label="AANZIEN" value={state.org?.respect ?? 0} color="text-gold"
+          tooltip="Aanzien ontgrendelt rijkere rackets en betere uitrusting." />
 
-        {/* Separator */}
         <div className="w-px bg-border/50 my-1 flex-shrink-0" />
 
-        {/* Risk stats group */}
+        {/* Heat — the pressure you manage */}
         <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
 
-        <KarmaChip karma={karma} alignment={karmaAlign} label={karmaLbl} onTap={() => setPopup('karma')} />
+        {/* Dirty money — your cue to launder */}
+        <ResourceTile label="ZWART" value={`€${Math.round(state.dirtyMoney || 0).toLocaleString()}`}
+          color={(state.dirtyMoney || 0) > 0 ? 'text-dirty' : 'text-muted-foreground'}
+          tooltip="Zwart geld moet je witwassen voordat je het kunt uitgeven." />
 
-        <ResourceTile label={ammoLabel} value={ammo}
-          color={ammo <= 3 ? 'text-blood' : ammo <= 10 ? 'text-gold' : 'text-foreground'}
-          icon={<Crosshair size={8} className={ammo <= 3 ? 'text-blood' : 'text-muted-foreground'} />}
-          pulse={ammo <= 3}
-          tooltip={`${ammoLabel} ${t.header.ammoTooltip}`}
-          onTap={() => setPopup('ammo')}
-        />
-
-        {isHiding && (
-          <ResourceTile label="" value={`🫥${state.hidingDays}d`} color="text-ice"
-            tooltip={t.header.hidingTooltip} />
-        )}
+        {/* Stash — your cue to sell */}
+        <ResourceTile label="VOORRAAD" value={`${stashUsed}/${stashCapacity(state)}`}
+          color={stashUsed >= stashCapacity(state) ? 'text-blood' : stashUsed > stashCapacity(state) * 0.75 ? 'text-gold' : 'text-emerald'}
+          pulse={stashUsed >= stashCapacity(state)}
+          tooltip="Volle voorraad? Dan wordt nieuwe buit meteen doorverkocht." />
 
         {isGoldenHour && (
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -246,17 +233,6 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
             <span className="text-[0.45rem] font-bold">{state.goldenHour!.turnsLeft}</span>
           </motion.div>
         )}
-      </div>
-
-      {/* Row 3: Energy & Nerve bars */}
-      <EnergyNerveBar />
-
-      {/* Row 4: Active cooldowns */}
-      <div className="flex items-center gap-1 mt-1 overflow-x-auto no-scrollbar">
-        <CooldownTimer label={t.header.cooldownTravel} until={state.travelCooldownUntil} icon={<MapPin size={7} />} />
-        <CooldownTimer label={t.header.cooldownCrime} until={state.crimeCooldownUntil} icon={<Crosshair size={7} />} />
-        <CooldownTimer label={t.header.cooldownAttack} until={state.attackCooldownUntil} icon={<Swords size={7} />} />
-        <CooldownTimer label={t.header.cooldownHeist} until={state.heistCooldownUntil} icon={<Crosshair size={7} />} />
       </div>
 
       {/* Resource detail popup */}

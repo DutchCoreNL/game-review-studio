@@ -68,8 +68,15 @@ export function GameSidebar({ open, onOpenChange }: GameSidebarProps) {
                           transition={{ type: "spring", stiffness: 400, damping: 30 }}
                         />
                       )}
-                      <Icon size={16} strokeWidth={isActive ? 2.5 : 1.5} />
-                      <span>{item.label}</span>
+                      <Icon size={16} strokeWidth={isActive ? 2.5 : 1.5} className="shrink-0" />
+                      <span className="flex flex-col items-start min-w-0">
+                        <span>{item.label}</span>
+                        {item.hint && (
+                          <span className="text-[0.45rem] font-normal text-muted-foreground/70 normal-case tracking-normal leading-tight">
+                            {item.hint}
+                          </span>
+                        )}
+                      </span>
                       {badge !== null && !isActive && (
                         <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-blood text-[0.45rem] text-primary-foreground font-bold flex items-center justify-center px-0.5">
                           {typeof badge === 'number' ? (badge > 9 ? '9+' : badge) : '!'}

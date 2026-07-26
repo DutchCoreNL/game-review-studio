@@ -29,6 +29,8 @@ interface NavItemDef {
   id: GameView;
   icon: LucideIcon;
   label: (t: Translations) => string;
+  /** One line telling the player what this screen is for. */
+  hint?: string;
   badge?: (s: GameState) => number | boolean;
 }
 
@@ -45,44 +47,44 @@ const GROUPS: NavGroupDef[] = [
   {
     id: 'klus', emoji: '✊', label: t => t.sidebar.score, primary: 'klus',
     items: [
-      { id: 'klus', icon: Hand, label: t => t.sidebar.score },
-      { id: 'city', icon: Map, label: t => t.sidebar.map },
-      { id: 'casino', icon: Dices, label: t => t.sidebar.casino },
-      { id: 'safehouse', icon: Home, label: t => t.sidebar.safehouse },
-      { id: 'villa', icon: Building2, label: t => t.sidebar.villa },
-      { id: 'hospital', icon: Heart, label: t => t.sidebar.hospital },
+      { id: 'klus', icon: Hand, label: t => t.sidebar.score, hint: 'Zelf klussen draaien voor buit' },
+      { id: 'city', icon: Map, label: t => t.sidebar.map, hint: 'De stadskaart en het nieuws' },
+      { id: 'casino', icon: Dices, label: t => t.sidebar.casino, hint: 'Gokken met je geld' },
+      { id: 'safehouse', icon: Home, label: t => t.sidebar.safehouse, hint: 'Onderduiken als het heet wordt' },
+      { id: 'villa', icon: Building2, label: t => t.sidebar.villa, hint: 'Je eigen landgoed uitbouwen' },
+      { id: 'hospital', icon: Heart, label: t => t.sidebar.hospital, hint: 'Herstellen na een klap' },
     ],
   },
   {
     id: 'imperium', emoji: '🏙', label: t => t.sidebar.overview, primary: 'overzicht',
     items: [
       // Unassigned crew is the one thing you always want nudging you.
-      { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, badge: s => (s.org?.members.filter(m => !m.assignment && !m.injuredUntilDay).length || 0) },
-      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, badge: s => (s.org?.members.length || 0) },
-      { id: 'opvolger', icon: CrownIcon, label: t => t.sidebar.successor, badge: s => (s.legacy?.points || 0) },
+      { id: 'overzicht', icon: LayoutDashboard, label: t => t.sidebar.overview, hint: 'Districten, rackets en je crew aansturen', badge: s => (s.org?.members.filter(m => !m.assignment && !m.injuredUntilDay).length || 0) },
+      { id: 'gang', icon: CrownIcon, label: t => t.sidebar.gang, hint: 'Crew ronselen, upgrades, diplomatie', badge: s => (s.org?.members.length || 0) },
+      { id: 'opvolger', icon: CrownIcon, label: t => t.sidebar.successor, hint: 'Met pensioen voor permanente bonussen', badge: s => (s.legacy?.points || 0) },
     ],
   },
   {
     id: 'handel', emoji: '💰', label: t => t.sidebar.trade, primary: 'market',
     items: [
-      { id: 'market', icon: ShoppingBag, label: t => t.sidebar.market },
-      { id: 'launder', icon: Droplets, label: t => t.sidebar.launder, badge: s => (s.dirtyMoney || 0) > 0 },
-      { id: 'analysis', icon: BarChart3, label: t => t.sidebar.analysis },
+      { id: 'market', icon: ShoppingBag, label: t => t.sidebar.market, hint: 'Je buit verkopen' },
+      { id: 'launder', icon: Droplets, label: t => t.sidebar.launder, hint: 'Zwart geld omzetten in bruikbaar geld', badge: s => (s.dirtyMoney || 0) > 0 },
+      { id: 'analysis', icon: BarChart3, label: t => t.sidebar.analysis, hint: 'Waar is welke waar het duurst?' },
     ],
   },
   {
     id: 'uitrusting', emoji: '🧰', label: t => t.sidebar.equipment, primary: 'uitrusting',
     items: [
-      { id: 'uitrusting', icon: Wrench, label: t => t.sidebar.equipment },
+      { id: 'uitrusting', icon: Wrench, label: t => t.sidebar.equipment, hint: 'Sterkere tik, snellere crew, meer opslag' },
     ],
   },
   {
     id: 'profile', emoji: '👤', label: t => t.sidebar.profile, primary: 'profile',
     items: [
-      { id: 'profile', icon: BarChart3, label: t => t.sidebar.statsSkills },
-      { id: 'codex', icon: BookOpen, label: t => t.sidebar.codex },
-      { id: 'trophies', icon: Trophy, label: t => t.sidebar.trophies },
-      { id: 'settings', icon: Settings, label: t => t.sidebar.settings },
+      { id: 'profile', icon: BarChart3, label: t => t.sidebar.statsSkills, hint: 'Je cijfers en voortgang' },
+      { id: 'codex', icon: BookOpen, label: t => t.sidebar.codex, hint: 'Alles over Noxhaven' },
+      { id: 'trophies', icon: Trophy, label: t => t.sidebar.trophies, hint: 'Behaalde mijlpalen' },
+      { id: 'settings', icon: Settings, label: t => t.sidebar.settings, hint: 'Geluid en voorkeuren' },
     ],
   },
 ];
@@ -91,6 +93,7 @@ export interface ResolvedNavItem {
   id: GameView;
   label: string;
   icon: LucideIcon;
+  hint?: string;
   badge: number | boolean;
 }
 
@@ -113,6 +116,7 @@ export function buildNavGroups(t: Translations, state: GameState, isAdmin: boole
       id: it.id,
       label: it.label(t),
       icon: it.icon,
+      hint: it.hint,
       badge: it.badge ? it.badge(state) : 0,
     })),
   }));

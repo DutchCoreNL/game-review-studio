@@ -9,6 +9,7 @@ import {
   tapPower, crewWorkPerSecond, districtUnlocked, crewStrength,
   DISTRICT_CREW_REQUIREMENT,
 } from '@/game/score';
+import { RACKET_BY_ID } from '@/game/rackets';
 import { GameButton } from './ui/GameButton';
 import { playHitSound, playCoinSound } from '@/game/sounds';
 
@@ -44,6 +45,11 @@ export function ScoreView() {
       .map(g => ({ id: g, qty: inv[g] || 0 }));
   }, [state.inventory]);
   const stashUsed = stash.reduce((s, x) => s + x.qty, 0);
+
+  /** How many crew are actually assigned to a racket in this district. */
+  const crewHere = (d: DistrictId) =>
+    (state.org?.members || []).filter(m => m.assignment && !m.injuredUntilDay
+      && RACKET_BY_ID[m.assignment]?.district === d).length;
 
   const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!job) return;
@@ -82,10 +88,12 @@ export function ScoreView() {
                 <div className="absolute inset-0 flex items-center justify-between px-3">
                   <div>
                     <div className="text-xs font-bold text-foreground">{DISTRICTS[d]?.name || d}</div>
-                    <div className="text-[0.45rem] text-muted-foreground mt-0.5">
+                    <div className="text-[0.45rem] mt-0.5">
                       {unlocked
-                        ? <>Crew hier: {crewWorkPerSecond(state, d).toFixed(1)}/sec</>
-                        : <span className="flex items-center gap-1"><Lock size={8} /> Crewkracht {need} nodig (nu {strength.toFixed(1)})</span>}
+                        ? (crewHere(d) > 0
+                            ? <span className="text-emerald font-bold">👥 {crewHere(d)} crew hier · {crewWorkPerSecond(state, d).toFixed(1)}/sec</span>
+                            : <span className="text-muted-foreground">Geen crew hier — je werkt alleen</span>)
+                        : <span className="text-muted-foreground flex items-center gap-1"><Lock size={8} /> Crewkracht {need} nodig (nu {strength.toFixed(1)})</span>}
                     </div>
                   </div>
                   {unlocked && <span className="text-[0.5rem] font-bold text-gold uppercase tracking-wider">Beginnen →</span>}
@@ -225,10 +233,22 @@ export function ScoreView() {
         </div>
       </div>
 
-      <GameButton variant="ghost" size="sm" fullWidth
-        onClick={() => dispatch({ type: 'SCORE_START', district: job.district })}>
-        Ander doelwit zoeken
-      </GameButton>
+      <div className="grid grid-cols-2 gap-2">
+        <GameButton variant="ghost" size="sm"
+          onClick={() => dispatch({ type: 'SCORE_START', district: job.district })}>
+          Ander doelwit
+        </GameButton>
+        <GameButton variant="muted" size="sm"
+          onClick={() => dispatch({ type: 'SCORE_ABANDON' })}>
+          Ander district →
+        </GameButton>
+      </div>
+      <p className="text-[0.42rem] text-muted-foreground text-center">
+        Je werkt nu in {DISTRICTS[job.district]?.name || job.district}
+        {crewHere(job.district) > 0
+          ? ` · ${crewHere(job.district)} crew helpt mee`
+          : ' · geen crew hier, alleen jouw handen'}
+      </p>
     </div>
   );
 }

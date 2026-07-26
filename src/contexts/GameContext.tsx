@@ -361,6 +361,7 @@ type GameAction =
   | { type: 'SCORE_START'; district: DistrictId }
   | { type: 'SCORE_WORK'; amount: number }
   | { type: 'SCORE_CLEAR_REWARD' }
+  | { type: 'SCORE_ABANDON' }
   | { type: 'RESOLVE_INCIDENT'; choiceId: string }
   | { type: 'CLEAR_INCIDENT_RESULT' }
   | { type: 'ORG_ASSIGN_RACKET'; memberId: string; racket: RacketId | null }
@@ -4551,8 +4552,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         goods: reward.goods, dirtyMoney: reward.dirtyMoney,
         overflowMoney: reward.overflowMoney, jobName: job.name,
       };
+      Engine.gainXp(s, 6 + job.tier * 5);
       s.jobStreak = (s.jobStreak || 0) + 1;
       s.activeJob = makeJob(d, s.jobStreak);
+      return s;
+    }
+
+    case 'SCORE_ABANDON': {
+      // Drop the current job and go back to the district picker. Progress on an
+      // unfinished job is not banked — walking away costs you the work so far.
+      s.activeJob = null;
       return s;
     }
 
