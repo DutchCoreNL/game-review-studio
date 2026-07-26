@@ -145,16 +145,20 @@ export function getPlayerStat(state: GameState, stat: StatId): number {
   return base;
 }
 
+/** Base stash slots before any vehicle, property or equipment bonus. */
+export const BASE_STASH_SLOTS = 15;
+
 export function recalcMaxInv(state: GameState): number {
-  let inv = 15;
+  // A vehicle may *raise* your capacity, never drop it below the base. It used to
+  // overwrite it outright, so the free starter van (storage 5) silently cut every
+  // player's stash from 15 to 5 — and since vehicles are no longer obtainable,
+  // there was no way back up. Storage progression now lives in the Opslag
+  // equipment track (see stashCapacity), which stacks on top of this.
+  let inv = BASE_STASH_SLOTS;
   const activeV = VEHICLES.find(v => v.id === state.activeVehicle);
-  if (activeV) {
-    inv = activeV.storage;
-  } else {
-    // Check unique vehicles
-    const uniqueV = UNIQUE_VEHICLES?.find(v => v.id === state.activeVehicle);
-    if (uniqueV) inv = uniqueV.storage;
-  }
+  const uniqueV = activeV ? null : UNIQUE_VEHICLES?.find(v => v.id === state.activeVehicle);
+  const vehicleStorage = activeV?.storage ?? uniqueV?.storage ?? 0;
+  if (vehicleStorage > inv) inv = vehicleStorage;
   // Vehicle storage upgrades
   const activeObj = state.ownedVehicles.find(v => v.id === state.activeVehicle);
   if (activeObj?.upgrades?.storage) {

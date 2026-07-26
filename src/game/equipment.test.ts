@@ -4,6 +4,7 @@ import {
   equipTapBonus, equipCrewMultiplier, equipStashBonus, equipHeatShield,
 } from './equipment';
 import { tapPower, stashCapacity } from './score';
+import { recalcMaxInv, BASE_STASH_SLOTS } from './engine';
 import type { GameState } from './types';
 
 function stub(p: Partial<GameState> = {}): GameState {
@@ -83,5 +84,22 @@ describe('effects reach the game', () => {
   it('the network absorbs heat only once you have one', () => {
     expect(equipHeatShield(stub())).toBe(0);
     expect(equipHeatShield(stub({ equipment: { netwerk: 1 } }))).toBeGreaterThan(0);
+  });
+});
+
+describe('stash capacity is one number everywhere', () => {
+  it('a vehicle never shrinks the stash below the base', () => {
+    // The free starter van has storage 5. It used to overwrite maxInv outright,
+    // cutting the stash from 15 to 5 with no way back once vehicles were retired.
+    const s = stub({ maxInv: BASE_STASH_SLOTS, activeVehicle: 'toyohata', ownedVehicles: [], crew: [], safehouses: [] } as any);
+    expect(recalcMaxInv(s)).toBeGreaterThanOrEqual(BASE_STASH_SLOTS);
+  });
+
+  it('storage upgrades stack on top of the base', () => {
+    const bare = stub({ maxInv: BASE_STASH_SLOTS });
+    const upgraded = stub({ maxInv: BASE_STASH_SLOTS, equipment: { opslag: 1 } });
+    expect(stashCapacity(bare)).toBe(BASE_STASH_SLOTS);
+    expect(stashCapacity(upgraded)).toBe(BASE_STASH_SLOTS + equipStashBonus(upgraded));
+    expect(stashCapacity(upgraded)).toBeGreaterThan(stashCapacity(bare));
   });
 });

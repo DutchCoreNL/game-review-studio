@@ -5,6 +5,7 @@ import { GoodId, TradeMode, AmmoType } from '@/game/types';
 import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engine';
 import { SectionHeader } from '../ui/SectionHeader';
 import { orgControlsDistrict } from '@/game/organization';
+import { stashCapacity } from '@/game/score';
 import { AutoFencePanel } from './AutoFencePanel';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -216,7 +217,7 @@ export function MarketPanel() {
   const handleTrade = useCallback((gid: GoodId) => {
     const owned = state.inventory[gid] || 0;
     const actualQty = quantity === 0
-      ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
+      ? (tradeMode === 'buy' ? stashCapacity(state) - invCount : owned)
       : quantity;
 
     // Confirm large MAX trades (>€5000)
@@ -336,8 +337,8 @@ export function MarketPanel() {
       {/* Stats strip */}
       <div className="flex justify-between items-center mb-3">
         <div className="text-[0.6rem] text-muted-foreground">
-          BAGAGE: <span className="text-foreground font-bold">{invCount}</span>/{state.maxInv}
-          {invCount >= state.maxInv && <span className="text-blood font-bold ml-1">(VOL)</span>}
+          BAGAGE: <span className="text-foreground font-bold">{invCount}</span>/{stashCapacity(state)}
+          {invCount >= stashCapacity(state) && <span className="text-blood font-bold ml-1">(VOL)</span>}
         </div>
         <div className="text-[0.6rem] text-muted-foreground">
           MARGE: <span className="text-gold font-semibold">+{charmBonus}%</span>
@@ -346,7 +347,7 @@ export function MarketPanel() {
 
       {/* Inventory bar */}
       <div className="mb-3">
-        <StatBar value={invCount} max={state.maxInv} color={invCount >= state.maxInv ? 'blood' : 'gold'} height="sm" />
+        <StatBar value={invCount} max={stashCapacity(state)} color={invCount >= stashCapacity(state) ? 'blood' : 'gold'} height="sm" />
       </div>
 
       {/* Trade Mode Toggle */}
@@ -489,11 +490,11 @@ export function MarketPanel() {
             if (heat.surchargeMultiplier > 1) {
               displayPrice = Math.floor(displayPrice * heat.surchargeMultiplier);
             }
-            if (invCount >= state.maxInv) disabled = true;
+            if (invCount >= stashCapacity(state)) disabled = true;
           }
 
           const effectiveQty = quantity === 0
-            ? (tradeMode === 'buy' ? state.maxInv - invCount : owned)
+            ? (tradeMode === 'buy' ? stashCapacity(state) - invCount : owned)
             : quantity;
           const totalCost = displayPrice * Math.min(effectiveQty, tradeMode === 'buy' ? Math.floor(state.money / displayPrice) : owned);
 

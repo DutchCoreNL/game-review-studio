@@ -1,6 +1,7 @@
 import type { DistrictId, GameState, GoodId } from './types';
 import { RACKET_BY_ID } from './rackets';
 import { equipTapBonus, equipCrewMultiplier, equipStashBonus } from './equipment';
+import { BASE_STASH_SLOTS } from './engine';
 
 /**
  * DE KLUS — the hands-on core of the game.
@@ -120,7 +121,7 @@ export function tapPower(state: GameState): number {
 
 /** Total contraband your stash holds, base capacity plus storage upgrades. */
 export function stashCapacity(state: GameState): number {
-  return (state.maxInv || 15) + equipStashBonus(state);
+  return (state.maxInv || BASE_STASH_SLOTS) + equipStashBonus(state);
 }
 
 /**

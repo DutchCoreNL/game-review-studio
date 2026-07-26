@@ -6,7 +6,7 @@ import { DISTRICTS, GOODS } from '@/game/constants';
 import { DISTRICT_IMAGES, GOOD_IMAGES } from '@/assets/items';
 import type { DistrictId, GoodId } from '@/game/types';
 import {
-  tapPower, crewWorkPerSecond, districtUnlocked, crewStrength,
+  tapPower, crewWorkPerSecond, districtUnlocked, crewStrength, stashCapacity,
   DISTRICT_CREW_REQUIREMENT,
 } from '@/game/score';
 import { RACKET_BY_ID } from '@/game/rackets';
@@ -202,7 +202,7 @@ export function ScoreView() {
       <div className="game-card p-2.5">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">
-            Voorraad {stashUsed}/{state.maxInv || 15}
+            Voorraad {stashUsed}/{stashCapacity(state)}
           </span>
           <span className="text-[0.55rem] font-bold text-dirty">
             €{Math.round(state.dirtyMoney || 0).toLocaleString()} zwart geld

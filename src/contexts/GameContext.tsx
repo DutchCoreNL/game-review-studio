@@ -25,6 +25,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
+import { BASE_STASH_SLOTS } from '../game/engine';
 import { nextTier, canBuyTier, equipHeatShield, type EquipSlot } from '../game/equipment';
 import { autoFenceActive, autoFenceIncome, AUTO_FENCE_COST, AUTO_FENCE_HEAT, AUTO_FENCE_SEIZURE_CHANCE } from '../game/tradeNetwork';
 import { canRetire, computeLegacyGain, legacyIncomeMult, legacyStartCash, getLegacy } from '../game/legacy';
@@ -5112,6 +5113,10 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       if (saved.attackCooldownUntil === undefined) saved.attackCooldownUntil = null;
       if (saved.heistCooldownUntil === undefined) saved.heistCooldownUntil = null;
       if (saved.lastTickAt === undefined) saved.lastTickAt = new Date().toISOString();
+      // Repair stashes shrunk by the old vehicle-driven capacity: the free starter
+      // van set maxInv to 5, below the base of 15, and vehicles can no longer be
+      // changed. Anything at or under the base is lifted back to it.
+      if (!saved.maxInv || saved.maxInv < BASE_STASH_SLOTS) saved.maxInv = BASE_STASH_SLOTS;
       if (saved.tickIntervalMinutes === undefined) saved.tickIntervalMinutes = 30;
       if (saved.serverSynced === undefined) saved.serverSynced = false;
       // Gang territory migration
