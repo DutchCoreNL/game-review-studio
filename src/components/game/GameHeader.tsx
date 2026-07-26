@@ -211,7 +211,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
         <div className="w-px bg-border/50 my-1 flex-shrink-0" />
 
         {/* Heat — the pressure you manage */}
-        <HeatTile vehicleHeat={vehicleHeat} personalHeat={personalHeat} onTap={() => setPopup('heat')} />
+        <HeatTile personalHeat={personalHeat} onTap={() => setPopup('heat')} />
 
         {/* Dirty money — your cue to launder */}
         <ResourceTile label="ZWART" value={`€${Math.round(state.dirtyMoney || 0).toLocaleString()}`}

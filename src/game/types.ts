@@ -818,6 +818,8 @@ export interface RandomEvent {
 }
 
 export interface GameStats {
+  /** Times you answered a rival incident by fighting instead of paying. */
+  incidentsFought?: number;
   totalEarned: number;
   totalSpent: number;
   casinoWon: number;

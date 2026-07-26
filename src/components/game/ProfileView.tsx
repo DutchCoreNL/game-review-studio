@@ -40,7 +40,7 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
   gadget: <Smartphone size={20} />,
 };
 
-type ProfileTab = 'stats' | 'skills' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
+type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -52,10 +52,12 @@ export function ProfileView() {
   const rank = getRankTitle(state.rep);
   const stats = state.stats;
 
-  const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode }[] = [
-    { id: 'muscle', label: t.profile.muscle, icon: <Swords size={14} /> },
-    { id: 'brains', label: t.profile.brains, icon: <Brain size={14} /> },
-    { id: 'charm', label: t.profile.charm, icon: <Gem size={14} /> },
+  // Each stat now feeds one pillar of the live loop, so spending a point is a real
+  // choice: your own hands, what the goods fetch, or how hard the crew pulls.
+  const STAT_INFO: { id: StatId; label: string; icon: React.ReactNode; effect: string }[] = [
+    { id: 'muscle', label: t.profile.muscle, icon: <Swords size={14} />, effect: '+1 tikkracht per 2 punten' },
+    { id: 'brains', label: t.profile.brains, icon: <Brain size={14} />, effect: '+2% buitopbrengst per punt' },
+    { id: 'charm', label: t.profile.charm, icon: <Gem size={14} />, effect: '+2% crewsnelheid per punt' },
   ];
 
   return (
@@ -79,7 +81,6 @@ export function ProfileView() {
               <p className="text-[0.5rem] text-muted-foreground mt-0.5 text-right">
                 {state.player.xp}/{state.player.nextXp} XP
                 {(state.player.statPoints || 0) > 0 && <span className="text-emerald font-bold ml-1">({state.player.statPoints} StP)</span>}
-                {state.player.skillPoints > 0 && <span className="text-gold font-bold ml-1">({state.player.skillPoints} SP)</span>}
               </p>
             </div>
           </div>
@@ -115,7 +116,6 @@ export function ProfileView() {
       <SubTabBar
         tabs={[
           { id: 'stats', label: t.profile.stats, icon: <BarChart3 size={11} /> },
-          { id: 'skills', label: t.profile.skills, icon: <Star size={11} /> },
           { id: 'loadout', label: t.profile.loadout, icon: <Shield size={11} /> },
           { id: 'contacts', label: t.profile.npcs, icon: <Users size={11} /> },
           { id: 'districts', label: t.profile.repTab, icon: <MapPin size={11} /> },
@@ -141,7 +141,10 @@ export function ProfileView() {
               const bonus = total - base;
               return (
                 <div key={s.id} className="flex items-center gap-2 text-xs">
-                  <div className="w-16 flex items-center gap-1.5 text-muted-foreground">{s.icon}<span>{s.label}</span></div>
+                  <div className="w-16 flex flex-col gap-0.5 text-muted-foreground">
+                    <span className="flex items-center gap-1.5">{s.icon}<span>{s.label}</span></span>
+                    <span className="text-[0.4rem] leading-tight text-muted-foreground/70">{s.effect}</span>
+                  </div>
                   <div className="flex-1"><StatBar value={total} max={15} color="gold" height="sm" animate={false} /></div>
                   <span className="font-bold w-10 text-right">{base}{bonus > 0 && <span className="text-gold">+{bonus}</span>}</span>
                   {(state.player.statPoints || 0) > 0 && (
@@ -230,7 +233,6 @@ export function ProfileView() {
         </>
       )}
 
-      {profileTab === 'skills' && <SkillTreePanel />}
       {profileTab === 'contacts' && <NpcRelationsPanel />}
       {profileTab === 'arcs' && <StoryArcsPanel />}
       {profileTab === 'leaderboard' && <LeaderboardView embedded />}

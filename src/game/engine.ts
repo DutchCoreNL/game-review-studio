@@ -1529,15 +1529,11 @@ export function gainXp(state: GameState, amount: number, source: string = 'actio
     didLevelUp = true;
     // Unified XP curve: use xpForLevel() instead of flat *1.4
     state.player.nextXp = xpForLevel(state.player.level);
-    // +1 Stat Point per level-up (for raw stats)
+    // +1 Stat Point per level-up. Skill points are no longer granted: the skill
+    // tree belonged to the retired RPG layer, so they piled up unspendable. The
+    // three raw stats now feed the live loop instead (see statTapBonus and friends).
     state.player.statPoints = (state.player.statPoints || 0) + 1;
-    // +2 Skill Points per level-up (matches server SP_PER_LEVEL = 2)
-    state.player.skillPoints += 2;
-    // Extra SP at milestones (every 5 levels)
     const milestone = getMilestone(state.player.level);
-    if (milestone && milestone.sp_bonus > 0) {
-      state.player.skillPoints += milestone.sp_bonus;
-    }
     // Milestone cash/rep rewards — the server's handleGainXp already grants these (and they
     // reach synced players via MERGE_SERVER_STATE), but this optimistic local preview never
     // applied them, so a player without cloud sync (local-only save) permanently lost the

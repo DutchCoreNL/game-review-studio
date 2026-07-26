@@ -4538,7 +4538,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [gid, qty] of Object.entries(reward.goods)) {
         s.inventory[gid as GoodId] = (s.inventory[gid as GoodId] || 0) + (qty || 0);
       }
-      const dirty = reward.dirtyMoney + reward.overflowMoney;
+      // Vernuft (brains) means you know what the goods are really worth.
+      const brains = s.player?.stats?.brains || 0;
+      const dirty = Math.round((reward.dirtyMoney + reward.overflowMoney) * (1 + brains * 0.02));
       s.dirtyMoney = (s.dirtyMoney || 0) + dirty;
       s.stats.totalEarned += dirty;
       // Working a district by hand is noticed there just like a racket is.
@@ -4579,6 +4581,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // A gamble resolves to one of two outcomes; everything else is certain.
       const succeeded = choice.successChance == null ? true : Math.random() < choice.successChance;
+      if (choice.id === 'fight') s.stats.incidentsFought = (s.stats.incidentsFought || 0) + 1;
       const outcome: IncidentOutcome = succeeded ? choice.outcome : (choice.failOutcome || choice.outcome);
 
       if (outcome.money) {

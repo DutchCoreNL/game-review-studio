@@ -109,9 +109,13 @@ export function makeJob(district: DistrictId, streak = 0, rand: () => number = M
   };
 }
 
-/** Work a single tap adds — your own hands, sharpened by experience. */
+/**
+ * Work a single tap adds. Three things feed it: the levels you earn by working,
+ * the Kracht you put your stat points into, and the tools you buy.
+ */
 export function tapPower(state: GameState): number {
-  return 1 + Math.floor((state.player?.level || 1) / 4) + equipTapBonus(state);
+  const muscle = state.player?.stats?.muscle || 0;
+  return 1 + Math.floor((state.player?.level || 1) / 4) + Math.floor(muscle / 2) + equipTapBonus(state);
 }
 
 /** Total contraband your stash holds, base capacity plus storage upgrades. */
@@ -132,7 +136,9 @@ export function crewWorkPerSecond(state: GameState, district: DistrictId): numbe
     if (!def || def.district !== district) continue;
     work += 0.25 + (m.loyalty / 100) * 0.45;
   }
-  return work * equipCrewMultiplier(state);
+  // Charisma keeps the crew keen, so they put more in per second.
+  const charm = state.player?.stats?.charm || 0;
+  return work * equipCrewMultiplier(state) * (1 + charm * 0.02);
 }
 
 export interface JobReward {

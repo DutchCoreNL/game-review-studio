@@ -9,19 +9,27 @@ import { getPlayerStat, gainXp, syncPlayerMaxHP } from './engine';
 
 // ========== PROGRESSION PHASES ==========
 
+/**
+ * How far your name has spread. The old ladder was measured in conquered districts
+ * and defeated faction leaders — both retired systems, so every rung above the first
+ * announced a goal the player could no longer work towards. It now tracks the thing
+ * the whole game is actually built on: the standing your organisation has earned,
+ * and finally the dynasty you leave behind.
+ */
 export const ENDGAME_PHASES: { id: EndgamePhase; label: string; desc: string; icon: string }[] = [
-  { id: 'straatdealer', label: 'Straatdealer', desc: 'Begin je reis in de onderwereld', icon: '🔫' },
-  { id: 'wijkbaas', label: 'Wijkbaas', desc: 'Bezit 2+ districten', icon: '🏘️' },
-  { id: 'districtheerser', label: 'Districtheerser', desc: 'Bezit 4+ districten & verover 1+ factie', icon: '🏰' },
-  { id: 'onderwerelds_koning', label: 'Onderwerelds Koning', desc: 'Verover alle 3 facties', icon: '👑' },
-  { id: 'noxhaven_baas', label: 'Noxhaven Baas', desc: 'Versla de eindbaas en claim de stad', icon: '🌆' },
+  { id: 'straatdealer', label: 'Straatdealer', desc: 'Je eerste crew, je eerste klussen', icon: '🔫' },
+  { id: 'wijkbaas', label: 'Wijkbaas', desc: 'Bereik 100 aanzien', icon: '🏘️' },
+  { id: 'districtheerser', label: 'Districtheerser', desc: 'Bereik 300 aanzien', icon: '🏰' },
+  { id: 'onderwerelds_koning', label: 'Onderwerelds Koning', desc: 'Bereik 700 aanzien', icon: '👑' },
+  { id: 'noxhaven_baas', label: 'Noxhaven Baas', desc: 'Geef je imperium door aan een opvolger', icon: '🌆' },
 ];
 
 export function calculateEndgamePhase(state: GameState): EndgamePhase {
-  if (state.finalBossDefeated) return 'noxhaven_baas';
-  if ((state.conqueredFactions?.length || 0) >= 3) return 'onderwerelds_koning';
-  if (state.ownedDistricts.length >= 4 && (state.conqueredFactions?.length || 0) >= 1) return 'districtheerser';
-  if (state.ownedDistricts.length >= 2) return 'wijkbaas';
+  const respect = state.org?.respect || 0;
+  if ((state.legacy?.generation || 0) >= 1) return 'noxhaven_baas';
+  if (respect >= 700) return 'onderwerelds_koning';
+  if (respect >= 300) return 'districtheerser';
+  if (respect >= 100) return 'wijkbaas';
   return 'straatdealer';
 }
 

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Car, Flame, AlertTriangle } from 'lucide-react';
+import { Flame, AlertTriangle } from 'lucide-react';
 import { TappableTile } from './TappableTile';
 import { WANTED_HEAT_THRESHOLD } from '@/game/constants';
 
@@ -16,12 +16,11 @@ function getHeatTextColor(value: number): string {
 }
 
 interface HeatTileProps {
-  vehicleHeat: number;
   personalHeat: number;
   onTap?: () => void;
 }
 
-export function HeatTile({ vehicleHeat, personalHeat, onTap }: HeatTileProps) {
+export function HeatTile({ personalHeat, onTap }: HeatTileProps) {
   const isWanted = personalHeat >= WANTED_HEAT_THRESHOLD;
 
   return (
@@ -38,17 +37,6 @@ export function HeatTile({ vehicleHeat, personalHeat, onTap }: HeatTileProps) {
               <AlertTriangle size={7} /> GEZOCHT
             </motion.span>
           )}
-        </div>
-        <div className="flex items-center gap-1 mt-0.5">
-          <Car size={7} className={getHeatTextColor(vehicleHeat)} />
-          <div className="relative flex-1 h-1 rounded-full bg-muted/50 overflow-hidden">
-            <motion.div
-              className={`absolute inset-y-0 left-0 rounded-full ${getHeatBarColor(vehicleHeat)}`}
-              animate={{ width: `${vehicleHeat}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-          <span className={`text-[0.45rem] font-bold tabular-nums ${getHeatTextColor(vehicleHeat)}`}>{vehicleHeat}</span>
         </div>
         <div className="flex items-center gap-1 mt-0.5">
           <Flame size={7} className={getHeatTextColor(personalHeat)} />
