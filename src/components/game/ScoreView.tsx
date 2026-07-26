@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Users, Hand, Droplets, Package } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Lock, Droplets, Package } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
 import { DISTRICT_IMAGES, GOOD_IMAGES } from '@/assets/items';
@@ -10,20 +9,17 @@ import {
   DISTRICT_CREW_REQUIREMENT,
 } from '@/game/score';
 import { RACKET_BY_ID } from '@/game/rackets';
+import { JobScene } from './score/JobScene';
+import { LootBurst } from './score/LootBurst';
 import { GameButton } from './ui/GameButton';
-import { playHitSound, playCoinSound } from '@/game/sounds';
+import { playCoinSound } from '@/game/sounds';
 
 const DISTRICT_ORDER: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'] as DistrictId[];
 const GOOD_NAME: Record<string, string> = GOODS.reduce((a, g) => { a[g.id] = g.name; return a; }, {} as Record<string, string>);
 
-/** A "+N" that floats up from where you tapped. */
-interface Hit { id: number; x: number; y: number; value: number }
-
 export function ScoreView() {
   const { state, dispatch, showToast, setView } = useGame();
   const job = state.activeJob;
-  const [hits, setHits] = useState<Hit[]>([]);
-  const hitId = useRef(0);
   const reward = state.lastJobReward;
 
   // Clear the loot burst after it has been seen.
@@ -46,22 +42,12 @@ export function ScoreView() {
   }, [state.inventory]);
   const stashUsed = stash.reduce((s, x) => s + x.qty, 0);
 
-  /** How many crew are actually assigned to a racket in this district. */
-  const crewHere = (d: DistrictId) =>
+  /** Crew actually assigned to a racket in a district. */
+  const crewIn = (d: DistrictId) =>
     (state.org?.members || []).filter(m => m.assignment && !m.injuredUntilDay
-      && RACKET_BY_ID[m.assignment]?.district === d).length;
-
-  const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!job) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    hitId.current++;
-    setHits(h => [...h, { id: hitId.current, x, y, value: power }]);
-    setTimeout(() => setHits(h => h.filter(p => p.id !== hitId.current)), 700);
-    playHitSound();
-    dispatch({ type: 'SCORE_WORK', amount: power });
-  };
+      && RACKET_BY_ID[m.assignment]?.district === d);
+  const crewHere = (d: DistrictId) => crewIn(d).length;
+  const workingHere = job ? crewIn(job.district).map(m => m.name) : [];
 
   // ---- No job running: pick where to work ----
   if (!job) {
@@ -107,96 +93,28 @@ export function ScoreView() {
   }
 
   // ---- Working a job ----
-  const pct = Math.min(100, (job.progress / job.required) * 100);
 
   return (
     <div className="space-y-3">
-      {/* The scene you actually tap */}
-      <div
-        onClick={handleTap}
-        className="relative rounded-xl overflow-hidden border border-gold/30 cursor-pointer select-none active:border-gold/70"
-        style={{ WebkitTapHighlightColor: 'transparent' }}
-      >
-        <img src={DISTRICT_IMAGES[job.district]} alt="" className="w-full h-48 object-cover opacity-50" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+      <JobScene
+        job={job}
+        basePower={power}
+        crewRate={crewRate}
+        crewNames={workingHere}
+        onWork={(amount) => dispatch({ type: 'SCORE_WORK', amount })}
+      />
 
-        {/* Job identity */}
-        <div className="absolute top-3 left-3 right-3">
-          <div className="text-[0.45rem] text-muted-foreground uppercase tracking-widest">
-            {DISTRICTS[job.district]?.name || job.district}
-          </div>
-          <div className="text-sm font-display text-foreground uppercase tracking-wide">{job.name}</div>
-          <p className="text-[0.5rem] text-muted-foreground leading-snug mt-0.5 max-w-[85%]">{job.flavor}</p>
-        </div>
-
-        {/* Tap hint */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          animate={{ opacity: [0.25, 0.6, 0.25], scale: [1, 1.06, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Hand size={30} className="text-gold/70" />
-        </motion.div>
-
-        {/* Floating +N per tap */}
-        <AnimatePresence>
-          {hits.map(h => (
-            <motion.div key={h.id}
-              initial={{ opacity: 1, y: 0, scale: 1.2 }}
-              animate={{ opacity: 0, y: -44, scale: 0.9 }}
-              transition={{ duration: 0.7 }}
-              className="absolute font-bold text-sm text-gold pointer-events-none"
-              style={{ left: h.x - 8, top: h.y - 10, textShadow: '0 0 8px currentColor' }}>
-              +{h.value}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {/* Progress */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <div className="flex justify-between text-[0.45rem] mb-1">
-            <span className="text-muted-foreground">
-              <Users size={8} className="inline mb-px" /> crew {crewRate.toFixed(1)}/sec · tik +{power}
-            </span>
-            <span className="text-gold font-bold">{Math.floor(job.progress)}/{job.required}</span>
-          </div>
-          <div className="h-2.5 rounded-full bg-muted/60 overflow-hidden border border-border/40">
-            <motion.div className="h-full bg-gradient-to-r from-gold via-gold to-blood"
-              animate={{ width: `${pct}%` }} transition={{ duration: 0.18 }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Loot burst */}
-      <AnimatePresence>
-        {reward && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="game-card border-l-[3px] border-l-gold p-2.5"
-          >
-            <div className="text-[0.5rem] font-bold text-gold uppercase tracking-wider mb-1.5">
-              {reward.jobName} — buit
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {Object.entries(reward.goods).map(([gid, qty]) => (
-                <motion.div key={gid} initial={{ scale: 0 }} animate={{ scale: 1 }}
-                  className="flex items-center gap-1 bg-muted/40 rounded px-1.5 py-1">
-                  {GOOD_IMAGES[gid]
-                    ? <img src={GOOD_IMAGES[gid]} alt="" className="w-5 h-5 rounded object-cover" />
-                    : <Package size={12} className="text-muted-foreground" />}
-                  <span className="text-[0.5rem] font-bold text-foreground">+{qty}</span>
-                  <span className="text-[0.45rem] text-muted-foreground">{GOOD_NAME[gid] || gid}</span>
-                </motion.div>
-              ))}
-              <span className="text-[0.55rem] font-bold text-dirty">
-                +€{(reward.dirtyMoney + reward.overflowMoney).toLocaleString()} zwart
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* The take. Rendered plainly rather than through AnimatePresence: an exiting
+          card kept its slot in the layout, leaving a hole above the stash between
+          jobs. The entrance is the part that sells it; the exit can be instant. */}
+      {reward && (
+        <LootBurst
+          key={reward.jobName + reward.dirtyMoney}
+          jobName={reward.jobName}
+          goods={reward.goods}
+          dirty={reward.dirtyMoney + reward.overflowMoney}
+        />
+      )}
 
       {/* Stash + laundering — the chain out of here */}
       <div className="game-card p-2.5">
