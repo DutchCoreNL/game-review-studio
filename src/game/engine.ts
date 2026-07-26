@@ -1,7 +1,7 @@
 import { GameState, DistrictId, GoodId, FamilyId, StatId, ActiveContract, CombatState, CrewRole, NightReportData, RandomEvent, FactionActionType, MapEvent, PrisonState, PrisonEvent, AmmoType, ConquestPhaseData, CombatStance } from './types';
 import { STANCE_MODIFIERS } from './combatSkills';
 import { generateCliffhanger } from './cliffhangers';
-import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_SENTENCE_TABLE, PRISON_MONEY_CONFISCATION, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_EVENTS, PRISON_LAWYER_SENTENCE_REDUCTION, PRISON_CREW_LOYALTY_PENALTY, PRISON_CREW_DESERT_THRESHOLD, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_COOLDOWN, CONQUEST_COMBAT_OVERRIDES } from './constants';
+import { DISTRICTS, VEHICLES, GOODS, FAMILIES, CONTRACT_TEMPLATES, GEAR, BUSINESSES, SOLO_OPERATIONS, COMBAT_ENVIRONMENTS, CREW_NAMES, CREW_ROLES, ACHIEVEMENTS, RANDOM_EVENTS, BOSS_DATA, BOSS_COMBAT_OVERRIDES, FACTION_ACTIONS, FACTION_GIFTS, FACTION_REWARDS, AMMO_FACTORY_DAILY_PRODUCTION, AMMO_FACTORY_UPGRADES, PRISON_ARREST_CHANCE_RAID, CORRUPT_CONTACTS, MARKET_EVENTS, GOOD_SPOILAGE, PRISON_LAWYER_SENTENCE_REDUCTION, POLICE_RAID_HEAT_THRESHOLD, WANTED_HEAT_THRESHOLD, WANTED_ARREST_CHANCE, ARREST_HEAT_THRESHOLD, BETRAYAL_ARREST_CHANCE, UNIQUE_VEHICLES, FACTION_CONQUEST_PHASES, CONQUEST_PHASE_COOLDOWN, CONQUEST_COMBAT_OVERRIDES } from './constants';
 import { applyNewFeatures, resolveNemesisDefeat, addPhoneMessage } from './newFeatures';
 import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
@@ -18,6 +18,7 @@ import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './we
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
 import { RACKET_BY_ID } from './rackets';
+import { sentenceForHeat, MONEY_CONFISCATION, DIRTY_CONFISCATION, GOODS_CONFISCATION, rollPrisonDayEvent } from './prison';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -653,10 +654,7 @@ function applyRandomEvent(state: GameState, event: RandomEvent): void {
 // ========== PRISON HELPERS ==========
 
 export function calculateSentence(personalHeat: number): number {
-  for (const entry of PRISON_SENTENCE_TABLE) {
-    if (personalHeat <= entry.maxHeat) return entry.days;
-  }
-  return 7;
+  return sentenceForHeat(personalHeat);
 }
 
 export function arrestPlayer(state: GameState, report: NightReportData): void {
@@ -674,22 +672,27 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
   // Confiscate money (villa vault money is protected)
   const protectedMoney = getVillaProtectedMoney(state);
   const vulnerableMoney = Math.max(0, state.money - 0); // all pocket money is vulnerable
-  const moneyLost = Math.floor(vulnerableMoney * PRISON_MONEY_CONFISCATION);
+  const moneyLost = Math.floor(vulnerableMoney * MONEY_CONFISCATION);
   state.money -= moneyLost;
 
-  // Confiscate all dirty money
-  const dirtyMoneyLost = state.dirtyMoney;
-  state.dirtyMoney = 0;
+  // Dirty money is the least defensible thing you own, so most of it goes. Taking
+  // *all* of it used to wipe the only buffer the player had between jobs.
+  const dirtyMoneyLost = Math.floor(state.dirtyMoney * DIRTY_CONFISCATION);
+  state.dirtyMoney -= dirtyMoneyLost;
 
-  // Confiscate illegal goods (drugs, weapons) — villa stored goods are PROTECTED
+  // Contraband: what you had on you, not the whole stash. An arrest that emptied the
+  // stash undid every score you had banked and made heat feel arbitrary rather than
+  // expensive.
   const goodsLost: string[] = [];
   const illegalGoods: GoodId[] = ['drugs', 'weapons'];
   illegalGoods.forEach(gid => {
-    if ((state.inventory[gid] || 0) > 0) {
-      goodsLost.push(GOODS.find(g => g.id === gid)?.name || gid);
-      state.inventory[gid] = 0;
-      state.inventoryCosts[gid] = 0;
-    }
+    const held = state.inventory[gid] || 0;
+    if (held <= 0) return;
+    const seized = Math.max(1, Math.floor(held * GOODS_CONFISCATION));
+    const unitCost = held > 0 ? (state.inventoryCosts[gid] || 0) / held : 0;
+    state.inventory[gid] = held - seized;
+    state.inventoryCosts[gid] = Math.max(0, Math.round((state.inventoryCosts[gid] || 0) - unitCost * seized));
+    goodsLost.push(`${seized}× ${GOODS.find(g => g.id === gid)?.name || gid}`);
   });
 
   state.prison = {
@@ -922,57 +925,42 @@ export function endTurn(state: GameState): NightReportData {
   }
 
   // === PRISON: Day countdown ===
-  if (state.prison) {
+  // Not on the tick you were picked up. The countdown used to run in the same tick as
+  // the arrest, so every sentence was silently one day shorter and a one-day sentence
+  // was served before you ever saw it — you were arrested and released in one go.
+  if (state.prison && !report.imprisoned) {
     state.prison.dayServed++;
     state.prison.daysRemaining--;
     report.prisonDayServed = state.prison.dayServed;
     report.prisonDaysRemaining = state.prison.daysRemaining;
 
-    // Prison daily event
+    // A day inside. The old event set moved HP and loyalty on `state.crew`, the
+    // retired pre-organisation roster, so nothing it did was visible or felt —
+    // serving a sentence was mechanically empty. These land on the live systems.
     if (state.prison.daysRemaining > 0) {
-      const roll = Math.random();
-      if (roll < 0.6) { // 60% chance of an event
-        const evt = PRISON_EVENTS[Math.floor(Math.random() * PRISON_EVENTS.length)];
+      const evt = rollPrisonDayEvent();
+      if (evt) {
         state.prison.events.push(evt);
         report.prisonDailyEvent = evt;
 
-        // Apply event effects
         switch (evt.effect) {
           case 'brains_up': state.player.stats.brains += evt.value; break;
           case 'muscle_up': state.player.stats.muscle += evt.value; break;
           case 'charm_up': state.player.stats.charm += evt.value; break;
-          case 'hp_loss': state.crew.forEach(c => { if (c.hp > 0) c.hp = Math.max(1, c.hp - evt.value); }); break;
-          case 'rep_up': state.rep += evt.value; break;
+          case 'respect_up': if (state.org) state.org.respect += evt.value; break;
           case 'day_reduce':
             if (state.prison.daysRemaining > 1) {
               state.prison.daysRemaining -= evt.value;
-              if (state.money >= 500) state.money -= 500; // small cost
+              if (state.money >= 500) state.money -= 500; // the envelope
             }
             break;
           case 'money_cost': state.money = Math.max(0, state.money - evt.value); break;
-          case 'loyalty_up': state.crew.forEach(c => { c.loyalty = Math.min(100, (c.loyalty || 75) + evt.value); }); break;
+          case 'loyalty_down':
+            (state.org?.members || []).forEach(m => {
+              m.loyalty = Math.max(0, (m.loyalty ?? 75) - evt.value);
+            });
+            break;
         }
-      }
-    }
-
-    // Crew loyalty penalty during imprisonment
-    if (state.crew.length > 0) {
-      state.crew.forEach(c => {
-        c.loyalty = Math.max(0, (c.loyalty || 75) - PRISON_CREW_LOYALTY_PENALTY);
-      });
-
-      // Crew desertion if sentence > threshold
-      if (state.prison.dayServed >= PRISON_CREW_DESERT_THRESHOLD) {
-        const deserted: string[] = [];
-        for (let i = state.crew.length - 1; i >= 0; i--) {
-          const member = state.crew[i];
-          if ((member.loyalty || 75) < 20 && Math.random() < 0.3) {
-            addPhoneMessage(state, member.name, `Ik wacht niet meer. Je zit vast en ik heb betere opties. Vaarwel.`, 'warning');
-            deserted.push(member.name);
-            state.crew.splice(i, 1);
-          }
-        }
-        if (deserted.length > 0) report.prisonCrewDeserted = deserted;
       }
     }
 
@@ -985,16 +973,17 @@ export function endTurn(state: GameState): NightReportData {
         dirtyMoneyLost: state.prison.dirtyMoneyLost,
         goodsLost: state.prison.goodsLost,
         events: [...state.prison.events],
-        crewDeserted: report.prisonCrewDeserted || [],
+        crewDeserted: [],
         escapeFailed: state.prison.escapeAttempted,
       };
-      // Release: reset heat
+      // Sitting it out is the one way out that buys you a clean slate. That is the
+      // whole trade against buying your way out, which leaves you exactly as hot.
       state.personalHeat = 0;
       state.ownedVehicles.forEach(v => { v.vehicleHeat = 0; });
       recomputeHeat(state);
       state.prison = null;
       report.prisonReleased = true;
-      addPhoneMessage(state, 'anonymous', 'Je bent vrijgelaten. Schone lei. Begin opnieuw.', 'info');
+      addPhoneMessage(state, 'anonymous', 'Je bent vrij. De straat is je vergeten — voor nu.', 'info');
     }
   }
 

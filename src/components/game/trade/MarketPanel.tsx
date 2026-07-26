@@ -15,7 +15,7 @@ import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair, Bomb, Bitcoin, FlaskConical, CircuitBoard } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair, Bomb, Bitcoin, FlaskConical, CircuitBoard, Lock } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GOOD_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
@@ -264,6 +264,13 @@ export function MarketPanel() {
 
   return (
     <>
+      {/* Trading is blocked while you are inside. The reducer already refused these
+          actions, but it refused them silently — the buttons simply did nothing. */}
+      {state.prison && (
+        <div className="mb-1.5 text-[0.5rem] text-blood bg-blood/10 border border-blood/20 rounded px-2 py-1.5 flex items-center justify-center gap-1.5">
+          <Lock size={10} /> Je zit vast — niemand handelt met je tot je buiten staat.
+        </div>
+      )}
       <AutoFencePanel />
       {orgControlsDistrict(state.org, state.loc) && (
         <div className="mb-1.5 text-[0.5rem] text-emerald bg-emerald/10 border border-emerald/20 rounded px-2 py-1 flex items-center justify-center gap-1">
@@ -377,8 +384,9 @@ export function MarketPanel() {
         <motion.button
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          onClick={() => setPendingSellAll({ totalGains: estimateSellAllGains() })}
-          className="w-full mb-4 py-2.5 rounded font-bold text-xs uppercase tracking-wider bg-blood/15 border border-blood text-blood hover:bg-blood/25 transition-all flex items-center justify-center gap-2"
+          onClick={() => { if (!state.prison) setPendingSellAll({ totalGains: estimateSellAllGains() }); }}
+          disabled={!!state.prison}
+          className="w-full mb-4 py-2.5 rounded font-bold text-xs uppercase tracking-wider bg-blood/15 border border-blood text-blood hover:bg-blood/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <PackageOpen size={14} />
           VERKOOP ALLES
@@ -404,7 +412,9 @@ export function MarketPanel() {
           const sparkData = state.priceHistory?.[state.loc]?.[g.id] || [];
 
           let displayPrice = basePrice;
-          let disabled = false;
+          // Nobody deals with you while you are inside; the reducer refuses the action
+          // anyway, so the button should say so rather than look live.
+          let disabled = !!state.prison;
           let profitInfo = '';
           let profitPositive = false;
 

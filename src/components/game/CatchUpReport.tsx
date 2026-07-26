@@ -1,6 +1,6 @@
 import { useGame, type CatchUpReportData } from '@/contexts/GameContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Zap, Brain, TrendingDown, Calendar, ArrowRight, Coins, Building2, Globe, Crown } from 'lucide-react';
+import { Clock, TrendingDown, Calendar, ArrowRight, Coins, Globe, Crown, Lock, Unlock } from 'lucide-react';
 import { AnimatedReportRow } from './night-report/AnimatedReportRow';
 import { useEffect, useRef } from 'react';
 
@@ -128,6 +128,46 @@ export function CatchUpReport() {
                 color="text-emerald-400"
                 delay={next()}
               />
+            )}
+
+            {/* Picked up while you were gone. This has to be the loudest line in the
+                report: without it you come back to a locked De Klus with no reason. */}
+            {report.arrested && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(), type: 'spring', stiffness: 300 }}
+                className="border border-blood rounded-lg bg-blood/10 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock size={14} className="text-blood" />
+                  <span className="text-xs font-bold text-blood uppercase tracking-wider">Opgepakt</span>
+                </div>
+                <p className="text-[0.65rem] text-foreground/80 leading-snug">
+                  De politie heeft je van de straat gehaald — {report.arrested.days}{' '}
+                  {report.arrested.days === 1 ? 'dag' : 'dagen'} vast
+                  {report.arrested.moneyLost > 0 && <> en €{report.arrested.moneyLost.toLocaleString()} in beslag genomen</>}.
+                  Je crew draait door; zelf klussen kan pas als je buiten staat.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Sentence served out while you were away */}
+            {report.released && !report.arrested && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: next(), type: 'spring', stiffness: 300 }}
+                className="border border-emerald/40 rounded-lg bg-emerald/10 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Unlock size={14} className="text-emerald" />
+                  <span className="text-xs font-bold text-emerald uppercase tracking-wider">Vrij</span>
+                </div>
+                <p className="text-[0.65rem] text-foreground/80 leading-snug">
+                  Je straf is uitgezeten. Schone lei — je heat staat op nul.
+                </p>
+              </motion.div>
             )}
 
             {/* World headlines — what happened in Noxhaven while away */}

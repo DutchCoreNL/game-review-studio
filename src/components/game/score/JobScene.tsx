@@ -9,6 +9,7 @@ import {
   streakPayoutMultiplier, type TapResult,
 } from '@/game/momentum';
 import { playHitSound, playHeavyHitSound } from '@/game/sounds';
+import { HeatAtmosphere } from './HeatAtmosphere';
 
 /**
  * The scene you actually work. Everything here exists to make a tap *land*:
@@ -28,7 +29,7 @@ const ACCENT_TEXT: Record<string, string> = {
   muted: 'text-muted-foreground', gold: 'text-gold', blood: 'text-blood',
 };
 
-export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesAway, onWork }: {
+export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesAway, heat, onWork }: {
   job: ScoreJob;
   basePower: number;
   crewRate: number;
@@ -37,6 +38,8 @@ export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesA
   streak: number;
   /** Minutes since the last tick, used for the returning-player head start. */
   minutesAway: number;
+  /** Personal heat, so the city can visibly react to how wanted you are. */
+  heat: number;
   onWork: (amount: number) => void;
 }) {
   const [hits, setHits] = useState<Hit[]>([]);
@@ -105,6 +108,9 @@ export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesA
       >
         <img src={DISTRICT_IMAGES[job.district]} alt="" className="w-full h-48 object-cover opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+
+        {/* The city reacting to your heat: patrol light, sirens, searchlight, dark. */}
+        <HeatAtmosphere heat={heat} />
 
         {/* Momentum glow washes the scene as you climb the tiers */}
         <motion.div

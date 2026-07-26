@@ -11,6 +11,7 @@ import {
 import { RACKET_BY_ID } from '@/game/rackets';
 import { JobScene } from './score/JobScene';
 import { LootBurst } from './score/LootBurst';
+import { LockedUpPanel } from './score/LockedUpPanel';
 import { GameButton } from './ui/GameButton';
 import { playCoinSound } from '@/game/sounds';
 
@@ -55,6 +56,59 @@ export function ScoreView() {
       && RACKET_BY_ID[m.assignment]?.district === d);
   const crewHere = (d: DistrictId) => crewIn(d).length;
   const workingHere = job ? crewIn(job.district).map(m => m.name) : [];
+
+  /** Stash + the two ways out of it. Shared by the working and locked-up views. */
+  const stashCard = (locked: boolean) => (
+    <div className="game-card p-2.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">
+          Voorraad {stashUsed}/{stashCapacity(state)}
+        </span>
+        <span className="text-[0.55rem] font-bold text-dirty">
+          €{Math.round(state.dirtyMoney || 0).toLocaleString()} zwart geld
+        </span>
+      </div>
+      {stash.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {stash.map(item => (
+            <div key={item.id} className="flex items-center gap-1 bg-muted/30 rounded px-1.5 py-1" title={GOOD_NAME[item.id]}>
+              {GOOD_IMAGES[item.id]
+                ? <img src={GOOD_IMAGES[item.id]} alt="" className="w-5 h-5 rounded object-cover" />
+                : <Package size={12} />}
+              <span className="text-[0.5rem] font-bold">{item.qty}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[0.5rem] text-muted-foreground mb-2">Nog geen buit. Werk een klus af.</p>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <GameButton variant="muted" size="sm" disabled={locked}
+          onClick={() => setView('market')}>
+          <Package size={11} /> Verkopen
+        </GameButton>
+        <GameButton variant="emerald" size="sm" disabled={(state.dirtyMoney || 0) <= 0}
+          onClick={() => { dispatch({ type: 'WASH_MONEY' }); showToast('Geld witgewassen!'); }}>
+          <Droplets size={11} /> Witwassen
+        </GameButton>
+      </div>
+      {locked && (
+        <p className="text-[0.42rem] text-muted-foreground mt-1.5">
+          Je waar blijft liggen tot je buiten staat. Witwassen loopt door.
+        </p>
+      )}
+    </div>
+  );
+
+  // ---- Inside: your hands are out of action, the empire is not ----
+  if (state.prison) {
+    return (
+      <div className="space-y-3">
+        <LockedUpPanel />
+        {stashCard(true)}
+      </div>
+    );
+  }
 
   // ---- No job running: pick where to work ----
   if (!job) {
@@ -110,6 +164,7 @@ export function ScoreView() {
         crewNames={workingHere}
         streak={state.jobStreak || 0}
         minutesAway={minutesAway}
+        heat={Math.round(state.personalHeat || 0)}
         onWork={(amount) => dispatch({ type: 'SCORE_WORK', amount })}
       />
 
@@ -126,39 +181,7 @@ export function ScoreView() {
       )}
 
       {/* Stash + laundering — the chain out of here */}
-      <div className="game-card p-2.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">
-            Voorraad {stashUsed}/{stashCapacity(state)}
-          </span>
-          <span className="text-[0.55rem] font-bold text-dirty">
-            €{Math.round(state.dirtyMoney || 0).toLocaleString()} zwart geld
-          </span>
-        </div>
-        {stash.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {stash.map(item => (
-              <div key={item.id} className="flex items-center gap-1 bg-muted/30 rounded px-1.5 py-1" title={GOOD_NAME[item.id]}>
-                {GOOD_IMAGES[item.id]
-                  ? <img src={GOOD_IMAGES[item.id]} alt="" className="w-5 h-5 rounded object-cover" />
-                  : <Package size={12} />}
-                <span className="text-[0.5rem] font-bold">{item.qty}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[0.5rem] text-muted-foreground mb-2">Nog geen buit. Werk een klus af.</p>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          <GameButton variant="muted" size="sm" onClick={() => setView('market')}>
-            <Package size={11} /> Verkopen
-          </GameButton>
-          <GameButton variant="emerald" size="sm" disabled={(state.dirtyMoney || 0) <= 0}
-            onClick={() => { dispatch({ type: 'WASH_MONEY' }); showToast('Geld witgewassen!'); }}>
-            <Droplets size={11} /> Witwassen
-          </GameButton>
-        </div>
-      </div>
+      {stashCard(false)}
 
       <div className="grid grid-cols-2 gap-2">
         <GameButton variant="ghost" size="sm"

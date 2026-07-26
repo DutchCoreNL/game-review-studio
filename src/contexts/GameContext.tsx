@@ -4,7 +4,7 @@ import { useServerSync } from '@/hooks/useServerSync';
 import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { MERIT_NODES, canUnlockMeritNode } from '../game/meritSystem';
-import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_BRIBE_COST_PER_DAY, PRISON_ESCAPE_BASE_CHANCE, PRISON_ESCAPE_HEAT_PENALTY, PRISON_ESCAPE_FAIL_EXTRA_DAYS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
+import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
 import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction, canUseHelipad } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
@@ -25,6 +25,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { HEAT_BASE_DECAY } from '../game/heat';
+import { bribeCost as prisonBribeCost, escapeChance, ESCAPE_FAIL_EXTRA_DAYS, ESCAPE_HEAT_PENALTY } from '../game/prison';
 import { streakPayoutMultiplier } from '../game/momentum';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
 import { BASE_STASH_SLOTS, WASH_KEEP_RATE } from '../game/engine';
@@ -110,6 +111,10 @@ export interface CatchUpReportData {
   districtIncome: number;
   worldHeadlines?: string[]; // "while you were away" bot-world events
   orgHeadlines?: string[]; // "while you were away" organisation events
+  /** Set when the ticks you missed ended with you in a cell. */
+  arrested?: { days: number; moneyLost: number };
+  /** Set when the ticks you missed served out a sentence you were already in. */
+  released?: boolean;
 }
 
 interface XpBreakdownData {
@@ -786,7 +791,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
       
+      // Coming back to a locked "INGEREKEND" screen with no explanation is the kind of
+      // thing that reads as a bug. Note the transition so the welcome-back report can
+      // tell you what happened while you were gone.
+      const wasInside = !!s.prison;
+      const isCatchUp = !!(action as { isCatchUp?: boolean }).isCatchUp;
       Engine.endTurn(s);
+      if (!wasInside && s.prison) {
+        // Only a catch-up can leave the flag for the welcome-back card; setting it on a
+        // live tick would make a stale "Opgepakt" line surface in the next catch-up.
+        if (isCatchUp) s._catchUpArrest = { days: s.prison.totalSentence, moneyLost: s.prison.moneyLost };
+        else {
+          s.screenEffect = 'blood-flash';
+          addPhoneMessage(s, 'NHPD', `Inval geslaagd. Je zit vast: ${s.prison.totalSentence} ${s.prison.totalSentence === 1 ? 'dag' : 'dagen'}. Je crew draait door zonder je.`, 'threat');
+        }
+      } else if (wasInside && !s.prison) {
+        if (isCatchUp) s._catchUpReleased = true;
+      }
       Engine.checkAchievements(s);
       // Codex unlock check
       try {
@@ -1116,6 +1137,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           moneyEarned: earned > 0 ? earned : action.report.moneyEarned,
           worldHeadlines: headlines,
           orgHeadlines,
+          arrested: s._catchUpArrest || undefined,
+          released: s._catchUpReleased || undefined,
         };
       } else {
         (s as any).catchUpReport = null;
@@ -1123,6 +1146,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s._catchUpWorldHeadlines = [];
       s._catchUpOrgHeadlines = [];
       s._catchUpEarned = 0;
+      s._catchUpArrest = null;
+      s._catchUpReleased = false;
       return s;
     }
 
@@ -2501,44 +2526,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BRIBE_PRISON': {
       if (!s.prison) return s;
-      let bribeCost = s.prison.daysRemaining * PRISON_BRIBE_COST_PER_DAY;
+      let cost = prisonBribeCost(s);
       // Lawyer discount
       const hasLawyer = s.corruptContacts?.some(c => {
         const def = CORRUPT_CONTACTS.find((cd: any) => cd.id === c.contactDefId);
         return def?.type === 'lawyer' && c.active && !c.compromised;
       });
-      if (hasLawyer) bribeCost = Math.floor(bribeCost * (1 - 0.30));
-      if (s.money < bribeCost) return s;
-      s.money -= bribeCost;
-      s.stats.totalSpent += bribeCost;
+      if (hasLawyer) cost = Math.floor(cost * (1 - 0.30));
+      if (s.money < cost) return s;
+      s.money -= cost;
+      s.stats.totalSpent += cost;
       s.prison = null;
-      addPhoneMessage(s, 'anonymous', 'Vrijgekocht. Je heat is niet gereset — ze houden je in de gaten.', 'warning');
+      // Deliberately no heat reset: the fast way out leaves you exactly as wanted as
+      // you were, which is what makes sitting it out worth considering.
+      addPhoneMessage(s, 'anonymous', 'Vrijgekocht. Je heat staat nog waar het stond — ze houden je in de gaten.', 'warning');
       return s;
     }
 
     case 'ATTEMPT_ESCAPE': {
       if (!s.prison || s.prison.escapeAttempted) return s;
       s.prison.escapeAttempted = true;
-      let chance = PRISON_ESCAPE_BASE_CHANCE;
-      chance += Engine.getPlayerStat(s, 'brains') * 0.03;
-      if (s.crew.some(c => c.role === 'Hacker')) chance += 0.10;
-      // Villa tunnel escape bonus
-      if (s.villa?.modules.includes('tunnel')) chance += 0.25;
-      if (Math.random() < chance) {
-        // Success
-        Engine.addPersonalHeat(s, PRISON_ESCAPE_HEAT_PENALTY);
+      if (Math.random() < escapeChance(s)) {
+        Engine.addPersonalHeat(s, ESCAPE_HEAT_PENALTY);
         Engine.recomputeHeat(s);
         s.prison = null;
         s.screenEffect = 'gold-flash';
-        addPhoneMessage(s, 'anonymous', s.villa?.modules.includes('tunnel')
-          ? 'Je ontsnapte via de ondergrondse tunnel onder je villa. Slim. +15 heat.'
-          : 'Ontsnapping geslaagd! Maar je bent nu een voortvluchtige. +15 heat.', 'warning');
+        addPhoneMessage(s, 'anonymous', `Je bent buiten. Maar je staat nu als voortvluchtige te boek. +${ESCAPE_HEAT_PENALTY} heat.`, 'warning');
       } else {
-        // Fail
-        s.prison.daysRemaining += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
-        s.prison.totalSentence += PRISON_ESCAPE_FAIL_EXTRA_DAYS;
+        s.prison.daysRemaining += ESCAPE_FAIL_EXTRA_DAYS;
+        s.prison.totalSentence += ESCAPE_FAIL_EXTRA_DAYS;
         s.screenEffect = 'blood-flash';
-        addPhoneMessage(s, 'NHPD', `Ontsnappingspoging mislukt! +${PRISON_ESCAPE_FAIL_EXTRA_DAYS} extra dagen straf.`, 'threat');
+        addPhoneMessage(s, 'NHPD', `Ze hadden je bij het hek. +${ESCAPE_FAIL_EXTRA_DAYS} dag${ESCAPE_FAIL_EXTRA_DAYS === 1 ? '' : 'en'} erbij.`, 'threat');
       }
       return s;
     }
@@ -4491,6 +4509,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SCORE_START': {
+      // Your hands are the one thing an arrest actually takes away.
+      if (s.prison) return s;
       if (!districtUnlocked(s, action.district)) return s;
       s.activeJob = makeJob(action.district, s.jobStreak || 0);
       // Working a district is how you learn who owns it. Without this the codex
@@ -4512,7 +4532,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SCORE_WORK': {
       // Progress comes from your taps and from crew working that district.
       const job = s.activeJob;
-      if (!job) return s;
+      if (!job || s.prison) return s;
       job.progress += action.amount;
       if (job.progress < job.required) return s;
 

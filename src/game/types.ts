@@ -284,7 +284,7 @@ export interface PrisonEvent {
   id: string;
   title: string;
   desc: string;
-  effect: 'brains_up' | 'muscle_up' | 'charm_up' | 'hp_loss' | 'rep_up' | 'day_reduce' | 'money_cost' | 'loyalty_up';
+  effect: 'brains_up' | 'muscle_up' | 'charm_up' | 'respect_up' | 'day_reduce' | 'money_cost' | 'loyalty_down';
   value: number;
 }
 
@@ -1201,6 +1201,10 @@ export interface GameState {
   jobStreak?: number;
   /** Money the catch-up ticks actually earned, tallied for the welcome-back report. */
   _catchUpEarned?: number;
+  /** Set if the catch-up ticks ended with you arrested, for the welcome-back report. */
+  _catchUpArrest?: { days: number; moneyLost: number } | null;
+  /** Set if the catch-up ticks served out a sentence you were already in. */
+  _catchUpReleased?: boolean;
   /** Loot burst from the job you just finished, for the reward animation. */
   lastJobReward?: { goods: Partial<Record<GoodId, number>>; dirtyMoney: number; overflowMoney: number; jobName: string } | null;
   /** The situation currently demanding a decision, if any. */

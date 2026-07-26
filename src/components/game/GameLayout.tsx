@@ -32,8 +32,6 @@ import { WarEventPopup } from './WarEventPopup';
 import { ConquestPopup } from './ConquestPopup';
 import { BackstorySelection } from './BackstorySelection';
 import { FlashbackOverlay } from './FlashbackOverlay';
-import { PrisonOverlay } from './PrisonOverlay';
-import { HospitalStayOverlay } from './HospitalStayOverlay';
 import { GameOverScreen } from './GameOverScreen';
 import { AchievementPopup } from './AchievementPopup';
 import { CinematicOverlay } from './CinematicOverlay';
@@ -130,10 +128,10 @@ export function GameLayout() {
     dispatch({ type: 'SET_SCREEN_EFFECT', effect: null });
   }, [dispatch]);
 
+  // Being arrested is no longer a hard stop: the sentence is served inside De Klus,
+  // so the rest of the game — crew, rackets, laundering, gear — stays reachable.
   const hasCriticalOverlay = Boolean(
     state.gameOver ||
-    state.prison ||
-    state.hospital ||
     state.activeMission ||
     state.pendingCinematic ||
     state.victoryData
@@ -219,8 +217,6 @@ export function GameLayout() {
               <IncidentOverlay />
               <CatchUpReport />
               {state.gameOver && <GameOverScreen />}
-              {state.prison && <PrisonOverlay />}
-              {state.hospital && <HospitalStayOverlay />}
               {state.pendingCinematic && <CinematicOverlay />}
               {state.activeMission && <MissionEncounterView />}
               {state.victoryData && <VictoryScreen />}

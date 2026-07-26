@@ -2035,24 +2035,14 @@ export const DEATH_LEGACY_XP_BONUS = 0.02; // +2% per death
 export const DEATH_LEGACY_XP_MAX = 0.20; // max +20%
 
 // ========== PRISON CONSTANTS ==========
+// The sentence table, confiscation rates, bribe cost, escape odds and the events of a
+// day inside now live in src/game/prison.ts, next to the rules that read them. What is
+// left here is only what decides *whether* you get picked up.
 
-export const PRISON_SENTENCE_TABLE: { maxHeat: number; days: number }[] = [
-  { maxHeat: 30, days: 1 },
-  { maxHeat: 50, days: 2 },
-  { maxHeat: 70, days: 3 },
-  { maxHeat: 85, days: 5 },
-  { maxHeat: 100, days: 7 },
-];
-
-export const PRISON_BRIBE_COST_PER_DAY = 5000;
-export const PRISON_ESCAPE_BASE_CHANCE = 0.20;
-export const PRISON_MONEY_CONFISCATION = 0.20;
 export const PRISON_ARREST_CHANCE_RAID = 0.30;
 export const PRISON_ARREST_CHANCE_MISSION = 0.15;
 export const PRISON_ARREST_CHANCE_HIGH_RISK = 0.25;
 export const PRISON_ARREST_CHANCE_CARJACK = 0.20;
-export const PRISON_ESCAPE_HEAT_PENALTY = 15;
-export const PRISON_ESCAPE_FAIL_EXTRA_DAYS = 2;
 
 // ========== WANTED & RAID BALANCE ==========
 export const POLICE_RAID_HEAT_THRESHOLD = 45;
@@ -2061,22 +2051,6 @@ export const WANTED_ARREST_CHANCE = 0.10;
 export const ARREST_HEAT_THRESHOLD = 40;
 export const BETRAYAL_ARREST_CHANCE = 0.40;
 export const PRISON_LAWYER_SENTENCE_REDUCTION = 1;
-export const PRISON_LAWYER_BRIBE_DISCOUNT = 0.30; // 30% korting
-export const PRISON_CREW_LOYALTY_PENALTY = 5; // per dag
-export const PRISON_CREW_DESERT_THRESHOLD = 4; // dagen voordat crew kan vertrekken
-
-import type { PrisonEvent } from './types';
-
-export const PRISON_EVENTS: PrisonEvent[] = [
-  { id: 'cellmate_intel', title: 'Celgenoot deelt intel', desc: 'Een oude rot vertelt je over beveiligingssystemen.', effect: 'brains_up', value: 1 },
-  { id: 'yard_fight', title: 'Gevecht op de binnenplaats', desc: 'Je moest jezelf verdedigen. Pijnlijk, maar je bent sterker.', effect: 'muscle_up', value: 1 },
-  { id: 'guard_deal', title: 'Corrupte bewaker', desc: 'Een bewaker biedt aan je straf te verkorten — voor een prijs.', effect: 'day_reduce', value: 1 },
-  { id: 'prison_respect', title: 'Respect verdiend', desc: 'Je reputatie bereikt zelfs de gevangenis.', effect: 'rep_up', value: 10 },
-  { id: 'infirmary', title: 'Ziekenboeg bezoek', desc: 'Slechte hygiëne heeft zijn tol geëist.', effect: 'hp_loss', value: 15 },
-  { id: 'smooth_talker', title: 'Gesprek met advocaat', desc: 'Je wint vertrouwen met gladde praatjes.', effect: 'charm_up', value: 1 },
-  { id: 'crew_letter', title: 'Brief van je crew', desc: 'Je crew stuurt een bericht — moraal stijgt.', effect: 'loyalty_up', value: 10 },
-  { id: 'bribe_guard', title: 'Bewaker omkopen', desc: 'Je betaalt een bewaker voor privileges.', effect: 'money_cost', value: 500 },
-];
 
 // ========== SAFEHOUSE CONSTANTS ==========
 
