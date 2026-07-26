@@ -39,7 +39,7 @@ const MODIFIER_TEMPLATES: Omit<MarketPriceModifier, 'id' | 'daysRemaining' | 'st
   },
   {
     source: 'dea_raid',
-    name: 'DEA Onderzoek',
+    name: 'NHPD Onderzoek',
     desc: 'Drugsprijzen kelderen — niemand durft te kopen.',
     icon: '🚨',
     effects: { drugPriceMod: 0.8 },

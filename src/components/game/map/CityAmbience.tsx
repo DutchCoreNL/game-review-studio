@@ -91,16 +91,23 @@ function HarborActivity() {
       </motion.g>
 
       {/* Buoys */}
+      {/* Buoys bob on the swell. These used to animate `y`, which is not a valid
+          attribute on a <circle> — the browser rejected every frame. Animating the
+          transform instead is both valid and cheaper. */}
       <motion.circle cx={30} cy={80} r={1} fill="hsla(0, 70%, 45%, 0.4)"
-        animate={{ y: [80, 82, 80] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
+        initial={{ translateY: 0 }} animate={{ translateY: [0, 2, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
       <motion.circle cx={25} cy={140} r={0.8} fill="hsla(120, 60%, 40%, 0.35)"
-        animate={{ y: [140, 142, 140] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
+        initial={{ translateY: 0 }} animate={{ translateY: [0, 2, 0] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }} />
       <motion.circle cx={28} cy={250} r={0.7} fill="hsla(0, 70%, 45%, 0.3)"
-        animate={{ y: [250, 252, 250] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }} />
+        initial={{ translateY: 0 }} animate={{ translateY: [0, 2, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }} />
       
       {/* Lighthouse beacon on pier */}
       <motion.circle cx={46} cy={60} r={2.5}
         fill="hsla(45, 80%, 50%, 0.15)"
+        initial={{ opacity: 0.15, r: 2.5 }}
         animate={{ opacity: [0.15, 0.45, 0.15], r: [2.5, 4, 2.5] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
     </g>
@@ -187,7 +194,8 @@ function SmuggleRouteLines({ routes, districtMeta }: { routes: SmuggleRoute[]; d
               animate={{ strokeDashoffset: [0, -16] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             />
-            <motion.circle r={1.5} fill={`hsla(${hue}, 70%, 55%, 0.6)`}
+            <motion.circle cx={from.cx} cy={from.cy} r={1.5} fill={`hsla(${hue}, 70%, 55%, 0.6)`}
+              initial={{ cx: from.cx, cy: from.cy }}
               animate={{ cx: [from.cx, to.cx], cy: [from.cy, to.cy] }}
               transition={{ duration: 3 + i, repeat: Infinity, ease: 'linear' }}
             />

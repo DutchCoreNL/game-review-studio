@@ -36,15 +36,16 @@ const GOOD_ICONS: Record<string, React.ReactNode> = {
   electronics: <CircuitBoard size={14} />,
 };
 
-/** Calculate heat surcharge info from state */
-function getHeatSurcharge(state: { ownedVehicles: any[]; activeVehicle: string | null; personalHeat?: number }) {
-  const activeVehicle = state.ownedVehicles.find(v => v.id === state.activeVehicle);
-  const vHeat = activeVehicle?.vehicleHeat ?? 0;
+/**
+ * Sellers charge more when you are hot. This used to average your personal heat
+ * with your *vehicle's* heat — vehicles are retired, so that half was dead weight
+ * that also halved the effect. It now reads the one heat the game still tracks.
+ */
+function getHeatSurcharge(state: { personalHeat?: number }) {
   const pHeat = state.personalHeat ?? 0;
-  const avgHeat = Math.round((vHeat + pHeat) / 2);
-  const surchargePercent = avgHeat > 50 ? Math.min(40, Math.floor((avgHeat - 50) * 0.8)) : 0;
-  const surchargeMultiplier = avgHeat > 50 ? 1 + Math.min(0.4, (avgHeat - 50) * 0.008) : 1;
-  return { vHeat, pHeat, avgHeat, surchargePercent, surchargeMultiplier };
+  const surchargePercent = pHeat > 50 ? Math.min(40, Math.floor((pHeat - 50) * 0.8)) : 0;
+  const surchargeMultiplier = pHeat > 50 ? 1 + Math.min(0.4, (pHeat - 50) * 0.008) : 1;
+  return { pHeat, surchargePercent, surchargeMultiplier };
 }
 
 interface ServerMarketData {
@@ -299,7 +300,7 @@ export function MarketPanel() {
         <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
           ⚠️ HEAT TOESLAG: +{heat.surchargePercent}% risico toeslag op inkoop!
           <span className="block text-[0.5rem] font-normal text-blood/70 mt-0.5">
-            🚗 Voertuig: {heat.vHeat}% · 🔥 Persoonlijk: {heat.pHeat}% · Gem: {heat.avgHeat}%
+            🔥 Jouw hitte: {heat.pHeat}% — koel af om normale prijzen te betalen
           </span>
         </div>
       )}
@@ -387,76 +388,9 @@ export function MarketPanel() {
       )}
 
       {/* Load Ammo from Inventory */}
-      {(state.inventory.weapons || 0) > 0 && (() => {
-        const weaponsOwned = state.inventory.weapons || 0;
-        const ammoStock = state.ammoStock || { '9mm': state.ammo || 0, '7.62mm': 0, 'shells': 0 };
-        const defaultAmmoType = getActiveAmmoType(state);
-        const chosenAmmoType = selectedAmmoType || defaultAmmoType;
-        const currentAmmo = ammoStock[chosenAmmoType] || 0;
-        const canLoad = currentAmmo < 99;
-        const ammoPerWeapon = 6;
-        const maxLoadable = Math.min(weaponsOwned, Math.max(1, Math.floor((99 - currentAmmo) / ammoPerWeapon)));
-        const ammoTypes = (['9mm', '7.62mm', 'shells'] as const);
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="game-card p-3 mb-4 border-l-[3px] border-l-ice"
-          >
-            <div className="flex items-center gap-1.5 mb-2">
-              <Crosshair size={12} className="text-ice" />
-              <span className="text-[0.6rem] font-bold text-ice uppercase tracking-wider">Laad Munitie</span>
-              <GameBadge variant="ice" size="xs">{weaponsOwned}× wapens</GameBadge>
-            </div>
-            {/* Ammo type selector */}
-            <div className="flex gap-1 mb-2">
-              {ammoTypes.map(aType => (
-                <button
-                  key={aType}
-                  onClick={() => setSelectedAmmoType(aType)}
-                  className={`flex-1 py-1 rounded text-[0.5rem] font-bold uppercase transition-all border ${
-                    chosenAmmoType === aType
-                      ? 'bg-ice/20 border-ice text-ice'
-                      : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  {AMMO_TYPE_LABELS[aType].icon} {AMMO_TYPE_LABELS[aType].label}
-                  <span className="block text-[0.4rem] opacity-70">{ammoStock[aType] || 0}/99</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 text-[0.5rem] text-muted-foreground">
-                {AMMO_TYPE_LABELS[chosenAmmoType].icon} {AMMO_TYPE_LABELS[chosenAmmoType].label}: {currentAmmo}/99
-              </div>
-              <GameButton
-                variant="gold"
-                size="sm"
-                disabled={!canLoad || maxLoadable <= 0}
-                onClick={() => {
-                  dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: chosenAmmoType, quantity: 1 });
-                  showToast(`+${ammoPerWeapon} ${AMMO_TYPE_LABELS[chosenAmmoType].label} geladen!`);
-                }}
-              >
-                LAAD 1×
-              </GameButton>
-              {maxLoadable > 1 && (
-                <GameButton
-                  variant="gold"
-                  size="sm"
-                  disabled={!canLoad}
-                  onClick={() => {
-                    dispatch({ type: 'LOAD_AMMO_FROM_INVENTORY', ammoType: chosenAmmoType, quantity: maxLoadable });
-                    showToast(`+${maxLoadable * ammoPerWeapon} ${AMMO_TYPE_LABELS[chosenAmmoType].label} geladen!`);
-                  }}
-                >
-                  ALLES ({maxLoadable}×)
-                </GameButton>
-              )}
-            </div>
-          </motion.div>
-        );
-      })()}
+      {/* The ammunition loader lived here. It belonged to the combat system,
+          which is no longer part of this game — you cannot fight, so loading
+          clips did nothing but take up the top of the market. */}
 
       {/* Goods List */}
       <div className="space-y-2.5">

@@ -4521,6 +4521,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SCORE_START': {
       if (!districtUnlocked(s, action.district)) return s;
       s.activeJob = makeJob(action.district, s.jobStreak || 0);
+      // Working a district is how you learn who owns it. Without this the codex
+      // entries for El Serpiente, Mr. Wu and Hammer only unlocked by physically
+      // travelling there on the map — which is not how this game is played.
+      if (!s.visitedDistricts) s.visitedDistricts = [];
+      if (!s.visitedDistricts.includes(action.district)) s.visitedDistricts.push(action.district);
+      try {
+        if (!s.codex) s.codex = { unlockedEntries: [], readEntries: [], newEntries: [] };
+        const { newUnlocks } = checkCodexUnlocks(s);
+        if (newUnlocks.length > 0) {
+          s.codex.unlockedEntries = [...s.codex.unlockedEntries, ...newUnlocks];
+          s.codex.newEntries = [...(s.codex.newEntries || []), ...newUnlocks];
+        }
+      } catch { /* codex is cosmetic; never let it break starting a job */ }
       return s;
     }
 
