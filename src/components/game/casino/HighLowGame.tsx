@@ -117,7 +117,6 @@ export function HighLowGame({ dispatch, showToast, money, state, sessionStats, o
         onResult(null, 0);
       }
 
-      if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
     } catch {
       showToast('Server fout.', true);
     } finally {

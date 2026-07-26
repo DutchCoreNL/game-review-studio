@@ -34,40 +34,50 @@ export interface ScoreJob {
   payout: number;
   /** Difficulty band, drives payout and loot quality. */
   tier: number;
+  /** What you are physically working on, so the scene can draw it. */
+  target: TargetKind;
 }
+
+/**
+ * The thing under your hands. A bar filling up is a number; a container door that
+ * cracks, pops its rivets and swings open is a job. Each kind is drawn in
+ * src/components/game/score/JobTarget.tsx and reacts to progress and to every tap.
+ */
+export type TargetKind = 'container' | 'safe' | 'crate' | 'case' | 'door' | 'bag';
 
 interface JobTemplate {
   name: string;
   flavor: string;
   loot: GoodId[];
+  target: TargetKind;
 }
 
 /** Jobs are district-flavoured so the fiction stays local. */
 const JOB_TEMPLATES: Record<string, JobTemplate[]> = {
   low: [
-    { name: 'Steegdeal', flavor: 'Een overdracht achter de flats. Snel, smerig, betaalt slecht.', loot: ['drugs', 'meds'] },
-    { name: 'Uitgebrande garage', flavor: 'Er staat nog een kluis achterin die niemand is komen halen.', loot: ['meds', 'electronics'] },
-    { name: 'Koeriersroute', flavor: 'Drie adressen, één tas. Niet vragen wat erin zit.', loot: ['drugs', 'chemicals'] },
+    { name: 'Steegdeal', flavor: 'Een overdracht achter de flats. Snel, smerig, betaalt slecht.', loot: ['drugs', 'meds'], target: 'bag' },
+    { name: 'Uitgebrande garage', flavor: 'Er staat nog een kluis achterin die niemand is komen halen.', loot: ['meds', 'electronics'], target: 'safe' },
+    { name: 'Koeriersroute', flavor: 'Drie adressen, één tas. Niet vragen wat erin zit.', loot: ['drugs', 'chemicals'], target: 'bag' },
   ],
   port: [
-    { name: 'Magazijn aan de kade', flavor: 'Loods 12 staat een uur zonder bewaking. Eén uur.', loot: ['chemicals', 'electronics', 'drugs'] },
-    { name: 'Container 4471', flavor: 'De papieren kloppen niet. Precies daarom is hij interessant.', loot: ['weapons', 'chemicals'] },
-    { name: 'Nachtploeg omkopen', flavor: 'De kraanmachinist kijkt de andere kant op voor het juiste bedrag.', loot: ['electronics', 'drugs'] },
+    { name: 'Magazijn aan de kade', flavor: 'Loods 12 staat een uur zonder bewaking. Eén uur.', loot: ['chemicals', 'electronics', 'drugs'], target: 'door' },
+    { name: 'Container 4471', flavor: 'De papieren kloppen niet. Precies daarom is hij interessant.', loot: ['weapons', 'chemicals'], target: 'container' },
+    { name: 'Nachtploeg omkopen', flavor: 'De kraanmachinist kijkt de andere kant op voor het juiste bedrag.', loot: ['electronics', 'drugs'], target: 'crate' },
   ],
   iron: [
-    { name: 'Chopshop-inval', flavor: 'Twee wagens strippen voor Hammers jongens terugkomen.', loot: ['electronics', 'weapons'] },
-    { name: 'Wapendepot', flavor: 'Achter de bandenzaak ligt meer dan rubber.', loot: ['weapons', 'explosives'] },
-    { name: 'Fabriekskluis', flavor: 'Het weekloon van driehonderd man, in één kast.', loot: ['electronics', 'meds'] },
+    { name: 'Chopshop-inval', flavor: 'Twee wagens strippen voor Hammers jongens terugkomen.', loot: ['electronics', 'weapons'], target: 'door' },
+    { name: 'Wapendepot', flavor: 'Achter de bandenzaak ligt meer dan rubber.', loot: ['weapons', 'explosives'], target: 'crate' },
+    { name: 'Fabriekskluis', flavor: 'Het weekloon van driehonderd man, in één kast.', loot: ['electronics', 'meds'], target: 'safe' },
   ],
   neon: [
-    { name: 'Kluis van de club', flavor: 'De avondopbrengst van de Strip, voordat de boekhouder komt.', loot: ['luxury', 'drugs'] },
-    { name: 'Kaartentafel', flavor: 'Een privéspel op de bovenverdieping met te veel contant geld.', loot: ['luxury', 'crypto'] },
-    { name: 'Datakoffer', flavor: 'Iemand heeft de gastenlijst van de VIP-ruimte gekopieerd.', loot: ['tech', 'crypto'] },
+    { name: 'Kluis van de club', flavor: 'De avondopbrengst van de Strip, voordat de boekhouder komt.', loot: ['luxury', 'drugs'], target: 'safe' },
+    { name: 'Kaartentafel', flavor: 'Een privéspel op de bovenverdieping met te veel contant geld.', loot: ['luxury', 'crypto'], target: 'bag' },
+    { name: 'Datakoffer', flavor: 'Iemand heeft de gastenlijst van de VIP-ruimte gekopieerd.', loot: ['tech', 'crypto'], target: 'case' },
   ],
   crown: [
-    { name: 'Penthouse-inbraak', flavor: 'De eigenaar is drie weken in het buitenland. Zijn kunst niet.', loot: ['luxury', 'crypto'] },
-    { name: 'Serverruimte', flavor: 'Veertigste verdieping. Alles wat daar staat is geld waard.', loot: ['tech', 'crypto'] },
-    { name: 'Kunstveiling', flavor: 'Wat na afloop de achterdeur uit gaat, staat op geen enkele lijst.', loot: ['luxury', 'tech'] },
+    { name: 'Penthouse-inbraak', flavor: 'De eigenaar is drie weken in het buitenland. Zijn kunst niet.', loot: ['luxury', 'crypto'], target: 'door' },
+    { name: 'Serverruimte', flavor: 'Veertigste verdieping. Alles wat daar staat is geld waard.', loot: ['tech', 'crypto'], target: 'case' },
+    { name: 'Kunstveiling', flavor: 'Wat na afloop de achterdeur uit gaat, staat op geen enkele lijst.', loot: ['luxury', 'tech'], target: 'crate' },
   ],
 };
 
@@ -107,6 +117,7 @@ export function makeJob(district: DistrictId, streak = 0, rand: () => number = M
     loot: tpl.loot,
     payout: Math.round((450 + tier * 900) * (0.8 + rand() * 0.5)),
     tier,
+    target: tpl.target,
   };
 }
 

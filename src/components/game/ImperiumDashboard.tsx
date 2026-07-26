@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, TrendingUp, TrendingDown, Flame, Users, ArrowRight, AlertTriangle, Radio, Eye, BedDouble, Bandage } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS } from '@/game/constants';
+import { DISTRICT_IMAGES } from '@/assets/items';
 import type { DistrictId } from '@/game/types';
 import { orgDailyUpkeep, orgRank, nextOrgRank, ROLE_LABEL, type OrgMember } from '@/game/organization';
 import {
@@ -43,8 +44,24 @@ function DistrictCard({ district, expanded, onToggle }: {
   const alarmed = attention >= ATTENTION_INCIDENT_THRESHOLD;
 
   return (
-    <div className={`game-card p-0 overflow-hidden ${alarmed ? 'border border-blood/40' : ''}`}>
-      <button onClick={onToggle} className="w-full text-left p-2.5">
+    <div className={`game-card p-0 overflow-hidden relative ${alarmed ? 'border border-blood/40' : ''}`}>
+      {/* The district itself, behind the numbers. Five plain rows of text read as a
+          spreadsheet; the same rows over Port Nero and Crown Heights read as a city. */}
+      <div className="absolute inset-0 pointer-events-none">
+        <img src={DISTRICT_IMAGES[district]} alt="" className="w-full h-full object-cover opacity-[0.18]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/40" />
+        {/* Working a district makes it glow; an alarmed one bleeds red at the edge. */}
+        {workers.length > 0 && (
+          <motion.div
+            className="absolute inset-y-0 left-0 w-1"
+            style={{ background: alarmed ? 'hsl(var(--blood))' : 'hsl(var(--emerald))' }}
+            initial={{ opacity: 0.35 }}
+            animate={{ opacity: [0.35, 0.9, 0.35] }}
+            transition={{ duration: alarmed ? 1.1 : 2.6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+      </div>
+      <button onClick={onToggle} className="relative w-full text-left p-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -69,7 +86,7 @@ function DistrictCard({ district, expanded, onToggle }: {
       <AnimatePresence>
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="border-t border-border/40">
+            className="relative border-t border-border/40 bg-card/70 backdrop-blur-sm">
             <div className="p-2.5 space-y-2">
               {rackets.map(r => {
                 const locked = org.respect < r.minRespect;

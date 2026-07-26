@@ -181,6 +181,7 @@ type GameAction =
   | { type: 'CLAIM_DAILY_REWARD' }
   | { type: 'CASINO_BET'; amount: number }
   | { type: 'CASINO_WIN'; amount: number }
+  | { type: 'CASINO_RESULT'; amount: number; heat?: number }
   | { type: 'START_COMBAT'; familyId: FamilyId }
   | { type: 'START_NEMESIS_COMBAT' }
   | { type: 'COMBAT_ACTION'; action: 'attack' | 'heavy' | 'defend' | 'environment' | 'tactical' | 'skill' | 'combo_finisher'; skillId?: string }
@@ -1441,6 +1442,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (s.money < action.amount) return s;
       s.money -= action.amount;
       s.stats.casinoLost += action.amount;
+      return s;
+    }
+
+    /**
+     * One hand settled, as a delta.
+     *
+     * The casino used to write an absolute balance with SET_MONEY, computed from a ref
+     * in the view. Three things were wrong with that: casinoWon/casinoLost never moved
+     * (so the profile reported €0 won forever), the money never reached totalEarned or
+     * totalSpent, and an absolute write racing a day tick could overwrite the racket
+     * income that landed while you were mid-hand.
+     */
+    case 'CASINO_RESULT': {
+      const delta = Math.round(action.amount || 0);
+      if (delta > 0) {
+        s.money += delta;
+        s.stats.casinoWon += delta;
+        s.stats.totalEarned += delta;
+        if (s.dailyProgress) s.dailyProgress.casino_won += delta;
+        syncChallenges(s);
+      } else if (delta < 0) {
+        const lost = Math.min(s.money, -delta);
+        s.money -= lost;
+        s.stats.casinoLost += lost;
+        s.stats.totalSpent += lost;
+      }
+      // Some games carry more than money — a gunshot in a back room brings the police.
+      if (action.heat) {
+        Engine.addPersonalHeat(s, action.heat);
+        Engine.recomputeHeat(s);
+      }
+      Engine.checkAchievements(s);
       return s;
     }
 

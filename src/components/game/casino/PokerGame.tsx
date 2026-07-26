@@ -84,7 +84,6 @@ export function PokerGame({ dispatch, showToast, money, state, sessionStats, onR
         netResult: 0,
         dealerFolded: false,
       });
-      dispatch({ type: 'SET_MONEY', amount: d.newMoney });
     } catch {
       showToast('Server fout', true);
     }
@@ -181,9 +180,6 @@ export function PokerGame({ dispatch, showToast, money, state, sessionStats, onR
         }));
       }
 
-      if (d.newMoney !== undefined) {
-        dispatch({ type: 'SET_MONEY', amount: d.newMoney });
-      }
     } catch {
       showToast('Server fout', true);
     }

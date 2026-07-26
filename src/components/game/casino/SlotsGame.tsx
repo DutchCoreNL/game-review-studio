@@ -119,8 +119,7 @@ export function SlotsGame({ dispatch, showToast, money, state, sessionStats, onR
           setNearMiss(true);
         }
 
-        if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
-      }, 1300);
+        }, 1300);
     } catch {
       clearInterval(animInterval);
       setSpinning([false, false, false]);

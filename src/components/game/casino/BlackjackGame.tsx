@@ -206,9 +206,6 @@ export function BlackjackGame({ dispatch, showToast, money, state, sessionStats,
         onResult(null, 0);
       }
 
-      if (data.newMoney !== undefined) {
-        dispatch({ type: 'SET_MONEY', amount: data.newMoney });
-      }
     } catch (err) {
       showToast('Server fout bij casino.', true);
     } finally {

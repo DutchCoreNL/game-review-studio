@@ -78,7 +78,6 @@ export function RouletteGame({ dispatch, showToast, money, state, sessionStats, 
         playLoss();
       }
 
-      if (data.newMoney !== undefined) dispatch({ type: 'SET_MONEY', amount: data.newMoney });
     } catch {
       showToast('Server fout.', true);
     } finally {
