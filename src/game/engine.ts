@@ -16,6 +16,7 @@ import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './we
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
 import { RACKET_BY_ID } from './rackets';
+import { buyPrice as marketBuyPrice, sellPrice as marketSellPrice, stashFree as marketStashFree } from './market';
 import { sentenceForHeat, MONEY_CONFISCATION, DIRTY_CONFISCATION, GOODS_CONFISCATION, rollPrisonDayEvent } from './prison';
 import { personalHeatDecay } from './heat';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
@@ -1325,42 +1326,32 @@ export function endTurn(state: GameState): NightReportData {
   return report;
 }
 
+/**
+ * Buy or sell. Prices come from src/game/market.ts so that what the market screen prints
+ * is what this charges — the two had drifted into unrelated formulas.
+ */
 export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell', quantity = 1): { success: boolean; message: string } {
-  const basePrice = state.prices[state.loc]?.[gid] || 0;
-  const totalCharm = getPlayerStat(state, 'charm');
-  const charmBonus = (totalCharm * 0.02) + (state.rep / 5000);
 
   if (mode === 'buy') {
-    const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
-    const maxBuy = Math.min(quantity, state.maxInv - invCount);
-    if (maxBuy <= 0) return { success: false, message: "Kofferbak vol." };
+    // Space is the Opslag track, not the base stash: this used to read `state.maxInv`,
+    // so the market counted your stash out of 40 and then refused to fill past 15.
+    const maxBuy = Math.min(quantity, marketStashFree(state));
+    if (maxBuy <= 0) return { success: false, message: "Voorraad vol." };
 
-    let buyPrice = basePrice;
-    const good = GOODS.find(g => g.id === gid);
-    if (good?.faction && (state.familyRel[good.faction] || 0) > 50) {
-      buyPrice = Math.floor(buyPrice * 0.7);
-    }
-    // MMO Perk: Bankier trade discount
-    if (state.mmoPerkFlags?.tradeDiscount) {
-      buyPrice = Math.floor(buyPrice * (1 - state.mmoPerkFlags.tradeDiscount));
-    }
-    // Organization turf: cheaper supply in districts your outfit controls.
-    if (orgControlsDistrict(state.org, state.loc)) {
-      buyPrice = Math.floor(buyPrice * (1 - ORG_TURF_BUY_DISCOUNT));
-    }
-    if (getAverageHeat(state) > 50) buyPrice = Math.floor(buyPrice * 1.2);
+    const unitPrice = marketBuyPrice(state, gid);
+    if (unitPrice <= 0) return { success: false, message: "Hier wordt dit niet verhandeld." };
 
-    const actualQty = Math.min(maxBuy, Math.floor(state.money / buyPrice));
+    const actualQty = Math.min(maxBuy, Math.floor(state.money / unitPrice));
     if (actualQty <= 0) return { success: false, message: "Te weinig kapitaal." };
 
-    const totalCost = buyPrice * actualQty;
+    const totalCost = unitPrice * actualQty;
     state.money -= totalCost;
     state.stats.totalSpent += totalCost;
 
     const currentCount = state.inventory[gid] || 0;
     const currentCost = state.inventoryCosts[gid] || 0;
     const totalQty = currentCount + actualQty;
-    state.inventoryCosts[gid] = totalQty > 0 ? Math.floor(((currentCount * currentCost) + totalCost) / totalQty) : buyPrice;
+    state.inventoryCosts[gid] = totalQty > 0 ? Math.floor(((currentCount * currentCost) + totalCost) / totalQty) : unitPrice;
     state.inventory[gid] = totalQty;
     state.stats.tradesCompleted += actualQty;
 
@@ -1375,17 +1366,8 @@ export function performTrade(state: GameState, gid: GoodId, mode: 'buy' | 'sell'
     if (owned <= 0) return { success: false, message: "Niet op voorraad." };
 
     const actualQty = Math.min(quantity, owned);
-    const karmaSellBonus = getKarmaTradeSellBonus(state);
-    let sellPrice = Math.floor(basePrice * 0.85 * (1 + charmBonus + karmaSellBonus));
-    // MMO Perk: Bankier trade bonus (better sell prices)
-    if (state.mmoPerkFlags?.tradeDiscount) {
-      sellPrice = Math.floor(sellPrice * (1 + state.mmoPerkFlags.tradeDiscount * 0.5));
-    }
-    // Organization turf: better fences in districts your outfit controls.
-    if (orgControlsDistrict(state.org, state.loc)) {
-      sellPrice = Math.floor(sellPrice * (1 + ORG_TURF_SELL_BONUS));
-    }
-    const totalRevenue = sellPrice * actualQty;
+    const unitPrice = marketSellPrice(state, gid);
+    const totalRevenue = unitPrice * actualQty;
 
     state.money += totalRevenue;
     state.stats.totalEarned += totalRevenue;

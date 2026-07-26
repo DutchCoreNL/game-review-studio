@@ -45,7 +45,12 @@ export const LAUNDER_METHODS: LaunderMethod[] = [
     desc: 'Via crypto wallets en mixers. Snel maar riskant.',
     icon: '₿',
     cleanRate: 0.78,
-    heatPerUnit: 4,
+    // Heat per €1000. This was 4, from an era when a big score was a few hundred euro;
+    // against klus payouts it meant one full mix pinned you at 100 heat and a guaranteed
+    // arrest, which makes the option not a choice but a trap. At 0.8 a €25k mix costs
+    // about 20 heat: enough to move you a band, cheap enough to be worth it when the
+    // laundry is full and you need the money now.
+    heatPerUnit: 0.8,
     dailyCapacity: 50000,
     riskLevel: 'high',
     unlockCondition: 'Level 10+',

@@ -1,12 +1,21 @@
+import { useState, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  TrendingUp, TrendingDown, ArrowRightLeft, Info, ChevronDown, PackageOpen,
+  Lock, Leaf, Flame, Route, Package,
+} from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE, AMMO_TYPE_LABELS } from '@/game/constants';
+import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE } from '@/game/constants';
+import { GOOD_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
 import { playCoinSound, playPurchaseSound, playNegativeSound } from '@/game/sounds';
-import { GoodId, TradeMode, AmmoType } from '@/game/types';
-import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engine';
-import { SectionHeader } from '../ui/SectionHeader';
+import type { GoodId, DistrictId } from '@/game/types';
+import { getBestTradeRoute } from '@/game/engine';
 import { orgControlsDistrict } from '@/game/organization';
 import { stashCapacity } from '@/game/score';
 import { marketSurcharge } from '@/game/heat';
+import {
+  buyPrice, sellPrice, basePrice as listedPrice, stashFree, maxAffordable, unitProfit,
+} from '@/game/market';
 import { AutoFencePanel } from './AutoFencePanel';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -14,271 +23,97 @@ import { StatBar } from '../ui/StatBar';
 import { PriceSparkline } from './PriceSparkline';
 import { TradeRewardFloater } from '../animations/RewardPopup';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair, Bomb, Bitcoin, FlaskConical, CircuitBoard, Lock } from 'lucide-react';
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { GOOD_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
-import { AnimatePresence } from 'framer-motion';
-import { gameApi } from '@/lib/gameApi';
-import { supabase } from '@/integrations/supabase/client';
+
+/**
+ * DE MARKT.
+ *
+ * This screen was carrying a lot of things that were not true.
+ *
+ *   - Every price on it was computed here, separately from what the reducer charged.
+ *     The heat surcharge banner in particular advertised a smooth curve to +40% while
+ *     the engine applied a flat +20% above an average that included vehicle heat, which
+ *     is always zero — so the number shouted at you was one you could never be charged.
+ *     Prices now come from src/game/market.ts, which is also what the reducer calls.
+ *   - Half the panel was plumbing for a market server that does not exist: a fetch of
+ *     `get_market_prices` (an action the local API does not implement, so it always
+ *     failed), a Supabase realtime subscription to a `market_prices` table that never
+ *     changes, per-good buy/sell volumes that were always absent, price-alert banners
+ *     that could never fire, and a "LIVE MARKT" indicator that could never light up.
+ *   - Trading cost 2 invisible energy per trade and returned silently at zero, so after
+ *     roughly fifty trades the market stopped working with no message.
+ *
+ * What is left is the thing the loop actually needs: you come here holding contraband a
+ * klus paid you in, and you decide where and when to let it go.
+ */
 
 const QUANTITIES = [1, 5, 10, 0];
 const QUANTITY_LABELS = ['1x', '5x', '10x', 'MAX'];
 
-const GOOD_ICONS: Record<string, React.ReactNode> = {
-  drugs: <Pipette size={14} />,
-  weapons: <Shield size={14} />,
-  tech: <Cpu size={14} />,
-  luxury: <Gem size={14} />,
-  meds: <Pill size={14} />,
-  explosives: <Bomb size={14} />,
-  crypto: <Bitcoin size={14} />,
-  chemicals: <FlaskConical size={14} />,
-  electronics: <CircuitBoard size={14} />,
-};
-
-/**
- * Sellers charge more when you are hot. The curve lives in src/game/heat.ts so the
- * market, the header read-out and the police all agree on what "hot" means.
- */
-function getHeatSurcharge(state: { personalHeat?: number }) {
-  const pHeat = state.personalHeat ?? 0;
-  const frac = marketSurcharge(pHeat);
-  return { pHeat, surchargePercent: Math.round(frac * 100), surchargeMultiplier: 1 + frac };
-}
-
-interface ServerMarketData {
-  price: number;
-  trend: string;
-  buyVol: number;
-  sellVol: number;
-}
-
 export function MarketPanel() {
   const { state, tradeMode, setTradeMode, dispatch, showToast } = useGame();
   const [quantity, setQuantity] = useState(1);
-  const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: TradeMode } | null>(null);
+  const [lastTrade, setLastTrade] = useState<{ gid: string; amount: number; mode: 'buy' | 'sell' } | null>(null);
   const [pendingTrade, setPendingTrade] = useState<{ gid: GoodId; qty: number; cost: number } | null>(null);
-  const [expandedGood, setExpandedGood] = useState<string | null>(null);
   const [pendingSellAll, setPendingSellAll] = useState<{ totalGains: number } | null>(null);
-  const [serverPrices, setServerPrices] = useState<Record<string, Record<string, ServerMarketData>> | null>(null);
-  const [priceLoading, setPriceLoading] = useState(false);
-  const [priceAlerts, setPriceAlerts] = useState<{ gid: string; name: string; pct: number; direction: 'up' | 'down' }[]>([]);
-  const [selectedAmmoType, setSelectedAmmoType] = useState<import('@/game/types').AmmoType | null>(null);
-  const prevPricesRef = useRef<Record<string, Record<string, number>>>({});
+  const [expandedGood, setExpandedGood] = useState<string | null>(null);
 
-  // Fetch server prices on mount and when district changes
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setPriceLoading(true);
-      const res = await gameApi.getMarketPrices();
-      if (!cancelled && res.success && res.data?.prices) {
-        setServerPrices(res.data.prices as any);
-      }
-      setPriceLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [state.loc]);
-
-  // Store initial prices for alert comparison
-  useEffect(() => {
-    if (serverPrices) {
-      // Only store if we don't have previous prices yet for a district
-      Object.entries(serverPrices).forEach(([distId, goods]) => {
-        if (!prevPricesRef.current[distId]) {
-          prevPricesRef.current[distId] = {};
-        }
-        Object.entries(goods).forEach(([gid, data]) => {
-          if (prevPricesRef.current[distId][gid] === undefined) {
-            prevPricesRef.current[distId][gid] = (data as ServerMarketData).price;
-          }
-        });
-      });
-    }
-  }, [serverPrices]);
-
-  // Realtime price updates with alert detection
-  useEffect(() => {
-    const channel = supabase
-      .channel('market-prices-panel')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'market_prices',
-      }, (payload) => {
-        const row = payload.new as any;
-
-        // Check for >20% price change in current district
-        if (row.district_id === state.loc) {
-          const prevPrice = prevPricesRef.current[row.district_id]?.[row.good_id];
-          if (prevPrice && prevPrice > 0) {
-            const pctChange = ((row.current_price - prevPrice) / prevPrice) * 100;
-            if (Math.abs(pctChange) >= 20) {
-              const good = GOODS.find(g => g.id === row.good_id);
-              if (good) {
-                const alert = {
-                  gid: row.good_id,
-                  name: good.name,
-                  pct: Math.round(pctChange),
-                  direction: pctChange > 0 ? 'up' as const : 'down' as const,
-                };
-                setPriceAlerts(prev => {
-                  // Replace existing alert for same good or add new
-                  const filtered = prev.filter(a => a.gid !== row.good_id);
-                  return [...filtered, alert].slice(-5); // max 5 alerts
-                });
-                // Auto-dismiss after 15s
-                setTimeout(() => {
-                  setPriceAlerts(prev => prev.filter(a => a.gid !== row.good_id));
-                }, 15000);
-              }
-            }
-          }
-        }
-
-        // Update stored previous price
-        if (!prevPricesRef.current[row.district_id]) prevPricesRef.current[row.district_id] = {};
-        prevPricesRef.current[row.district_id][row.good_id] = row.current_price;
-
-        setServerPrices(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev };
-          if (!updated[row.district_id]) updated[row.district_id] = {};
-          updated[row.district_id] = {
-            ...updated[row.district_id],
-            [row.good_id]: {
-              price: row.current_price,
-              trend: row.price_trend,
-              buyVol: row.buy_volume,
-              sellVol: row.sell_volume,
-            },
-          };
-          return updated;
-        });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [state.loc]);
-
-  // Clear alerts on district change
-  useEffect(() => {
-    setPriceAlerts([]);
-  }, [state.loc]);
-
-  const invCount = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
-  const totalCharm = getPlayerStat(state, 'charm');
-  const charmBonus = Math.floor(((totalCharm * 0.02) + (state.rep / 5000)) * 100);
-
-  // Use server prices if available, fallback to local
-  const serverDistPrices = serverPrices?.[state.loc] || {};
-  const getPrice = (gid: string): number => {
-    return serverDistPrices[gid]?.price || state.prices[state.loc]?.[gid] || 0;
-  };
-  const getTrend = (gid: string): string => {
-    return serverDistPrices[gid]?.trend || state.priceTrends[gid] || 'stable';
-  };
-  const getVolume = (gid: string): { buy: number; sell: number } | null => {
-    const sd = serverDistPrices[gid];
-    return sd ? { buy: sd.buyVol, sell: sd.sellVol } : null;
-  };
-  const isLive = !!serverPrices;
-
+  const locked = !!state.prison;
   const district = DISTRICTS[state.loc];
-  const route = getBestTradeRoute(state);
-  const heat = getHeatSurcharge(state);
+  const held = Object.values(state.inventory || {}).reduce((a, b) => a + (b || 0), 0);
+  const capacity = stashCapacity(state);
+  const free = stashFree(state);
+  const surcharge = Math.round(marketSurcharge(state.personalHeat || 0) * 100);
+  const onTurf = orgControlsDistrict(state.org, state.loc);
 
-  const executeTrade = useCallback((gid: GoodId, actualQty: number) => {
-    const owned = state.inventory[gid] || 0;
+  /** What the fence would give you for everything you are holding, right here. */
+  const sellAllTotal = useMemo(() => GOODS.reduce((sum, g) => {
+    const owned = state.inventory?.[g.id as GoodId] || 0;
+    return sum + (owned > 0 ? sellPrice(state, g.id as GoodId) * owned : 0);
+  }, 0), [state]);
 
-    if (actualQty <= 0) {
+  const route = useMemo(() => getBestTradeRoute(state), [state]);
+
+  const execute = useCallback((gid: GoodId, qty: number) => {
+    if (qty <= 0) {
       playNegativeSound();
-      return showToast(tradeMode === 'buy' ? "Kofferbak vol." : "Niet op voorraad.", true);
+      return showToast(tradeMode === 'buy' ? 'Geen ruimte of geen geld.' : 'Niet op voorraad.', true);
     }
-
-    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: actualQty });
-    const good = GOODS.find(g => g.id === gid);
+    const unit = tradeMode === 'buy' ? buyPrice(state, gid) : sellPrice(state, gid);
+    dispatch({ type: 'TRADE', gid, mode: tradeMode, quantity: qty });
     if (tradeMode === 'sell') playCoinSound(); else playPurchaseSound();
-    showToast(`${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}!`);
-
-    // Calculate trade amount for floater
-    const basePrice = getPrice(gid);
-    const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
-    const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
-    const buyPrice = basePrice;
-    const tradeAmount = tradeMode === 'sell'
-      ? sellPrice * Math.min(actualQty, owned)
-      : buyPrice * Math.min(actualQty, Math.floor(state.money / buyPrice));
-
-    setLastTrade({ gid, amount: tradeAmount, mode: tradeMode });
+    const good = GOODS.find(g => g.id === gid);
+    showToast(`${qty}× ${good?.name} ${tradeMode === 'buy' ? 'gekocht' : 'verkocht'}`);
+    setLastTrade({ gid, amount: unit * qty, mode: tradeMode });
     setTimeout(() => setLastTrade(null), 1200);
-  }, [state, tradeMode, dispatch, showToast, serverDistPrices, totalCharm]);
+  }, [state, tradeMode, dispatch, showToast]);
 
   const handleTrade = useCallback((gid: GoodId) => {
-    const owned = state.inventory[gid] || 0;
-    const actualQty = quantity === 0
-      ? (tradeMode === 'buy' ? stashCapacity(state) - invCount : owned)
-      : quantity;
+    const owned = state.inventory?.[gid] || 0;
+    const qty = quantity === 0
+      ? (tradeMode === 'buy' ? maxAffordable(state, gid) : owned)
+      : Math.min(quantity, tradeMode === 'buy' ? maxAffordable(state, gid) : owned);
 
-    // Confirm large MAX trades (>€5000)
-    if (quantity === 0 && actualQty > 1) {
-      const basePrice = getPrice(gid);
-      const estimatedCost = tradeMode === 'buy'
-        ? basePrice * Math.min(actualQty, Math.floor(state.money / basePrice))
-        : Math.floor(basePrice * 0.85) * Math.min(actualQty, owned);
-
-      if (estimatedCost > 5000) {
-        setPendingTrade({ gid, qty: actualQty, cost: estimatedCost });
+    if (quantity === 0 && qty > 1) {
+      const unit = tradeMode === 'buy' ? buyPrice(state, gid) : sellPrice(state, gid);
+      if (unit * qty > 5000) {
+        setPendingTrade({ gid, qty, cost: unit * qty });
         return;
       }
     }
-
-    executeTrade(gid, actualQty);
-  }, [state, quantity, tradeMode, invCount, serverDistPrices, executeTrade]);
-
-  const estimateSellAllGains = useCallback(() => {
-    const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
-    let total = 0;
-    GOODS.forEach(g => {
-      const owned = state.inventory[g.id] || 0;
-      if (owned > 0) {
-        const basePrice = getPrice(g.id);
-        const sellPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
-        total += sellPrice * owned;
-      }
-    });
-    return total;
-  }, [state, serverDistPrices, totalCharm]);
-
-  const confirmSellAll = useCallback(() => {
-    GOODS.forEach(g => {
-      const owned = state.inventory[g.id] || 0;
-      if (owned > 0) {
-        dispatch({ type: 'TRADE', gid: g.id, mode: 'sell', quantity: owned });
-      }
-    });
-    playCoinSound();
-    showToast(`Alles verkocht! +€${pendingSellAll?.totalGains.toLocaleString()}`);
-    setPendingSellAll(null);
-  }, [state, dispatch, showToast, pendingSellAll]);
+    execute(gid, qty);
+  }, [state, quantity, tradeMode, execute]);
 
   return (
     <>
-      {/* Trading is blocked while you are inside. The reducer already refused these
-          actions, but it refused them silently — the buttons simply did nothing. */}
-      {state.prison && (
-        <div className="mb-1.5 text-[0.5rem] text-blood bg-blood/10 border border-blood/20 rounded px-2 py-1.5 flex items-center justify-center gap-1.5">
+      {locked && (
+        <div className="mb-2 text-[0.5rem] text-blood bg-blood/10 border border-blood/20 rounded px-2 py-1.5 flex items-center justify-center gap-1.5">
           <Lock size={10} /> Je zit vast — niemand handelt met je tot je buiten staat.
         </div>
       )}
+
       <AutoFencePanel />
-      {orgControlsDistrict(state.org, state.loc) && (
-        <div className="mb-1.5 text-[0.5rem] text-emerald bg-emerald/10 border border-emerald/20 rounded px-2 py-1 flex items-center justify-center gap-1">
-          🏴 Jouw turf — −12% inkoop · +10% verkoop
-        </div>
-      )}
-      {/* The market names its district but never showed it, so every district's market
-          looked like the same spreadsheet. This is where you are standing. */}
+
+      {/* Where you are standing */}
       <div className="relative rounded-xl overflow-hidden border border-border/50 mb-2 h-16">
         <motion.img
           src={DISTRICT_IMAGES[state.loc]} alt=""
@@ -294,239 +129,180 @@ export function MarketPanel() {
             <div className="flex items-center gap-1.5">
               <ArrowRightLeft size={11} className="text-gold" />
               <span className="font-display text-sm text-foreground uppercase tracking-wide">{district.name}</span>
+              {onTurf && <GameBadge variant="emerald" size="xs">JOUW TURF</GameBadge>}
             </div>
             <div className="text-[0.45rem] text-muted-foreground mt-0.5">Zwarte markt · prijzen van vandaag</div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {priceLoading ? (
-              <RefreshCw size={10} className="text-muted-foreground animate-spin" />
-            ) : isLive ? (
-              <Wifi size={10} className="text-emerald" />
-            ) : null}
-            <span className="text-[0.45rem] text-muted-foreground uppercase tracking-wider">
-              {isLive ? 'LIVE MARKT' : 'LOKAAL'}
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Active market event banner */}
+      {/* One honest strip: what fits, what it costs you to be hot, what your name is worth */}
+      <div className="game-card p-2.5 mb-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[0.5rem] uppercase tracking-widest text-muted-foreground">Voorraad</span>
+          <span className="text-[0.55rem] font-bold tabular-nums">
+            <span className={held >= capacity ? 'text-blood' : 'text-foreground'}>{held}</span>
+            <span className="text-muted-foreground">/{capacity}</span>
+            {held >= capacity && <span className="text-blood ml-1">VOL</span>}
+          </span>
+        </div>
+        <StatBar value={held} max={capacity} color={held >= capacity ? 'blood' : 'gold'} height="sm" />
+        <div className="flex items-center gap-3 mt-2 text-[0.45rem]">
+          {surcharge > 0 ? (
+            <span className="flex items-center gap-1 text-blood">
+              <Flame size={9} /> +{surcharge}% inkoop door hitte
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-emerald">
+              <Flame size={9} /> Koel — normale inkoopprijzen
+            </span>
+          )}
+          {onTurf && <span className="text-emerald">−12% inkoop · +10% verkoop</span>}
+        </div>
+      </div>
+
+      {/* A route worth driving, named rather than reduced to a percentage */}
+      {route && route.profit > 0 && (
+        <div className="game-card p-2 mb-2 flex items-center gap-2">
+          <Route size={13} className="text-gold shrink-0" />
+          <div className="text-[0.5rem] leading-snug min-w-0">
+            <span className="text-muted-foreground">Beste route nu: </span>
+            <span className="text-foreground font-bold">{GOODS.find(g => g.id === route.good)?.name}</span>
+            <span className="text-muted-foreground"> kopen in </span>
+            <span className="text-foreground font-bold">{DISTRICTS[route.buyDistrict as DistrictId]?.name}</span>
+            <span className="text-muted-foreground">, kwijt in </span>
+            <span className="text-foreground font-bold">{DISTRICTS[route.sellDistrict as DistrictId]?.name}</span>
+            <span className="text-emerald font-bold"> · +€{route.profit.toLocaleString()}/stuk</span>
+          </div>
+        </div>
+      )}
+
       {state.activeMarketEvent && (
-        <div className="text-gold text-xs font-bold bg-gold/10 p-2 rounded mb-3 border border-gold/20">
+        <div className="text-gold text-[0.6rem] font-bold bg-gold/10 p-2 rounded-lg mb-2 border border-gold/20">
           {state.activeMarketEvent.name}
-          <span className="block text-[0.5rem] font-normal text-gold/70 mt-0.5">
+          <span className="block text-[0.45rem] font-normal text-gold/70 mt-0.5">
             {state.activeMarketEvent.desc} ({state.activeMarketEvent.daysLeft}d resterend)
           </span>
         </div>
       )}
 
-      {/* Heat surcharge banner */}
-      {heat.surchargePercent > 0 && (
-        <div className="text-blood text-xs font-bold bg-blood/10 p-2 rounded mb-3 border border-blood/20">
-          ⚠️ HEAT TOESLAG: +{heat.surchargePercent}% risico toeslag op inkoop!
-          <span className="block text-[0.5rem] font-normal text-blood/70 mt-0.5">
-            🔥 Jouw hitte: {heat.pHeat}% — koel af om normale prijzen te betalen
-          </span>
-        </div>
-      )}
-
-      {/* Price alert banners */}
-      <AnimatePresence>
-        {priceAlerts.map(alert => (
-          <motion.div
-            key={alert.gid}
-            initial={{ opacity: 0, y: -10, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            className={`flex items-center gap-2 text-xs font-bold p-2 rounded mb-2 border ${
-              alert.direction === 'up'
-                ? 'bg-blood/10 border-blood/30 text-blood'
-                : 'bg-emerald/10 border-emerald/30 text-emerald'
-            }`}
-          >
-            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.5, repeat: 2 }}>
-              {alert.direction === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            </motion.div>
-            <div className="flex-1">
-              <span className="font-bold">{alert.name}</span>
-              <span className="font-normal opacity-80"> {alert.direction === 'up' ? '+' : ''}{alert.pct}%</span>
-              <span className="block text-[0.45rem] font-normal opacity-60">
-                {alert.direction === 'up' ? '📈 Prijsstijging — overweeg verkoop!' : '📉 Prijsdaling — koopkans!'}
-              </span>
-            </div>
-            <button onClick={() => setPriceAlerts(prev => prev.filter(a => a.gid !== alert.gid))}
-              className="text-[0.5rem] opacity-50 hover:opacity-100">✕</button>
-          </motion.div>
+      {/* Buy or sell */}
+      <div className="flex gap-2 mb-2">
+        {(['buy', 'sell'] as const).map(mode => (
+          <button key={mode} onClick={() => setTradeMode(mode)}
+            className={`relative flex-1 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all overflow-hidden ${
+              tradeMode === mode
+                ? mode === 'buy' ? 'bg-gold text-secondary-foreground' : 'bg-blood text-primary-foreground'
+                : 'bg-muted/60 text-muted-foreground border border-border'
+            }`}>
+            {mode === 'buy' ? 'Inkoop' : 'Verkoop'}
+            {mode === 'sell' && held > 0 && tradeMode !== 'sell' && (
+              <span className="absolute top-1 right-1.5 text-[0.4rem] text-blood font-black">{held}</span>
+            )}
+          </button>
         ))}
-      </AnimatePresence>
-
-      {/* Stats strip */}
-      <div className="flex justify-between items-center mb-3">
-        <div className="text-[0.6rem] text-muted-foreground">
-          BAGAGE: <span className="text-foreground font-bold">{invCount}</span>/{stashCapacity(state)}
-          {invCount >= stashCapacity(state) && <span className="text-blood font-bold ml-1">(VOL)</span>}
-        </div>
-        <div className="text-[0.6rem] text-muted-foreground">
-          MARGE: <span className="text-gold font-semibold">+{charmBonus}%</span>
-        </div>
       </div>
 
-      {/* Inventory bar */}
-      <div className="mb-3">
-        <StatBar value={invCount} max={stashCapacity(state)} color={invCount >= stashCapacity(state) ? 'blood' : 'gold'} height="sm" />
-      </div>
-
-      {/* Trade Mode Toggle */}
-      <div className="flex gap-2 mb-3">
-        <button onClick={() => setTradeMode('buy')}
-          className={`flex-1 py-2 rounded font-bold text-xs uppercase tracking-wider transition-all ${
-            tradeMode === 'buy' ? 'bg-gold text-secondary-foreground' : 'bg-muted text-muted-foreground border border-border'
-          }`}>INKOOP</button>
-        <button onClick={() => setTradeMode('sell')}
-          className={`flex-1 py-2 rounded font-bold text-xs uppercase tracking-wider transition-all ${
-            tradeMode === 'sell' ? 'bg-blood text-primary-foreground' : 'bg-muted text-muted-foreground border border-border'
-          }`}>VERKOOP</button>
-      </div>
-
-      {/* Quantity Selector */}
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex gap-1.5 mb-3">
         {QUANTITIES.map((q, i) => (
           <button key={q} onClick={() => setQuantity(q)}
-            className={`flex-1 py-1.5 rounded text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
-              quantity === q ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted text-muted-foreground border border-border'
+            className={`flex-1 py-1.5 rounded-lg text-[0.6rem] font-bold uppercase tracking-wider transition-all ${
+              quantity === q ? 'bg-gold/15 border border-gold text-gold' : 'bg-muted/60 text-muted-foreground border border-border'
             }`}>{QUANTITY_LABELS[i]}</button>
         ))}
       </div>
 
-      {/* Sell All Button */}
-      {tradeMode === 'sell' && invCount > 0 && (
+      {tradeMode === 'sell' && held > 0 && (
         <motion.button
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => { if (!state.prison) setPendingSellAll({ totalGains: estimateSellAllGains() }); }}
-          disabled={!!state.prison}
-          className="w-full mb-4 py-2.5 rounded font-bold text-xs uppercase tracking-wider bg-blood/15 border border-blood text-blood hover:bg-blood/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+          onClick={() => { if (!locked) setPendingSellAll({ totalGains: sellAllTotal }); }}
+          disabled={locked}
+          className="w-full mb-3 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider bg-blood/15 border border-blood text-blood hover:bg-blood/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <PackageOpen size={14} />
-          VERKOOP ALLES
-          <span className="text-[0.5rem] opacity-70 font-normal">(~€{estimateSellAllGains().toLocaleString()})</span>
+          Alles verkopen
+          <span className="text-[0.5rem] opacity-80 font-normal">€{sellAllTotal.toLocaleString()}</span>
         </motion.button>
       )}
 
-      {/* Load Ammo from Inventory */}
-      {/* The ammunition loader lived here. It belonged to the combat system,
-          which is no longer part of this game — you cannot fight, so loading
-          clips did nothing but take up the top of the market. */}
-
-      {/* Goods List */}
-      <div className="space-y-2.5">
-        {GOODS.map(g => {
+      {/* The goods */}
+      <div className="space-y-2">
+        {GOODS.map((g, idx) => {
+          const gid = g.id as GoodId;
           const cat = GOOD_CATEGORIES[g.id];
-          const basePrice = getPrice(g.id);
-          const trend = getTrend(g.id) === 'up';
-          const volume = getVolume(g.id);
-          const demand = state.districtDemands[state.loc] === g.id;
-          const owned = state.inventory[g.id] || 0;
-          const distMod = district.mods[g.id as GoodId];
-          const sparkData = state.priceHistory?.[state.loc]?.[g.id] || [];
+          const listed = listedPrice(state, gid);
+          const unit = tradeMode === 'buy' ? buyPrice(state, gid) : sellPrice(state, gid);
+          const owned = state.inventory?.[gid] || 0;
+          const trendUp = state.priceTrends?.[g.id] === 'up';
+          const demand = state.districtDemands?.[state.loc] === g.id;
+          const distMod = district.mods[gid];
+          const spark = state.priceHistory?.[state.loc]?.[g.id] || [];
+          const spoil = GOOD_SPOILAGE[gid] || 0;
+          const profit = owned > 0 ? unitProfit(state, gid) : 0;
 
-          let displayPrice = basePrice;
-          // Nobody deals with you while you are inside; the reducer refuses the action
-          // anyway, so the button should say so rather than look live.
-          let disabled = !!state.prison;
-          let profitInfo = '';
-          let profitPositive = false;
-
-          if (tradeMode === 'sell') {
-            const chBonus = (totalCharm * 0.02) + (state.rep / 5000);
-            displayPrice = Math.floor(basePrice * 0.85 * (1 + chBonus));
-            if (owned <= 0) disabled = true;
-            const avgCost = state.inventoryCosts[g.id] || 0;
-            const profit = displayPrice - avgCost;
-            if (owned > 0) {
-              profitInfo = `${profit >= 0 ? '+' : ''}€${Math.floor(profit)}/stuk`;
-              profitPositive = profit >= 0;
-            }
-          } else {
-            if (g.faction && (state.familyRel[g.faction] || 0) > 50) displayPrice = Math.floor(displayPrice * 0.7);
-            if (heat.surchargeMultiplier > 1) {
-              displayPrice = Math.floor(displayPrice * heat.surchargeMultiplier);
-            }
-            if (invCount >= stashCapacity(state)) disabled = true;
-          }
-
-          const effectiveQty = quantity === 0
-            ? (tradeMode === 'buy' ? stashCapacity(state) - invCount : owned)
-            : quantity;
-          const totalCost = displayPrice * Math.min(effectiveQty, tradeMode === 'buy' ? Math.floor(state.money / displayPrice) : owned);
+          const canBuy = maxAffordable(state, gid);
+          const qty = quantity === 0
+            ? (tradeMode === 'buy' ? canBuy : owned)
+            : Math.min(quantity, tradeMode === 'buy' ? canBuy : owned);
+          const disabled = locked || qty <= 0;
+          const total = unit * qty;
 
           return (
             <motion.div
               key={g.id}
-              className={`game-card p-3 ${cat.borderColor} border-l-[3px]`}
-              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.03, duration: 0.25 }}
+              className={`game-card p-2.5 ${cat.borderColor} border-l-[3px] ${owned > 0 ? 'ring-1 ring-gold/15' : ''}`}
             >
-              <div className="flex items-start gap-3">
-                {/* Icon */}
-                <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center flex-shrink-0 ${!GOOD_IMAGES[g.id] ? cat.bgColor : ''}`}>
-                  {GOOD_IMAGES[g.id] ? (
-                    <img src={GOOD_IMAGES[g.id]} alt={g.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className={cat.color}>{GOOD_ICONS[g.id]}</span>
+              <div className="flex items-start gap-2.5">
+                {/* The goods themselves, big enough to recognise */}
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-border/60">
+                  {GOOD_IMAGES[g.id]
+                    ? <img src={GOOD_IMAGES[g.id]} alt="" className="w-full h-full object-cover" />
+                    : <div className={`w-full h-full flex items-center justify-center ${cat.bgColor}`}><Package size={18} className={cat.color} /></div>}
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+                  {owned > 0 && (
+                    <span className="absolute bottom-0.5 right-1 text-[0.6rem] font-black text-foreground drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+                      {owned}
+                    </span>
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-bold text-xs text-foreground">{g.name}</span>
-                    {trend ? (
-                      <TrendingUp size={10} className="text-blood" />
-                    ) : (
-                      <TrendingDown size={10} className="text-emerald" />
-                    )}
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-[0.7rem] text-foreground truncate">{g.name}</span>
+                    {trendUp
+                      ? <TrendingUp size={10} className="text-blood shrink-0" />
+                      : <TrendingDown size={10} className="text-emerald shrink-0" />}
                     {demand && <GameBadge variant="gold" size="xs">VRAAG</GameBadge>}
-                    {g.faction && (state.familyRel[g.faction] || 0) > 50 && tradeMode === 'buy' && (
-                      <GameBadge variant="emerald" size="xs">-30%</GameBadge>
-                    )}
-                    {GOOD_SPOILAGE[g.id as GoodId] > 0 && owned > 0 && (
-                      <span className="text-[0.45rem] text-blood/70 flex items-center gap-0.5" title="Bederfbaar goed">
-                        <Leaf size={8} /> {Math.round(GOOD_SPOILAGE[g.id as GoodId] * 100)}%/nacht
-                      </span>
-                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <div className="text-[0.6rem] text-muted-foreground">
-                      <span className="text-foreground font-semibold">€{displayPrice}</span>/stuk
-                      <span className="mx-1">·</span>
-                      Bezit: <span className="font-semibold">{owned}</span>
-                    </div>
-                    {sparkData.length >= 2 && <PriceSparkline data={[...sparkData, basePrice]} />}
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className={`text-sm font-black tabular-nums ${tradeMode === 'buy' ? 'text-gold' : 'text-emerald'}`}>
+                      €{unit.toLocaleString()}
+                    </span>
+                    <span className="text-[0.45rem] text-muted-foreground">/stuk</span>
+                    {spark.length >= 2 && <span className="ml-auto"><PriceSparkline data={[...spark, listed]} /></span>}
                   </div>
 
-                  {/* Volume indicator (server-side) */}
-                  {volume && (
-                    <div className="text-[0.45rem] text-muted-foreground/70 flex items-center gap-2">
-                      <span>📊 Volume: {volume.buy + volume.sell}</span>
-                      <span>B:{volume.buy}</span>
-                      <span>V:{volume.sell}</span>
-                    </div>
-                  )}
-
-                  {/* District modifier + info toggle */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[0.5rem] font-semibold ${distMod < 0.9 ? 'text-emerald' : distMod > 1.3 ? 'text-blood' : 'text-muted-foreground'}`}>
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5 text-[0.45rem]">
+                    <span className={distMod < 0.9 ? 'text-emerald font-semibold' : distMod > 1.3 ? 'text-blood font-semibold' : 'text-muted-foreground'}>
                       {distMod < 0.9 ? '↓ Goedkoop hier' : distMod > 1.3 ? '↑ Duur hier' : '— Normaal'}
                     </span>
-                    {profitInfo && (
-                      <span className={`text-[0.5rem] font-bold ${profitPositive ? 'text-emerald' : 'text-blood'}`}>
-                        {profitInfo}
+                    {tradeMode === 'sell' && owned > 0 && (
+                      <span className={profit >= 0 ? 'text-emerald font-bold' : 'text-blood font-bold'}>
+                        {profit >= 0 ? '+' : ''}€{profit.toLocaleString()} winst/stuk
+                      </span>
+                    )}
+                    {spoil > 0 && owned > 0 && (
+                      <span className="text-blood/80 flex items-center gap-0.5" title="Bederft in je voorraad">
+                        <Leaf size={8} /> −{Math.round(spoil * 100)}%/nacht
                       </span>
                     )}
                     <button
                       onClick={(e) => { e.stopPropagation(); setExpandedGood(expandedGood === g.id ? null : g.id); }}
-                      className={`ml-auto text-[0.45rem] flex items-center gap-0.5 transition-colors ${expandedGood === g.id ? 'text-gold' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={`ml-auto flex items-center gap-0.5 transition-colors ${expandedGood === g.id ? 'text-gold' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                       <Info size={9} />
                       <ChevronDown size={8} className={`transition-transform ${expandedGood === g.id ? 'rotate-180' : ''}`} />
@@ -534,191 +310,115 @@ export function MarketPanel() {
                   </div>
                 </div>
 
-                {/* Action */}
-                <div className="flex flex-col items-end gap-1 relative">
+                <div className="flex flex-col items-end gap-1 relative shrink-0">
                   <GameButton
                     variant={tradeMode === 'sell' ? 'blood' : 'gold'}
                     size="sm"
                     disabled={disabled}
-                    onClick={() => handleTrade(g.id)}
+                    onClick={() => handleTrade(gid)}
                   >
-                    {tradeMode === 'buy' ? 'KOOP' : 'VERKOOP'}
-                    {effectiveQty > 1 && !disabled && (
-                      <span className="text-[0.45rem] opacity-70 ml-0.5">x{Math.min(effectiveQty, tradeMode === 'buy' ? Math.floor(state.money / displayPrice) : owned)}</span>
-                    )}
+                    {tradeMode === 'buy' ? 'Koop' : 'Verkoop'}
+                    {qty > 1 && <span className="text-[0.45rem] opacity-70 ml-0.5">×{qty}</span>}
                   </GameButton>
-                  {effectiveQty > 1 && totalCost > 0 && (
-                    <span className="text-[0.45rem] text-muted-foreground">
-                      €{totalCost.toLocaleString()}
+                  {qty > 0 && (
+                    <span className="text-[0.45rem] text-muted-foreground tabular-nums">
+                      €{total.toLocaleString()}
                     </span>
                   )}
-                  {tradeMode === 'buy' && !disabled && (() => {
-                    const buyQty = Math.min(effectiveQty, Math.floor(state.money / displayPrice));
-                    if (buyQty <= 1) return null;
-                    const currentPressure = state.marketPressure?.[state.loc]?.[g.id] || 0;
-                    const newPressure = currentPressure + (buyQty * 0.08);
-                    const priceBefore = displayPrice;
-                    const priceAfter = Math.floor(basePrice * distMod * (1 + newPressure * 0.15) * (demand ? 1.6 : 1));
-                    const shift = priceAfter - priceBefore;
-                    if (shift <= 0) return null;
-                    const pct = Math.round((shift / priceBefore) * 100);
-                    return (
-                      <span className={`text-[0.4rem] flex items-center gap-0.5 ${pct >= 15 ? 'text-blood' : pct >= 5 ? 'text-gold' : 'text-muted-foreground'}`}>
-                        <TrendingUp size={7} /> +{pct}% impact
-                      </span>
-                    );
-                  })()}
                   <TradeRewardFloater
-                    amount={lastTrade?.gid === g.id ? lastTrade.amount : 0}
                     show={lastTrade?.gid === g.id}
-                    type={lastTrade?.mode === 'sell' ? 'profit' : 'cost'}
+                    amount={lastTrade?.gid === g.id ? lastTrade.amount : 0}
+                    type={lastTrade?.mode === 'buy' ? 'cost' : 'profit'}
                   />
                 </div>
               </div>
 
-              {/* Price Factor Breakdown */}
+              {/* Where this price comes from */}
               <AnimatePresence>
-                {expandedGood === g.id && (() => {
-                  const pressure = state.marketPressure?.[state.loc]?.[g.id] || 0;
-                  const pressureMod = 1 + (pressure * 0.15);
-                  const eventEffects = state.activeMarketEvent?.effects || {};
-                  const eventMod = (eventEffects as Record<string, number>)[g.id] || 1.0;
-                  const hasFactionDiscount = g.faction && (state.familyRel[g.faction] || 0) > 50;
-                  const spoilRate = GOOD_SPOILAGE[g.id as GoodId];
-
-                  const factors: { label: string; value: string; color: string }[] = [
-                    { label: 'Basisprijs', value: `€${g.base}`, color: 'text-foreground' },
-                    { label: `District mod (${district.name})`, value: `×${distMod.toFixed(1)}`, color: distMod < 0.9 ? 'text-emerald' : distMod > 1.3 ? 'text-blood' : 'text-foreground' },
-                  ];
-
-                  if (demand) factors.push({ label: 'Hoge vraag', value: '×1.6', color: 'text-gold' });
-
-                  if (Math.abs(pressure) > 0.05) {
-                    factors.push({
-                      label: `Marktdruk (${pressure > 0 ? 'veel gekocht' : 'veel verkocht'})`,
-                      value: `×${pressureMod.toFixed(2)}`,
-                      color: pressure > 0 ? 'text-blood' : 'text-emerald',
-                    });
-                  }
-
-                  if (eventMod !== 1.0) {
-                    factors.push({
-                      label: `Event: ${state.activeMarketEvent?.name || ''}`,
-                      value: `×${eventMod.toFixed(1)}`,
-                      color: eventMod > 1 ? 'text-blood' : 'text-emerald',
-                    });
-                  }
-
-                  if (tradeMode === 'buy') {
-                    if (hasFactionDiscount) factors.push({ label: 'Factie korting', value: '×0.7', color: 'text-emerald' });
-                    if (heat.surchargeMultiplier > 1) factors.push({ label: `Heat toeslag (+${heat.surchargePercent}%)`, value: `×${heat.surchargeMultiplier.toFixed(2)}`, color: 'text-blood' });
-                  } else {
-                    factors.push({ label: 'Verkoopmarge', value: '×0.85', color: 'text-muted-foreground' });
-                    if (charmBonus > 0) factors.push({ label: `Charisma & Rep bonus`, value: `+${charmBonus}%`, color: 'text-gold' });
-                  }
-
-                  if (spoilRate > 0) {
-                    // The villa Opslagkelder used to halve this. The villa is retired.
-                    factors.push({
-                      label: 'Bederf',
-                      value: `-${Math.round(spoilRate * 100)}%/nacht`,
-                      color: 'text-blood',
-                    });
-                  }
-
-                  factors.push({
-                    label: 'Eindprijs',
-                    value: `€${displayPrice}`,
-                    color: 'text-gold',
-                  });
-
-                  return (
-                    <motion.div
-                      key="breakdown"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-                        <span className="text-[0.5rem] font-bold text-muted-foreground uppercase tracking-wider">Prijsfactoren</span>
-                        {factors.map((f, i) => (
-                          <div key={i} className={`flex justify-between text-[0.5rem] ${i === factors.length - 1 ? 'pt-1 border-t border-border/30 font-bold' : ''}`}>
-                            <span className="text-muted-foreground">{f.label}</span>
-                            <span className={`font-semibold ${f.color}`}>{f.value}</span>
-                          </div>
-                        ))}
+                {expandedGood === g.id && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
+                      <Factor label="Marktprijs hier" value={`€${listed.toLocaleString()}`} />
+                      {tradeMode === 'buy' ? (
+                        <>
+                          {onTurf && <Factor label="Jouw turf" value="−12%" tone="text-emerald" />}
+                          {surcharge > 0 && <Factor label="Risico-opslag door hitte" value={`+${surcharge}%`} tone="text-blood" />}
+                        </>
+                      ) : (
+                        <>
+                          <Factor label="Wat de heler afroomt" value="−15%" tone="text-blood" />
+                          <Factor label="Charisma & naam" value={`+${Math.round(((state.player?.stats?.charm || 0) * 0.02 + (state.rep || 0) / 5000) * 100)}%`} tone="text-emerald" />
+                          {onTurf && <Factor label="Jouw turf" value="+10%" tone="text-emerald" />}
+                        </>
+                      )}
+                      <div className="flex justify-between text-[0.55rem] font-bold pt-1 border-t border-border/40">
+                        <span>Wat je {tradeMode === 'buy' ? 'betaalt' : 'krijgt'}</span>
+                        <span className={tradeMode === 'buy' ? 'text-gold' : 'text-emerald'}>€{unit.toLocaleString()}</span>
                       </div>
-                    </motion.div>
-                  );
-                })()}
+                      {spoil > 0 && (
+                        <p className="text-[0.45rem] text-muted-foreground pt-0.5">
+                          Bederfelijk: hier gaat elke nacht {Math.round(spoil * 100)}% van verloren. Niet op blijven zitten.
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Trade Route Tip */}
-      {route && route.profit > 0 && (
-        <motion.div
-          className="game-card mt-4 p-3 border-l-[3px] border-l-gold bg-gold/5"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Lightbulb size={12} className="text-gold" />
-            <span className="text-[0.6rem] font-bold text-gold uppercase tracking-wider">Beste Route</span>
-          </div>
-          <div className="text-[0.6rem] space-y-0.5">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-muted-foreground">Koop</span>
-              <span className="font-bold text-foreground">{GOODS.find(g => g.id === route.good)?.name}</span>
-              <span className="text-muted-foreground">in</span>
-              <span className="font-semibold text-foreground">{DISTRICTS[route.buyDistrict]?.name}</span>
-              <span className="text-emerald font-semibold">(€{route.buyPrice})</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ArrowRight size={10} className="text-gold" />
-              <span className="text-muted-foreground">Verkoop in</span>
-              <span className="font-semibold text-foreground">{DISTRICTS[route.sellDistrict]?.name}</span>
-              <span className="text-blood font-semibold">(€{route.sellPrice})</span>
-            </div>
-          </div>
-          <div className="text-[0.5rem] text-gold font-bold mt-1.5">
-            Winst: +€{route.profit}/stuk
-          </div>
-        </motion.div>
+      {tradeMode === 'buy' && free === 0 && (
+        <p className="text-[0.5rem] text-blood text-center mt-3">
+          Je voorraad zit vol. Verkoop iets of koop meer opslag bij Uitrusting.
+        </p>
       )}
 
-      {/* MAX trade confirmation dialog */}
-      {pendingTrade && (
-        <ConfirmDialog
-          open={true}
-          title={tradeMode === 'buy' ? 'Grote inkoop bevestigen' : 'Grote verkoop bevestigen'}
-          message={`Weet je zeker dat je ${pendingTrade.qty}x wilt ${tradeMode === 'buy' ? 'kopen' : 'verkopen'} voor ~€${pendingTrade.cost.toLocaleString()}?`}
-          confirmText={tradeMode === 'buy' ? 'KOPEN' : 'VERKOPEN'}
-          variant={tradeMode === 'sell' ? 'danger' : 'warning'}
-          onConfirm={() => {
-            executeTrade(pendingTrade.gid, pendingTrade.qty);
-            setPendingTrade(null);
-          }}
-          onCancel={() => setPendingTrade(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!pendingTrade}
+        title={tradeMode === 'buy' ? 'Alles inkopen' : 'Alles verkopen'}
+        message={pendingTrade
+          ? `${pendingTrade.qty}× ${GOODS.find(g => g.id === pendingTrade.gid)?.name} voor €${pendingTrade.cost.toLocaleString()}. Doorgaan?`
+          : ''}
+        confirmText="DOEN"
+        cancelText="ANNULEREN"
+        onConfirm={() => { if (pendingTrade) execute(pendingTrade.gid, pendingTrade.qty); setPendingTrade(null); }}
+        onCancel={() => setPendingTrade(null)}
+      />
 
-      {/* Sell All confirmation dialog */}
-      {pendingSellAll && (
-        <ConfirmDialog
-          open={true}
-          title="Alles verkopen"
-          message={`Weet je zeker dat je al je goederen wilt verkopen? Geschatte opbrengst: €${pendingSellAll.totalGains.toLocaleString()}`}
-          confirmText="VERKOOP ALLES"
-          variant="danger"
-          onConfirm={confirmSellAll}
-          onCancel={() => setPendingSellAll(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!pendingSellAll}
+        title="Alles verkopen"
+        message={`Je hele voorraad gaat de deur uit voor ongeveer €${pendingSellAll?.totalGains.toLocaleString()}. Doorgaan?`}
+        confirmText="VERKOOP ALLES"
+        cancelText="ANNULEREN"
+        variant="warning"
+        onConfirm={() => {
+          GOODS.forEach(g => {
+            const owned = state.inventory?.[g.id as GoodId] || 0;
+            if (owned > 0) dispatch({ type: 'TRADE', gid: g.id as GoodId, mode: 'sell', quantity: owned });
+          });
+          playCoinSound();
+          showToast(`Alles verkocht — €${pendingSellAll?.totalGains.toLocaleString()}`);
+          setPendingSellAll(null);
+        }}
+        onCancel={() => setPendingSellAll(null)}
+      />
     </>
+  );
+}
+
+function Factor({ label, value, tone = 'text-muted-foreground' }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="flex justify-between text-[0.5rem]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono font-bold ${tone}`}>{value}</span>
+    </div>
   );
 }

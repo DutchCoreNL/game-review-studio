@@ -1,252 +1,229 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Banknote, AlertTriangle, Droplets, ArrowDown, Lock, Users, Network, Flame } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
-import { BUSINESSES } from '@/game/constants';
-import { getWashCapacity } from '@/game/engine';
+import {
+  getWashCapacity, WASH_KEEP_RATE, WASH_BASE_CAPACITY, WASH_PER_LAUNDERER, WASH_PER_NETWORK_TIER,
+} from '@/game/engine';
+import { RACKET_BY_ID } from '@/game/rackets';
+import { LAUNDER_METHODS, isMethodUnlocked, getMethodCapacity } from '@/game/launderMethods';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameButton } from '../ui/GameButton';
 import { StatBar } from '../ui/StatBar';
-import { motion } from 'framer-motion';
-import { Banknote, Store, AlertTriangle, Droplets, ArrowDown, Lock } from 'lucide-react';
-import { useState } from 'react';
-import { LAUNDER_METHODS, isMethodUnlocked, getMethodCapacity, type LaunderMethodId } from '@/game/launderMethods';
 
+/**
+ * WITWASSEN — waar zwart geld geld wordt.
+ *
+ * Klussen pay in dirty cash and nothing in the game spends dirty cash, so this screen is
+ * the neck of the whole economy. It was telling three untruths and offering two doors
+ * that could never open:
+ *
+ *   - It quoted a "Heat impact: +N" and warned that large washes draw attention. The
+ *     reducer adds no heat at all for a standard wash — removed deliberately, because the
+ *     Witwasserij racket exists to cool you down and charging heat for using it
+ *     contradicted the point. The launderers' cut is the cost.
+ *   - It applied a 98% rate if you owned the Neon Strip. District ownership is retired
+ *     and nothing populates `ownedDistricts`, so that branch was dead.
+ *   - "Casino Witwas" needed that same district and "Vastgoed Shell Companies" needed a
+ *     penthouse from a property screen that is not in the menu. Both were permanently
+ *     locked rows advertising a way out that did not exist.
+ *   - The "Dekmantels" section listed front businesses you cannot buy and told you to get
+ *     them from a tab that has no such panel.
+ *
+ * What is left is the real decision: the slow clean pipe, which you widen by putting crew
+ * on laundering rackets and deepening your Netwerk, or the crypto mixer — a much bigger
+ * pipe, a worse rate, and heat that now actually lands on you.
+ */
 export function LaunderingPanel() {
   const { state, dispatch, showToast } = useGame();
   const [washAmount, setWashAmount] = useState(1000);
-  const washCap = getWashCapacity(state);
 
-  const cleanRate = state.ownedDistricts.includes('neon') ? 0.98 : 0.85;
-  const expectedClean = Math.floor(Math.min(washAmount, state.dirtyMoney, washCap.remaining) * cleanRate);
-  const expectedHeat = Math.max(1, Math.floor(Math.min(washAmount, state.dirtyMoney, washCap.remaining) / 500));
+  const cap = getWashCapacity(state);
+  const dirty = state.dirtyMoney || 0;
+  const amount = Math.min(washAmount, dirty, cap.remaining);
+  const clean = Math.floor(amount * WASH_KEEP_RATE);
+  const cut = Math.round((1 - WASH_KEEP_RATE) * 100);
 
-  const handleWash = () => {
-    if (state.dirtyMoney <= 0) return showToast('Geen zwart geld beschikbaar.', true);
-    if (washCap.remaining <= 0) return showToast('Dagelijkse wascapaciteit bereikt!', true);
-    const actual = Math.min(washAmount, state.dirtyMoney, washCap.remaining);
+  // Where the pipe comes from, so widening it is an obvious thing to go and do.
+  const launderers = (state.org?.members || []).filter(m =>
+    m.assignment && !m.injuredUntilDay && RACKET_BY_ID[m.assignment]?.kind === 'schoon').length;
+  const netwerkTier = state.equipment?.netwerk || 0;
+
+  const wash = (amt: number) => {
+    if (dirty <= 0) return showToast('Geen zwart geld om te wassen.', true);
+    if (cap.remaining <= 0) return showToast('Je pijp zit vol voor vandaag.', true);
+    const actual = Math.min(amt, dirty, cap.remaining);
     if (actual <= 0) return;
     dispatch({ type: 'WASH_MONEY_AMOUNT', amount: actual });
-    showToast(`€${actual.toLocaleString()} witgewassen → €${Math.floor(actual * cleanRate).toLocaleString()} schoon`);
-  };
-
-  const handleWashAll = () => {
-    if (state.dirtyMoney <= 0) return showToast('Geen zwart geld beschikbaar.', true);
-    if (washCap.remaining <= 0) return showToast('Dagelijkse wascapaciteit bereikt!', true);
-    const actual = Math.min(state.dirtyMoney, washCap.remaining);
-    dispatch({ type: 'WASH_MONEY_AMOUNT', amount: actual });
-    showToast(`€${actual.toLocaleString()} witgewassen!`);
+    showToast(`€${actual.toLocaleString()} gewassen → €${Math.floor(actual * WASH_KEEP_RATE).toLocaleString()} schoon`);
   };
 
   return (
-    <div>
-      <SectionHeader title="Geld Witwassen" icon={<Droplets size={12} />} />
+    <div className="space-y-3">
+      <SectionHeader title="Witwassen" icon={<Droplets size={12} />} />
 
-      {/* Money Overview */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <motion.div
-          className="game-card p-3 text-center border-l-[3px] border-l-emerald"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <Banknote size={16} className="text-emerald mx-auto mb-1" />
-          <div className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">Schoon Geld</div>
-          <div className="text-sm font-bold text-emerald">€{state.money.toLocaleString()}</div>
-        </motion.div>
-        <motion.div
-          className="game-card p-3 text-center border-l-[3px] border-l-dirty"
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
+      {/* The two piles */}
+      <div className="grid grid-cols-2 gap-2">
+        <motion.div className="game-card p-3 text-center border-l-[3px] border-l-dirty"
+          initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Banknote size={16} className="text-dirty mx-auto mb-1" />
-          <div className="text-[0.5rem] text-muted-foreground uppercase tracking-wider">Zwart Geld</div>
-          <div className="text-sm font-bold text-dirty">€{state.dirtyMoney.toLocaleString()}</div>
+          <div className="text-[0.45rem] text-muted-foreground uppercase tracking-widest">Zwart</div>
+          <div className="text-sm font-black text-dirty tabular-nums">€{dirty.toLocaleString()}</div>
+        </motion.div>
+        <motion.div className="game-card p-3 text-center border-l-[3px] border-l-emerald"
+          initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
+          <Banknote size={16} className="text-emerald mx-auto mb-1" />
+          <div className="text-[0.45rem] text-muted-foreground uppercase tracking-widest">Schoon</div>
+          <div className="text-sm font-black text-emerald tabular-nums">€{(state.money || 0).toLocaleString()}</div>
         </motion.div>
       </div>
 
-      {/* Daily Capacity */}
-      <div className="game-card p-3 mb-4">
-        <div className="flex justify-between text-[0.6rem] mb-1.5">
-          <span className="text-muted-foreground font-semibold uppercase tracking-wider">Dagelijkse Capaciteit</span>
-          <span className="font-bold text-foreground">
-            €{washCap.used.toLocaleString()} / €{washCap.total.toLocaleString()}
+      {/* The pipe, and what widens it */}
+      <div className="game-card p-3">
+        <div className="flex justify-between text-[0.5rem] mb-1.5">
+          <span className="text-muted-foreground uppercase tracking-widest">Vandaag door de wasserij</span>
+          <span className="font-bold tabular-nums">
+            €{cap.used.toLocaleString()}<span className="text-muted-foreground">/€{cap.total.toLocaleString()}</span>
           </span>
         </div>
-        <StatBar value={washCap.used} max={washCap.total} color={washCap.remaining <= 0 ? 'blood' : 'gold'} height="md" />
-        <div className="text-[0.5rem] text-muted-foreground mt-1">
-          Resterend: <span className="font-bold text-foreground">€{washCap.remaining.toLocaleString()}</span>
+        <StatBar value={cap.used} max={cap.total} color={cap.remaining <= 0 ? 'blood' : 'gold'} height="md" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[0.45rem]">
+          <span className="text-muted-foreground">Basis €{WASH_BASE_CAPACITY.toLocaleString()}</span>
+          <span className={`flex items-center gap-1 ${launderers > 0 ? 'text-emerald' : 'text-muted-foreground'}`}>
+            <Users size={8} /> {launderers} op witwasrackets · +€{(launderers * WASH_PER_LAUNDERER).toLocaleString()}
+          </span>
+          <span className={`flex items-center gap-1 ${netwerkTier > 0 ? 'text-game-purple' : 'text-muted-foreground'}`}>
+            <Network size={8} /> Netwerk {netwerkTier} · +€{(netwerkTier * WASH_PER_NETWORK_TIER).toLocaleString()}
+          </span>
         </div>
       </div>
 
-      {/* Manual Wash */}
-      {state.dirtyMoney > 0 && washCap.remaining > 0 ? (
-        <div className="game-card p-3 mb-4 border-l-[3px] border-l-gold">
-          <h4 className="font-bold text-xs mb-2 flex items-center gap-1.5">
-            <Droplets size={12} className="text-gold" /> Handmatig Wassen
+      {/* The wash itself */}
+      {dirty > 0 && cap.remaining > 0 ? (
+        <div className="game-card p-3 border-l-[3px] border-l-gold">
+          <h4 className="font-bold text-xs mb-2.5 flex items-center gap-1.5">
+            <Droplets size={12} className="text-gold" /> Door de wasserij
           </h4>
 
-          {/* Amount Input */}
-          <div className="mb-3">
-            <input
-              type="range"
-              min={100}
-              max={Math.min(state.dirtyMoney, washCap.remaining)}
-              step={100}
-              value={Math.min(washAmount, state.dirtyMoney, washCap.remaining)}
-              onChange={e => setWashAmount(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-gold"
-            />
-            <div className="flex justify-between mt-1">
-              <span className="text-[0.5rem] text-muted-foreground">€100</span>
-              <span className="text-[0.6rem] font-bold text-gold">€{Math.min(washAmount, state.dirtyMoney, washCap.remaining).toLocaleString()}</span>
-              <span className="text-[0.5rem] text-muted-foreground">€{Math.min(state.dirtyMoney, washCap.remaining).toLocaleString()}</span>
+          <input
+            type="range"
+            min={100}
+            max={Math.max(100, Math.min(dirty, cap.remaining))}
+            step={100}
+            value={amount}
+            onChange={e => setWashAmount(parseInt(e.target.value))}
+            className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-gold"
+          />
+          <div className="flex justify-between mt-1 mb-2.5">
+            <span className="text-[0.45rem] text-muted-foreground">€100</span>
+            <span className="text-[0.65rem] font-black text-gold tabular-nums">€{amount.toLocaleString()}</span>
+            <span className="text-[0.45rem] text-muted-foreground">€{Math.min(dirty, cap.remaining).toLocaleString()}</span>
+          </div>
+
+          {/* In, cut, out */}
+          <div className="rounded-lg bg-muted/40 p-2.5 space-y-1.5 mb-2.5">
+            <Row label="Zwart geld erin" value={`€${amount.toLocaleString()}`} tone="text-dirty" />
+            <div className="flex justify-center"><ArrowDown size={10} className="text-gold" /></div>
+            <Row label={`De wassers houden ${cut}%`} value={`−€${(amount - clean).toLocaleString()}`} tone="text-blood" />
+            <div className="pt-1.5 border-t border-border/50">
+              <Row label="Schoon eruit" value={`€${clean.toLocaleString()}`} tone="text-emerald" bold />
             </div>
           </div>
 
-          {/* Preview */}
-          <div className="bg-muted/50 rounded p-2.5 mb-3 space-y-1">
-            <div className="flex justify-between text-[0.55rem]">
-              <span className="text-muted-foreground">Zwart geld in:</span>
-              <span className="text-dirty font-semibold">€{Math.min(washAmount, state.dirtyMoney, washCap.remaining).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-center">
-              <ArrowDown size={10} className="text-gold" />
-            </div>
-            <div className="flex justify-between text-[0.55rem]">
-              <span className="text-muted-foreground">Schoon geld uit:</span>
-              <span className="text-emerald font-bold">€{expectedClean.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-[0.55rem]">
-              <span className="text-muted-foreground">Commissie:</span>
-              <span className="text-blood font-semibold">{Math.floor((1 - cleanRate) * 100)}%</span>
-            </div>
-            <div className="flex justify-between text-[0.55rem]">
-              <span className="text-muted-foreground">Heat impact:</span>
-              <span className="text-blood font-semibold">+{expectedHeat}</span>
-            </div>
-          </div>
-
-          {/* Buttons */}
           <div className="flex gap-2">
-            <GameButton variant="gold" size="sm" className="flex-1" onClick={handleWash}>
-              WAS €{Math.min(washAmount, state.dirtyMoney, washCap.remaining).toLocaleString()}
+            <GameButton variant="gold" size="sm" className="flex-1" onClick={() => wash(amount)}>
+              Was €{amount.toLocaleString()}
             </GameButton>
-            <GameButton variant="muted" size="sm" onClick={handleWashAll}>
-              ALLES
+            <GameButton variant="muted" size="sm" onClick={() => wash(Math.min(dirty, cap.remaining))}>
+              Alles
             </GameButton>
           </div>
 
-          {/* Heat Warning */}
-          {washAmount > 3000 && (
-            <div className="flex items-center gap-1.5 mt-2 text-[0.5rem] text-blood">
-              <AlertTriangle size={10} />
-              <span>Grote bedragen witwassen trekt aandacht!</span>
-            </div>
-          )}
+          <p className="text-[0.45rem] text-muted-foreground mt-2 leading-snug">
+            De wasserij kost je geen hitte — daar is ze voor. Zet meer crew op witwasrackets
+            om de pijp te verbreden.
+          </p>
         </div>
-      ) : state.dirtyMoney <= 0 ? (
-        <div className="game-card p-4 text-center mb-4">
+      ) : dirty <= 0 ? (
+        <div className="game-card p-4 text-center">
           <p className="text-xs text-muted-foreground">Geen zwart geld om te wassen.</p>
-          <p className="text-[0.5rem] text-muted-foreground mt-1">Verdien zwart geld via operaties en contracten.</p>
+          <p className="text-[0.5rem] text-muted-foreground mt-1">
+            Klussen en je rackets betalen in zwart geld. Hier wordt het bruikbaar.
+          </p>
         </div>
       ) : (
-        <div className="game-card p-4 text-center mb-4 border border-blood/20">
+        <div className="game-card p-4 text-center border border-blood/25">
           <AlertTriangle size={16} className="text-blood mx-auto mb-1" />
-          <p className="text-xs text-blood font-bold">Dagelijkse wascapaciteit bereikt!</p>
-          <p className="text-[0.5rem] text-muted-foreground mt-1">Sluit de dag af om de capaciteit te resetten.</p>
+          <p className="text-xs text-blood font-bold">De pijp zit vol voor vandaag.</p>
+          <p className="text-[0.5rem] text-muted-foreground mt-1">
+            Morgen kan er weer €{cap.total.toLocaleString()} doorheen — of gebruik de mixer hieronder.
+          </p>
         </div>
       )}
 
-      {/* Extended Laundering Methods */}
-      <SectionHeader title="Witwas Methodes" icon={<Droplets size={12} />} />
-      <div className="space-y-2 mb-4">
-        {LAUNDER_METHODS.filter(m => m.id !== 'standard').map(method => {
-          const unlocked = isMethodUnlocked(method.id, state.ownedDistricts, state.player.level, state.propertyId);
-          const cap = getMethodCapacity(method, state.ownedBusinesses, state.ownedDistricts.includes('neon'));
-          const used = state.launderMethodsUsed?.[method.id] || 0;
-          const remaining = cap - used;
-          const riskColors = { low: 'text-emerald', medium: 'text-gold', high: 'text-blood', none: 'text-game-purple' };
-          const riskLabels = { low: 'Laag', medium: 'Midden', high: 'Hoog', none: 'Geen' };
+      {/* The fast, dirty alternative */}
+      <SectionHeader title="Andere wegen" icon={<Droplets size={12} />} />
+      {LAUNDER_METHODS.filter(m => m.id === 'crypto').map(method => {
+        const unlocked = isMethodUnlocked(method.id, state.ownedDistricts, state.player.level, state.propertyId);
+        const methodCap = getMethodCapacity(method, state.ownedBusinesses, false);
+        const used = state.launderMethodsUsed?.[method.id] || 0;
+        const remaining = Math.max(0, methodCap - used);
+        const amt = Math.min(dirty, remaining);
+        const heatCost = amt > 0 ? Math.max(1, Math.floor((amt / 1000) * method.heatPerUnit)) : 0;
 
-          return (
-            <motion.div
-              key={method.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`game-card p-3 ${!unlocked ? 'opacity-50' : 'border-l-[3px] border-l-gold'}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{method.icon}</span>
-                    <span className="font-bold text-xs text-foreground">{method.name}</span>
-                    <span className={`text-[0.45rem] font-bold ${riskColors[method.riskLevel]}`}>
-                      {riskLabels[method.riskLevel]}
-                    </span>
-                  </div>
-                  <p className="text-[0.5rem] text-muted-foreground mt-0.5">{method.desc}</p>
-                  {unlocked && (
-                    <div className="flex gap-3 mt-1 text-[0.5rem] text-muted-foreground">
-                      <span>Rate: <span className="text-emerald font-semibold">{Math.round(method.cleanRate * 100)}%</span></span>
-                      <span>Cap: <span className="text-foreground font-semibold">€{remaining.toLocaleString()}/€{cap.toLocaleString()}</span></span>
-                    </div>
-                  )}
+        return (
+          <div key={method.id} className={`game-card p-3 ${unlocked ? 'border-l-[3px] border-l-game-purple' : 'opacity-60'}`}>
+            <div className="flex items-start gap-2.5">
+              <div className="w-10 h-10 rounded-lg bg-game-purple/10 border border-game-purple/30 flex items-center justify-center shrink-0 text-lg">
+                {method.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs">{method.name}</span>
+                  <span className="text-[0.4rem] font-bold text-blood uppercase tracking-wider">hoog risico</span>
                 </div>
-                {unlocked ? (
-                  remaining > 0 && state.dirtyMoney > 0 ? (
-                    <GameButton size="sm" variant="gold" onClick={() => {
-                      const amt = Math.min(state.dirtyMoney, remaining);
-                      dispatch({ type: 'LAUNDER_METHOD', methodId: method.id, amount: amt });
-                      showToast(`€${amt.toLocaleString()} witgewassen via ${method.name}`);
-                    }}>
-                      WAS
-                    </GameButton>
-                  ) : (
-                    <span className="text-[0.5rem] text-muted-foreground">Vol</span>
-                  )
-                ) : (
-                  <div className="flex items-center gap-1 text-[0.5rem] text-muted-foreground">
-                    <Lock size={10} />
-                    <span>{method.unlockCondition}</span>
+                <p className="text-[0.5rem] text-muted-foreground mt-0.5">
+                  Grotere pijp, slechtere koers, en het trekt aandacht.
+                </p>
+                {unlocked && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[0.45rem]">
+                    <span>Koers <span className="text-blood font-bold">{Math.round(method.cleanRate * 100)}%</span></span>
+                    <span>Ruimte <span className="text-foreground font-bold">€{remaining.toLocaleString()}</span></span>
+                    {heatCost > 0 && (
+                      <span className="text-blood flex items-center gap-0.5"><Flame size={8} /> +{heatCost} hitte</span>
+                    )}
                   </div>
                 )}
               </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Business Wash Overview */}
-      <SectionHeader title="Dekmantels" icon={<Store size={12} />} />
-      {state.ownedBusinesses.length > 0 ? (
-        <div className="space-y-2">
-          {state.ownedBusinesses.map(bid => {
-            const biz = BUSINESSES.find(b => b.id === bid);
-            if (!biz) return null;
-            return (
-              <div key={bid} className="game-card flex items-center gap-2.5 p-2.5">
-                <div className="w-8 h-8 rounded bg-emerald/10 flex items-center justify-center flex-shrink-0">
-                  <Store size={14} className="text-emerald" />
-                </div>
-                <div className="flex-1">
-                  <h5 className="font-bold text-xs">{biz.name}</h5>
-                  <div className="flex gap-3 text-[0.5rem] text-muted-foreground">
-                    <span>Inkomen: <span className="text-gold font-semibold">+€{biz.income}/dag</span></span>
-                    <span>Wast: <span className="text-emerald font-semibold">€{biz.clean}/dag</span></span>
+              <div className="shrink-0">
+                {!unlocked ? (
+                  <div className="flex items-center gap-1 text-[0.45rem] text-muted-foreground">
+                    <Lock size={10} /> {method.unlockCondition}
                   </div>
-                </div>
+                ) : remaining > 0 && dirty > 0 ? (
+                  <GameButton size="sm" variant="purple" onClick={() => {
+                    dispatch({ type: 'LAUNDER_METHOD', methodId: method.id, amount: amt });
+                    showToast(`€${amt.toLocaleString()} door de mixer — +${heatCost} hitte`);
+                  }}>
+                    Mixen
+                  </GameButton>
+                ) : (
+                  <span className="text-[0.45rem] text-muted-foreground">Vol</span>
+                )}
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="game-card p-3 text-center">
-          <p className="text-[0.6rem] text-muted-foreground">Geen dekmantels. Koop bedrijven in het Imperium tab.</p>
-        </div>
-      )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-      {state.ownedDistricts.includes('neon') && (
-        <div className="mt-3 text-center text-[0.5rem] text-game-purple font-bold neon-text">
-          ✧ NEON STRIP BONUS: +15% witwastarief ✧
-        </div>
-      )}
+function Row({ label, value, tone, bold }: { label: string; value: string; tone: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between text-[0.55rem]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${tone} ${bold ? 'font-black text-[0.7rem]' : 'font-semibold'}`}>{value}</span>
     </div>
   );
 }

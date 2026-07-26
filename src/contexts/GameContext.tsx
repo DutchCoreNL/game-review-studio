@@ -24,6 +24,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { HEAT_BASE_DECAY } from '../game/heat';
+import { TRADE_HEAT_BUY, TRADE_HEAT_SELL } from '../game/market';
 import { bribeCost as prisonBribeCost, escapeChance, ESCAPE_FAIL_EXTRA_DAYS, ESCAPE_HEAT_PENALTY } from '../game/prison';
 import { streakPayoutMultiplier } from '../game/momentum';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
@@ -567,10 +568,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRADE': {
       if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s;
-      // Energy cost
-      const tradeCost = ENERGY_COSTS.TRADE || 2;
-      if (s.energy < tradeCost) return s; // Not enough energy
-      deductEnergy(s, tradeCost);
+      // Trading used to cost 2 energy and return silently at zero. Energy is not shown
+      // anywhere since the RPG layer was retired, so the market simply stopped working
+      // after ~50 trades with no message and no way to find out why.
       // Wanted check before trade
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -588,9 +588,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // heat/rep/daily-challenge side effects below still applied unconditionally, letting a
       // no-op trade farm heat-free "trades" for challenge completion.
       if (!tradeResult.success) return s;
-      // Heat 2.0: trade heat goes to vehicle (transport of goods)
-      const tradeHeat = action.mode === 'buy' ? 1 : 2;
-      Engine.addVehicleHeat(s, tradeHeat);
+      // Moving goods is noticed. This went to `addVehicleHeat`, which writes to the
+      // retired `ownedVehicles` array — so trading generated no heat at all, and the
+      // market's heat surcharge was a tax you could never cause.
+      Engine.addPersonalHeat(s, action.mode === 'buy' ? TRADE_HEAT_BUY : TRADE_HEAT_SELL);
       Engine.recomputeHeat(s);
       // District rep gain for trading
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 1);
@@ -2981,7 +2982,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       s.dirtyMoney -= actual;
       s.money += cleanAmount;
       s.stats.totalEarned += cleanAmount;
-      s.heat += heatGain;
+      // This wrote to `s.heat`, the derived field that recomputeHeat overwrites from
+      // personal and vehicle heat on the next tick — so the "high risk" of a crypto mix
+      // evaporated before it could cost anything. It lands on you now, which is what
+      // makes the faster, dirtier pipe an actual choice.
+      Engine.addPersonalHeat(s, heatGain);
+      Engine.recomputeHeat(s);
       s.launderMethodsUsed[action.methodId] = used + actual;
       s.washUsedToday += actual;
       return s;
