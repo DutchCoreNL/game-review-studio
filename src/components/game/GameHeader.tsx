@@ -11,6 +11,7 @@ import { AnimatedCounter } from './animations/AnimatedCounter';
 import { RewardPopup } from './animations/RewardPopup';
 import { ResourceTile } from './header/ResourceTile';
 import { tapPower, stashCapacity } from '@/game/score';
+import { dailyHeatDelta, heatBand } from '@/game/heat';
 import { HeatTile } from './header/HeatTile';
 import { KarmaChip } from './header/KarmaChip';
 import { ResourcePopup } from './ResourcePopup';
@@ -91,6 +92,8 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
   const ammoLabel = AMMO_TYPE_LABELS[activeAmmoType]?.label || 'KOGELS';
   const xpPct = state.player.nextXp > 0 ? (state.player.xp / state.player.nextXp) * 100 : 0;
   const stashUsed = Object.values(state.inventory || {}).reduce((a: number, b) => a + (Number(b) || 0), 0);
+  const heatDelta = dailyHeatDelta(state);
+  const heatBandLabel = heatBand(personalHeat).label;
   const isGoldenHour = !!state.goldenHour;
 
   // Week event with XP bonus detection
@@ -211,7 +214,7 @@ export function GameHeader({ onMenuOpen }: GameHeaderProps) {
         <div className="w-px bg-border/50 my-1 flex-shrink-0" />
 
         {/* Heat — the pressure you manage */}
-        <HeatTile personalHeat={personalHeat} onTap={() => setPopup('heat')} />
+        <HeatTile personalHeat={personalHeat} dailyDelta={heatDelta} bandLabel={heatBandLabel} onTap={() => setPopup('heat')} />
 
         {/* Dirty money — your cue to launder */}
         <ResourceTile label="ZWART" value={`€${Math.round(state.dirtyMoney || 0).toLocaleString()}`}

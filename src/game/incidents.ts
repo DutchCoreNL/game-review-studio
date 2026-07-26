@@ -2,6 +2,7 @@ import type { DistrictId, GameState } from './types';
 import type { PlayerOrg } from './organization';
 import { orgPower } from './organization';
 import { DISTRICT_OWNER, RACKET_BY_ID, racketsInDistrict } from './rackets';
+import { policeIncidentChance } from './heat';
 
 /**
  * INCIDENTS — the moment-to-moment gameplay of the idle loop.
@@ -68,7 +69,11 @@ export interface ActiveIncident {
 
 /** Attention at which a district's owner comes knocking. */
 export const ATTENTION_INCIDENT_THRESHOLD = 55;
-/** Heat at which the police move from watching to acting. */
+/**
+ * @deprecated Police pressure is continuous now — see policeIncidentChance in
+ * src/game/heat.ts. Kept only because the incident tests reference it as a
+ * convenient "clearly hot" value.
+ */
 export const HEAT_INCIDENT_THRESHOLD = 65;
 /** Loyalty below which a crew member starts making trouble. */
 export const LOYALTY_TROUBLE_THRESHOLD = 35;
@@ -325,9 +330,11 @@ export function rollIncident(state: GameState, rand: () => number = Math.random)
     if (inc) return inc;
   }
 
-  // 2. The police, once the heat is high enough.
-  if ((state.personalHeat || 0) >= HEAT_INCIDENT_THRESHOLD && rand() < 0.6) {
-    return policeIncident(state, state.personalHeat || 0);
+  // 2. The police. Their interest scales with your heat rather than switching on at
+  //    a threshold, so heat is a slope you manage instead of a line you hop over.
+  const heat = state.personalHeat || 0;
+  if (rand() < policeIncidentChance(heat)) {
+    return policeIncident(state, heat);
   }
 
   // 3. An unhappy crew member.

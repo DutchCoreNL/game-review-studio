@@ -3,6 +3,8 @@ import {
   MOMENTUM_MAX, MOMENTUM_PER_TAP, MOMENTUM_DECAY_PER_SEC, MOMENTUM_TIERS,
   momentumTier, momentumMultiplier, addTapMomentum, decayMomentum,
   critChance, resolveTap, CRIT_MULTIPLIER,
+  returnMomentum, RETURN_MOMENTUM_CAP, RETURN_MIN_MINUTES,
+  streakPayoutMultiplier, STREAK_BONUS_CAP,
 } from './momentum';
 
 describe('momentum build-up and decay', () => {
@@ -66,5 +68,39 @@ describe('resolveTap', () => {
 
   it('reports the momentum the tap just built', () => {
     expect(resolveTap(5, 0, never).momentum).toBe(MOMENTUM_PER_TAP);
+  });
+});
+
+describe('coming back after a break', () => {
+  it('a quick glance away grants nothing', () => {
+    expect(returnMomentum(0)).toBe(0);
+    expect(returnMomentum(RETURN_MIN_MINUTES - 1)).toBe(0);
+  });
+
+  it('real time away grants a running start', () => {
+    expect(returnMomentum(20)).toBeGreaterThan(0);
+  });
+
+  it('never hands out a top-tier head start', () => {
+    expect(returnMomentum(100000)).toBe(RETURN_MOMENTUM_CAP);
+    expect(RETURN_MOMENTUM_CAP).toBeLessThan(MOMENTUM_TIERS[MOMENTUM_TIERS.length - 1].at);
+  });
+});
+
+describe('job streak payout', () => {
+  it('a first job pays plain', () => {
+    expect(streakPayoutMultiplier(0)).toBe(1);
+  });
+
+  it('a run of jobs pays progressively better', () => {
+    expect(streakPayoutMultiplier(5)).toBeGreaterThan(streakPayoutMultiplier(1));
+  });
+
+  it('is capped so it cannot run away', () => {
+    expect(streakPayoutMultiplier(9999)).toBe(1 + STREAK_BONUS_CAP);
+  });
+
+  it('treats a negative streak as none', () => {
+    expect(streakPayoutMultiplier(-5)).toBe(1);
   });
 });

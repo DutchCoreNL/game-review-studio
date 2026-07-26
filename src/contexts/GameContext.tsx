@@ -24,6 +24,8 @@ import {
 } from '../game/organization';
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
+import { HEAT_BASE_DECAY } from '../game/heat';
+import { streakPayoutMultiplier } from '../game/momentum';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
 import { BASE_STASH_SLOTS, WASH_KEEP_RATE } from '../game/engine';
 import { nextTier, canBuyTier, equipHeatShield, type EquipSlot } from '../game/equipment';
@@ -981,6 +983,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // ========== HEAT COOLS ON ITS OWN ==========
+      // The streets forget. Without this, heat only ever came down through Netwerk
+      // gear, laundering crew or a bribe — so a player without those watched it climb
+      // forever with no way back, which is a trap rather than a tension.
+      if ((s.personalHeat || 0) > 0) {
+        Engine.addPersonalHeat(s, -HEAT_BASE_DECAY);
+        Engine.recomputeHeat(s);
+      }
+
       // ========== INCIDENTS — the world answers back ==========
       // Only one situation waits for you at a time; a pending decision blocks new ones.
       if (!s.activeIncident) {
@@ -1332,15 +1343,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const washAmt = Math.min(action.amount, maxWash);
       if (washAmt <= 0) return s;
       s.dirtyMoney -= washAmt;
-      let washedAmt = washAmt;
-      if (s.ownedDistricts.includes('neon')) washedAmt = Math.floor(washAmt * 1.15);
-      const cleanAmt = Math.floor(washedAmt * 0.85);
+      // Laundering adds no heat — that contradicted the Witwasserij racket, whose
+      // whole purpose is to cool you down. The launderers' cut is the cost. The old
+      // Neon district bonus is gone with district ownership.
+      const cleanAmt = Math.floor(washAmt * WASH_KEEP_RATE);
       s.money += cleanAmt;
       s.stats.totalEarned += cleanAmt;
       s.washUsedToday = (s.washUsedToday || 0) + washAmt;
-      // Heat 2.0: washing generates personal heat
-      Engine.addPersonalHeat(s, Math.max(1, Math.floor(washAmt / 500)));
-      Engine.recomputeHeat(s);
       Engine.gainXp(s, Math.max(1, Math.floor(washAmt / 200)));
       if (s.dailyProgress) { s.dailyProgress.washed += washAmt; }
       syncChallenges(s);
@@ -4513,9 +4522,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [gid, qty] of Object.entries(reward.goods)) {
         s.inventory[gid as GoodId] = (s.inventory[gid as GoodId] || 0) + (qty || 0);
       }
-      // Vernuft (brains) means you know what the goods are really worth.
+      // Vernuft (brains) means you know what the goods are really worth, and a run of
+      // finished jobs without walking away pays progressively better.
       const brains = s.player?.stats?.brains || 0;
-      const dirty = Math.round((reward.dirtyMoney + reward.overflowMoney) * (1 + brains * 0.02));
+      const streakMult = streakPayoutMultiplier(s.jobStreak || 0);
+      const dirty = Math.round((reward.dirtyMoney + reward.overflowMoney) * (1 + brains * 0.02) * streakMult);
       s.dirtyMoney = (s.dirtyMoney || 0) + dirty;
       s.stats.totalEarned += dirty;
       // Working a district by hand is noticed there just like a racket is.
@@ -4537,8 +4548,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SCORE_ABANDON': {
       // Drop the current job and go back to the district picker. Progress on an
-      // unfinished job is not banked — walking away costs you the work so far.
+      // unfinished job is not banked, and the run ends here: walking away costs you
+      // both the work so far and the streak bonus you had built up.
       s.activeJob = null;
+      s.jobStreak = 0;
       return s;
     }
 

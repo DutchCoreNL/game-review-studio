@@ -34,6 +34,13 @@ export function ScoreView() {
   const crewRate = job ? crewWorkPerSecond(state, job.district) : 0;
   const power = tapPower(state);
 
+  // How long the player has been gone, for the returning head start. Read once on
+  // mount so it reflects the gap you actually came back from.
+  const minutesAway = useMemo(() => {
+    const last = state.lastTickAt ? new Date(state.lastTickAt).getTime() : Date.now();
+    return Math.max(0, Math.round((Date.now() - last) / 60000));
+  }, []);
+
   const stash = useMemo(() => {
     const inv = state.inventory || {};
     return (Object.keys(inv) as GoodId[])
@@ -101,6 +108,8 @@ export function ScoreView() {
         basePower={power}
         crewRate={crewRate}
         crewNames={workingHere}
+        streak={state.jobStreak || 0}
+        minutesAway={minutesAway}
         onWork={(amount) => dispatch({ type: 'SCORE_WORK', amount })}
       />
 

@@ -5,7 +5,8 @@ import { DISTRICTS } from '@/game/constants';
 import { DISTRICT_IMAGES } from '@/assets/items';
 import type { ScoreJob } from '@/game/score';
 import {
-  resolveTap, decayMomentum, momentumTier, MOMENTUM_MAX, type TapResult,
+  resolveTap, decayMomentum, momentumTier, MOMENTUM_MAX, returnMomentum,
+  streakPayoutMultiplier, type TapResult,
 } from '@/game/momentum';
 import { playHitSound, playHeavyHitSound } from '@/game/sounds';
 
@@ -27,29 +28,45 @@ const ACCENT_TEXT: Record<string, string> = {
   muted: 'text-muted-foreground', gold: 'text-gold', blood: 'text-blood',
 };
 
-export function JobScene({ job, basePower, crewRate, crewNames, onWork }: {
+export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesAway, onWork }: {
   job: ScoreJob;
   basePower: number;
   crewRate: number;
   crewNames: string[];
+  /** Jobs finished in this run — drives the payout bonus shown on the scene. */
+  streak: number;
+  /** Minutes since the last tick, used for the returning-player head start. */
+  minutesAway: number;
   onWork: (amount: number) => void;
 }) {
   const [hits, setHits] = useState<Hit[]>([]);
   const hitId = useRef(0);
-  const [momentum, setMomentum] = useState(0);
+  const [momentum, setMomentum] = useState(() => returnMomentum(minutesAway));
+  const [greeted, setGreeted] = useState(() => returnMomentum(minutesAway) > 0);
   const shake = useAnimationControls();
   const lastTap = useRef(0);
 
   // Momentum bleeds away whenever you stop, so a burst of work is worth more than
-  // the same taps spread thin.
+  // the same taps spread thin. The returning head start is held until your first tap
+  // — at the normal decay rate a 70-point kick-off is gone in five seconds, so it
+  // would evaporate while you were still reading the banner.
+  const [started, setStarted] = useState(() => returnMomentum(minutesAway) <= 0);
   useEffect(() => {
+    if (!started) return;
     const id = setInterval(() => {
       setMomentum(m => (m <= 0 ? 0 : decayMomentum(m, 0.2)));
     }, 200);
     return () => clearInterval(id);
-  }, []);
+  }, [started]);
+
+  useEffect(() => {
+    if (!greeted) return;
+    const t = setTimeout(() => setGreeted(false), 3200);
+    return () => clearTimeout(t);
+  }, [greeted]);
 
   const tier = momentumTier(momentum);
+  const streakMult = streakPayoutMultiplier(streak);
   const pct = Math.min(100, (job.progress / job.required) * 100);
   const nearlyDone = pct > 85;
 
@@ -74,6 +91,7 @@ export function JobScene({ job, basePower, crewRate, crewNames, onWork }: {
     });
     if (res.crit) playHeavyHitSound(); else playHitSound();
     lastTap.current = Date.now();
+    if (!started) setStarted(true);
   };
 
   return (
@@ -131,6 +149,20 @@ export function JobScene({ job, basePower, crewRate, crewNames, onWork }: {
           <Hand size={30} className="text-gold/70" />
         </motion.div>
 
+        {/* A returning player gets a running start rather than opening from cold. */}
+        <AnimatePresence>
+          {greeted && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="absolute top-1/2 left-0 right-0 -translate-y-1/2 flex justify-center pointer-events-none"
+            >
+              <span className="rounded-full bg-gold/15 border border-gold/40 px-3 py-1 text-[0.5rem] font-bold text-gold">
+                Je crew hield het warm — je begint op gang
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Floating numbers */}
         <AnimatePresence>
           {hits.map(h => (
@@ -166,7 +198,14 @@ export function JobScene({ job, basePower, crewRate, crewNames, onWork }: {
             <span className="text-muted-foreground">
               <Users size={8} className="inline mb-px" /> crew {crewRate.toFixed(1)}/sec · tik +{basePower}
             </span>
-            <span className="text-gold font-bold">{Math.floor(job.progress)}/{job.required}</span>
+            <span className="flex items-center gap-1.5">
+              {streak > 0 && (
+                <span className="text-emerald font-bold" title={`${streak} klussen op een rij`}>
+                  🔥{streak} ·  +{Math.round((streakMult - 1) * 100)}% buit
+                </span>
+              )}
+              <span className="text-gold font-bold">{Math.floor(job.progress)}/{job.required}</span>
+            </span>
           </div>
 
           {/* Progress bar, which pulses when the score is nearly in */}

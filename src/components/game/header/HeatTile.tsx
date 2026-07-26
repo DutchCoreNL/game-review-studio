@@ -17,14 +17,17 @@ function getHeatTextColor(value: number): string {
 
 interface HeatTileProps {
   personalHeat: number;
+  /** Net heat change per day: the number that makes this manageable. */
+  dailyDelta: number;
+  bandLabel: string;
   onTap?: () => void;
 }
 
-export function HeatTile({ personalHeat, onTap }: HeatTileProps) {
+export function HeatTile({ personalHeat, dailyDelta, bandLabel, onTap }: HeatTileProps) {
   const isWanted = personalHeat >= WANTED_HEAT_THRESHOLD;
 
   return (
-    <TappableTile tooltip="Heat bepaalt hoe hard de politie je zoekt." onTap={onTap}>
+    <TappableTile tooltip={`${bandLabel} — hitte verandert ${dailyDelta > 0 ? "+" : ""}${dailyDelta} per dag. Witwasserij-crew en je Netwerk koelen af.`} onTap={onTap}>
       <div className={`flex flex-col justify-center bg-muted/20 rounded px-2 py-1 border min-w-[4.5rem] ${isWanted ? 'border-blood/80 bg-blood/10' : 'border-border/50'}`}>
         <div className="flex items-center gap-1">
           <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none">Heat</span>
@@ -48,6 +51,16 @@ export function HeatTile({ personalHeat, onTap }: HeatTileProps) {
             />
           </div>
           <span className={`text-[0.45rem] font-bold tabular-nums ${getHeatTextColor(personalHeat)} ${personalHeat > 70 ? 'animate-pulse' : ''}`}>{personalHeat}</span>
+        </div>
+        {/* The rate, which is what actually lets you steer this. Cooling reads green,
+            climbing reads warm, so a glance tells you which way you are heading. */}
+        <div className="flex items-center justify-between gap-1 mt-0.5 leading-none">
+          <span className="text-[0.35rem] text-muted-foreground/80 truncate">{bandLabel}</span>
+          <span className={`text-[0.4rem] font-bold tabular-nums ${
+            dailyDelta > 0 ? 'text-blood' : dailyDelta < 0 ? 'text-emerald' : 'text-muted-foreground'
+          }`}>
+            {dailyDelta > 0 ? '+' : ''}{dailyDelta}/dag
+          </span>
         </div>
       </div>
     </TappableTile>

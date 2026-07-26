@@ -80,3 +80,33 @@ export function resolveTap(basePower: number, momentum: number, rand: () => numb
   const amount = Math.max(1, Math.round(basePower * multiplier * (crit ? CRIT_MULTIPLIER : 1)));
   return { amount, crit, momentum: next, multiplier };
 }
+
+// ========== COMING BACK ==========
+
+/**
+ * Checking back in used to feel identical to never having left: you opened the
+ * game and started tapping from cold. A returning player has earned a running
+ * start, so time away converts into momentum you begin with — capped well below
+ * the top tier so it is a kick-off, not a free ride.
+ */
+export const RETURN_MOMENTUM_CAP = 70;
+/** Minutes away before a return bonus is worth granting at all. */
+export const RETURN_MIN_MINUTES = 10;
+
+export function returnMomentum(minutesAway: number): number {
+  if (minutesAway < RETURN_MIN_MINUTES) return 0;
+  // Roughly a third of an hour away gives a full kick-off; longer adds nothing more.
+  return Math.min(RETURN_MOMENTUM_CAP, Math.round(minutesAway * 3.5));
+}
+
+/**
+ * Consecutive jobs finished without walking away build a streak. It multiplies the
+ * dirty cash a job pays out, so staying on one district and seeing scores through
+ * beats hopping around — and it gives checking in a reason to last more than one tap.
+ */
+export const STREAK_BONUS_PER_JOB = 0.04;
+export const STREAK_BONUS_CAP = 0.6;
+
+export function streakPayoutMultiplier(streak: number): number {
+  return 1 + Math.min(STREAK_BONUS_CAP, Math.max(0, streak) * STREAK_BONUS_PER_JOB);
+}

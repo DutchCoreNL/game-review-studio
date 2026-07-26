@@ -6,6 +6,7 @@ import { getPlayerStat, getBestTradeRoute, getActiveAmmoType } from '@/game/engi
 import { SectionHeader } from '../ui/SectionHeader';
 import { orgControlsDistrict } from '@/game/organization';
 import { stashCapacity } from '@/game/score';
+import { marketSurcharge } from '@/game/heat';
 import { AutoFencePanel } from './AutoFencePanel';
 import { GameButton } from '../ui/GameButton';
 import { GameBadge } from '../ui/GameBadge';
@@ -37,15 +38,13 @@ const GOOD_ICONS: Record<string, React.ReactNode> = {
 };
 
 /**
- * Sellers charge more when you are hot. This used to average your personal heat
- * with your *vehicle's* heat — vehicles are retired, so that half was dead weight
- * that also halved the effect. It now reads the one heat the game still tracks.
+ * Sellers charge more when you are hot. The curve lives in src/game/heat.ts so the
+ * market, the header read-out and the police all agree on what "hot" means.
  */
 function getHeatSurcharge(state: { personalHeat?: number }) {
   const pHeat = state.personalHeat ?? 0;
-  const surchargePercent = pHeat > 50 ? Math.min(40, Math.floor((pHeat - 50) * 0.8)) : 0;
-  const surchargeMultiplier = pHeat > 50 ? 1 + Math.min(0.4, (pHeat - 50) * 0.008) : 1;
-  return { pHeat, surchargePercent, surchargeMultiplier };
+  const frac = marketSurcharge(pHeat);
+  return { pHeat, surchargePercent: Math.round(frac * 100), surchargeMultiplier: 1 + frac };
 }
 
 interface ServerMarketData {

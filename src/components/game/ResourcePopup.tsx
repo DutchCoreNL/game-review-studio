@@ -1,4 +1,5 @@
 import { useGame } from '@/contexts/GameContext';
+import { heatBand, dailyHeatFlow } from '@/game/heat';
 import { getRankTitle, getPlayerStat, getActiveVehicleHeat, getActiveAmmoType, getPlayerMaxHP, HOSPITAL_HEAL_COST_PER_HP } from '@/game/engine';
 import { REKAT_COSTS, VEHICLES, AMMO_PACKS, AMMO_FACTORY_UPGRADES, AMMO_TYPE_LABELS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -160,6 +161,14 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
     return val > 70 ? 'text-blood' : val > 50 ? 'text-gold' : val > 25 ? 'text-foreground' : 'text-emerald';
   }
 
+  // Explain heat in terms of the band you are in and the rate you are moving at, so
+  // the popup answers "am I in trouble?" rather than restating the mechanic.
+  const band = heatBand(personalHeat);
+  const flow = dailyHeatFlow(state);
+  const heatExplainer = `${band.label} — ${band.desc} Je hitte verandert ${flow.net > 0 ? '+' : ''}${flow.net} per dag `
+    + `(rackets +${flow.rackets}${flow.fence ? `, fence +${flow.fence}` : ''}, netwerk −${flow.shield}, straat vergeet −${flow.decay}). `
+    + `Zet crew op Witwasserij of bouw je Netwerk uit om af te koelen.`;
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -284,7 +293,7 @@ function HeatPanel({ onClose }: { onClose: () => void }) {
       )}
 
       <p className="text-[0.6rem] text-muted-foreground mt-3 italic">
-        Hitte stijgt van je rackets en van klussen die je zelf draait — hoe rijker het district, hoe sneller. Zet crew op Witwasserij of bouw je Netwerk uit om af te koelen. Loopt de hitte te hoog op, dan volgt een inval.
+        {heatExplainer}
       </p>
     </div>
   );
