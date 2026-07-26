@@ -13,6 +13,7 @@ import {
 import { autoFenceActive, autoFenceIncome } from '@/game/tradeNetwork';
 import { canRetire, computeLegacyGain } from '@/game/legacy';
 import { ATTENTION_INCIDENT_THRESHOLD } from '@/game/incidents';
+import { CrewPortrait } from './crew/CrewPortrait';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -156,12 +157,13 @@ function DistrictCard({ district, expanded, onToggle }: {
 }
 
 function CrewRow({ m }: { m: OrgMember }) {
+  const { state } = useGame();
   const trait = m.trait ? TRAIT_BY_ID[m.trait] : null;
   const def = m.assignment ? RACKET_BY_ID[m.assignment] : null;
   const injured = !!m.injuredUntilDay;
   return (
-    <div className="flex items-center gap-2 py-1.5 border-b border-border/20 last:border-0">
-      <span className="text-sm shrink-0" title={trait?.desc}>{injured ? '🤕' : trait?.icon || '•'}</span>
+    <div className="flex items-center gap-2.5 py-1.5 border-b border-border/20 last:border-0">
+      <CrewPortrait member={m} size={34} day={state.day} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="text-[0.6rem] font-bold truncate">{m.name}</span>

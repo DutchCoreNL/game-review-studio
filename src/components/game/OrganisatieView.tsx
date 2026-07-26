@@ -14,6 +14,7 @@ import {
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { GameBadge } from './ui/GameBadge';
+import { CrewPortrait } from './crew/CrewPortrait';
 import { StatBar } from './ui/StatBar';
 
 function loyaltyColor(v: number): 'emerald' | 'gold' | 'blood' {
@@ -222,8 +223,8 @@ function OrgDashboard() {
               return (
                 <motion.div key={m.id} layout initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
                   className="game-card py-2">
-                  <div className="flex items-center gap-2">
-                    <Skull size={14} className="text-muted-foreground flex-shrink-0" />
+                  <div className="flex items-center gap-2.5">
+                    <CrewPortrait member={m} size={48} day={state.day} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold truncate">{m.name}</span>
