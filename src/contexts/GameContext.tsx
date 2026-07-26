@@ -810,37 +810,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Street events removed (MMO)
 
-      // Endgame events
-      if ((s.conqueredFactions?.length || 0) >= 3 && !s.finalBossDefeated) {
-        if (!s.seenEndgameEvents) s.seenEndgameEvents = [];
-        const egEvent = getEndgameEvent(s);
-        if (egEvent) {
-          s.seenEndgameEvents.push(egEvent.id);
-          if (egEvent.reward.money) {
-            if (egEvent.reward.money > 0) { s.money += egEvent.reward.money; s.stats.totalEarned += egEvent.reward.money; }
-            else { const cost = Math.abs(egEvent.reward.money); if (s.money >= cost) { s.money -= cost; s.stats.totalSpent += cost; } }
-          }
-          if (egEvent.reward.rep) s.rep += egEvent.reward.rep;
-          if (egEvent.reward.xp) Engine.gainXp(s, egEvent.reward.xp);
-          if (egEvent.reward.heat) Engine.splitHeat(s, egEvent.reward.heat, 0.5);
-          addPhoneMessage(s, 'NHPD', `${egEvent.icon} ${egEvent.title}: ${egEvent.desc}`, egEvent.reward.heat ? 'threat' : 'opportunity');
-        }
-      }
+      // Endgame events used to unlock here once you had subjugated all three
+      // factions. Faction conquest is retired, so that gate can never open — the
+      // long game now ends at handing the empire to a successor.
 
       // Story arcs — now handled via Campaign menu, no longer auto-triggered
       // if (!s.prison) { checkArcTriggers(s); if (!s.pendingStreetEvent) checkArcProgression(s); }
       
-      // Car orders
-      if (s.day % 3 === 0 && s.carOrders.length < 3 && s.stolenCars.length > 0 || s.day % 5 === 0 && s.carOrders.length < 3) {
-        s.carOrders = s.carOrders.filter(o => o.deadline >= s.day);
-        const randomCar = STEALABLE_CARS[Math.floor(Math.random() * STEALABLE_CARS.length)];
-        const client = CAR_ORDER_CLIENTS[Math.floor(Math.random() * CAR_ORDER_CLIENTS.length)];
-        const bonusPercent = 20 + Math.floor(Math.random() * 60);
-        const newOrderClient = `${client.emoji} ${client.name}`;
-        s.carOrders.push({ id: `order_${s.day}_${Math.floor(Math.random() * 1000)}`, carTypeId: randomCar.id, clientName: newOrderClient, bonusPercent, deadline: s.day + 5 + Math.floor(Math.random() * 5), desc: `Zoekt een ${randomCar.name}. Betaalt ${bonusPercent}% extra.` });
-        addPhoneMessage(s, newOrderClient, `Ik zoek een ${randomCar.name}. Ik betaal ${bonusPercent}% extra boven marktwaarde.`, 'opportunity');
-      }
-      s.stolenCars.forEach(car => { if (!car.omgekat) car.condition = Math.max(20, car.condition - 1); });
+      // Car orders and stolen-car upkeep used to run here. The garage and chop shop
+      // are no longer part of the game, and this block was messaging the player daily
+      // about cars they had no way to steal, chop or deliver.
       
       // Daily challenges
       if (s.challengeDay !== s.day) {
@@ -857,49 +836,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       const npcBonuses = applyNpcBonuses(s);
       if (npcBonuses.extraHeatDecay > 0) { Engine.addPersonalHeat(s, -npcBonuses.extraHeatDecay); Engine.recomputeHeat(s); }
-      if (npcBonuses.crewHealBonus > 0) s.crew.forEach(c => { if (c.hp < 100 && c.hp > 0) c.hp = Math.min(100, c.hp + npcBonuses.crewHealBonus); });
       applyMissingNpcBonuses(s);
       
       // Week events, hits, news
       const weekEvt = checkWeekEvent(s);
       if (weekEvt) (s as any).activeWeekEvent = weekEvt;
       processWeekEvent(s);
-      s.hitContracts = generateHitContracts(s);
+      // Hit contracts are no longer generated (the hitman board is retired), and the
+      // daily ammo trickle went with it — there is nothing left to shoot.
       s.dailyNews = generateDailyNews(s);
-      if (Math.random() < 0.2) s.ammo = Math.min(99, (s.ammo || 0) + 2 + Math.floor(Math.random() * 4));
       
-      // Racing & dealer
-      s.raceUsedToday = false;
-      if (!s.vehiclePriceModifiers) s.vehiclePriceModifiers = {};
-      for (const v of VEHICLES) {
-        const current = s.vehiclePriceModifiers[v.id] ?? 1;
-        const change = -0.10 + Math.random() * 0.25;
-        s.vehiclePriceModifiers[v.id] = Math.max(0.7, Math.min(1.3, current + change * 0.3));
-      }
-      if (s.day % 5 === 0) {
-        const ownedIds = s.ownedVehicles.map(v => v.id);
-        const candidates = VEHICLES.filter(v => !ownedIds.includes(v.id) && v.cost > 0);
-        if (candidates.length > 0) {
-          const pick = candidates[Math.floor(Math.random() * candidates.length)];
-          s.dealerDeal = { vehicleId: pick.id, discount: 0.2 + Math.random() * 0.1, expiresDay: s.day + 1 };
-        }
-      }
-      // Unique vehicles
-      const checkUniqueUnlockAT = (checkId: string): boolean => {
-        switch (checkId) {
-          case 'final_boss': return s.finalBossDefeated;
-          case 'all_factions': return (s.conqueredFactions?.length || 0) >= 3;
-          case 'nemesis_gen3': return (s.nemesis?.generation || 1) >= 3;
-          case 'all_vehicles': return VEHICLES.filter(v => !v.reqPrestige).every(v => s.ownedVehicles.some(ov => ov.id === v.id));
-          default: return false;
-        }
-      };
-      for (const uv of UNIQUE_VEHICLES) {
-        if (!s.ownedVehicles.some(ov => ov.id === uv.id) && checkUniqueUnlockAT(uv.unlockCheck)) {
-          s.ownedVehicles.push({ id: uv.id, condition: 100, vehicleHeat: 0, rekatCooldown: 0 });
-          addPhoneMessage(s, '🏆 UNIEK', `Je hebt ${uv.name} ontgrendeld! ${uv.desc}`, 'opportunity');
-        }
-      }
+      // The vehicle layer lived here: race cooldowns, daily price drift across the
+      // dealership, discount offers and unique-vehicle unlocks. Vehicles cannot be
+      // bought, raced or swapped any more, and the unlock checks hung off retired
+      // progression (final boss, faction conquest, nemesis generations).
       // Cinematics
       if (!s.pendingCinematic) {
         if (s.prison) { const c = checkCinematicTrigger(s, 'arrested'); if (c) s.pendingCinematic = c; }
@@ -1002,6 +952,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (rt.money > 0) {
           const g = Math.floor(rt.money * legacyIncomeMult(s));
           s.money += g; s.stats.totalEarned += g;
+          if (isCatchUpTick) s._catchUpEarned = (s._catchUpEarned || 0) + g;
         }
         if (rt.respect > 0) s.org.respect += rt.respect;
         if (rt.loyaltyRegen > 0) {
@@ -1053,6 +1004,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           if (profit > 0) {
             s.money += profit;
             s.stats.totalEarned += profit;
+            if (isCatchUpTick) s._catchUpEarned = (s._catchUpEarned || 0) + profit;
             orgLog(`📦 Auto-fence smokkelde €${profit.toLocaleString()} binnen`);
           }
           Engine.addPersonalHeat(s, AUTO_FENCE_HEAT);
@@ -1143,12 +1095,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         // Fold in the world + organisation headlines the catch-up ticks accumulated.
         const headlines = s._catchUpWorldHeadlines || [];
         const orgHeadlines = s._catchUpOrgHeadlines || [];
-        (s as any).catchUpReport = { ...action.report, worldHeadlines: headlines, orgHeadlines };
+        // The caller can only estimate earnings from a stale render, and it used to
+        // add up front-business income only — which is unreachable content, so the
+        // report showed €0 while your rackets and fence had earned thousands. The
+        // ticks themselves tallied the real figure, so prefer that.
+        const earned = s._catchUpEarned || 0;
+        (s as any).catchUpReport = {
+          ...action.report,
+          moneyEarned: earned > 0 ? earned : action.report.moneyEarned,
+          worldHeadlines: headlines,
+          orgHeadlines,
+        };
       } else {
         (s as any).catchUpReport = null;
       }
       s._catchUpWorldHeadlines = [];
       s._catchUpOrgHeadlines = [];
+      s._catchUpEarned = 0;
       return s;
     }
 

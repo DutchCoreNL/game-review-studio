@@ -100,57 +100,10 @@ export function CatchUpReport() {
               />
             )}
 
-            {/* Energy restored */}
-            {report.energyRestored > 0 && (
-              <AnimatedReportRow
-                icon={<Zap size={14} />}
-                label="Energie hersteld"
-                value={report.energyRestored}
-                prefix="+"
-                positive
-                color="text-emerald-400"
-                delay={next()}
-              />
-            )}
-
-            {/* Nerve restored */}
-            {report.nerveRestored > 0 && (
-              <AnimatedReportRow
-                icon={<Brain size={14} />}
-                label="Lef hersteld"
-                value={report.nerveRestored}
-                prefix="+"
-                positive
-                color="text-blue-400"
-                delay={next()}
-              />
-            )}
-
-            {/* Business income */}
-            {report.businessIncome > 0 && (
-              <AnimatedReportRow
-                icon={<Building2 size={14} />}
-                label="Bedrijf inkomen"
-                value={report.businessIncome}
-                prefix="+€"
-                positive
-                color="text-emerald-400"
-                delay={next()}
-              />
-            )}
-
-            {/* District income */}
-            {report.districtIncome > 0 && (
-              <AnimatedReportRow
-                icon={<Coins size={14} />}
-                label="District inkomen"
-                value={report.districtIncome}
-                prefix="+€"
-                positive
-                color="text-emerald-400"
-                delay={next()}
-              />
-            )}
+            {/* Energy, nerve, business and district income rows lived here. Neither
+                stat is shown or spent in the game any more, and front businesses are
+                unreachable — "Totaal verdiend" below now carries the real figure the
+                catch-up ticks tallied from your rackets and fence. */}
 
             {/* Total money earned */}
             {report.moneyEarned > 0 && (
@@ -158,7 +111,7 @@ export function CatchUpReport() {
                 icon={<Coins size={14} />}
                 label="Totaal verdiend"
                 value={report.moneyEarned}
-                prefix="+€"
+                prefix="€"
                 positive
                 color="text-gold"
                 delay={next()}

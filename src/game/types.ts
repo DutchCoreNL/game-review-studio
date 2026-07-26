@@ -1199,6 +1199,8 @@ export interface GameState {
   activeJob?: import('./score').ScoreJob | null;
   /** Jobs finished in the current run — later jobs get longer. */
   jobStreak?: number;
+  /** Money the catch-up ticks actually earned, tallied for the welcome-back report. */
+  _catchUpEarned?: number;
   /** Loot burst from the job you just finished, for the reward animation. */
   lastJobReward?: { goods: Partial<Record<GoodId, number>>; dirtyMoney: number; overflowMoney: number; jobName: string } | null;
   /** The situation currently demanding a decision, if any. */
