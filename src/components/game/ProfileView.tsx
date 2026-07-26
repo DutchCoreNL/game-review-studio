@@ -1,10 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPlayerStat, getRankTitle } from '@/game/engine';
-import { GEAR, ACHIEVEMENTS, DISTRICTS, DISTRICT_REP_PERKS } from '@/game/constants';
-import { ACHIEVEMENT_IMAGES } from '@/assets/items';
-import { ENDGAME_PHASES, getPhaseIndex } from '@/game/endgame';
-import { StatId, DistrictId } from '@/game/types';
+import { StatId } from '@/game/types';
 import { BACKSTORIES } from '@/game/backstory';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
@@ -15,32 +12,25 @@ import { AnimatedXPBar } from './animations/RewardPopup';
 import { SubTabBar, SubTab } from './ui/SubTabBar';
 import { ViewWrapper } from './ui/ViewWrapper';
 import { motion } from 'framer-motion';
-import { Swords, Brain, Gem, Sword, Shield, Smartphone, Trophy, BarChart3, Target, Coins, Dices, Calendar, Skull, Star, MapPin, Crown, Users, Home, Settings, Mail } from 'lucide-react';
+import { Swords, Brain, Gem, Shield, BarChart3, Coins, Dices, Calendar, Skull, Hand, Home } from 'lucide-react';
 import { PrestigeBadge } from './ui/PrestigeBadge';
 import { ConfirmDialog } from './ConfirmDialog';
-import { NpcRelationsPanel } from './profile/NpcRelationsPanel';
-import { KarmaPanel } from './profile/KarmaPanel';
-import { StoryArcsPanel } from './profile/StoryArcsPanel';
 import { StatsOverviewPanel } from './profile/StatsOverviewPanel';
-import { VillaSummaryPanel } from './profile/VillaSummaryPanel';
-import { AudioSettingsPanel } from './profile/AudioSettingsPanel';
-import { ReputationLeaderboard } from './profile/ReputationLeaderboard';
-import { LeaderboardView } from './LeaderboardView';
 import { StatisticsCharts } from './profile/StatisticsCharts';
 import { useState } from 'react';
-import { SkillTreePanel } from './profile/SkillTreePanel';
 import profileBg from '@/assets/profile-bg.jpg';
-import { DrugEmpireStatsPanel } from './profile/DrugEmpireStatsPanel';
 import { AdminPanel } from './AdminPanel';
 import { useAdmin } from '@/hooks/useAdmin';
 
-const SLOT_ICONS: Record<string, React.ReactNode> = {
-  weapon: <Sword size={20} />,
-  armor: <Shield size={20} />,
-  gadget: <Smartphone size={20} />,
-};
-
-type ProfileTab = 'stats' | 'loadout' | 'contacts' | 'districts' | 'arcs' | 'trophies' | 'leaderboard' | 'messages' | 'imperium' | 'settings' | 'admin';
+/**
+ * Tabs that pointed at retired systems are gone: Loadout (weapon and gear arsenals),
+ * Contacts (NPC relations), Arcs (story arcs, no longer auto-triggered), Online
+ * (the MMO leaderboard), Imperium (villa + drug empire) and Districten — whose
+ * DISTRICT_REP_PERKS were displayed but never applied anywhere, and described
+ * smuggle risk, baggage, casino winnings and vehicle repairs. Trophies and
+ * Instellingen have their own menu entries; duplicating them here was noise.
+ */
+type ProfileTab = 'stats' | 'admin';
 
 export function ProfileView() {
   const { state, dispatch, showToast, setView, onExitToMenu } = useGame();
@@ -112,23 +102,15 @@ export function ProfileView() {
         );
       })()}
 
-      {/* Sub-tabs */}
-      <SubTabBar
+      {/* Sub-tabs — only worth showing when there is more than one */}
+      {isAdmin && <SubTabBar
         tabs={[
           { id: 'stats', label: t.profile.stats, icon: <BarChart3 size={11} /> },
-          { id: 'loadout', label: t.profile.loadout, icon: <Shield size={11} /> },
-          { id: 'contacts', label: t.profile.npcs, icon: <Users size={11} /> },
-          { id: 'districts', label: t.profile.repTab, icon: <MapPin size={11} /> },
-          { id: 'arcs', label: t.profile.arcs, icon: <Target size={11} /> },
-          { id: 'trophies', label: t.profile.trophies, icon: <Trophy size={11} /> },
-          { id: 'leaderboard', label: t.profile.online, icon: <Crown size={11} /> },
-          { id: 'imperium', label: t.profile.imperiumTab, icon: <Skull size={11} /> },
-          { id: 'settings', label: t.profile.settingsTab, icon: <Settings size={11} /> },
           ...(isAdmin ? [{ id: 'admin', label: 'ADMIN', icon: <Shield size={11} />, badge: true }] : []),
         ] as SubTab<string>[]}
         active={profileTab}
         onChange={(id) => setProfileTab(id as ProfileTab)}
-      />
+      />}
 
       {profileTab === 'stats' && (
         <>
@@ -156,225 +138,33 @@ export function ProfileView() {
             })}
           </div>
 
-          <KarmaPanel />
           <StatsOverviewPanel />
 
           <SectionHeader title={t.profile.statistics} icon={<BarChart3 size={12} />} />
           <div className="game-card mb-4">
             <div className="grid grid-cols-2 gap-2">
+              {/* Missions completed/failed used to sit here. Missions are retired, so both
+                  counters were frozen at zero while the numbers the player actually
+                  generates — klussen and incidents — went unreported. */}
               <InfoRow icon={<Coins size={10} />} label={t.profile.earned} value={`€${stats.totalEarned.toLocaleString()}`} valueClass="text-emerald" />
               <InfoRow icon={<Coins size={10} />} label={t.profile.spent} value={`€${stats.totalSpent.toLocaleString()}`} valueClass="text-blood" />
+              <InfoRow icon={<Hand size={10} />} label="Klussen af" value={`${stats.jobsCompleted || 0}`} valueClass="text-gold" />
+              <InfoRow icon={<Swords size={10} />} label="Incidenten aangepakt" value={`${stats.incidentsFought || 0}`} valueClass="text-blood" />
+              <InfoRow icon={<BarChart3 size={10} />} label={t.profile.trades} value={`${stats.tradesCompleted}`} valueClass="text-gold" />
               <InfoRow icon={<Dices size={10} />} label={t.profile.casinoWon} value={`€${stats.casinoWon.toLocaleString()}`} valueClass="text-gold" />
               <InfoRow icon={<Dices size={10} />} label={t.profile.casinoLost} value={`€${stats.casinoLost.toLocaleString()}`} valueClass="text-blood" />
-              <InfoRow icon={<Target size={10} />} label={t.profile.missionsDone} value={`${stats.missionsCompleted}`} valueClass="text-emerald" />
-              <InfoRow icon={<Target size={10} />} label={t.profile.missionsFailed} value={`${stats.missionsFailed}`} valueClass="text-blood" />
-              <InfoRow icon={<BarChart3 size={10} />} label={t.profile.trades} value={`${stats.tradesCompleted}`} valueClass="text-gold" />
               <InfoRow icon={<Calendar size={10} />} label={t.profile.days} value={`${stats.daysPlayed}`} />
             </div>
           </div>
 
-          <SectionHeader title="Casino" icon={<Dices size={12} />} />
-          <div className="game-card mb-4 flex items-center justify-between">
-            <div>
-              <h4 className="font-bold text-xs">{t.profile.casinoTitle}</h4>
-              <p className="text-[0.5rem] text-muted-foreground">{t.profile.casinoDesc}</p>
-              <p className="text-[0.45rem] text-gold">Casino €{state.stats.casinoWon.toLocaleString()} {t.profile.casinoWonLabel}</p>
-            </div>
-            <GameButton variant="purple" size="sm" onClick={() => setView('city')}>
-              {t.profile.openMap}
-            </GameButton>
-          </div>
           <StatisticsCharts />
         </>
       )}
 
-      {profileTab === 'loadout' && (
-        <>
-          <SectionHeader title={t.profile.loadout} icon={<Shield size={12} />} />
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {(['weapon', 'armor', 'gadget'] as const).map(slot => {
-              const gearId = state.player.loadout[slot];
-              const item = gearId ? GEAR.find(g => g.id === gearId) : null;
-              return (
-                <motion.button key={slot}
-                  onClick={() => { if (gearId) { dispatch({ type: 'UNEQUIP', slot }); showToast(t.profile.unequipped); } }}
-                  className={`aspect-square rounded flex flex-col items-center justify-center text-center p-2 transition-all ${
-                    item ? 'border border-gold bg-gold/5 text-foreground' : 'border border-dashed border-border bg-muted/30 text-muted-foreground'
-                  }`}
-                  whileTap={{ scale: 0.95 }}>
-                  {SLOT_ICONS[slot]}
-                  <span className="text-[0.5rem] mt-1 uppercase tracking-wider font-semibold">{item ? item.name : slot}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          <SectionHeader title={t.profile.vault} />
-          <div className="space-y-2 mb-4">
-            {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).map(id => {
-              const item = GEAR.find(g => g.id === id);
-              if (!item) return null;
-              return (
-                <div key={id} className="game-card flex justify-between items-center">
-                  <div>
-                    <h4 className="font-bold text-xs">{item.name}</h4>
-                    <p className="text-[0.5rem] text-muted-foreground">{item.desc}</p>
-                  </div>
-                  <GameButton variant="gold" size="sm" onClick={() => { dispatch({ type: 'EQUIP', id }); showToast(`${item.name} ${t.common.equip.toLowerCase()}`); }}>
-                    {t.profile.wear}
-                  </GameButton>
-                </div>
-              );
-            })}
-            {state.ownedGear.filter(id => !Object.values(state.player.loadout).includes(id)).length === 0 && (
-              <p className="text-muted-foreground text-xs italic py-3">{t.profile.vaultEmpty}</p>
-            )}
-          </div>
-        </>
-      )}
-
-      {profileTab === 'contacts' && <NpcRelationsPanel />}
-      {profileTab === 'arcs' && <StoryArcsPanel />}
-      {profileTab === 'leaderboard' && <LeaderboardView embedded />}
-      {profileTab === 'imperium' && (
-        <>
-          <VillaSummaryPanel />
-          <div className="mt-4"><DrugEmpireStatsPanel /></div>
-        </>
-      )}
-      {profileTab === 'settings' && <AudioSettingsPanel />}
       {profileTab === 'admin' && isAdmin && <AdminPanel />}
 
-      {profileTab === 'districts' && (
-        <>
-          <SectionHeader title={t.profile.districtRep} icon={<MapPin size={12} />} />
-          <div className="space-y-2 mb-4">
-            {(Object.keys(DISTRICTS) as DistrictId[]).map(id => {
-              const rep = state.districtRep?.[id] || 0;
-              const isOwned = state.ownedDistricts.includes(id);
-              const perks = DISTRICT_REP_PERKS[id] || [];
-              return (
-                <div key={id} className={`game-card border-l-[3px] ${isOwned ? 'border-l-blood' : 'border-l-border'}`}>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      {isOwned && <Crown size={10} className="text-blood" />}
-                      <h4 className="font-bold text-xs">{DISTRICTS[id].name}</h4>
-                    </div>
-                    <span className="text-[0.55rem] font-bold text-gold">{rep}/100</span>
-                  </div>
-                  <StatBar value={rep} max={100} color="gold" height="sm" />
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {perks.map(p => (
-                      <span key={p.threshold} className={`text-[0.4rem] font-semibold px-1 py-0.5 rounded ${
-                        rep >= p.threshold ? 'bg-gold/10 text-gold' : 'bg-muted/50 text-muted-foreground opacity-40'
-                      }`}>
-                        {rep >= p.threshold ? '✓' : `${p.threshold}+`} {p.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {profileTab === 'trophies' && (
-        <>
-          <SectionHeader title={t.profile.progression} icon={<Crown size={12} />} />
-          <div className="game-card mb-4">
-            <div className="space-y-2">
-              {ENDGAME_PHASES.map((phase, i) => {
-                const currentIdx = getPhaseIndex(state.endgamePhase);
-                const isCompleted = i <= currentIdx;
-                const isCurrent = i === currentIdx;
-                return (
-                  <div key={phase.id} className={`flex items-center gap-2 text-xs rounded p-1.5 ${
-                    isCurrent ? 'bg-gold/10 border border-gold' : isCompleted ? 'opacity-70' : 'opacity-30'
-                  }`}>
-                    <span className="text-base">{phase.icon}</span>
-                    <div className="flex-1">
-                      <span className={`font-bold ${isCurrent ? 'text-gold' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {phase.label}
-                      </span>
-                      <p className="text-[0.45rem] text-muted-foreground">{phase.desc}</p>
-                    </div>
-                    {isCompleted && <span className="text-emerald text-xs font-bold">✓</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <SectionHeader title={`${t.profile.achievements} (${state.achievements.length}/${ACHIEVEMENTS.length})`} icon={<Trophy size={12} />} />
-          <div className="grid grid-cols-1 gap-2 mb-4">
-            {ACHIEVEMENTS.map(a => {
-              const unlocked = state.achievements.includes(a.id);
-              const prog = !unlocked && a.progress ? a.progress(state) : null;
-              const pct = prog ? Math.floor((prog.current / prog.target) * 100) : (unlocked ? 100 : 0);
-              const imgSrc = ACHIEVEMENT_IMAGES[a.id];
-              return (
-                <div key={a.id} className={`game-card flex items-center gap-2.5 ${unlocked ? 'border-gold/60' : 'border-border'}`}>
-                  <div className={`w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 ${unlocked ? 'border-gold' : 'border-muted'}`}>
-                    {imgSrc ? (
-                      <img src={imgSrc} alt={a.name} className={`w-full h-full object-cover ${unlocked ? '' : 'grayscale opacity-50'}`} />
-                    ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${unlocked ? 'bg-gold/15' : 'bg-muted'}`}>
-                        <Trophy size={14} className={unlocked ? 'text-gold' : 'text-muted-foreground'} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[0.6rem] font-bold truncate ${unlocked ? 'text-gold' : ''}`}>{a.name}</span>
-                      {unlocked && <span className="text-[0.45rem] text-gold">✓</span>}
-                    </div>
-                    <div className="text-[0.45rem] text-muted-foreground truncate">{a.desc}</div>
-                    {!unlocked && prog && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-gold/60 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-[0.4rem] text-muted-foreground font-bold whitespace-nowrap">
-                          {prog.target >= 10000 ? `€${(prog.current / 1000).toFixed(0)}k/€${(prog.target / 1000).toFixed(0)}k` : `${prog.current}/${prog.target}`}
-                        </span>
-                      </div>
-                    )}
-                    {unlocked && (
-                      <div className="mt-0.5">
-                        <div className="h-1.5 bg-gold/20 rounded-full overflow-hidden">
-                          <div className="h-full bg-gold rounded-full w-full" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <SectionHeader title={t.profile.repRank} />
-          <div className="space-y-1.5 mb-4">
-            {[
-              { title: 'STRAATRAT', min: 0 },
-              { title: 'ASSOCIATE', min: 50 },
-              { title: 'SOLDAAT', min: 200 },
-              { title: 'CAPO', min: 500 },
-              { title: 'UNDERBOSS', min: 1000 },
-              { title: 'CRIME LORD', min: 2000 },
-              { title: 'KINGPIN', min: 5000 },
-            ].map(r => (
-              <div key={r.title} className={`flex justify-between items-center text-xs px-2 py-1 rounded ${
-                r.title === rank ? 'bg-gold/10 border border-gold text-gold font-bold' :
-                state.rep >= r.min ? 'text-foreground' : 'text-muted-foreground opacity-50'
-              }`}>
-                <span>{r.title}</span>
-                <span>{r.min}+ REP</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      {/* Progressie, achievements en de rangenlijst stonden hier ook — regel voor regel
+          dezelfde inhoud als het menu-item Mijlpalen. Eén plek is genoeg. */}
 
       <div className="flex gap-2 mt-4">
         {onExitToMenu && (

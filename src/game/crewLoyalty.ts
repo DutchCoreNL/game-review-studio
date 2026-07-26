@@ -64,8 +64,8 @@ export function processCrewLoyalty(state: GameState, report: NightReportData): v
       loyaltyChange += 3;
     }
 
-    // Safehouse medbay shows you care
-    if (state.safehouses?.some(sh => sh.upgrades.includes('medbay'))) {
+    // Safehouse comforts show you care
+    if (state.safehouses?.some(sh => sh.level >= 2)) {
       loyaltyChange += 1;
     }
 

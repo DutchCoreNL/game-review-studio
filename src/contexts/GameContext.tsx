@@ -5,7 +5,6 @@ import { produce } from 'immer';
 import { GameState, GameView, TradeMode, GoodId, DistrictId, StatId, FamilyId, FactionActionType, ActiveMission, SmuggleRoute, ScreenEffectType, OwnedVehicle, VehicleUpgradeType, ChopShopUpgradeId, SafehouseUpgradeId, AmmoPack, PrisonState, DistrictHQUpgradeId, WarTactic, VillaModuleId } from '../game/types';
 import { MERIT_NODES, canUnlockMeritNode } from '../game/meritSystem';
 import { createInitialState, DISTRICTS, VEHICLES, GEAR, BUSINESSES, GOODS, ACHIEVEMENTS, NEMESIS_NAMES, NEMESIS_ARCHETYPES, NEMESIS_TAUNTS, REKAT_COSTS, VEHICLE_UPGRADES, STEALABLE_CARS, CHOP_SHOP_UPGRADES, OMKAT_COST, CAR_ORDER_CLIENTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, CORRUPT_CONTACTS, AMMO_PACKS, CRUSHER_AMMO_REWARDS, PRISON_ARREST_CHANCE_MISSION, PRISON_ARREST_CHANCE_HIGH_RISK, PRISON_ARREST_CHANCE_CARJACK, ARREST_HEAT_THRESHOLD, SOLO_OPERATIONS, DISTRICT_HQ_UPGRADES, UNIQUE_VEHICLES, RACES, AMMO_FACTORY_UPGRADES, HOSPITAL_STAY_DAYS, HOSPITAL_ADMISSION_COST_PER_MAXHP, HOSPITAL_REP_LOSS, MAX_HOSPITALIZATIONS } from '../game/constants';
-import { VILLA_COST, VILLA_REQ_LEVEL, VILLA_REQ_REP, VILLA_UPGRADE_COSTS, VILLA_MODULES, getVaultMax, getStorageMax, processVillaProduction, canUseHelipad } from '../game/villa';
 import { canUpgradeLab, LAB_UPGRADE_COSTS, createDrugEmpireState, shouldShowDrugEmpire, sellNoxCrystal, canAssignDealer, getAvailableCrew, MAX_DEALERS, type ProductionLabId, type DrugTier } from '../game/drugEmpire';
 import * as Engine from '../game/engine';
 import { simulateWorldDay } from '../game/world/simulate';
@@ -273,18 +272,6 @@ type GameAction =
   | { type: 'FINISH_HEIST' }
   | { type: 'CANCEL_HEIST' }
   // Villa actions
-  | { type: 'BUY_VILLA' }
-  | { type: 'UPGRADE_VILLA' }
-  | { type: 'INSTALL_VILLA_MODULE'; moduleId: VillaModuleId }
-  | { type: 'DEPOSIT_VILLA_MONEY'; amount: number }
-  | { type: 'WITHDRAW_VILLA_MONEY'; amount: number }
-  | { type: 'DEPOSIT_VILLA_GOODS'; goodId: GoodId; amount: number }
-  | { type: 'WITHDRAW_VILLA_GOODS'; goodId: GoodId; amount: number }
-  | { type: 'DEPOSIT_VILLA_AMMO'; amount: number }
-  | { type: 'WITHDRAW_VILLA_AMMO'; amount: number }
-  | { type: 'VILLA_HELIPAD_TRAVEL'; to: DistrictId }
-  | { type: 'VILLA_THROW_PARTY' }
-  | { type: 'PRESTIGE_VILLA_MODULE'; moduleId: VillaModuleId }
   | { type: 'UPGRADE_AMMO_FACTORY' }
   | { type: 'BUY_SPECIAL_AMMO'; specialType: import('../game/types').SpecialAmmoType; amount: number; cost: number }
   | { type: 'SET_SPECIAL_AMMO'; specialType: import('../game/types').SpecialAmmoType | null }
@@ -524,15 +511,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
       if (loaded.tutorialDone === false && s.tutorialDone === true) {
         loaded.tutorialDone = true;
-      }
-      // Migrate old HQ upgrades to villa modules
-      if (loaded.villa && loaded.hqUpgrades) {
-        if (loaded.hqUpgrades.includes('garage') && !loaded.villa.modules.includes('garage_uitbreiding')) {
-          loaded.villa.modules.push('garage_uitbreiding');
-        }
-        if (loaded.hqUpgrades.includes('server') && !loaded.villa.modules.includes('server_room')) {
-          loaded.villa.modules.push('server_room');
-        }
       }
       // Migrate: add pendingAchievements if missing
       if (!loaded.pendingAchievements) loaded.pendingAchievements = [];
@@ -3640,8 +3618,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    // ========== VILLA ACTIONS ==========
-
     case 'BUY_PROPERTY': {
       const prop = PROPERTIES.find((p: any) => p.id === action.propertyId);
       if (!prop) return s;
@@ -3658,85 +3634,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (prop.bonuses.storageSlots) s.maxInv = Engine.recalcMaxInv(s);
       addPhoneMessage(s, 'Makelaar', `🏠 Je bent verhuisd naar ${prop.name}! ${prop.description}`, 'info');
       Engine.checkAchievements(s);
-      // If buying villa tier, also create villa state
-      if (prop.id === 'villa' && !s.villa) {
-        s.villa = {
-          level: 1, modules: [], prestigeModules: [], vaultMoney: 0,
-          storedGoods: {}, storedAmmo: 0, helipadUsedToday: 0,
-          purchaseDay: s.day, lastPartyDay: 0,
-        };
-      }
       return s;
     }
 
-    case 'BUY_VILLA': {
-      if (s.villa) return s;
-      if (s.money < VILLA_COST) return s;
-      if (s.player.level < VILLA_REQ_LEVEL || s.rep < VILLA_REQ_REP) return s;
-      s.money -= VILLA_COST;
-      s.stats.totalSpent += VILLA_COST;
-      s.villa = {
-        level: 1,
-        modules: [],
-        prestigeModules: [],
-        vaultMoney: 0,
-        storedGoods: {},
-        storedAmmo: 0,
-        helipadUsedToday: 0,
-        purchaseDay: s.day,
-        lastPartyDay: 0,
-      };
-      s.propertyId = 'villa';
-      addPhoneMessage(s, 'Makelaar', '🏛️ Villa Noxhaven is nu van jou. Welkom thuis, baas.', 'info');
-      Engine.checkAchievements(s);
-      return s;
-    }
-
-    case 'UPGRADE_VILLA': {
-      if (!s.villa || s.villa.level >= 3) return s;
-      const nextLevel = s.villa.level + 1;
-      const cost = VILLA_UPGRADE_COSTS[nextLevel];
-      if (!cost || s.money < cost) return s;
-      s.money -= cost;
-      s.stats.totalSpent += cost;
-      s.villa.level = nextLevel;
-      return s;
-    }
-
-    case 'INSTALL_VILLA_MODULE': {
-      if (!s.villa) return s;
-      const modDef = VILLA_MODULES.find(m => m.id === action.moduleId);
-      if (!modDef) return s;
-      if (s.villa.modules.includes(action.moduleId)) return s;
-      if (s.villa.level < modDef.reqLevel) return s;
-      if (s.money < modDef.cost) return s;
-      s.money -= modDef.cost;
-      s.stats.totalSpent += modDef.cost;
-      s.villa.modules.push(action.moduleId);
-      s.maxInv = Engine.recalcMaxInv(s);
-      Engine.checkAchievements(s);
-      return s;
-    }
-
-    case 'PRESTIGE_VILLA_MODULE': {
-      if (!s.villa) return s;
-      if (s.villa.level < 3) return s; // prestige requires villa level 3
-      if (!s.villa.modules.includes(action.moduleId)) return s; // must be installed
-      if (!s.villa.prestigeModules) s.villa.prestigeModules = [];
-      if (s.villa.prestigeModules.includes(action.moduleId)) return s;
-      const PRESTIGE_COSTS: Record<string, number> = {
-        kluis: 50000, opslagkelder: 40000, wietplantage: 60000, coke_lab: 100000,
-        synthetica_lab: 30000, crew_kwartieren: 40000, wapenkamer: 30000, commandocentrum: 80000,
-        camera: 90000, server_room: 50000, zwembad: 70000, helipad: 120000, tunnel: 100000, garage_uitbreiding: 30000,
-      };
-      const cost = PRESTIGE_COSTS[action.moduleId] || 50000;
-      if (s.money < cost) return s;
-      s.money -= cost;
-      s.stats.totalSpent += cost;
-      s.villa.prestigeModules.push(action.moduleId);
-      s.maxInv = Engine.recalcMaxInv(s);
-      return s;
-    }
+    // BUY_VILLA, UPGRADE_VILLA, INSTALL_VILLA_MODULE and PRESTIGE_VILLA_MODULE lived
+    // here. The villa is retired: a second progression system whose modules were drug
+    // labs, a weapon room, a garage extension, a helipad and an escape tunnel — all
+    // systems this game no longer has — and whose live parts (storage, a vault)
+    // Uitrusting already owns.
 
     case 'CRAFT_ITEM': {
       if (!s.villa) return s;
@@ -3780,112 +3685,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return s;
     }
 
-    case 'DEPOSIT_VILLA_MONEY': {
-      if (!s.villa || !s.villa.modules.includes('kluis')) return s;
-      const hasPrestigeKluis = s.villa.prestigeModules?.includes('kluis') || false;
-      const max = getVaultMax(s.villa.level, hasPrestigeKluis);
-      const space = max - s.villa.vaultMoney;
-      const amt = Math.min(action.amount, s.money, space);
-      if (amt <= 0) return s;
-      s.money -= amt;
-      s.villa.vaultMoney += amt;
-      return s;
-    }
-
-    case 'WITHDRAW_VILLA_MONEY': {
-      if (!s.villa) return s;
-      const wAmt = Math.min(action.amount, s.villa.vaultMoney);
-      if (wAmt <= 0) return s;
-      s.villa.vaultMoney -= wAmt;
-      s.money += wAmt;
-      return s;
-    }
-
-    case 'DEPOSIT_VILLA_GOODS': {
-      if (!s.villa || !s.villa.modules.includes('opslagkelder')) return s;
-      const hasPrestigeOpslag = s.villa.prestigeModules?.includes('opslagkelder') || false;
-      const maxStorage = getStorageMax(s.villa.level, hasPrestigeOpslag);
-      const currentStored = Object.values(s.villa.storedGoods).reduce((a, b) => a + (b || 0), 0);
-      const storageSpace = maxStorage - currentStored;
-      const playerHas = s.inventory[action.goodId] || 0;
-      const dAmt = Math.min(action.amount, playerHas, storageSpace);
-      if (dAmt <= 0) return s;
-      s.inventory[action.goodId] = playerHas - dAmt;
-      s.villa.storedGoods[action.goodId] = (s.villa.storedGoods[action.goodId] || 0) + dAmt;
-      return s;
-    }
-
-    case 'WITHDRAW_VILLA_GOODS': {
-      if (!s.villa) return s;
-      const stored = s.villa.storedGoods[action.goodId] || 0;
-      const currentInvCount = Object.values(s.inventory).reduce((a, b) => a + (b || 0), 0);
-      const invSpace = s.maxInv - currentInvCount;
-      const wgAmt = Math.min(action.amount, stored, invSpace);
-      if (wgAmt <= 0) return s;
-      s.villa.storedGoods[action.goodId] = stored - wgAmt;
-      s.inventory[action.goodId] = (s.inventory[action.goodId] || 0) + wgAmt;
-      return s;
-    }
-
-    case 'DEPOSIT_VILLA_AMMO': {
-      if (!s.villa || !s.villa.modules.includes('wapenkamer')) return s;
-      const aAmt = Math.min(action.amount, s.ammo || 0);
-      if (aAmt <= 0) return s;
-      s.ammo -= aAmt;
-      s.villa.storedAmmo += aAmt;
-      return s;
-    }
-
-    case 'WITHDRAW_VILLA_AMMO': {
-      if (!s.villa) return s;
-      const waAmt = Math.min(action.amount, s.villa.storedAmmo);
-      if (waAmt <= 0) return s;
-      s.villa.storedAmmo -= waAmt;
-      s.ammo = (s.ammo || 0) + waAmt;
-      return s;
-    }
-
-    case 'VILLA_HELIPAD_TRAVEL': {
-      if (!s.villa || !s.villa.modules.includes('helipad') || !canUseHelipad(s)) return s;
-      if ((s.hidingDays || 0) > 0 || s.prison) return s;
-      s.villa.helipadUsedToday = (s.villa.helipadUsedToday || 0) + 1;
-      s.loc = action.to;
-      return s;
-    }
-
-    case 'VILLA_THROW_PARTY': {
-      if (!s.villa || !s.villa.modules.includes('zwembad')) return s;
-      const partyCost = [0, 15000, 25000, 40000][s.villa.level] || 15000;
-      const cooldownDays = 5;
-      if (s.money < partyCost) return s;
-      if (s.day - (s.villa.lastPartyDay || 0) < cooldownDays) return s;
-
-      s.money -= partyCost;
-      s.stats.totalSpent += partyCost;
-      s.villa.lastPartyDay = s.day;
-
-      // Boost all faction relations (+8/+12/+18 based on villa level)
-      const relBoost = [0, 8, 12, 18][s.villa.level] || 8;
-      const factions = ['cartel', 'syndicate', 'bikers'] as const;
-      factions.forEach(fid => {
-        s.familyRel[fid] = Math.min(100, (s.familyRel[fid] || 0) + relBoost);
-      });
-
-      // Rep boost (+15/+25/+40)
-      const repBoost = [0, 15, 25, 40][s.villa.level] || 15;
-      s.rep += repBoost;
-
-      // Karma shift: parties are neutral-to-positive
-      s.karma = Math.min(100, (s.karma || 0) + 3);
-
-      // Crew morale: heal all crew slightly
-      s.crew.forEach(c => {
-        if (c.hp > 0 && c.hp < 100) c.hp = Math.min(100, c.hp + 10);
-      });
-
-      addPhoneMessage(s, 'anonymous', `Legendarisch feest bij Villa Noxhaven! Iedereen praat erover. +${relBoost} factie-relaties, +${repBoost} rep.`, 'info');
-      return s;
-    }
+    // The villa vault, its goods and ammo storage, the helipad shortcut and throwing a
+    // party went with it.
 
     case 'START_RACE': {
       if (s.raceUsedToday) return s;
@@ -4549,6 +4350,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const dirty = Math.round((reward.dirtyMoney + reward.overflowMoney) * (1 + brains * 0.02) * streakMult);
       s.dirtyMoney = (s.dirtyMoney || 0) + dirty;
       s.stats.totalEarned += dirty;
+      s.stats.jobsCompleted = (s.stats.jobsCompleted || 0) + 1;
       // Working a district by hand is noticed there just like a racket is.
       if (!s.districtAttention) s.districtAttention = {};
       const d = job.district;
@@ -5068,14 +4870,17 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
       // News migration
       if (!saved.dailyNews) saved.dailyNews = [];
       // Villa migration
-      if (saved.villa === undefined) saved.villa = null;
+      // The villa is retired. A save that still has one would otherwise keep producing
+      // and protecting money with no screen to see it on, so close it out and hand back
+      // what was inside — the vault money and the goods in storage.
       if (saved.villa) {
-        if (saved.villa.storedAmmo === undefined) saved.villa.storedAmmo = 0;
-        if (saved.villa.helipadUsedToday === undefined) saved.villa.helipadUsedToday = 0;
-        if (!saved.villa.storedGoods) saved.villa.storedGoods = {};
-        if (saved.villa.lastPartyDay === undefined) saved.villa.lastPartyDay = 0;
-        if (!saved.villa.prestigeModules) saved.villa.prestigeModules = [];
+        saved.money = (saved.money || 0) + (saved.villa.vaultMoney || 0);
+        for (const [gid, qty] of Object.entries(saved.villa.storedGoods || {})) {
+          if (!saved.inventory) saved.inventory = {};
+          saved.inventory[gid] = (saved.inventory[gid] || 0) + (Number(qty) || 0);
+        }
       }
+      saved.villa = null;
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; if (c.loyalty === undefined) c.loyalty = 75; });
       // Narrative expansion migrations

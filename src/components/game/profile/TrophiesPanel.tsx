@@ -87,7 +87,10 @@ export function TrophiesPanel() {
         })}
       </div>
 
-      <SectionHeader title="Reputatie Rang" />
+      {/* The ladder compares against `state.rep`, which is shown nowhere else — the
+          header carries Aanzien (org respect) instead. Print the number the thresholds
+          are actually measured against so the list means something. */}
+      <SectionHeader title={`Reputatie Rang — ${state.rep.toLocaleString()} rep`} />
       <div className="space-y-1.5 mb-4">
         {[
           { title: 'STRAATRAT', min: 0 }, { title: 'ASSOCIATE', min: 50 }, { title: 'SOLDAAT', min: 200 },

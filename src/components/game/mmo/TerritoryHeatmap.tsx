@@ -94,6 +94,7 @@ export function TerritoryHeatmap({ districtData, activeWars = [] }: Props) {
                 fill="none"
                 stroke="hsla(0, 70%, 50%, 0.3)"
                 strokeWidth="1"
+                initial={{ r: 8, opacity: 0.3 }}
                 animate={{ r: [8, 25, 8], opacity: [0.3, 0, 0.3] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
               />

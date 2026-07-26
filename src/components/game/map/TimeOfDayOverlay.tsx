@@ -27,6 +27,7 @@ function DawnOverlay() {
       <motion.ellipse
         cx={200} cy={280} rx={250} ry={60}
         fill="hsla(25, 90%, 55%, 0.08)"
+        initial={{ ry: 60, opacity: 0.08 }}
         animate={{ ry: [60, 70, 60], opacity: [0.08, 0.12, 0.08] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -58,6 +59,7 @@ function DuskOverlay() {
       <motion.ellipse
         cx={200} cy={280} rx={250} ry={50}
         fill="hsla(340, 60%, 50%, 0.07)"
+        initial={{ ry: 50, opacity: 0.07 }}
         animate={{ ry: [50, 55, 50], opacity: [0.07, 0.1, 0.07] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -104,6 +106,7 @@ function NightOverlay() {
         <motion.circle key={`night-neon-${i}`}
           cx={n.cx} cy={n.cy} r={n.r}
           fill={n.color}
+          initial={{ r: n.r, opacity: 0.08 }}
           animate={{ r: [n.r, n.r + 3, n.r], opacity: [0.08, 0.14, 0.08] }}
           transition={{ duration: 3 + i, repeat: Infinity, ease: 'easeInOut' }}
         />

@@ -1,6 +1,7 @@
 import { useGame } from '@/contexts/GameContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { DISTRICTS, SAFEHOUSE_COSTS, SAFEHOUSE_UPGRADE_COSTS, SAFEHOUSE_UPGRADES, SAFEHOUSE_PERKS } from '@/game/constants';
+import { safehouseHeatDecay } from '@/game/heat';
 import { DistrictId, SafehouseUpgradeId } from '@/game/types';
 import { GameButton } from './ui/GameButton';
 import { SectionHeader } from './ui/SectionHeader';
@@ -168,7 +169,7 @@ function SafehouseDetail({ district, onBack }: { district: DistrictId; onBack: (
               <Flame size={12} className="text-emerald mx-auto mb-0.5" />
               <span className="text-[0.45rem] text-muted-foreground block">Heat Reductie</span>
               <span className="font-bold text-emerald">
-                {isCurrentDistrict ? (sh.level <= 1 ? '-3' : sh.level === 2 ? '-5' : '-8') : (sh.level >= 2 ? '-1' : '0')}/nacht
+                {isCurrentDistrict ? (sh.level <= 1 ? '-2' : sh.level === 2 ? '-3' : '-5') : (sh.level >= 2 ? '-1' : '0')}/dag
               </span>
             </div>
             <div className="game-card bg-gold/5 border border-gold/20 p-2 text-center">
@@ -300,7 +301,7 @@ export function SafehouseView() {
           <Flame size={12} className="text-ice mx-auto mb-0.5" />
           <div className="text-[0.45rem] text-muted-foreground">Heat Reductie</div>
           <div className="text-sm font-bold text-ice">
-            -{state.safehouses.reduce((sum, sh) => sum + (sh.district === state.loc ? (sh.level <= 1 ? 3 : sh.level === 2 ? 5 : 8) : (sh.level >= 2 ? 1 : 0)), 0)}/n
+            -{safehouseHeatDecay(state)}/dag
           </div>
         </div>
         <div className="game-card bg-gold/5 border border-gold/20 p-2.5 text-center">

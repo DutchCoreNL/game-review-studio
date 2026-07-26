@@ -6,6 +6,7 @@
 
 import type { GameState, NightReportData, DistrictId, FamilyId } from './types';
 import { addPhoneMessage } from './newFeatures';
+import { orgControlsDistrict } from './organization';
 
 const RAID_BASE_CHANCE = 0.08; // 8% per turn per safehouse
 const RAID_NAMES = [
@@ -40,8 +41,9 @@ export function processSafehouseRaids(state: GameState, report: NightReportData)
       .filter(fid => (state.familyRel[fid] || 0) < -30);
     raidChance += hostileFactions.length * 0.03;
 
-    // District ownership reduces raid chance
-    if (state.ownedDistricts.includes(safehouse.district)) {
+    // Holding the turf halves the chance. This used to read `state.ownedDistricts`,
+    // which nothing populates any more — the live answer is your organisation's turf.
+    if (orgControlsDistrict(state.org, safehouse.district)) {
       raidChance *= 0.5;
     }
 
@@ -66,12 +68,12 @@ export function processSafehouseRaids(state: GameState, report: NightReportData)
     defense += safehouse.level * 15; // level bonus
     if (safehouse.upgrades.includes('reinforced')) defense += 20;
     if (safehouse.upgrades.includes('vault')) defense += 10;
-    if (safehouse.upgrades.includes('garage')) defense += 5;
-    
-    // Crew in the same district helps defend
-    const crewDefense = state.crew
-      .filter(c => c.hp > 30)
-      .reduce((sum, c) => sum + c.level * 3 + (c.role === 'Enforcer' ? 10 : 0), 0);
+
+    // Your crew helps defend. This read the retired `state.crew` roster — always empty —
+    // so every safehouse defended alone no matter how many people you had.
+    const crewDefense = (state.org?.members || [])
+      .filter(m => !m.injuredUntilDay)
+      .reduce((sum, m) => sum + m.level * 3 + (m.role === 'luitenant' ? 10 : 0), 0);
     defense += Math.min(crewDefense, 40); // cap crew contribution
 
     // District rep helps

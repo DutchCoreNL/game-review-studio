@@ -599,10 +599,10 @@ export function MarketPanel() {
                   }
 
                   if (spoilRate > 0) {
-                    const hasStorage = state.villa?.modules.includes('opslagkelder');
+                    // The villa Opslagkelder used to halve this. The villa is retired.
                     factors.push({
-                      label: `Bederf ${hasStorage ? '(½ met Opslagkelder)' : ''}`,
-                      value: `-${Math.round((hasStorage ? spoilRate * 0.5 : spoilRate) * 100)}%/nacht`,
+                      label: 'Bederf',
+                      value: `-${Math.round(spoilRate * 100)}%/nacht`,
                       color: 'text-blood',
                     });
                   }

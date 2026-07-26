@@ -1498,33 +1498,9 @@ export const NEMESIS_NAMES = [
 
 // ========== DISTRICT REP PERKS ==========
 
-export const DISTRICT_REP_PERKS: Record<DistrictId, { threshold: number; label: string; desc: string }[]> = {
-  port: [
-    { threshold: 25, label: 'Haven Connectie', desc: '-10% smokkelrisico' },
-    { threshold: 50, label: 'Extra Opslag', desc: '+5 bagage' },
-    { threshold: 75, label: 'Havencontracten', desc: '+€500/dag passief' },
-  ],
-  crown: [
-    { threshold: 25, label: 'Markt Intel', desc: 'Prijstrends zichtbaar' },
-    { threshold: 50, label: 'VIP Casino', desc: '+15% casino winst' },
-    { threshold: 75, label: 'Penthouse', desc: '-10 Heat/dag extra' },
-  ],
-  iron: [
-    { threshold: 25, label: 'Garage Deal', desc: '-25% crew healing' },
-    { threshold: 50, label: 'Gratis Repair', desc: 'Gratis voertuig reparatie' },
-    { threshold: 75, label: 'Productie Bonus', desc: '+50% lab output' },
-  ],
-  low: [
-    { threshold: 25, label: 'Straatkennis', desc: '-15% solo op risico' },
-    { threshold: 50, label: 'Informanten', desc: 'Extra map events info' },
-    { threshold: 75, label: 'Ongrijpbaar', desc: 'Heat cap -20' },
-  ],
-  neon: [
-    { threshold: 25, label: 'Casino Bonus', desc: '+10% casino winst' },
-    { threshold: 50, label: 'Witwas Pro', desc: '+20% witwas rate' },
-    { threshold: 75, label: 'VIP Netwerk', desc: '+3 Charm permanent' },
-  ],
-};
+// DISTRICT_REP_PERKS lived here: three named perks per district, rendered in the
+// district popup and the profile, and applied by exactly nothing. They promised
+// smuggle-risk reduction, extra baggage, casino winnings and free vehicle repairs.
 
 // ========== PHONE MESSAGE TEMPLATES ==========
 
@@ -2067,18 +2043,24 @@ export const SAFEHOUSE_UPGRADE_COSTS: Record<number, number> = {
   3: 30000, // upgrade to level 3
 };
 
+// Three of the five upgrades used to advertise effects the code never applied: the
+// Medische Post healed the retired crew roster, the Ondergrondse Garage cooled vehicle
+// heat for vehicles that no longer exist, the Kluis claimed to protect €20.000 in police
+// raids (it only added defence), and the Communicatie Hub claimed market intel (it only
+// gave early warning). What is left is what the code actually does.
 export const SAFEHOUSE_UPGRADES: SafehouseUpgradeDef[] = [
-  { id: 'reinforced', name: 'Versterkte Muren', cost: 5000, desc: '-15% kans op politie-inval voor dit district.', icon: '🛡️' },
-  { id: 'medbay', name: 'Medische Post', cost: 8000, desc: 'Crew geneest 2x sneller per nacht.', icon: '🏥' },
-  { id: 'vault', name: 'Kluis', cost: 10000, desc: 'Beschermt €20.000 bij politie-invallen.', icon: '🔐' },
-  { id: 'garage', name: 'Ondergrondse Garage', cost: 12000, desc: '-5 voertuig heat/nacht in dit district.', icon: '🅿️' },
-  { id: 'comms', name: 'Communicatie Hub', cost: 7000, desc: 'Extra intel over marktprijzen en events.', icon: '📡' },
+  { id: 'reinforced', name: 'Versterkte Muren', cost: 5000, desc: '−40% kans op een inval · sterkere verdediging.', icon: '🛡️' },
+  { id: 'comms', name: 'Uitkijk', cost: 7000, desc: '−30% kans op een inval — je hoort ze aankomen.', icon: '📡' },
+  { id: 'vault', name: 'Kluis', cost: 10000, desc: 'Sterkere verdediging als ze binnen zijn.', icon: '🔐' },
 ];
 
+// These are what the tick applies: heat decay when you are in the same district, and
+// stash slots from level 2 up. The old text promised −3/−5/−8 heat and a crew recovery
+// bonus; the real numbers are below and the recovery bonus was never applied.
 export const SAFEHOUSE_PERKS: Record<number, string> = {
-  1: '-3 persoonlijke heat/nacht',
-  2: '-5 persoonlijke heat/nacht, +5 opslag',
-  3: '-8 persoonlijke heat/nacht, +10 opslag, crew herstel bonus',
+  1: '−2 heat/dag als je in dit district zit',
+  2: '−3 heat/dag hier, −1 elders · +5 opslag',
+  3: '−5 heat/dag hier, −1 elders · +10 opslag',
 };
 
 // ========== CAR THEFT CONSTANTS ==========

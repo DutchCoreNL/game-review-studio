@@ -1,114 +1,99 @@
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, BUSINESSES, GOODS } from '@/game/constants';
 import { SectionHeader } from '../ui/SectionHeader';
 import { InfoRow } from '../ui/InfoRow';
 import { StatBar } from '../ui/StatBar';
-import { BarChart3, TrendingUp, Shield, Flame, Building2, Coins, Car } from 'lucide-react';
-import { getKarmaHeatDecayBonus } from '@/game/karma';
-import { DistrictId } from '@/game/types';
+import { TrendingUp, Flame, Coins, Users, Radio, Hand } from 'lucide-react';
+import { dailyHeatFlow, heatBand } from '@/game/heat';
+import { resolveRacketTick } from '@/game/rackets';
+import { orgDailyUpkeep } from '@/game/organization';
+import { autoFenceActive, autoFenceIncome } from '@/game/tradeNetwork';
+import { tapPower, crewWorkPerSecond } from '@/game/score';
+import type { DistrictId } from '@/game/types';
 
+/**
+ * WAAR JE GELD EN JE HITTE VANDAAN KOMEN.
+ *
+ * This panel used to summarise a game that no longer exists: district income hardcoded
+ * to zero, front-business income and laundering capacity from businesses you cannot
+ * buy, a vehicle-heat bar for vehicles that are retired, an "active bonuses" list
+ * crediting villa modules and Hacker/Smokkelaar crew roles, and a heat-decay figure
+ * computed locally — with the Hacker check written twice — that did not match what the
+ * tick actually applied.
+ *
+ * Everything below now reads the same functions the tick reads, so the numbers on this
+ * screen are the numbers the game runs on.
+ */
 export function StatsOverviewPanel() {
   const { state } = useGame();
 
-  // Income breakdown
-  const districtIncome = 0; // MMO: district income removed
-  const businessIncome = state.ownedBusinesses.reduce((s, bid) => {
-    const biz = BUSINESSES.find(b => b.id === bid);
-    return s + (biz?.income || 0);
-  }, 0);
-  const totalDailyIncome = districtIncome + businessIncome;
+  const tick = resolveRacketTick(state.org);
+  const upkeep = state.org ? orgDailyUpkeep(state.org) : 0;
+  const fence = autoFenceActive(state) ? autoFenceIncome(state) : 0;
+  const net = tick.money + fence - upkeep;
 
-  // Heat breakdown
-  const vehicleHeat = state.ownedVehicles.find(v => v.id === state.activeVehicle)?.vehicleHeat ?? 0;
-  const personalHeat = state.personalHeat ?? 0;
-  const globalHeat = state.heat;
+  const flow = dailyHeatFlow(state);
+  const personalHeat = Math.round(state.personalHeat ?? 0);
+  const band = heatBand(personalHeat);
 
-  // Heat decay calculation
-  let vDecay = 8;
-  if (state.villa?.modules.includes('server_room')) vDecay += 5;
-
-  let pDecay = 2;
-  if (state.villa?.modules.includes('server_room')) pDecay += 5;
-  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
-  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
-  pDecay += getKarmaHeatDecayBonus(state);
-  if (state.safehouses) {
-    state.safehouses.forEach(sh => {
-      if (sh.district === state.loc) {
-        pDecay += sh.level <= 1 ? 3 : sh.level === 2 ? 5 : 8;
-      } else {
-        pDecay += sh.level >= 2 ? 1 : 0;
-      }
-    });
-  }
-
-  // Active bonuses
-  const bonuses: { label: string; source: string }[] = [];
-  // District perks removed (MMO: gang influence only)
-  if (state.villa?.modules.includes('server_room')) bonuses.push({ label: '+5 Heat Decay', source: 'Villa Server Room' });
-  if (state.villa?.modules.includes('kluis')) bonuses.push({ label: 'Geld Beschermd', source: 'Villa Kluis' });
-  if (state.crew.some(c => c.role === 'Hacker')) bonuses.push({ label: '+2 Heat Decay', source: 'Hacker Crew' });
-  if (state.crew.some(c => c.role === 'Smokkelaar')) bonuses.push({ label: '+5 Opslag', source: 'Smokkelaar Crew' });
-
-  // Washing capacity
-  const dailyWash = state.ownedBusinesses.reduce((s, bid) => {
-    const biz = BUSINESSES.find(b => b.id === bid);
-    return s + (biz?.clean || 0);
-  }, 0);
+  const power = tapPower(state);
+  const districts: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'] as DistrictId[];
+  const perSec = districts.reduce((sum, d) => sum + crewWorkPerSecond(state, d), 0);
 
   return (
     <div>
-      <SectionHeader title="Financieel Overzicht" icon={<TrendingUp size={12} />} />
+      <SectionHeader title="Per dag" icon={<TrendingUp size={12} />} />
       <div className="game-card mb-4">
         <div className="grid grid-cols-2 gap-2">
-          <InfoRow icon={<Building2 size={10} />} label="District Inkomen" value={`€${districtIncome.toLocaleString()}/dag`} valueClass="text-emerald" />
-          <InfoRow icon={<Coins size={10} />} label="Bedrijf Inkomen" value={`€${businessIncome.toLocaleString()}/dag`} valueClass="text-emerald" />
-          <InfoRow icon={<TrendingUp size={10} />} label="Totaal Dagelijks" value={`€${totalDailyIncome.toLocaleString()}/dag`} valueClass="text-gold" />
-          <InfoRow icon={<Coins size={10} />} label="Witwas Capaciteit" value={`€${dailyWash.toLocaleString()}/dag`} valueClass="text-ice" />
-          <InfoRow icon={<Coins size={10} />} label="Zwart Geld" value={`€${state.dirtyMoney.toLocaleString()}`} valueClass="text-muted-foreground" />
+          <InfoRow icon={<Users size={10} />} label="Rackets" value={`€${tick.money.toLocaleString()}/dag`} valueClass="text-emerald" />
+          <InfoRow icon={<Radio size={10} />} label="Fence" value={fence > 0 ? `€${fence.toLocaleString()}/dag` : '—'} valueClass={fence > 0 ? 'text-emerald' : 'text-muted-foreground'} />
+          <InfoRow icon={<Coins size={10} />} label="Crewloon" value={`−€${upkeep.toLocaleString()}/dag`} valueClass="text-blood" />
+          <InfoRow icon={<TrendingUp size={10} />} label="Netto" value={`€${net.toLocaleString()}/dag`} valueClass={net >= 0 ? 'text-gold' : 'text-blood'} />
+          <InfoRow icon={<Coins size={10} />} label="Zwart geld" value={`€${Math.round(state.dirtyMoney || 0).toLocaleString()}`} valueClass="text-dirty" />
+          <InfoRow icon={<Users size={10} />} label="Aan het werk" value={`${tick.activeCount}/${state.org?.members.length || 0}`} />
         </div>
       </div>
 
-      <SectionHeader title="Heat Breakdown" icon={<Flame size={12} />} />
-      <div className="game-card mb-4 space-y-3">
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">🌐 Globaal</span>
-            <span className="font-bold">{globalHeat}/100</span>
-          </div>
-          <StatBar value={globalHeat} max={100} color="blood" height="sm" />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">🚗 Voertuig</span>
-            <span className="font-bold">{vehicleHeat}/100 <span className="text-emerald text-[0.5rem]">(-{vDecay}/dag)</span></span>
-          </div>
-          <StatBar value={vehicleHeat} max={100} color="gold" height="sm" />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">👤 Persoonlijk</span>
-            <span className="font-bold">{personalHeat}/100 <span className="text-emerald text-[0.5rem]">(-{pDecay}/dag)</span></span>
-          </div>
-          <StatBar value={personalHeat} max={100} color="purple" height="sm" />
+      <SectionHeader title="Je eigen handen" icon={<Hand size={12} />} />
+      <div className="game-card mb-4">
+        <div className="grid grid-cols-2 gap-2">
+          <InfoRow icon={<Hand size={10} />} label="Per tik" value={`+${power}`} valueClass="text-gold" />
+          <InfoRow icon={<Users size={10} />} label="Crew helpt" value={`${perSec.toFixed(1)}/sec`} valueClass="text-emerald" />
         </div>
       </div>
 
-      {bonuses.length > 0 && (
-        <>
-          <SectionHeader title="Actieve Bonussen" icon={<Shield size={12} />} />
-          <div className="game-card mb-4">
-            <div className="space-y-1.5">
-              {bonuses.map((b, i) => (
-                <div key={i} className="flex justify-between items-center text-xs">
-                  <span className="text-gold font-semibold">{b.label}</span>
-                  <span className="text-[0.5rem] text-muted-foreground">{b.source}</span>
-                </div>
-              ))}
-            </div>
+      <SectionHeader title="Hitte" icon={<Flame size={12} />} />
+      <div className="game-card mb-4 space-y-2.5">
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground">{band.label}</span>
+            <span className="font-bold">
+              {personalHeat}/100{' '}
+              <span className={`text-[0.5rem] ${flow.net > 0 ? 'text-blood' : 'text-emerald'}`}>
+                ({flow.net > 0 ? '+' : ''}{flow.net}/dag)
+              </span>
+            </span>
           </div>
-        </>
-      )}
+          <StatBar value={personalHeat} max={100} color="blood" height="sm" />
+          <p className="text-[0.45rem] text-muted-foreground mt-1">{band.desc}</p>
+        </div>
+        <div className="border-t border-border/50 pt-2 space-y-1">
+          {flow.rackets > 0 && <FlowRow label="Rackets" value={flow.rackets} />}
+          {flow.fence > 0 && <FlowRow label="Fence" value={flow.fence} />}
+          <FlowRow label="De straat vergeet" value={-flow.decay} />
+          {flow.shield > 0 && <FlowRow label="Uitrusting dekt af" value={-flow.shield} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlowRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between text-[0.5rem]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono font-bold ${value > 0 ? 'text-blood' : 'text-emerald'}`}>
+        {value > 0 ? '+' : ''}{value}
+      </span>
     </div>
   );
 }

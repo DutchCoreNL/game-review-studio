@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
-import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES } from '@/game/constants';
+import { DISTRICTS, DISTRICT_FLAVOR, DISTRICT_HQ_UPGRADES } from '@/game/constants';
 import { playCoinSound } from '@/game/sounds';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -223,7 +223,6 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
           {/* District Reputation */}
           {(() => {
             const rep = state.districtRep?.[selectedDistrict] || 0;
-            const perks = DISTRICT_REP_PERKS[selectedDistrict] || [];
             return (
               <div className="mb-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -232,17 +231,14 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
                   <span className="text-[0.55rem] font-bold text-gold">{rep}/100</span>
                 </div>
                 <StatBar value={rep} max={100} color="gold" height="sm" />
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {perks.map(p => (
-                    <span key={p.threshold} className={`text-[0.45rem] font-semibold px-1.5 py-0.5 rounded border ${
-                      rep >= p.threshold
-                        ? 'bg-gold/10 text-gold border-gold/20'
-                        : 'bg-muted/50 text-muted-foreground border-border opacity-50'
-                    }`}>
-                      {rep >= p.threshold ? '✓' : `${p.threshold}+`} {p.label}
-                    </span>
-                  ))}
-                </div>
+                {/* The DISTRICT_REP_PERKS chips hung here — Haven Connectie, VIP Casino,
+                    Gratis Repair and the rest. Not one of them was ever applied anywhere
+                    in the code, and they described smuggle risk, baggage, casino
+                    winnings and vehicle repairs. What district rep really buys you is
+                    one line. */}
+                <p className="text-[0.45rem] text-muted-foreground mt-1.5">
+                  Hoe bekender je hier bent, hoe steviger je staat als er een inval komt.
+                </p>
               </div>
             );
           })()}

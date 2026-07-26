@@ -12,13 +12,10 @@ import { EquipmentView } from './EquipmentView';
 const AdminPanelView = React.lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
 const CasinoView = React.lazy(() => import('./CasinoView').then(m => ({ default: m.CasinoView })));
 const SafehouseView = React.lazy(() => import('./SafehouseView').then(m => ({ default: m.SafehouseView })));
-const VillaView = React.lazy(() => import('./villa/VillaView').then(m => ({ default: m.VillaView })));
-const HospitalView = React.lazy(() => import('./HospitalView').then(m => ({ default: m.HospitalView })));
 const ChopShopView = React.lazy(() => import('./ChopShopView').then(m => ({ default: m.ChopShopView })));
 const GarageView = React.lazy(() => import('./garage/GarageView').then(m => ({ default: m.GarageView })));
 const OrganisatieView = React.lazy(() => import('./OrganisatieView').then(m => ({ default: m.OrganisatieView })));
 const HeistView = React.lazy(() => import('./heist/HeistView').then(m => ({ default: m.HeistView })));
-const BountyBoardPanel = React.lazy(() => import('./bounty/BountyBoardPanel').then(m => ({ default: m.BountyBoardPanel })));
 const DailyChallengesView = React.lazy(() => import('./DailyChallengesView').then(m => ({ default: m.DailyChallengesView })));
 const HitsView = React.lazy(() => import('./HitsView').then(m => ({ default: m.HitsView })));
 const MostWantedView = React.lazy(() => import('./MostWantedView').then(m => ({ default: m.MostWantedView })));
@@ -91,15 +88,12 @@ export const views: Record<string, React.ComponentType> = {
   // Stad
   city: MapView,
   casino: CasinoView,
-  hospital: HospitalView,
   safehouse: SafehouseView,
-  villa: VillaView,
   chopshop: ChopShopView,
   // Acties
   ops: OperationsView,
   contracts: ContractsPanel,
   heists: HeistView,
-  bounties: BountyBoardPanel,
   pvp: PvPAttackView,
   challenges: DailyChallengesView,
   hits: HitsView,
@@ -158,7 +152,7 @@ export const views: Record<string, React.ComponentType> = {
 
 // Map view to music scene
 export function getMusicScene(v: string): 'city' | 'trade' | 'ops' | 'empire' | 'profile' {
-  if (['klus', 'uitrusting', 'overzicht', 'city', 'casino', 'hospital', 'safehouse', 'villa', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
+  if (['klus', 'uitrusting', 'overzicht', 'city', 'casino', 'safehouse', 'chopshop', 'travel', 'chat'].includes(v)) return 'city';
   if (['ops', 'contracts', 'heists', 'bounties', 'pvp', 'challenges', 'hits', 'wanted', 'crew', 'campaign', 'raids'].includes(v)) return 'ops';
   if (['trade', 'market', 'analysis', 'auction', 'stocks', 'launder', 'gear', 'black-market', 'salvage', 'loot-boxes', 'arms-dealing'].includes(v)) return 'trade';
   if (['families', 'gang', 'war', 'corruption', 'empire', 'business', 'garage', 'districts', 'education', 'properties', 'gym', 'jobs', 'opvolger'].includes(v)) return 'empire';

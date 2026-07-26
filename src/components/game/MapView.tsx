@@ -5,10 +5,7 @@ import { BackButton } from './ui/BackButton';
 import { CityMap } from './CityMap';
 import { DistrictPopup } from './DistrictPopup';
 import { CasinoView } from './CasinoView';
-import { ChopShopView } from './ChopShopView';
 import { SafehouseView } from './SafehouseView';
-import { VillaView } from './villa/VillaView';
-import { HospitalView } from './HospitalView';
 import { NemesisInfo } from './map/NemesisInfo';
 import { MapMMOPanels } from './map/MapMMOPanels';
 
@@ -18,12 +15,11 @@ import { NewsDetailPopup } from './map/NewsDetailPopup';
 import { useState, useRef, useEffect } from 'react';
 import { useDailyDigest } from '@/hooks/useDailyDigest';
 import { DailyDigestPopup } from './DailyDigestPopup';
-import { Dices, Wrench, Home, Building2, Swords, Heart, Moon, FileText } from 'lucide-react';
+import { Dices, Home, Moon, FileText } from 'lucide-react';
 import { NightReport } from './NightReport';
 import { DistrictId } from '@/game/types';
 import { type NewsItem } from '@/game/newsGenerator';
 import { HidingOverlay } from './HidingOverlay';
-import { canTriggerFinalBoss } from '@/game/endgame';
 import { useDistrictData } from '@/hooks/useDistrictData';
 import { useWorldState } from '@/hooks/useWorldState';
 import { useRealtimeNews } from '@/hooks/useRealtimeNews';
@@ -32,10 +28,7 @@ export function MapView() {
   const { state, selectedDistrict, selectDistrict, dispatch, showToast } = useGame();
   const { t } = useLanguage();
   const [showCasino, setShowCasino] = useState(false);
-  const [showChopShop, setShowChopShop] = useState(false);
   const [showSafehouse, setShowSafehouse] = useState(false);
-  const [showVilla, setShowVilla] = useState(false);
-  const [showHospital, setShowHospital] = useState(false);
   const [travelAnim, setTravelAnim] = useState<{ from: DistrictId; to: DistrictId } | null>(null);
   const travelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevLoc = useRef(state.loc);
@@ -60,9 +53,6 @@ export function MapView() {
 
   // Sub-location views
   const subViews: { show: boolean; component: React.ReactNode; onClose: () => void }[] = [
-    { show: showVilla, component: <VillaView />, onClose: () => setShowVilla(false) },
-    { show: showHospital, component: <HospitalView />, onClose: () => setShowHospital(false) },
-    { show: showChopShop, component: <ChopShopView />, onClose: () => setShowChopShop(false) },
     { show: showSafehouse, component: <SafehouseView />, onClose: () => setShowSafehouse(false) },
     { show: showCasino, component: <CasinoView />, onClose: () => setShowCasino(false) },
   ];
@@ -82,27 +72,19 @@ export function MapView() {
   // Build contextual action buttons
   const contextActions: { id: string; icon: React.ReactNode; label: string; variant: string; onClick: () => void; className?: string }[] = [];
 
+  // The final-boss trigger (Commissaris Decker), the Iron Borough chop shop, the
+  // Crown Heights hospital and the villa all used to hang here. Faction conquest,
+  // vehicles and HP are retired, and the villa was a second progression system —
+  // so these were buttons into rooms that no longer exist.
   if (!isHiding) {
-    if (canTriggerFinalBoss(state) && !state.activeCombat) {
-      contextActions.push({ id: 'decker', icon: <Swords size={14} />, label: t.map.decker, variant: 'blood', onClick: () => dispatch({ type: 'START_FINAL_BOSS' }), className: 'glow-blood' });
-    }
     if ((state.loc === 'neon' || (state.districtRep?.crown >= 50))) {
       contextActions.push({ id: 'casino', icon: <Dices size={14} />, label: t.map.casino, variant: 'purple', onClick: () => {
         if (state.weather === 'storm') { showToast(t.map.stormClosed, true); return; }
         setShowCasino(true);
       }, className: state.weather === 'storm' ? 'opacity-50' : '' });
     }
-    if (state.loc === 'iron') {
-      contextActions.push({ id: 'chop', icon: <Wrench size={14} />, label: t.map.chop, variant: 'gold', onClick: () => setShowChopShop(true) });
-    }
-    if (state.loc === 'crown' && state.playerHP < state.playerMaxHP) {
-      contextActions.push({ id: 'hospital', icon: <Heart size={14} />, label: t.map.hospital, variant: 'emerald', onClick: () => setShowHospital(true) });
-    }
     if (state.safehouses.some(sh => sh.district === state.loc)) {
       contextActions.push({ id: 'safe', icon: <Home size={14} />, label: t.map.safe, variant: 'emerald', onClick: () => setShowSafehouse(true) });
-    }
-    if (state.villa || (state.player.level >= 8 && state.rep >= 300)) {
-      contextActions.push({ id: 'villa', icon: <Building2 size={14} />, label: t.map.villaBtn, variant: 'gold', onClick: () => setShowVilla(true) });
     }
   }
 
@@ -171,12 +153,9 @@ export function MapView() {
           onSelectDistrict={selectDistrict}
           smuggleRoutes={state.smuggleRoutes || []}
           districtRep={state.districtRep}
-          onChopShopClick={!isHiding && state.loc === 'iron' ? () => setShowChopShop(true) : undefined}
           safehouses={state.safehouses}
           onSafehouseClick={!isHiding ? () => setShowSafehouse(true) : undefined}
-          villa={state.villa}
-           onVillaClick={!isHiding ? () => setShowVilla(true) : undefined}
-           districtData={districtData}
+          districtData={districtData}
          />
       </div>
 

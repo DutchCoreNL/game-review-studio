@@ -34,8 +34,6 @@ interface CityMapProps {
   onChopShopClick?: () => void;
   safehouses?: Safehouse[];
   onSafehouseClick?: () => void;
-  villa?: VillaState | null;
-  onVillaClick?: () => void;
   districtData?: DistrictData;
 }
 
@@ -102,7 +100,7 @@ const DISTRICT_ZONES: Record<DistrictId, { x: number; y: number; w: number; h: n
 
 // ========== MAIN COMPONENT ==========
 
-export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, timeOfDay, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, villa, onVillaClick, districtData }: CityMapProps) {
+export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, districtDemands, mapEvents, heat, vehicleHeat, personalHeat, weather, timeOfDay, nemesis, travelAnim, onSelectDistrict, smuggleRoutes = [], districtRep, onChopShopClick, safehouses = [], onSafehouseClick, districtData }: CityMapProps) {
   const defaultDistrictRep: Record<DistrictId, number> = districtRep || { port: 30, crown: 50, iron: 40, low: 15, neon: 60 };
   
   return (
@@ -144,27 +142,9 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
           districtMeta={DISTRICT_META}
         />
 
-        {/* === VILLA NOXHAVEN === */}
-        <g onClick={(e) => { e.stopPropagation(); onVillaClick?.(); }}
-          style={{ cursor: onVillaClick ? 'pointer' : 'default' }}>
-          <rect x="180" y="25" width="40" height="35" fill="transparent" />
-          {villa && (
-            <motion.circle cx={200} cy={45} r={18}
-              fill="none" stroke="hsla(45, 90%, 50%, 0.15)" strokeWidth="1"
-              animate={{ r: [18, 22, 18], opacity: [0.15, 0.05, 0.15] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
-          )}
-          <rect x="186" y="23" width="28" height="9" rx={2}
-            fill={villa ? 'hsla(45, 30%, 8%, 0.9)' : 'hsla(0, 0%, 5%, 0.7)'}
-            stroke={villa ? 'hsl(45 60% 40%)' : 'hsl(0 0% 20%)'}
-            strokeWidth={villa ? '1' : '0.5'} />
-          <text x="200" y="30" textAnchor="middle"
-            fill={villa ? 'hsl(45 80% 55%)' : 'hsl(0 0% 40%)'}
-            fontSize="5" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif"
-            style={{ textTransform: 'uppercase' }}>
-            {villa ? 'VILLA' : '🔒 VILLA'}
-          </text>
-        </g>
+        {/* A Villa Noxhaven marker sat here, locked or gold depending on whether you
+            owned one. The villa is retired, so the marker only advertised a room that no
+            longer exists. */}
 
         {/* === SAFEHOUSE MARKERS === */}
         {safehouses.map(sh => {
@@ -179,6 +159,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               <rect x={sx - 6} y={sy - 6} width="12" height="12" fill="transparent" />
               <motion.circle cx={sx} cy={sy} r={5}
                 fill="hsla(145, 60%, 30%, 0.3)"
+                initial={{ r: 5, opacity: 0.3 }}
                 animate={{ r: [5, 7, 5], opacity: [0.3, 0.15, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
               <circle cx={sx} cy={sy} r={4} fill="hsla(145, 50%, 15%, 0.8)" stroke="hsla(145, 60%, 40%, 0.5)" strokeWidth="0.5" />
@@ -228,12 +209,14 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
               {isOwned && !isSelected && (
                 <motion.circle cx={meta.cx} cy={meta.cy} r={22}
                   fill="none" stroke="hsla(0, 72%, 51%, 0.15)" strokeWidth="1.5"
+                  initial={{ r: 20, opacity: 0.15, strokeWidth: 1.5 }}
                   animate={{ r: [20, 26, 20], opacity: [0.15, 0.05, 0.15], strokeWidth: [1.5, 0.8, 1.5] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
               )}
               {isOwned && !isSelected && (
                 <motion.circle cx={meta.cx} cy={meta.cy} r={15}
                   fill="hsla(0, 72%, 51%, 0.04)"
+                  initial={{ r: 15, opacity: 0.04 }}
                   animate={{ r: [15, 18, 15], opacity: [0.04, 0.01, 0.04] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
               )}
@@ -372,6 +355,7 @@ export function CityMap({ playerLocation, selectedDistrict, ownedDistricts, dist
         {/* === PLAYER MARKER === */}
         <g transform={`translate(${DISTRICT_META[playerLocation].cx}, ${DISTRICT_META[playerLocation].cy - 18})`}>
           <motion.circle cy={0} r={5} fill="none" stroke="hsl(45 93% 40%)" strokeWidth="1" opacity="0.6"
+            initial={{ r: 5, opacity: 0.6 }}
             animate={{ r: [5, 10, 5], opacity: [0.6, 0, 0.6] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
           <circle cy={0} r={4} fill="hsl(45 93% 40%)" filter="url(#player-glow)" />

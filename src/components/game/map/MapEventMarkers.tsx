@@ -52,6 +52,7 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
           <g transform={`translate(${x}, 0)`}>
             <motion.circle cy={0} r={isHighVehicleHeat ? 5 : 4}
               fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.35)' : 'hsla(220, 80%, 50%, 0.3)'}
+              initial={{ r: isHighVehicleHeat ? 5 : 4, opacity: 0.3 }}
               animate={{ r: isHighVehicleHeat ? [5, 8, 5] : [4, 6, 4], opacity: [0.3, 0.15, 0.3] }}
               transition={{ duration: isHighVehicleHeat ? 0.8 : 1.2, repeat: Infinity }} />
             <circle cy={0} r={2.5} fill={isHighVehicleHeat ? 'hsla(0, 80%, 50%, 0.7)' : 'hsla(220, 80%, 50%, 0.6)'} />
@@ -81,6 +82,7 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
           transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut' }}>
           <g>
             <motion.circle r={3} fill="hsla(0, 80%, 45%, 0.4)"
+              initial={{ r: 3, opacity: 0.4 }}
               animate={{ r: [3, 5, 3], opacity: [0.4, 0.2, 0.4] }}
               transition={{ duration: 0.8, repeat: Infinity }} />
             <circle r={2} fill="hsla(0, 80%, 45%, 0.6)" />
@@ -92,6 +94,7 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
         <motion.g animate={{ y: [y - 1, y + 1, y - 1] }} transition={{ ...bounceTransition, delay: 0.5 }}>
           <g transform={`translate(${x}, 0)`}>
             <motion.circle cy={0} r={3} fill="hsla(45, 93%, 40%, 0.3)"
+              initial={{ r: 3, opacity: 0.3 }}
               animate={{ r: [3, 5, 3], opacity: [0.3, 0.1, 0.3] }}
               transition={{ duration: 2, repeat: Infinity }} />
             <circle cy={0} r={2} fill="hsla(45, 93%, 40%, 0.5)" />
@@ -108,6 +111,7 @@ function MapEventIcon({ event, x, y, vehicleHeat }: { event: MapEvent; x: number
             animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 0.5, repeat: Infinity }} />
           <motion.line x1="-3" y1="3" x2="3" y2="3"
             stroke="hsla(0, 80%, 50%, 0.2)" strokeWidth="0.5"
+            initial={{ opacity: 0.2, y1: 3, y2: 3 }}
             animate={{ opacity: [0.2, 0.5, 0.2], y1: [3, 6, 3], y2: [3, 6, 3] }}
             transition={{ duration: 1.5, repeat: Infinity }} />
         </motion.g>

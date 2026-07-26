@@ -30,6 +30,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
           stroke="hsla(0, 80%, 50%, 0.15)"
           strokeWidth="1"
           strokeDasharray="3 2"
+          initial={{ r: 35 + nemesis.power * 0.2, opacity: 0.15 }}
           animate={{
             r: [35 + nemesis.power * 0.2, 40 + nemesis.power * 0.2, 35 + nemesis.power * 0.2],
             opacity: [0.15, 0.08, 0.15],
@@ -65,6 +66,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
           fill="none"
           stroke={hasRevenge ? "hsla(30, 90%, 50%, 0.15)" : "hsla(0, 80%, 40%, 0.12)"}
           strokeWidth="0.8"
+          initial={{ r: 16, opacity: 0.12 }}
           animate={{
             r: [16, 22, 16],
             opacity: [0.12, 0.04, 0.12],
@@ -78,6 +80,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
           fill="none"
           stroke={hasRevenge ? "hsla(30, 90%, 50%, 0.25)" : "hsla(0, 80%, 50%, 0.2)"}
           strokeWidth="1"
+          initial={{ r: 10, opacity: 0.2, strokeWidth: 1 }}
           animate={{
             r: [10, 15, 10],
             opacity: [0.2, 0.05, 0.2],
@@ -92,6 +95,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
           fill="none"
           stroke="hsla(0, 80%, 50%, 0.35)"
           strokeWidth="1.2"
+          initial={{ r: 7, opacity: 0.35 }}
           animate={{
             r: [7, 10, 7],
             opacity: [0.35, 0.1, 0.35],
@@ -103,6 +107,7 @@ export function NemesisMarker({ nemesis, districtMeta }: NemesisMarkerProps) {
         <motion.circle
           r={10}
           fill="hsla(0, 80%, 40%, 0.06)"
+          initial={{ r: 10, opacity: 0.06 }}
           animate={{
             r: [10, 14, 10],
             opacity: [0.06, 0.02, 0.06],

@@ -38,7 +38,6 @@ import { CinematicOverlay } from './CinematicOverlay';
 import { ScreenEffects } from './animations/ScreenEffects';
 
 import { WeekEventBanner } from './WeekEventBanner';
-import { BountyEncounterPopup } from './bounty/BountyEncounterPopup';
 import { NemesisDefeatPopup } from './map/NemesisDefeatPopup';
 import { SanctionBanner } from './SanctionBanner';
 import { DesktopSidebar } from './DesktopSidebar';
@@ -106,10 +105,10 @@ export function GameLayout() {
 
   // Popup open sounds
   useEffect(() => {
-    if (state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup || state.pendingBountyEncounter) {
+    if (state.pendingArcEvent || state.pendingCarTheft || state.pendingCorruptionEvent || state.pendingWarEvent || state.pendingConquestPopup) {
       playPopupOpen();
     }
-  }, [state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup, state.pendingBountyEncounter]);
+  }, [state.pendingArcEvent, state.pendingCarTheft, state.pendingCorruptionEvent, state.pendingWarEvent, state.pendingConquestPopup]);
 
   // Sync world_state.active_event → local activeWeekEvent
   const prevActiveEventRef = useRef<string | null>(null);
@@ -140,7 +139,6 @@ export function GameLayout() {
   const activeEventPopup = (() => {
     if (state.pendingSpecChoice) return <CrewSpecPopup />;
     if (state.pendingArcEvent) return <StoryArcEvent />;
-    if (state.pendingBountyEncounter) return <BountyEncounterPopup />;
     if (state.pendingConquestPopup) return <ConquestPopup />;
     if (state.pendingWarEvent) return <WarEventPopup />;
     if (state.pendingCorruptionEvent) return <CorruptionEventPopup />;

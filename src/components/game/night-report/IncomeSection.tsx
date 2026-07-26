@@ -39,15 +39,8 @@ export function IncomeSection({ report, delays }: IncomeSectionProps) {
         <AnimatedReportRow icon={<Crosshair size={14} />} label={`Kogelfabriek (${report.ammoFactoryType ? AMMO_TYPE_LABELS[report.ammoFactoryType]?.label : 'kogels'})`} value={report.ammoFactoryProduction} prefix="+" suffix={` ${report.ammoFactoryType ? AMMO_TYPE_LABELS[report.ammoFactoryType]?.label : 'kogels'}`} positive color="text-blood" delay={delays.ammoFactory} />
       )}
 
-      {report.villaWietProduced && report.villaWietProduced > 0 && (
-        <AnimatedReportRow icon={<Leaf size={14} />} label="Wietplantage" value={report.villaWietProduced} prefix="+" suffix=" drugs" positive color="text-emerald" delay={delays.villaWiet} />
-      )}
-      {report.villaCokeProduced && report.villaCokeProduced > 0 && (
-        <AnimatedReportRow icon={<Diamond size={14} />} label="Coke Lab" value={report.villaCokeProduced} prefix="+" suffix=" Puur Wit" positive color="text-game-purple" delay={delays.villaCoke} />
-      )}
-      {report.villaLabProduced && report.villaLabProduced > 0 && (
-        <AnimatedReportRow icon={<FlaskConical size={14} />} label="Villa Lab" value={report.villaLabProduced} prefix="+" suffix=" Synthetica" positive color="text-blood" delay={delays.villaLab} />
-      )}
+      {/* The three villa production rows (wietplantage, coke lab, villa lab) lived here.
+          The villa is retired, so none of those report fields can be set again. */}
 
       {/* Crafting output */}
       {report.craftingOutput && report.craftingOutput.length > 0 && (

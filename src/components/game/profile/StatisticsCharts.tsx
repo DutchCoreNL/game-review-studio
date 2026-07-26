@@ -7,9 +7,10 @@ export function StatisticsCharts() {
   const { state } = useGame();
   const stats = state.stats;
 
-  // Income sources pie chart
+  // Income sources pie chart. The non-casino slice was labelled "Handel", but it is
+  // everything: klussen, rackets, the fence and the market.
   const incomePie = [
-    { name: 'Handel', value: Math.max(0, stats.totalEarned - stats.casinoWon), color: 'hsl(var(--emerald))' },
+    { name: 'Werk & rackets', value: Math.max(0, stats.totalEarned - stats.casinoWon), color: 'hsl(var(--emerald))' },
     { name: 'Casino', value: stats.casinoWon, color: 'hsl(var(--gold))' },
   ].filter(d => d.value > 0);
 
@@ -19,9 +20,12 @@ export function StatisticsCharts() {
     { name: 'Casino Verlies', value: stats.casinoLost, color: 'hsl(var(--game-purple))' },
   ].filter(d => d.value > 0);
 
-  // Mission success rate
-  const totalMissions = stats.missionsCompleted + stats.missionsFailed;
-  const successRate = totalMissions > 0 ? Math.round((stats.missionsCompleted / totalMissions) * 100) : 0;
+  // Missions are retired, so the old "Missie Succes" ring and "Gevechtsrecord" pie were
+  // permanently 0/0. What the player actually does is finish klussen and answer
+  // incidents, so those are the two numbers now.
+  const jobs = stats.jobsCompleted || 0;
+  const incidents = stats.incidentsFought || 0;
+  const doneTotal = jobs + incidents;
 
   // Income history bar chart
   const incomeHistory = state.incomeHistory || [];
@@ -30,10 +34,9 @@ export function StatisticsCharts() {
     income: val,
   }));
 
-  // Combat stats
-  const combatData = [
-    { name: 'Gewonnen', value: stats.missionsCompleted, fill: 'hsl(var(--emerald))' },
-    { name: 'Verloren', value: stats.missionsFailed, fill: 'hsl(var(--blood))' },
+  const doneData = [
+    { name: 'Klussen', value: jobs, fill: 'hsl(var(--emerald))' },
+    { name: 'Incidenten', value: incidents, fill: 'hsl(var(--blood))' },
   ];
 
   return (
@@ -47,8 +50,8 @@ export function StatisticsCharts() {
           <div className="text-[0.45rem] text-muted-foreground uppercase">Dagen</div>
         </div>
         <div className="game-card text-center p-2">
-          <div className="text-lg font-bold text-emerald">{successRate}%</div>
-          <div className="text-[0.45rem] text-muted-foreground uppercase">Missie Succes</div>
+          <div className="text-lg font-bold text-emerald">{jobs}</div>
+          <div className="text-[0.45rem] text-muted-foreground uppercase">Klussen</div>
         </div>
         <div className="game-card text-center p-2">
           <div className="text-lg font-bold text-ice">{stats.tradesCompleted}</div>
@@ -116,37 +119,33 @@ export function StatisticsCharts() {
         </div>
       )}
 
-      {/* Combat Record */}
+      {/* What you have actually done */}
       <div className="game-card mb-4">
         <h4 className="text-[0.6rem] font-bold text-gold uppercase tracking-wider mb-2 flex items-center gap-1">
-          <Swords size={10} /> Gevechtsrecord
+          <Swords size={10} /> Op je naam
         </h4>
-        {totalMissions > 0 ? (
+        {doneTotal > 0 ? (
           <div className="flex items-center gap-3">
             <ResponsiveContainer width={80} height={80}>
               <PieChart>
-                <Pie data={combatData} dataKey="value" cx="50%" cy="50%" innerRadius={20} outerRadius={35} strokeWidth={0}>
-                  {combatData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                <Pie data={doneData} dataKey="value" cx="50%" cy="50%" innerRadius={20} outerRadius={35} strokeWidth={0}>
+                  {doneData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-1">
               <div className="flex justify-between text-[0.55rem]">
-                <span className="text-emerald font-bold">✓ Gewonnen</span>
-                <span className="font-bold">{stats.missionsCompleted}</span>
+                <span className="text-emerald font-bold">Klussen afgerond</span>
+                <span className="font-bold">{jobs}</span>
               </div>
               <div className="flex justify-between text-[0.55rem]">
-                <span className="text-blood font-bold">✗ Verloren</span>
-                <span className="font-bold">{stats.missionsFailed}</span>
-              </div>
-              <div className="flex justify-between text-[0.55rem]">
-                <span className="text-gold font-bold">Succes Ratio</span>
-                <span className="font-bold">{successRate}%</span>
+                <span className="text-blood font-bold">Incidenten aangepakt</span>
+                <span className="font-bold">{incidents}</span>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-[0.5rem] text-muted-foreground text-center py-3">Nog geen missies voltooid.</p>
+          <p className="text-[0.5rem] text-muted-foreground text-center py-3">Nog niks op je naam. Draai een klus.</p>
         )}
       </div>
     </>

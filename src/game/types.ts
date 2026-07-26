@@ -100,7 +100,7 @@ export type WeatherType = 'clear' | 'rain' | 'fog' | 'heatwave' | 'storm';
 
 // ========== SAFEHOUSE TYPES ==========
 
-export type SafehouseUpgradeId = 'reinforced' | 'medbay' | 'vault' | 'garage' | 'comms';
+export type SafehouseUpgradeId = 'reinforced' | 'vault' | 'comms';
 
 export interface SafehouseUpgradeDef {
   id: SafehouseUpgradeId;
@@ -820,6 +820,8 @@ export interface RandomEvent {
 export interface GameStats {
   /** Times you answered a rival incident by fighting instead of paying. */
   incidentsFought?: number;
+  /** Klussen finished by hand — the core loop's own counter. */
+  jobsCompleted?: number;
   totalEarned: number;
   totalSpent: number;
   casinoWon: number;

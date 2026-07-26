@@ -5,7 +5,7 @@
 
 import { GameState, DistrictId, GoodId, FamilyId, WeatherType, NemesisState, NemesisArchetype, SmuggleRoute, PhoneMessage, NightReportData, WarEvent, WarTactic, WarEventResult, DistrictHQUpgradeId } from './types';
 import { addPersonalHeat, addVehicleHeat, getActiveVehicleHeat, getVehicleUpgradeBonus, getPlayerStat, arrestPlayer, syncPlayerMaxHP } from './engine';
-import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_REP_PERKS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS, NEMESIS_TAUNTS, NEMESIS_GEN_ABILITIES, NEMESIS_REVENGE_TYPES } from './constants';
+import { DISTRICTS, GOODS, FAMILIES, NEMESIS_NAMES, PHONE_CONTACTS, DISTRICT_HQ_UPGRADES, NEMESIS_ARCHETYPES, NEMESIS_NEGOTIATE_COST_BASE, NEMESIS_TRUCE_DAYS, NEMESIS_TAUNTS, NEMESIS_GEN_ABILITIES, NEMESIS_REVENGE_TYPES } from './constants';
 
 // ========== 1. WEATHER SYSTEM ==========
 

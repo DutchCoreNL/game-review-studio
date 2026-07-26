@@ -60,6 +60,7 @@ export function HeatOverlay({ heat, vehicleHeat, personalHeat, roads }: HeatOver
               transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}>
               <circle r={2} fill="hsla(0, 0%, 70%, 0.4)" />
               <motion.circle r={5} fill="none" stroke="hsla(0, 0%, 60%, 0.15)" strokeWidth="0.5"
+                initial={{ r: 5 }}
                 animate={{ r: [5, 8, 5] }} transition={{ duration: 0.3, repeat: Infinity }} />
             </motion.g>
           )}

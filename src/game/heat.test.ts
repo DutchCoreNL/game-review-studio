@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  HEAT_BASE_DECAY, HEAT_BANDS, heatBand, marketSurcharge, SURCHARGE_FROM,
-  policeIncidentChance, POLICE_FROM, dailyHeatFlow, dailyHeatDelta,
+  HEAT_BASE_DECAY, HEAT_BANDS, heatBand, marketSurcharge, SURCHARGE_FROM, policeIncidentChance, POLICE_FROM, dailyHeatFlow, dailyHeatDelta, personalHeatDecay, safehouseHeatDecay,
 } from './heat';
 import type { GameState } from './types';
 import type { OrgMember } from './organization';
@@ -83,5 +82,37 @@ describe('daily heat flow', () => {
   it('breaks the rate down so the UI can explain it', () => {
     const f = dailyHeatFlow(stub({ equipment: { netwerk: 1 } }));
     expect(f.net).toBe(f.rackets + f.fence - f.shield - f.decay);
+  });
+});
+
+// ---------- Safehouses and the decay the tick actually applies ----------
+
+describe('personalHeatDecay', () => {
+  const base = (over: any = {}) => ({ loc: 'low', safehouses: [], ...over }) as any;
+
+  it('is the base rate with nothing else going on', () => {
+    expect(personalHeatDecay(base())).toBe(HEAT_BASE_DECAY);
+  });
+
+  it('counts a safehouse in the district you are standing in', () => {
+    const s = base({ safehouses: [{ district: 'low', level: 2, upgrades: [] }] });
+    expect(safehouseHeatDecay(s)).toBe(3);
+    expect(personalHeatDecay(s)).toBe(HEAT_BASE_DECAY + 3);
+  });
+
+  it('counts a remote safehouse for much less', () => {
+    const s = base({ safehouses: [{ district: 'crown', level: 2, upgrades: [] }] });
+    expect(safehouseHeatDecay(s)).toBe(1);
+  });
+
+  it('gives a remote level-1 safehouse nothing', () => {
+    expect(safehouseHeatDecay(base({ safehouses: [{ district: 'crown', level: 1, upgrades: [] }] }))).toBe(0);
+  });
+
+  it('feeds the flow the UI shows, so the quoted rate is the applied rate', () => {
+    // The tick used a base of 2 and added safehouses; the header used 3 and ignored
+    // them. Whatever the numbers are, both sides have to read this one function.
+    const s = base({ safehouses: [{ district: 'low', level: 3, upgrades: [] }] });
+    expect(dailyHeatFlow(s).decay).toBe(personalHeatDecay(s));
   });
 });

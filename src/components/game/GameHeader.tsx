@@ -24,7 +24,7 @@ import { WifiPopup } from './header/WifiPopup';
 import { formatGameDate } from '@/lib/gameDate';
 import { useWorldState, TIME_OF_DAY_ICONS, TIME_OF_DAY_LABELS } from '@/hooks/useWorldState';
 
-type PopupType = 'rep' | 'heat' | 'level' | 'ammo' | 'karma' | 'hp' | null;
+type PopupType = 'rep' | 'heat' | 'level' | null;
 
 const WEATHER_ICONS: Record<WeatherType, React.ReactNode> = {
   clear: <Sun size={10} />,

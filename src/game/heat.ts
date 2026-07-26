@@ -80,6 +80,30 @@ export interface HeatFlow {
 }
 
 /**
+ * Heat a safehouse takes off you per day. Being in the same district as one is worth
+ * far more than owning one elsewhere.
+ *
+ * These are the numbers the tick applies. They lived in three places that disagreed:
+ * the tick used 2/3/5, the safehouse screen advertised 3/5/8, and the header ignored
+ * safehouses entirely — so the rate you were shown was never the rate you got.
+ */
+export function safehouseHeatDecay(state: GameState): number {
+  return (state.safehouses || []).reduce((sum, sh) => sum + (
+    sh.district === state.loc
+      ? (sh.level <= 1 ? 2 : sh.level === 2 ? 3 : 5)
+      : (sh.level >= 2 ? 1 : 0)
+  ), 0);
+}
+
+/** Everything that cools you off per day. The tick and the UI both call this. */
+export function personalHeatDecay(state: GameState): number {
+  let decay = HEAT_BASE_DECAY + safehouseHeatDecay(state);
+  const perk = state.mmoPerkFlags?.heatReductionBonus || 0;
+  if (perk > 0) decay = Math.floor(decay * (1 + perk));
+  return decay;
+}
+
+/**
  * The daily heat balance, broken out so the UI can both show the net rate and
  * explain where it comes from. This is what turns heat from a mystery number into
  * something the player can actually steer.
@@ -88,7 +112,7 @@ export function dailyHeatFlow(state: GameState): HeatFlow {
   const rackets = state.org ? resolveRacketTick(state.org).heat : 0;
   const fence = autoFenceActive(state) ? AUTO_FENCE_HEAT : 0;
   const shield = equipHeatShield(state);
-  const decay = HEAT_BASE_DECAY;
+  const decay = personalHeatDecay(state);
   return { rackets, fence, shield, decay, net: rackets + fence - shield - decay };
 }
 

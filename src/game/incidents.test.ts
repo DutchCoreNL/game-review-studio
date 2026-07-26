@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rollIncident, districtIncome, ATTENTION_INCIDENT_THRESHOLD, HEAT_INCIDENT_THRESHOLD,
-  LOYALTY_TROUBLE_THRESHOLD,
+  LOYALTY_TROUBLE_THRESHOLD, HUNTER_HEAT_THRESHOLD,
 } from './incidents';
 import type { GameState } from './types';
 import type { OrgMember, PlayerOrg } from './organization';
@@ -86,6 +86,72 @@ describe('rollIncident', () => {
     for (const c of inc.choices) {
       expect(c.outcome.message.length).toBeGreaterThan(0);
       if (c.successChance != null) expect(c.failOutcome).toBeDefined();
+    }
+  });
+});
+
+describe('the bounty hunter', () => {
+  /**
+   * A hunter at the door used to be a whole separate system: its own generator, its own
+   * popup, and consequences that drained `playerHP` — a stat the game never shows. It is
+   * an incident now, so it has to behave like one.
+   */
+  const hot = (over: Partial<GameState> = {}) => stub({
+    personalHeat: HUNTER_HEAT_THRESHOLD + 15,
+    districtAttention: {},
+    org: org([{ assignment: 'low_runners', loyalty: 90 }]),
+    ...over,
+  });
+
+  it('never turns up while you are barely warm', () => {
+    // Below the threshold, no price on your head is worth collecting. Police pressure
+    // is the only thing `always` can still fire here, so assert on the kind.
+    const s = hot({ personalHeat: HUNTER_HEAT_THRESHOLD - 20 });
+    const inc = rollIncident(s, always);
+    expect(inc?.kind).not.toBe('premiejager');
+  });
+
+  it('turns up once you are properly wanted', () => {
+    // The police branch is rolled first, so fail that one and let the hunter roll.
+    let n = 0;
+    const rand = () => (n++ === 0 ? 0.999 : 0);
+    const inc = rollIncident(hot(), rand);
+    expect(inc!.kind).toBe('premiejager');
+  });
+
+  it('offers fighting, buying him off, and going to ground', () => {
+    let n = 0;
+    const rand = () => (n++ === 0 ? 0.999 : 0);
+    const inc = rollIncident(hot(), rand)!;
+    expect(inc.choices.map(c => c.id).sort()).toEqual(['buyout', 'fight', 'hide']);
+    const fight = inc.choices.find(c => c.id === 'fight')!;
+    expect(fight.successChance).toBeGreaterThan(0);
+    expect(fight.failOutcome).toBeDefined();
+    expect(inc.choices.find(c => c.id === 'buyout')!.costMoney).toBeGreaterThan(0);
+    // Going to ground is free but pulls the crew off their rackets.
+    const hide = inc.choices.find(c => c.id === 'hide')!;
+    expect(hide.costMoney).toBeUndefined();
+    expect(hide.outcome.pullOutOfDistrict).toBe(true);
+  });
+
+  it('names the hunter in the title and quotes the price in the body', () => {
+    let n = 0;
+    const rand = () => (n++ === 0 ? 0.999 : 0);
+    const inc = rollIncident(hot(), rand)!;
+    expect(inc.title.length).toBeGreaterThan(4);
+    expect(inc.body).toMatch(/€[\d.,]+/);
+  });
+
+  it('never touches HP — every outcome is money, heat, respect or loyalty', () => {
+    let n = 0;
+    const rand = () => (n++ === 0 ? 0.999 : 0);
+    const inc = rollIncident(hot(), rand)!;
+    const allowed = ['money', 'heat', 'respect', 'attention', 'loyalty', 'injureChance', 'rivalPower', 'pullOutOfDistrict', 'message'];
+    for (const c of inc.choices) {
+      for (const o of [c.outcome, c.failOutcome]) {
+        if (!o) continue;
+        for (const k of Object.keys(o)) expect(allowed).toContain(k);
+      }
     }
   });
 });

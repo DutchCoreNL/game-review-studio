@@ -4,7 +4,6 @@ import { AnimatedReportRow } from './AnimatedReportRow';
 import { AnimatedResourceBar } from './AnimatedResourceBar';
 import { AnimatedCounter } from '../animations/AnimatedCounter';
 import { DramaticEventReveal } from './DramaticEventReveal';
-import { VillaAttackPopup } from '../villa/VillaAttackPopup';
 import { VEHICLES, GOODS, WEATHER_EFFECTS } from '@/game/constants';
 import { MARKET_EVENT_IMAGES } from '@/assets/items/index';
 import overlayPrison from '@/assets/items/overlay-prison.jpg';
@@ -305,20 +304,8 @@ export function EventsSection({ report, state, delays, next }: EventsSectionProp
         </motion.div>
       )}
 
-      {/* Villa attack */}
-      {report.villaAttack && (
-        <VillaAttackPopup
-          won={report.villaAttack.won}
-          nemesisName={report.villaAttack.nemesisName}
-          damage={report.villaAttack.damage}
-          stolenMoney={report.villaAttack.stolenMoney}
-          moduleDamaged={report.villaAttack.moduleDamaged}
-          defenseScore={report.villaAttack.defenseScore}
-          attackPower={report.villaAttack.attackPower}
-          defenseBreakdown={report.villaAttack.defenseBreakdown}
-          delay={delays.villaAttack}
-        />
-      )}
+      {/* The villa raid card lived here. The villa is retired, so `report.villaAttack`
+          can never be set again. */}
 
       {/* Crew defections */}
       {report.crewDefections && report.crewDefections.length > 0 && (

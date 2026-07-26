@@ -19,11 +19,13 @@ export function TravelAnimation({ from, to, districtMeta }: TravelAnimationProps
     <g pointerEvents="none">
       <motion.line x1={startX} y1={startY} x2={startX} y2={startY}
         stroke="hsla(45, 93%, 50%, 0.4)" strokeWidth="1.5" strokeDasharray="4 3" strokeLinecap="round"
+        initial={{ x2: startX, y2: startY }}
         animate={{ x2: endX, y2: endY }} transition={{ duration: 0.6, ease: 'easeOut' }} />
       <motion.g initial={{ x: startX, y: startY, scale: 1 }}
         animate={{ x: endX, y: endY, scale: [1, 1.3, 1] }}
         exit={{ opacity: 0, scale: 0 }} transition={{ duration: 0.8, ease: 'easeInOut' }}>
         <motion.circle r={6} fill="none" stroke="hsla(45, 93%, 50%, 0.3)" strokeWidth="1"
+          initial={{ r: 5, opacity: 0.3 }}
           animate={{ r: [5, 8, 5], opacity: [0.3, 0.1, 0.3] }} transition={{ duration: 0.5, repeat: Infinity }} />
         <circle r={3} fill="hsl(45, 93%, 50%)" />
         <circle r={1.5} fill="hsl(45, 93%, 70%)" />

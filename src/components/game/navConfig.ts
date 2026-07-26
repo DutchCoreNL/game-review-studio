@@ -1,7 +1,7 @@
 import {
   Hand, LayoutDashboard, Crown as CrownIcon, Wrench,
   ShoppingBag, Droplets, BarChart3,
-  Map, Dices, Home, Building2, Heart,
+  Map, Dices, Home,
   Trophy, BookOpen, Settings, ShieldAlert, LucideIcon,
 } from 'lucide-react';
 import type { GameView, GameState } from '@/game/types';
@@ -21,6 +21,14 @@ import type { Translations } from '@/i18n/types';
  * bounties, world bosses, shared markets, the skill tree, the arsenals, contracts,
  * factions, heists) are deliberately absent: they belong to a different game and
  * their presence was what made this one feel like a wall of buttons.
+ *
+ * Two more went the same way:
+ *   - Ziekenhuis, because HP is not shown anywhere and nothing drains it any more —
+ *     bounty-hunter encounters were the last thing that did, and those are an
+ *     Incident now.
+ *   - Villa, a whole second progression system (drug labs, weapon room, helipad,
+ *     pool, escape tunnel, garage extension) whose modules hung off retired
+ *     systems, and whose live parts — storage, a vault — Uitrusting already owns.
  */
 
 export type NavGroupId = 'klus' | 'imperium' | 'handel' | 'uitrusting' | 'profile';
@@ -51,8 +59,6 @@ const GROUPS: NavGroupDef[] = [
       { id: 'city', icon: Map, label: t => t.sidebar.map, hint: 'De stadskaart en het nieuws' },
       { id: 'casino', icon: Dices, label: t => t.sidebar.casino, hint: 'Gokken met je geld' },
       { id: 'safehouse', icon: Home, label: t => t.sidebar.safehouse, hint: 'Onderduiken als het heet wordt' },
-      { id: 'villa', icon: Building2, label: t => t.sidebar.villa, hint: 'Je eigen landgoed uitbouwen' },
-      { id: 'hospital', icon: Heart, label: t => t.sidebar.hospital, hint: 'Herstellen na een klap' },
     ],
   },
   {

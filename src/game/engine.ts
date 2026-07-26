@@ -7,18 +7,17 @@ import { FINAL_BOSS_COMBAT_OVERRIDES } from './endgame';
 import { DISTRICT_EVENTS, DistrictEvent } from './districtEvents';
 import { processCorruptionNetwork, getCorruptionRaidProtection, getCorruptionFineReduction } from './corruption';
 import { getKarmaIntimidationBonus, getKarmaRepMultiplier, getKarmaIntimidationMoneyBonus, getKarmaFearReduction, getKarmaCrewHealingBonus, getKarmaCrewProtection, getKarmaRaidReduction, getKarmaHeatDecayBonus, getKarmaDiplomacyDiscount, getKarmaTradeSellBonus } from './karma';
-import { processVillaProduction, getVillaProtectedMoney, getVillaCrewHealMultiplier, getVillaHeatReduction, getVillaMaxCrewBonus } from './villa';
 import { processDrugEmpireNight, createDrugEmpireState, shouldShowDrugEmpire, NOXCRYSTAL_HEAT } from './drugEmpire';
 import { getCurrentProperty } from './properties';
 import { processCrewLoyalty } from './crewLoyalty';
 import { processSafehouseRaids } from './safehouseRaids';
-import { generatePlayerBounties, rollBountyEncounter, processPlacedBounties, refreshBountyBoard } from './bounties';
 import { updateStockPrices } from './stocks';
 import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './weaponGenerator';
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
 import { RACKET_BY_ID } from './rackets';
 import { sentenceForHeat, MONEY_CONFISCATION, DIRTY_CONFISCATION, GOODS_CONFISCATION, rollPrisonDayEvent } from './prison';
+import { personalHeatDecay } from './heat';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
 
 const WEAPON_ACCESSORIES_MAP: Record<string, { dotDamage: number; stunChance: number; heatReduction: number }> =
@@ -73,10 +72,7 @@ export function ensureAmmoStock(state: GameState): void {
 /** Calculate player's max HP based on level and muscle stat */
 export function getPlayerMaxHP(state: GameState): number {
   const muscle = getPlayerStat(state, 'muscle');
-  let maxHP = 80 + (state.player.level * 5) + (muscle * 3);
-  // Villa crew quarters bonus: +20 max HP
-  if (state.villa?.modules.includes('crew_kwartieren')) maxHP += 20;
-  return maxHP;
+  return 80 + (state.player.level * 5) + (muscle * 3);
 }
 
 /** Recalculate and sync maxHP (call after level up, stat changes, gear changes) */
@@ -168,7 +164,6 @@ export function recalcMaxInv(state: GameState): number {
     const totalBonus = storageUpgrades.slice(0, activeObj.upgrades.storage).reduce((a, b) => a + b, 0);
     inv += totalBonus;
   }
-  if (state.villa?.modules.includes('garage_uitbreiding')) inv += 10;
   // District perk removed (MMO: gang influence only)
   if (state.crew.some(c => c.role === 'Smokkelaar')) inv += 5;
   // Safehouse storage bonuses (level 2: +5, level 3: +10)
@@ -177,10 +172,6 @@ export function recalcMaxInv(state: GameState): number {
       if (sh.level >= 2) inv += 5;
       if (sh.level >= 3) inv += 5;
     });
-  }
-  // Villa opslagkelder bonus
-  if (state.villa?.modules.includes('opslagkelder')) {
-    inv += 10;
   }
   // Property storage bonus
   const prop = getCurrentProperty(state.propertyId);
@@ -669,10 +660,7 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
     sentence -= PRISON_LAWYER_SENTENCE_REDUCTION;
   }
 
-  // Confiscate money (villa vault money is protected)
-  const protectedMoney = getVillaProtectedMoney(state);
-  const vulnerableMoney = Math.max(0, state.money - 0); // all pocket money is vulnerable
-  const moneyLost = Math.floor(vulnerableMoney * MONEY_CONFISCATION);
+  const moneyLost = Math.floor(Math.max(0, state.money) * MONEY_CONFISCATION);
   state.money -= moneyLost;
 
   // Dirty money is the least defensible thing you own, so most of it goes. Taking
@@ -711,7 +699,6 @@ export function arrestPlayer(state: GameState, report: NightReportData): void {
   report.prisonMoneyLost = moneyLost;
   report.prisonDirtyMoneyLost = dirtyMoneyLost;
   report.prisonGoodsLost = goodsLost;
-  if (protectedMoney > 0) report.villaVaultProtected = protectedMoney;
 }
 
 export function endTurn(state: GameState): NightReportData {
@@ -738,49 +725,10 @@ export function endTurn(state: GameState): NightReportData {
   // Lab production (storm gives +50% output, not double)
   const labMultiplier = state.weather === 'storm' ? 1.5 : 1;
 
-  // Villa production FIRST (before old HQ lab, to consume chemicals)
-  let villaProduction: import('./villa').VillaProductionResult | null = null;
-  if (state.villa) {
-    villaProduction = processVillaProduction(state);
-    if (villaProduction.heatGenerated > 0) {
-      addPersonalHeat(state, villaProduction.heatGenerated);
-    }
-    // Store in report
-    if (villaProduction.wietProduced > 0) report.villaWietProduced = villaProduction.wietProduced;
-    if (villaProduction.cokeProduced > 0) report.villaCokeProduced = villaProduction.cokeProduced;
-    if (villaProduction.labProduced > 0) report.villaLabProduced = villaProduction.labProduced;
-    // Reset helipad daily
-    state.villa.helipadUsedToday = 0;
-
-    // Auto-init Drug Empire state when player has production modules
-    if (!state.drugEmpire && shouldShowDrugEmpire(state)) {
-      state.drugEmpire = createDrugEmpireState();
-    }
-
-    // Drug Empire night processing
-    if (state.drugEmpire) {
-      const deResult = processDrugEmpireNight(state);
-      if (deResult.dealerIncome > 0) {
-        report.drugEmpireDealerIncome = deResult.dealerIncome;
-        report.drugEmpireDealerDetails = deResult.dealerDetails;
-      }
-      if (deResult.noxCrystalProduced > 0) {
-        report.drugEmpireNoxCrystal = deResult.noxCrystalProduced;
-        addPersonalHeat(state, NOXCRYSTAL_HEAT);
-      }
-      if (deResult.riskEvent) {
-        report.drugEmpireRiskEvent = {
-          type: deResult.riskEvent.type,
-          title: deResult.riskEvent.title,
-          desc: deResult.riskEvent.desc,
-        };
-      }
-    }
-  }
-
-  // Only run old HQ lab if villa doesn't have synthetica_lab
-  const villaHasLab = state.villa?.modules.includes('synthetica_lab');
-  if (!villaHasLab && state.lab.chemicals > 0) {
+  // The villa production block lived here: weed, coke and synthetica labs, plus the
+  // daily helipad reset. The villa is retired — a second progression system whose
+  // modules hung off drugs, weapons, vehicles and travel that this game no longer has.
+  if (state.lab.chemicals > 0) {
     const currentInv = Object.values(state.inventory).reduce((a, b) => a + (b || 0), 0);
     const space = state.maxInv - currentInv;
     if (space > 0) {
@@ -811,8 +759,7 @@ export function endTurn(state: GameState): NightReportData {
   if (isHiding) {
     state.hidingDays = Math.max(0, state.hidingDays - 1);
     const safeHouseBonus = 0;
-    const villaHideBonus = state.villa ? getVillaHeatReduction(state) : 0;
-    addPersonalHeat(state, -(15 + safeHouseBonus + villaHideBonus));
+    addPersonalHeat(state, -(15 + safeHouseBonus));
 
     // Notify when hiding ends
     if (state.hidingDays <= 0) {
@@ -847,41 +794,16 @@ export function endTurn(state: GameState): NightReportData {
   state.ownedVehicles.forEach(v => {
     let vDecay = 8;
     // District perk removed (MMO)
-    if (state.villa?.modules.includes('server_room')) vDecay += 3;
     v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - vDecay);
     // Rekat cooldown countdown
     if (v.rekatCooldown > 0) v.rekatCooldown--;
   });
 
-   // === PERSONAL HEAT DECAY ===
-  let pDecay = 2;
-  // District perk removed (MMO)
-  if (state.villa?.modules.includes('server_room')) pDecay += 3;
-  if (state.crew.some(c => c.role === 'Hacker')) pDecay += 2;
-  // Karma: Eerbaar extra heat decay
-  pDecay += getKarmaHeatDecayBonus(state);
-  // MMO Perk: Straatkind heat reduction bonus
-  if (state.mmoPerkFlags?.heatReductionBonus) {
-    pDecay = Math.floor(pDecay * (1 + state.mmoPerkFlags.heatReductionBonus));
-  }
-  // Safehouse heat reduction
-  if (state.safehouses) {
-    state.safehouses.forEach(sh => {
-      if (sh.district === state.loc) {
-        // Being in the same district as safehouse gives extra bonus (nerfed)
-        pDecay += sh.level <= 1 ? 2 : sh.level === 2 ? 3 : 5;
-      } else {
-        // Remote safehouses give small passive bonus
-        pDecay += sh.level >= 2 ? 1 : 0;
-      }
-      // Garage upgrade: vehicle heat reduction
-      if (sh.upgrades.includes('garage') && sh.district === state.loc) {
-        state.ownedVehicles.forEach(v => {
-          v.vehicleHeat = Math.max(0, (v.vehicleHeat || 0) - 5);
-        });
-      }
-    });
-  }
+  // === PERSONAL HEAT DECAY ===
+  // One source of truth, in src/game/heat.ts, so the rate the header quotes is the rate
+  // that gets applied. This used to be a local sum with a base of 2 against the header's
+  // 3, plus a decay bonus for a "Hacker" crew role that no longer exists.
+  const pDecay = personalHeatDecay(state);
   addPersonalHeat(state, -pDecay);
 
   // Recompute effective heat
@@ -1013,24 +935,10 @@ export function endTurn(state: GameState): NightReportData {
     }
   });
 
-  // Crew natural healing (small amount)
-  let totalHealing = 0;
-  const hasMedbay = state.safehouses?.some(sh => sh.upgrades.includes('medbay') && sh.district === state.loc);
-  const hasLevel3Safehouse = state.safehouses?.some(sh => sh.level >= 3 && sh.district === state.loc);
-  const karmaHealBonus = getKarmaCrewHealingBonus(state);
-  state.crew.forEach(c => {
-    if (c.hp < 100 && c.hp > 0) {
-      let heal = Math.floor(Math.random() * 5) + 3; // 3-7 HP per night
-      if (hasMedbay) heal *= 2; // medbay doubles healing
-      if (hasLevel3Safehouse) heal += 3; // level 3 safehouse bonus
-      // Karma: Eerbaar crew healing bonus
-      if (karmaHealBonus > 0) heal = Math.floor(heal * (1 + karmaHealBonus));
-      const oldHp = c.hp;
-      c.hp = Math.min(100, c.hp + heal);
-      totalHealing += c.hp - oldHp;
-    }
-  });
-  report.crewHealing = totalHealing;
+  // Crew healing ran here, on `state.crew` — the retired pre-organisation roster, which
+  // is always empty — with a Medische Post and a level-3 safehouse doubling a number
+  // nobody could see. Your organisation's crew recovers through injuredUntilDay instead.
+  report.crewHealing = 0;
 
   // Random event
   const event = rollRandomEvent(state);
@@ -1138,10 +1046,7 @@ export function endTurn(state: GameState): NightReportData {
     if (rate <= 0) return;
     const owned = state.inventory[gid] || 0;
     if (owned <= 0) return;
-    // Villa opslagkelder halves spoilage
-    const hasStorage = state.villa?.modules.includes('opslagkelder');
-    const effectiveRate = hasStorage ? rate * 0.5 : rate;
-    const lost = Math.max(1, Math.floor(owned * effectiveRate));
+    const lost = Math.max(1, Math.floor(owned * rate));
     state.inventory[gid] = owned - lost;
     if (state.inventory[gid]! <= 0) { state.inventory[gid] = 0; state.inventoryCosts[gid] = 0; }
     const goodName = GOODS.find(g => g.id === gid)?.name || gid;
@@ -1381,14 +1286,12 @@ export function endTurn(state: GameState): NightReportData {
   // === CLIFFHANGER GENERATION ===
   report.cliffhanger = generateCliffhanger(state);
 
-  // === BOUNTY SYSTEM PROCESSING ===
-  generatePlayerBounties(state);
-  const encounter = rollBountyEncounter(state);
-  if (encounter) {
-    state.pendingBountyEncounter = encounter;
-  }
-  processPlacedBounties(state, report);
-  refreshBountyBoard(state);
+  // The bounty layer used to run here: it put prices on your head above 60 heat,
+  // rolled hunter encounters into their own popup, and settled bounties you had placed
+  // on world bots. It was a second decision system competing with Incidents, and its
+  // consequences drained `playerHP` — a number this game does not display anywhere.
+  // The hunter now arrives as an incident (see hunterIncident in src/game/incidents.ts),
+  // through the same machinery as every other choice.
 
   // === STOCK MARKET PROCESSING ===
   updateStockPrices(state, report);
@@ -1396,10 +1299,10 @@ export function endTurn(state: GameState): NightReportData {
   state.maxInv = recalcMaxInv(state);
 
   // === PLAYER HP REGEN ===
-  // Natural overnight regen: 10 HP base, villa crew quarters doubles it
+  // Natural overnight regen
   syncPlayerMaxHP(state);
   const baseRegen = 10;
-  const regenMultiplier = state.villa?.modules.includes('crew_kwartieren') ? 2 : 1;
+  const regenMultiplier = 1;
   const hpRegen = Math.min(baseRegen * regenMultiplier, state.playerMaxHP - state.playerHP);
   if (hpRegen > 0) state.playerHP += hpRegen;
 
@@ -1681,7 +1584,7 @@ export function executeContract(state: GameState, contractId: number, crewIndex:
 }
 
 export function recruit(state: GameState): { success: boolean; message: string } {
-  const maxCrew = 6 + getVillaMaxCrewBonus(state);
+  const maxCrew = 6;
   if (state.crew.length >= maxCrew) return { success: false, message: `Crew limiet bereikt (Max ${maxCrew}).` };
   if (state.money < 2500) return { success: false, message: "Onvoldoende geld." };
 

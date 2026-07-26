@@ -55,7 +55,7 @@ export type IncidentSeverity = 'laag' | 'gemiddeld' | 'hoog';
 
 export interface ActiveIncident {
   id: string;
-  kind: 'rivaal' | 'politie' | 'crew' | 'kans';
+  kind: 'rivaal' | 'politie' | 'crew' | 'kans' | 'premiejager';
   title: string;
   body: string;
   icon: string;
@@ -80,6 +80,11 @@ export const LOYALTY_TROUBLE_THRESHOLD = 35;
 
 /** Attention bleeds off on its own as the streets forget. */
 export const ATTENTION_DECAY_PER_DAY = 4;
+
+/** Heat at which a price on your head is worth someone's time. */
+export const HUNTER_HEAT_THRESHOLD = 60;
+/** Chance per day of a hunter turning up once you are past that. */
+export const HUNTER_CHANCE = 0.12;
 
 const FACTION_FICTION: Record<string, { gang: string; boss: string; verb: string }> = {
   cartel: { gang: 'de Rojo Cartel', boss: 'El Serpiente', verb: 'liet je koeriers onderscheppen' },
@@ -272,6 +277,76 @@ function crewIncident(state: GameState, memberName: string): ActiveIncident {
   };
 }
 
+/**
+ * Someone has put a price on your head.
+ *
+ * This used to be its own system in src/game/bounties.ts: a separate generator, a
+ * separate popup, and a separate set of consequences that drained `playerHP` — a
+ * number the game does not display anywhere. Two parallel decision layers is exactly
+ * the wall of features this game was pulled back from, so the flavour lives on here,
+ * as the incident it always wanted to be, paying out through the same machinery as
+ * every other decision.
+ */
+const HUNTER_NAMES = [
+  'De Schaduw', 'Viktor Kain', 'Nadia Voss', 'El Cuchillo', 'De Jager',
+  'Iron Mike', 'Ghost', 'Serpent', 'Lady Razor', 'De Beul',
+];
+
+function hunterIncident(state: GameState, heat: number, rand: () => number): ActiveIncident {
+  const org = state.org!;
+  const hunter = HUNTER_NAMES[Math.floor(rand() * HUNTER_NAMES.length)];
+  const bounty = Math.max(8000, Math.round(6000 + heat * 220 + orgPower(org) * 90));
+  // A hunter is beatable, but he came prepared: your crew's weight decides.
+  const winChance = Math.max(0.2, Math.min(0.85, orgPower(org) / (orgPower(org) + 40 + heat)));
+  const payoff = Math.round(bounty * 0.45);
+
+  return {
+    id: `inc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    kind: 'premiejager',
+    icon: '🎯',
+    severity: severityFor(heat, 65, 85),
+    district: null,
+    day: state.day,
+    title: `${hunter} zoekt je`,
+    body: `Er staat €${bounty.toLocaleString()} op je hoofd en ${hunter} heeft je adres. Hij staat beneden en hij is niet alleen.`,
+    choices: [
+      {
+        id: 'fight',
+        label: 'Aanpakken',
+        hint: `${Math.round(winChance * 100)}% kans · je crew loopt risico`,
+        successChance: winChance,
+        outcome: {
+          respect: 30, heat: 6, loyalty: 5,
+          message: `${hunter} ligt in de goot. Op straat weten ze nu wat het kost om je te komen halen.`,
+        },
+        failOutcome: {
+          money: -payoff, heat: 10, respect: -8, loyalty: -10, injureChance: 0.7,
+          message: `${hunter} was er klaar voor. Je kwam weg, maar niet zonder schade — en de premie staat nog.`,
+        },
+      },
+      {
+        id: 'buyout',
+        label: `Overbieden · €${payoff.toLocaleString()}`,
+        hint: 'Hij werkt voor geld, niet voor eer',
+        costMoney: payoff,
+        outcome: {
+          money: -payoff, heat: -4,
+          message: `${hunter} pakte het geld aan en liep weg. Wie hem inhuurde weet nu dat je beter betaalt.`,
+        },
+      },
+      {
+        id: 'hide',
+        label: 'Onderduiken',
+        hint: 'Crew gaat plat · veel minder hitte',
+        outcome: {
+          heat: -30, pullOutOfDistrict: true, loyalty: -6,
+          message: 'Je bent weken niet gezien. De premie verliep, maar je verdiende ook niets.',
+        },
+      },
+    ],
+  };
+}
+
 /** A rare piece of luck: someone brings you a job. */
 function opportunityIncident(state: GameState): ActiveIncident {
   const stake = Math.max(5000, Math.round((state.money || 0) * 0.15));
@@ -337,14 +412,20 @@ export function rollIncident(state: GameState, rand: () => number = Math.random)
     return policeIncident(state, heat);
   }
 
-  // 3. An unhappy crew member.
+  // 3. A bounty hunter. Only worth anyone's while once you are properly wanted, so it
+  //    sits below the police and reads as the street's answer to a big name.
+  if (heat >= HUNTER_HEAT_THRESHOLD && rand() < HUNTER_CHANCE) {
+    return hunterIncident(state, heat, rand);
+  }
+
+  // 4. An unhappy crew member.
   const unhappy = org.members.filter(m => m.loyalty < LOYALTY_TROUBLE_THRESHOLD);
   if (unhappy.length > 0 && rand() < 0.5) {
     const who = unhappy[Math.floor(rand() * unhappy.length)];
     return crewIncident(state, who.name);
   }
 
-  // 4. Rarely, something good.
+  // 5. Rarely, something good.
   if (rand() < 0.08) return opportunityIncident(state);
 
   return null;

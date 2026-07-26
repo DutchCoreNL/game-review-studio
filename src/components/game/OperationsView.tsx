@@ -23,7 +23,6 @@ import { DailyChallengesView } from './DailyChallengesView';
 import { HitsView } from './HitsView';
 import { HeistView } from './heist/HeistView';
 import { MissionBriefing } from './MissionBriefing';
-import { BountyBoardPanel } from './bounty/BountyBoardPanel';
 import { MostWantedView } from './MostWantedView';
 import { PvPAttackView } from './PvPAttackView';
 import operationsBg from '@/assets/operations-bg.jpg';
@@ -366,7 +365,6 @@ export function OperationsView() {
 
       {subTab === 'heists' && <HeistView />}
 
-      {subTab === 'bounties' && <BountyBoardPanel />}
 
       {subTab === 'wanted' && <MostWantedView />}
 
