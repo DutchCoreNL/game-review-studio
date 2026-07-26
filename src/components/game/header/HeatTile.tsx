@@ -28,7 +28,23 @@ export function HeatTile({ personalHeat, dailyDelta, bandLabel, onTap }: HeatTil
 
   return (
     <TappableTile tooltip={`${bandLabel} — hitte verandert ${dailyDelta > 0 ? "+" : ""}${dailyDelta} per dag. Witwasserij-crew en je Netwerk koelen af.`} onTap={onTap}>
-      <div className={`flex flex-col justify-center bg-muted/20 rounded px-2 py-1 border min-w-[4.5rem] ${isWanted ? 'border-blood/80 bg-blood/10' : 'border-border/50'}`}>
+      {/* Matches the other tiles' surface, and when you are wanted the plate itself
+          breathes red — the one number in the bar that should be able to shout. */}
+      <motion.div
+        className={`relative flex flex-col justify-center rounded-md px-2 py-1 border min-w-[4.5rem] overflow-hidden ${isWanted ? 'border-blood/80' : 'border-border/50'}`}
+        style={{
+          backgroundImage: isWanted
+            ? 'linear-gradient(180deg, hsl(var(--blood) / 0.22), hsl(var(--blood) / 0.06))'
+            : 'linear-gradient(180deg, hsl(0 0% 100% / 0.045), hsl(0 0% 0% / 0.18))',
+          boxShadow: 'inset 0 1px 0 hsl(0 0% 100% / 0.05)',
+        }}
+        animate={isWanted ? { boxShadow: [
+          'inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 0 0px hsl(var(--blood) / 0)',
+          'inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 0 10px hsl(var(--blood) / 0.55)',
+          'inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 0 0px hsl(var(--blood) / 0)',
+        ] } : {}}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+      >
         <div className="flex items-center gap-1">
           <span className="text-[0.4rem] font-bold text-muted-foreground uppercase tracking-widest leading-none">Heat</span>
           {isWanted && (
@@ -46,6 +62,7 @@ export function HeatTile({ personalHeat, dailyDelta, bandLabel, onTap }: HeatTil
           <div className="relative flex-1 h-1 rounded-full bg-muted/50 overflow-hidden">
             <motion.div
               className={`absolute inset-y-0 left-0 rounded-full ${getHeatBarColor(personalHeat)}`}
+              initial={{ width: 0 }}
               animate={{ width: `${personalHeat}%` }}
               transition={{ duration: 0.5 }}
             />
@@ -62,7 +79,7 @@ export function HeatTile({ personalHeat, dailyDelta, bandLabel, onTap }: HeatTil
             {dailyDelta > 0 ? '+' : ''}{dailyDelta}/dag
           </span>
         </div>
-      </div>
+      </motion.div>
     </TappableTile>
   );
 }

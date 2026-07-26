@@ -135,7 +135,9 @@ export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesA
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         {/* ---- 1. the district, drifting ---- */}
-        <div className="relative h-[22rem] sm:h-[26rem] overflow-hidden">
+        {/* Sized against the viewport rather than fixed: the scene is the game, and on a
+            tall phone a fixed 22rem left a third of the screen empty below it. */}
+        <div className="relative h-[clamp(20rem,48vh,34rem)] overflow-hidden">
           <motion.img
             src={DISTRICT_IMAGES[job.district]} alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-45"
@@ -164,7 +166,10 @@ export function JobScene({ job, basePower, crewRate, crewNames, streak, minutesA
           {crewNames.length > 0 && <Lookout />}
 
           {/* ---- 4. the target ---- */}
-          <div className="absolute inset-x-0 top-[4.6rem] flex flex-col items-center pointer-events-none">
+          {/* Centred in the space above the crew rather than pinned to a fixed offset:
+              with the scene now sized to the viewport, a fixed top left the target
+              floating well clear of the people working it. */}
+          <div className="absolute inset-x-0 top-[3.5rem] bottom-[5.5rem] flex flex-col items-center justify-center pointer-events-none">
             <JobTarget kind={job.target} pct={pct} hit={impact.n} crit={impact.crit} />
             <motion.p
               key={stage}

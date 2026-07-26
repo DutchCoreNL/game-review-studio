@@ -2,14 +2,53 @@ import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { ViewWrapper } from '../ui/ViewWrapper';
 import { 
-  CODEX_ENTRIES, CODEX_CATEGORY_INFO, 
-  type CodexCategory, type CodexEntry, 
-  getUnlockedEntriesByCategory 
+  CODEX_ENTRIES, CODEX_CATEGORY_INFO,
+  type CodexCategory, type CodexEntry, type CodexUnlockCondition,
+  getUnlockedEntriesByCategory
 } from '@/game/codex';
+import { DISTRICTS } from '@/game/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Lock, ChevronRight, ArrowLeft, Sparkles } from 'lucide-react';
 
 const CATEGORIES: CodexCategory[] = ['districts', 'characters', 'factions', 'history', 'secrets'];
+
+/**
+ * What you have to do to open an entry, in one line.
+ *
+ * A codex is a collection, and the pleasure of a collection is seeing the gaps. This
+ * screen used to fold every locked entry into one dashed row reading "5 verborgen items",
+ * which meant a new player's codex was a blank page with a footnote. Each locked entry is
+ * a card of its own now, redacted rather than absent, and it says what opens it.
+ */
+function unlockHint(c: CodexUnlockCondition): string {
+  switch (c.type) {
+    case 'always': return 'Beschikbaar';
+    case 'visit_district': return `Werk een klus in ${DISTRICTS[c.district]?.name || c.district}`;
+    case 'own_district': return `Neem ${DISTRICTS[c.district]?.name || c.district} in handen`;
+    case 'reach_level': return `Bereik level ${c.level}`;
+    case 'reach_rep': return `Bereik ${c.rep} reputatie`;
+    case 'day': return `Overleef tot dag ${c.day}`;
+    case 'backstory': return 'Een ander verleden opent dit';
+    case 'kill_boss': return 'Reken af met de baas van dit district';
+    case 'complete_chapter': return 'Verderop in het verhaal';
+    case 'karma': return 'Hangt af van hoe je te werk gaat';
+    default: return 'Nog niet ontgrendeld';
+  }
+}
+
+/** Blocks standing in for a title you have not earned yet. */
+function Redacted({ seed }: { seed: string }) {
+  const widths = [34, 22, 41, 28, 18];
+  const n = 2 + (seed.length % 2);
+  return (
+    <span className="flex items-center gap-1">
+      {Array.from({ length: n }).map((_, i) => (
+        <span key={i} className="h-2 rounded-sm bg-muted-foreground/25"
+          style={{ width: widths[(seed.charCodeAt(i % seed.length) + i) % widths.length] }} />
+      ))}
+    </span>
+  );
+}
 
 function EntryContent({ entry, onBack }: { entry: CodexEntry; onBack: () => void }) {
   const { dispatch } = useGame();
@@ -93,8 +132,9 @@ export function CodexView() {
   const codex = (state as any).codex || { unlockedEntries: [], readEntries: [], newEntries: [] };
   
   const unlockedInCategory = getUnlockedEntriesByCategory(codex, activeCategory);
-  const totalInCategory = CODEX_ENTRIES.filter(e => e.category === activeCategory).length;
-  const lockedCount = totalInCategory - unlockedInCategory.length;
+  const unlockedIds = new Set(unlockedInCategory.map(e => e.id));
+  const lockedInCategory = CODEX_ENTRIES.filter(e => e.category === activeCategory && !unlockedIds.has(e.id));
+  const totalInCategory = unlockedInCategory.length + lockedInCategory.length;
 
   const totalUnlocked = codex.unlockedEntries?.length || 0;
   const totalEntries = CODEX_ENTRIES.length;
@@ -111,18 +151,29 @@ export function CodexView() {
 
   return (
     <ViewWrapper>
-      {/* Header stats */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <BookOpen size={14} className="text-gold" />
-          <span className="text-[0.6rem] text-muted-foreground">
-            {totalUnlocked}/{totalEntries} ontgrendeld
+      {/* How much of Noxhaven you have written down. A collection needs a bar. */}
+      <div className="game-card p-2.5 mb-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <BookOpen size={13} className="text-gold" />
+            <span className="text-[0.55rem] font-bold text-foreground uppercase tracking-wider">Wat je weet</span>
+            {newCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-gold/20 text-gold text-[0.45rem] font-bold animate-pulse">
+                {newCount} nieuw
+              </span>
+            )}
+          </div>
+          <span className="text-[0.55rem] font-bold text-gold tabular-nums">
+            {totalUnlocked}<span className="text-muted-foreground">/{totalEntries}</span>
           </span>
-          {newCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-gold/20 text-gold text-[0.5rem] font-bold animate-pulse">
-              {newCount} nieuw
-            </span>
-          )}
+        </div>
+        <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-gold/70 to-gold"
+            initial={{ width: 0 }}
+            animate={{ width: `${totalEntries ? (totalUnlocked / totalEntries) * 100 : 0}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          />
         </div>
       </div>
 
@@ -146,7 +197,9 @@ export function CodexView() {
               <span>{info.icon}</span>
               <span>{info.label}</span>
               {hasNew && <Sparkles size={8} className="text-gold" />}
-              <span className="text-[0.45rem] opacity-60">{unlockedCount}</span>
+              <span className="text-[0.45rem] opacity-60">
+                {unlockedCount}/{CODEX_ENTRIES.filter(e => e.category === cat).length}
+              </span>
             </button>
           );
         })}
@@ -186,14 +239,31 @@ export function CodexView() {
           );
         })}
 
-        {/* Locked entries indicator */}
-        {lockedCount > 0 && (
-          <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border/50 text-muted-foreground">
-            <Lock size={12} />
-            <span className="text-[0.6rem]">
-              {lockedCount} verborgen {lockedCount === 1 ? 'item' : 'items'} — ontdek meer van Noxhaven om te ontgrendelen
-            </span>
-          </div>
+        {/* Locked entries, one card each: the shape of what is missing. */}
+        {lockedInCategory.map((entry, i) => (
+          <motion.div
+            key={entry.id}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.04 * i }}
+            className="relative flex items-center gap-3 p-3 rounded-lg border border-dashed border-border/60 overflow-hidden"
+          >
+            <div className="w-7 h-7 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+              <Lock size={12} className="text-muted-foreground/70" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <Redacted seed={entry.id} />
+              <div className="text-[0.5rem] text-muted-foreground/80 mt-1 truncate">
+                {unlockHint(entry.unlockCondition)}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        {unlockedInCategory.length === 0 && lockedInCategory.length === 0 && (
+          <p className="text-[0.55rem] text-muted-foreground text-center py-6">
+            Niets in deze categorie.
+          </p>
         )}
       </div>
     </ViewWrapper>

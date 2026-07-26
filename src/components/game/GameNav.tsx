@@ -49,7 +49,14 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
   };
 
   return (
-    <nav className="flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] bg-[hsl(0,0%,4%)]/95 border-t border-gold/10 flex justify-around items-center z-50 backdrop-blur-xl shadow-[0_-4px_20px_hsl(0,0%,0%/0.5)]">
+    /* The bar sits under every screen, so it gets the same machined treatment as the
+       cards: a gradient with a hairline of light along its top edge. */
+    <nav
+      className="relative flex-shrink-0 h-[64px] pb-[max(4px,env(safe-area-inset-bottom))] border-t border-gold/15 flex justify-around items-center z-50 backdrop-blur-xl shadow-[0_-4px_20px_hsl(0,0%,0%/0.5)]"
+      style={{ backgroundImage: 'linear-gradient(180deg, hsl(0 0% 7% / 0.97), hsl(0 0% 3% / 0.97))' }}
+    >
+      <div className="absolute inset-x-0 top-0 h-px pointer-events-none"
+        style={{ background: 'linear-gradient(90deg, transparent, hsl(45 90% 55% / 0.28), transparent)' }} />
       {NAV_ITEMS.map(item => {
         const isMenu = item.id === 'menu';
         const isActive = !isMenu && isInGroup(item.id);
@@ -71,11 +78,20 @@ export function GameNav({ onMenuOpen }: GameNavProps) {
             }`}
           >
             {isActive && (
-              <motion.div
-                layoutId="nav-indicator"
-                className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold rounded-full shadow-[0_0_8px_hsl(var(--gold)/0.6)]"
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              />
+              <>
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold rounded-full shadow-[0_0_8px_hsl(var(--gold)/0.6)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+                {/* Light falling from the indicator onto the tab below it. */}
+                <motion.div
+                  layoutId="nav-glow"
+                  className="absolute inset-x-1 top-0 bottom-1 rounded-lg pointer-events-none"
+                  style={{ background: 'linear-gradient(180deg, hsl(45 90% 55% / 0.14), transparent 70%)' }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              </>
             )}
             <div className="relative">
               <motion.div
