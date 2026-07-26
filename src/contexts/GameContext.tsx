@@ -4914,6 +4914,8 @@ export function GameProvider({ children, onExitToMenu }: { children: React.React
         }
       }
       saved.villa = null;
+      // Jobs predate the drawn targets; without a kind the scene has nothing to open.
+      if (saved.activeJob && !saved.activeJob.target) saved.activeJob.target = 'crate';
       // Ensure crew have specialization field
       saved.crew?.forEach((c: any) => { if (c.specialization === undefined) c.specialization = null; if (c.loyalty === undefined) c.loyalty = 75; });
       // Narrative expansion migrations

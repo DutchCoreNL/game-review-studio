@@ -17,7 +17,7 @@ import { ConfirmDialog } from '../ConfirmDialog';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ArrowRightLeft, Pipette, Shield, Cpu, Gem, Pill, Lightbulb, ArrowRight, Leaf, Info, ChevronDown, PackageOpen, Wifi, RefreshCw, AlertTriangle, Bell, Crosshair, Bomb, Bitcoin, FlaskConical, CircuitBoard, Lock } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GOOD_IMAGES } from '@/assets/items';
+import { GOOD_IMAGES, DISTRICT_IMAGES } from '@/assets/items';
 import { AnimatePresence } from 'framer-motion';
 import { gameApi } from '@/lib/gameApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -277,17 +277,36 @@ export function MarketPanel() {
           🏴 Jouw turf — −12% inkoop · +10% verkoop
         </div>
       )}
-      <div className="flex items-center justify-between mb-1">
-        <SectionHeader title={district.name} icon={<ArrowRightLeft size={12} />} />
-        <div className="flex items-center gap-1.5 mt-2">
-          {priceLoading ? (
-            <RefreshCw size={10} className="text-muted-foreground animate-spin" />
-          ) : isLive ? (
-            <Wifi size={10} className="text-emerald" />
-          ) : null}
-          <span className="text-[0.45rem] text-muted-foreground uppercase tracking-wider">
-            {isLive ? 'LIVE MARKT' : 'LOKAAL'}
-          </span>
+      {/* The market names its district but never showed it, so every district's market
+          looked like the same spreadsheet. This is where you are standing. */}
+      <div className="relative rounded-xl overflow-hidden border border-border/50 mb-2 h-16">
+        <motion.img
+          src={DISTRICT_IMAGES[state.loc]} alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          initial={{ scale: 1.06, x: 0 }}
+          animate={{ scale: [1.06, 1.13, 1.06], x: [0, -8, 0] }}
+          transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ opacity: 0.5 }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/80 to-card/25" />
+        <div className="absolute inset-0 flex items-center justify-between px-3">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <ArrowRightLeft size={11} className="text-gold" />
+              <span className="font-display text-sm text-foreground uppercase tracking-wide">{district.name}</span>
+            </div>
+            <div className="text-[0.45rem] text-muted-foreground mt-0.5">Zwarte markt · prijzen van vandaag</div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {priceLoading ? (
+              <RefreshCw size={10} className="text-muted-foreground animate-spin" />
+            ) : isLive ? (
+              <Wifi size={10} className="text-emerald" />
+            ) : null}
+            <span className="text-[0.45rem] text-muted-foreground uppercase tracking-wider">
+              {isLive ? 'LIVE MARKT' : 'LOKAAL'}
+            </span>
+          </div>
         </div>
       </div>
 

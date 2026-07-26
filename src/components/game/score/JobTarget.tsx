@@ -38,8 +38,18 @@ const STEEL = 'hsl(215 12% 26%)';
 const STEEL_LIT = 'hsl(215 14% 38%)';
 const DARK = 'hsl(220 18% 9%)';
 
-export function JobTarget({ kind, pct, hit, crit }: {
-  kind: TargetKind;
+/**
+ * Any job saved before targets existed has no `kind`, and a job with no kind used to
+ * render an empty plinth — a contact shadow with nothing standing on it. Fall back rather
+ * than draw nothing.
+ */
+const KINDS: TargetKind[] = ['container', 'safe', 'crate', 'case', 'door', 'bag'];
+export function resolveKind(kind: TargetKind | undefined): TargetKind {
+  return kind && KINDS.includes(kind) ? kind : 'crate';
+}
+
+export function JobTarget({ kind: rawKind, pct, hit, crit }: {
+  kind: TargetKind | undefined;
   pct: number;
   /** Increments on every tap; changing it replays the impact. */
   hit: number;
@@ -47,6 +57,7 @@ export function JobTarget({ kind, pct, hit, crit }: {
   crit: boolean;
 }) {
   const stage = stageFor(pct);
+  const kind = resolveKind(rawKind);
 
   return (
     <motion.div

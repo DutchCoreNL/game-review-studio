@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeJob, type TargetKind } from './score';
-import { stageFor } from '@/components/game/score/JobTarget';
+import { stageFor, resolveKind as resolveKindForTest } from '@/components/game/score/JobTarget';
 import type { DistrictId } from './types';
 
 const DISTRICTS: DistrictId[] = ['low', 'port', 'iron', 'neon', 'crown'] as DistrictId[];
@@ -44,5 +44,15 @@ describe('stageFor', () => {
     // The point of the stages is that the picture cannot lie about how far in you are:
     // a container standing wide open at 10% would read as a bug.
     for (let p = 0; p < 30; p++) expect(stageFor(p)).toBe(0);
+  });
+});
+
+describe('a job with no target', () => {
+  it('still draws something', () => {
+    // Saves made before targets existed have no kind on their active job. The scene used
+    // to render a contact shadow with nothing standing on it.
+    expect(resolveKindForTest(undefined)).toBe('crate');
+    expect(resolveKindForTest('nonsense' as TargetKind)).toBe('crate');
+    expect(resolveKindForTest('safe')).toBe('safe');
   });
 });

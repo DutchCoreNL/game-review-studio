@@ -114,8 +114,28 @@
     @apply bg-card border border-border rounded;
   }
 
+  /*
+   * Every card in the game is this class, so it is the single highest-leverage piece of
+   * styling in the project — and it was a flat fill with a 1px border and a 4px radius,
+   * which is why the whole app read as a form rather than a game.
+   *
+   * Three cheap things fix that everywhere at once: a faint vertical gradient so the
+   * surface has a direction, a hairline highlight along the top edge (how a physical
+   * panel catches light), and a soft shadow so cards sit *above* the background instead
+   * of being drawn onto it. Deliberately restrained — this sits under every screen and
+   * must never compete with the content on it.
+   */
   .game-card {
-    @apply bg-card border border-border rounded p-3 transition-all duration-200;
+    @apply border border-border rounded-lg p-3 transition-all duration-200;
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--card) / 1) 0%,
+      hsl(0 0% 6.5%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.045),
+      0 1px 2px hsl(0 0% 0% / 0.4),
+      0 4px 12px hsl(0 0% 0% / 0.22);
   }
 
   .game-card-interactive {
