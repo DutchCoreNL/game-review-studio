@@ -208,6 +208,27 @@ import marketTechBoom from './market-tech-boom.jpg';
 import marketCartelWar from './market-cartel-war.jpg';
 import marketPortBlockade from './market-port-blockade.jpg';
 
+/**
+ * The Uitrusting tracks, tier by tier. Two of the four already had a photographic
+ * progression sitting unused in this folder: a battered van climbing to a convoy, and a
+ * beat cop climbing to a councilor. Keyed 1..5 to match the tier index.
+ */
+export const CAR_TIER_IMAGES: Record<number, string> = {
+  1: carForgedyer,        // Bestelbus — dented, but it drives
+  2: carToyohata,         // Opgevoerde sedan
+  3: carObsidiancruiser,  // Gepantserde wagen
+  4: carNoxreaper,        // Wagenpark
+  5: carRoyaleryce,       // Konvooi
+};
+
+export const NETWORK_TIER_IMAGES: Record<number, string> = {
+  1: contactBeatCop,       // Tipgever
+  2: contactLawyer,        // Advocaat
+  3: contactViceDetective, // Rechercheur op de loonlijst
+  4: contactJudge,         // Officier van justitie
+  5: contactCouncilor,     // De burgemeester
+};
+
 export const VEHICLE_IMAGES: Record<string, string> = {
   toyohata: carToyohata,
   forgedyer: carForgedyer,

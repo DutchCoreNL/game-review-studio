@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Lock, Droplets, Package } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS } from '@/game/constants';
@@ -27,7 +28,8 @@ export function ScoreView() {
   useEffect(() => {
     if (!reward) return;
     playCoinSound();
-    const t = setTimeout(() => dispatch({ type: 'SCORE_CLEAR_REWARD' }), 2600);
+    // Long enough to read the plates and watch the cash finish rolling.
+    const t = setTimeout(() => dispatch({ type: 'SCORE_CLEAR_REWARD' }), 3400);
     return () => clearTimeout(t);
   }, [reward, dispatch]);
 
@@ -120,32 +122,69 @@ export function ScoreView() {
             Kies een district. Rijker gebied betaalt beter, maar vraagt een sterkere crew.
           </p>
         </div>
+        {/* Five districts as places, not rows. The picture drifts on the ones you can
+            work and sits still and drained behind a lock on the ones you cannot, so the
+            ladder up through the city is visible before you read a single word. */}
         <div className="space-y-2">
-          {DISTRICT_ORDER.map(d => {
+          {DISTRICT_ORDER.map((d, idx) => {
             const unlocked = districtUnlocked(state, d);
             const need = DISTRICT_CREW_REQUIREMENT[d] ?? 0;
+            const here = crewHere(d);
             return (
-              <button key={d} disabled={!unlocked}
+              <motion.button key={d} disabled={!unlocked}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.06, duration: 0.3 }}
+                whileTap={unlocked ? { scale: 0.985 } : undefined}
                 onClick={() => dispatch({ type: 'SCORE_START', district: d })}
-                className={`w-full relative rounded-xl overflow-hidden border text-left ${
-                  unlocked ? 'border-border/60 hover:border-gold/50' : 'border-border/30 opacity-60'
+                className={`w-full relative rounded-xl overflow-hidden border text-left h-24 ${
+                  unlocked ? 'border-border/60 hover:border-gold/60' : 'border-border/30'
                 }`}>
-                <img src={DISTRICT_IMAGES[d]} alt="" className="w-full h-20 object-cover opacity-40" />
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent" />
-                <div className="absolute inset-0 flex items-center justify-between px-3">
-                  <div>
-                    <div className="text-xs font-bold text-foreground">{DISTRICTS[d]?.name || d}</div>
-                    <div className="text-[0.45rem] mt-0.5">
-                      {unlocked
-                        ? (crewHere(d) > 0
-                            ? <span className="text-emerald font-bold">👥 {crewHere(d)} crew hier · {crewWorkPerSecond(state, d).toFixed(1)}/sec</span>
-                            : <span className="text-muted-foreground">Geen crew hier — je werkt alleen</span>)
-                        : <span className="text-muted-foreground flex items-center gap-1"><Lock size={8} /> Crewkracht {need} nodig (nu {strength.toFixed(1)})</span>}
-                    </div>
-                  </div>
-                  {unlocked && <span className="text-[0.5rem] font-bold text-gold uppercase tracking-wider">Beginnen →</span>}
+                <motion.img
+                  src={DISTRICT_IMAGES[d]} alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ opacity: unlocked ? 0.5 : 0.16, filter: unlocked ? 'none' : 'grayscale(0.9)' }}
+                  initial={{ scale: 1.05 }}
+                  animate={unlocked ? { scale: [1.05, 1.12, 1.05] } : { scale: 1.05 }}
+                  transition={{ duration: 22 + idx * 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/75 to-background/20" />
+                {/* Difficulty read as a row of pips rather than a number nobody looks up */}
+                <div className="absolute top-2 right-2.5 flex gap-0.5">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <span key={i} className={`w-1 h-1 rounded-full ${i <= idx ? 'bg-gold' : 'bg-muted'}`} />
+                  ))}
                 </div>
-              </button>
+                <div className="absolute inset-0 flex items-center justify-between px-3.5">
+                  <div className="min-w-0">
+                    <div className="font-display text-sm text-foreground uppercase tracking-wide">
+                      {DISTRICTS[d]?.name || d}
+                    </div>
+                    <div className="text-[0.48rem] mt-1">
+                      {unlocked
+                        ? (here > 0
+                            ? <span className="text-emerald font-bold">👥 {here} crew hier · {crewWorkPerSecond(state, d).toFixed(1)}/sec</span>
+                            : <span className="text-muted-foreground">Geen crew hier — je werkt alleen</span>)
+                        : <span className="text-muted-foreground flex items-center gap-1"><Lock size={9} /> Crewkracht {need} nodig — nu {strength.toFixed(1)}</span>}
+                    </div>
+                    {!unlocked && (
+                      <div className="mt-1 h-0.5 w-24 rounded-full bg-muted/60 overflow-hidden">
+                        <div className="h-full bg-gold/70 rounded-full" style={{ width: `${Math.min(100, (strength / need) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                  {unlocked && (
+                    <motion.span
+                      className="text-[0.5rem] font-bold text-gold uppercase tracking-[0.18em] shrink-0"
+                      initial={{ opacity: 0.7, x: 0 }}
+                      animate={{ opacity: [0.7, 1, 0.7], x: [0, 3, 0] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      Beginnen →
+                    </motion.span>
+                  )}
+                </div>
+              </motion.button>
             );
           })}
         </div>
@@ -177,6 +216,7 @@ export function ScoreView() {
           jobName={reward.jobName}
           goods={reward.goods}
           dirty={reward.dirtyMoney + reward.overflowMoney}
+          streak={state.jobStreak || 0}
         />
       )}
 

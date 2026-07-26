@@ -5,6 +5,7 @@ import {
   EQUIPMENT, ownedTier, nextTier, canBuyTier, activeValue, type EquipSlot,
 } from '@/game/equipment';
 import { tapPower, crewWorkPerSecond, stashCapacity } from '@/game/score';
+import { TierIcon } from './equipment/TierIcon';
 import { SectionHeader } from './ui/SectionHeader';
 import { GameButton } from './ui/GameButton';
 import { StatBar } from './ui/StatBar';
@@ -65,25 +66,24 @@ export function EquipmentView() {
 
         return (
           <div key={track.id} className={`game-card border-l-[3px] ${ACCENT_BORDER[track.accent]}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <div className="flex items-start gap-2.5">
+              {/* What you own on this track, as a picture rather than an emoji. */}
+              <TierIcon slot={track.id} tier={Math.max(1, owned)} owned={owned > 0} />
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base">{track.icon}</span>
                   <span className="text-xs font-bold">{track.name}</span>
                   <span className="text-[0.4rem] text-muted-foreground uppercase tracking-wider">
                     {owned}/{track.tiers.length}
                   </span>
                 </div>
+                {owned > 0 && (
+                  <div className="text-[0.5rem] text-foreground/90 font-semibold">{track.tiers[owned - 1].name}</div>
+                )}
                 <p className="text-[0.5rem] text-muted-foreground mt-0.5">{track.effect}</p>
                 <p className={`text-[0.5rem] font-bold mt-0.5 ${ACCENT_TEXT[track.accent]}`}>
                   Nu: {effectLabel(track.id, current)}
                 </p>
               </div>
-              {owned > 0 && (
-                <div className="shrink-0 text-right">
-                  <div className="text-[0.45rem] text-muted-foreground">{track.tiers[owned - 1].name}</div>
-                </div>
-              )}
             </div>
 
             {/* Tier pips */}
@@ -103,8 +103,10 @@ export function EquipmentView() {
               </div>
             ) : (
               <div className="mt-2 rounded-lg border border-border/50 p-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-2.5">
+                  {/* The step you are being offered, so the ladder is visible. */}
+                  <TierIcon slot={track.id} tier={owned + 1} owned={false} />
+                  <div className="min-w-0 flex-1">
                     <div className="text-[0.6rem] font-bold text-foreground">{next!.name}</div>
                     <p className="text-[0.45rem] text-muted-foreground leading-snug mt-0.5">{next!.flavor}</p>
                     <p className={`text-[0.45rem] mt-0.5 ${ACCENT_TEXT[track.accent]}`}>
