@@ -16,7 +16,7 @@ import { WEAPON_ACCESSORIES, type AccessoryId, type GeneratedWeapon } from './we
 import { baseHitDamage, enemyBaseHit, rollCrit } from './combat/damage';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS, memberPower } from './organization';
 import { RACKET_BY_ID } from './rackets';
-import { buyPrice as marketBuyPrice, sellPrice as marketSellPrice, stashFree as marketStashFree } from './market';
+import { buyPrice as marketBuyPrice, sellPrice as marketSellPrice, stashFree as marketStashFree, bestRoutes as marketBestRoutes } from './market';
 import { sentenceForHeat, MONEY_CONFISCATION, DIRTY_CONFISCATION, GOODS_CONFISCATION, rollPrisonDayEvent } from './prison';
 import { personalHeatDecay } from './heat';
 import { getEnchantmentDef, type EnchantmentId } from './enchantments';
@@ -1139,46 +1139,11 @@ export function endTurn(state: GameState): NightReportData {
   // Keep existing contracts, don't overwrite
   generateMapEvents(state);
 
-  // === SMART ALARM: auto-generate alerts for routes with >€1000 profit ===
-  if (state.smartAlarmEnabled) {
-    if (!state.marketAlerts) state.marketAlerts = [];
-    const DISTRICT_IDS = Object.keys(DISTRICTS) as import('./types').DistrictId[];
-    const totalCharm = getPlayerStat(state, 'charm');
-    const charmBonus = (totalCharm * 0.02) + (state.rep / 5000);
-
-    GOODS.forEach(g => {
-      const gid = g.id as import('./types').GoodId;
-      let cheapest = Infinity;
-      let expensive = 0;
-      DISTRICT_IDS.forEach(did => {
-        const p = state.prices[did]?.[gid] || 0;
-        if (p < cheapest) cheapest = p;
-        if (p > expensive) expensive = p;
-      });
-      const sellPrice = Math.floor(expensive * 0.85 * (1 + charmBonus));
-      const profit = sellPrice - cheapest;
-
-      const threshold = state.smartAlarmThreshold || 1000;
-      if (profit > threshold && state.marketAlerts.length < 10) {
-        // Check if a similar alert already exists
-        const exists = state.marketAlerts.some(a => a.goodId === gid && a.condition === 'below' && a.threshold === cheapest);
-        if (!exists) {
-          state.marketAlerts.push({
-            id: `smart_${gid}_${state.day}`,
-            goodId: gid,
-            district: 'any',
-            condition: 'below',
-            threshold: cheapest,
-            oneShot: true,
-          });
-        }
-      }
-    });
-  }
-
   // === PROCESS MARKET ALERTS ===
+  // The assignment below used to sit inside the `length > 0` guard, so once you cleared
+  // your last alert yesterday's triggers stayed pinned to the analysis screen forever.
+  const triggered: import('./types').TriggeredMarketAlert[] = [];
   if (state.marketAlerts && state.marketAlerts.length > 0) {
-    const triggered: import('./types').TriggeredMarketAlert[] = [];
     const remaining = state.marketAlerts.filter(alert => {
       const districts = alert.district === 'any' ? Object.keys(DISTRICTS) : [alert.district];
       for (const did of districts) {
@@ -1199,9 +1164,39 @@ export function endTurn(state: GameState): NightReportData {
       return true; // not triggered, keep
     });
     state.marketAlerts = remaining;
-    state.triggeredAlerts = triggered;
-    if (triggered.length > 0) report.triggeredAlerts = triggered;
   }
+
+  // === SLIM ALARM: de ochtendbriefing ===
+  // This used to push a synthetic one-shot alert into your own alert list with
+  // `threshold = the cheapest price` — which then matched in this very same tick and was
+  // deleted again, so the list never showed it. What came out the other end read
+  // "Drugs in Havens ≤ €118": a price, with no word on where to take it or what it was
+  // worth, which is the entire question the feature claims to answer. It now reports the
+  // run, priced through the same functions a real purchase and sale go through.
+  if (state.smartAlarmEnabled) {
+    const floor = state.smartAlarmThreshold || 1000;
+    marketBestRoutes(state)
+      .filter(r => r.perUnit >= floor)
+      .slice(0, 3)
+      .forEach(r => {
+        const good = GOODS.find(g => g.id === r.good);
+        triggered.push({
+          goodName: good?.name || r.good,
+          districtName: DISTRICTS[r.from]?.name || r.from,
+          condition: 'below',
+          threshold: floor,
+          actualPrice: r.buy,
+          route: {
+            from: DISTRICTS[r.from]?.name || r.from,
+            to: DISTRICTS[r.to]?.name || r.to,
+            perUnit: r.perUnit,
+          },
+        });
+      });
+  }
+
+  state.triggeredAlerts = triggered;
+  if (triggered.length > 0) report.triggeredAlerts = triggered;
 
   // Apply all new feature logic (weather, district rep, nemesis, defense, smuggling, phone)
   applyNewFeatures(state, report);
@@ -2185,26 +2180,25 @@ export function getRankTitle(rep: number): string {
 
 // ========== TRADE HELPERS ==========
 
+/**
+ * The single most profitable run in the city right now.
+ *
+ * This used to price the sale at a bare `listed × 0.85` — no charm, no name, no turf — and
+ * the buy at the listed price with no heat surcharge, while the analysis screen used a
+ * fourth-different formula. Both now go through market.ts, so the profit quoted here is
+ * the profit you would actually bank.
+ */
 export function getBestTradeRoute(state: GameState): { good: GoodId; buyDistrict: string; sellDistrict: string; buyPrice: number; sellPrice: number; profit: number } | null {
-  let best: { good: GoodId; buyDistrict: string; sellDistrict: string; buyPrice: number; sellPrice: number; profit: number } | null = null;
-  let bestProfit = 0;
-
-  GOODS.forEach(g => {
-    Object.keys(DISTRICTS).forEach(buyDist => {
-      const buyPrice = state.prices[buyDist]?.[g.id] || g.base;
-      Object.keys(DISTRICTS).forEach(sellDist => {
-        if (buyDist === sellDist) return;
-        const sellPrice = Math.floor((state.prices[sellDist]?.[g.id] || g.base) * 0.85);
-        const profit = sellPrice - buyPrice;
-        if (profit > bestProfit) {
-          bestProfit = profit;
-          best = { good: g.id as GoodId, buyDistrict: buyDist, sellDistrict: sellDist, buyPrice, sellPrice, profit };
-        }
-      });
-    });
-  });
-
-  return best;
+  const [best] = marketBestRoutes(state);
+  if (!best) return null;
+  return {
+    good: best.good,
+    buyDistrict: best.from,
+    sellDistrict: best.to,
+    buyPrice: best.buy,
+    sellPrice: best.sell,
+    profit: best.perUnit,
+  };
 }
 
 /**

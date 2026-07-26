@@ -11,6 +11,7 @@ import { X, MapPin, Crown, Navigation, TrendingUp, Shield, Users, Star, Swords, 
 import { DISTRICT_IMAGES } from '@/assets/items';
 import { gameApi } from '@/lib/gameApi';
 import type { DistrictData } from '@/hooks/useDistrictData';
+import { travelCost, travelBlockedReason } from '@/game/cityTravel';
 
 interface DistrictTerritory {
   districtId: string;
@@ -44,7 +45,6 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
   const sel = DISTRICTS[selectedDistrict];
   const isHere = state.loc === selectedDistrict;
 
-  const hasChauffeur = state.crew.some(c => c.role === 'Chauffeur');
   const territory = districtInfo?.territories.find(t => t.districtId === selectedDistrict);
   const isGangOwned = territory && territory.gangId === districtInfo?.gangId;
   const isEnemyOwned = territory && territory.gangId !== districtInfo?.gangId;
@@ -53,10 +53,15 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
   const inGang = !!districtInfo?.gangId;
   const CONTROL_THRESHOLD = 100;
 
-  const travelCost = (hasChauffeur || isGangOwned) ? 0 : 50;
+  // The fare and the refusals both come from the same place the reducer uses now — this
+  // used to guess "€50 unless you have a Chauffeur", missing the racer, the storm and the
+  // speed upgrades, and it announced an arrival for trips the reducer silently refused.
+  const fare = travelCost(state, selectedDistrict);
+  const blocked = isHere ? null : travelBlockedReason(state, selectedDistrict);
 
   const handleTravel = () => {
     if (!isHere) {
+      if (blocked) return showToast(blocked, true);
       dispatch({ type: 'TRAVEL', to: selectedDistrict });
       showToast(`Aangekomen in ${sel.name}`);
     }
@@ -344,16 +349,21 @@ export function DistrictPopup({ districtData }: { districtData?: DistrictData })
 
           {/* Travel button */}
           {!isHere && (
-            <GameButton
-              variant="blood"
-              size="lg"
-              fullWidth
-              disabled={state.money < travelCost}
-              glow={state.money >= travelCost}
-              onClick={handleTravel}
-            >
-              {travelCost > 0 ? `REIS HIERHEEN — €${travelCost}` : 'REIS HIERHEEN (GRATIS)'}
-            </GameButton>
+            <>
+              <GameButton
+                variant="blood"
+                size="lg"
+                fullWidth
+                disabled={!!blocked}
+                glow={!blocked}
+                onClick={handleTravel}
+              >
+                {fare > 0 ? `REIS HIERHEEN — €${fare}` : 'REIS HIERHEEN (GRATIS)'}
+              </GameButton>
+              {blocked && (
+                <p className="text-[0.5rem] text-blood text-center mt-1.5">{blocked}</p>
+              )}
+            </>
           )}
         </div>
       </motion.div>

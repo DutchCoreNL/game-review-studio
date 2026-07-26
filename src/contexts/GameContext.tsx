@@ -25,6 +25,7 @@ import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { HEAT_BASE_DECAY } from '../game/heat';
 import { TRADE_HEAT_BUY, TRADE_HEAT_SELL } from '../game/market';
+import { canTravel, travelCost, TRAVEL_ENERGY, TRAVEL_COOLDOWN_MS } from '../game/cityTravel';
 import { bribeCost as prisonBribeCost, escapeChance, ESCAPE_FAIL_EXTRA_DAYS, ESCAPE_HEAT_PENALTY } from '../game/prison';
 import { streakPayoutMultiplier } from '../game/momentum';
 import { makeJob, rollJobReward, districtUnlocked, crewWorkPerSecond } from '../game/score';
@@ -636,13 +637,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'TRAVEL': {
-      if ((s.hidingDays || 0) > 0 || s.prison || s.hospital) return s;
-      // Cooldown check
-      if (isCooldownActive(s.travelCooldownUntil)) return s;
-      // Energy cost
-      if (!deductEnergy(s, ENERGY_COSTS.TRAVEL || 5)) return s;
-      // Set travel cooldown (30 seconds)
-      s.travelCooldownUntil = new Date(Date.now() + 30000).toISOString();
+      // Every refusal below used to be silent, and the fare was charged in a different
+      // order than it was checked: energy went out and the 30s cooldown was set before
+      // anyone asked whether you could pay, so a trip you could not afford still cost you
+      // both. canTravel() answers all of it up front, and the screens ask it too.
+      if (!canTravel(s, action.to)) return s;
+      const cost = travelCost(s, action.to);
+      if (!deductEnergy(s, ENERGY_COSTS.TRAVEL || TRAVEL_ENERGY)) return s;
+      s.travelCooldownUntil = new Date(Date.now() + TRAVEL_COOLDOWN_MS).toISOString();
       // Wanted check before travel
       if (Engine.isWanted(s) && !s.prison) {
         if (Engine.checkWantedArrest(s)) {
@@ -651,18 +653,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           return s;
         }
       }
-      const hasChauffeur = s.crew.some(c => c.role === 'Chauffeur');
-      const hasRacer = s.crew.some(c => c.specialization === 'racer');
-      const isOwned = s.ownedDistricts.includes(action.to);
-      const isStorm = s.weather === 'storm';
-      const speedBonus = Engine.getVehicleUpgradeBonus(s, 'speed');
-      // Speed upgrade reduces travel cost: -15/€ per bonus point (max 6 at level 3)
-      let baseCost = 50;
-      if (speedBonus > 0) baseCost = Math.max(0, baseCost - speedBonus * 8);
-      const cost = (hasChauffeur || hasRacer || isOwned || isStorm) ? 0 : baseCost;
-      if (s.money < cost) return s;
       s.money -= cost;
       if (cost > 0) s.stats.totalSpent += cost;
+      const speedBonus = Engine.getVehicleUpgradeBonus(s, 'speed');
       let travelHeat = 2;
       const activeV = VEHICLES.find(v => v.id === s.activeVehicle);
       if (activeV && (activeV.speed + speedBonus) >= 4) travelHeat = Math.floor(travelHeat * 0.5);

@@ -395,12 +395,20 @@ export function EventsSection({ report, state, delays, next }: EventsSectionProp
             <BellRing size={12} /> Markt Alarm
           </div>
           {report.triggeredAlerts.map((t: any, i: number) => (
-            <p key={i} className="text-[0.55rem] text-muted-foreground">
-              <span className="font-bold text-foreground">{t.goodName}</span> in {t.districtName}: €{t.actualPrice}
-              <span className={t.condition === 'below' ? ' text-emerald' : ' text-blood'}>
-                {' '}({t.condition === 'below' ? '≤' : '≥'} €{t.threshold})
-              </span>
-            </p>
+            t.route ? (
+              <p key={i} className="text-[0.55rem] text-muted-foreground">
+                <span className="font-bold text-foreground">{t.goodName}</span> — koop in {t.route.from} à €{t.actualPrice.toLocaleString()},
+                kwijt in <span className="text-foreground">{t.route.to}</span>
+                <span className="text-emerald font-bold"> +€{t.route.perUnit.toLocaleString()}/stuk</span>
+              </p>
+            ) : (
+              <p key={i} className="text-[0.55rem] text-muted-foreground">
+                <span className="font-bold text-foreground">{t.goodName}</span> in {t.districtName}: €{t.actualPrice}
+                <span className={t.condition === 'below' ? ' text-emerald' : ' text-blood'}>
+                  {' '}({t.condition === 'below' ? '≤' : '≥'} €{t.threshold})
+                </span>
+              </p>
+            )
           ))}
         </motion.div>
       )}

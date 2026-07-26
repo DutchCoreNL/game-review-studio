@@ -1307,6 +1307,8 @@ export interface TriggeredMarketAlert {
   condition: 'below' | 'above';
   threshold: number;
   actualPrice: number;
+  /** Set when the Slim Alarm spotted it: the run itself, not a bare price. */
+  route?: { from: string; to: string; perUnit: number };
 }
 
 // ========== AUCTION TYPES ==========

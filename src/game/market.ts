@@ -1,7 +1,8 @@
-import type { GameState, GoodId } from './types';
+import type { GameState, GoodId, DistrictId } from './types';
 import { marketSurcharge } from './heat';
 import { orgControlsDistrict, ORG_TURF_BUY_DISCOUNT, ORG_TURF_SELL_BONUS } from './organization';
 import { stashCapacity } from './score';
+import { DISTRICTS, GOODS } from './constants';
 
 /**
  * DE MARKT — één plek waar prijzen worden bepaald.
@@ -24,19 +25,20 @@ import { stashCapacity } from './score';
  * the reducer call it.
  */
 
-/** The listed price of one unit here today, before who you are changes it. */
-export function basePrice(state: GameState, gid: GoodId): number {
-  return state.prices?.[state.loc]?.[gid] || 0;
+/** The listed price of one unit today, before who you are changes it. Defaults to here. */
+export function basePrice(state: GameState, gid: GoodId, district?: DistrictId): number {
+  return state.prices?.[district || state.loc]?.[gid] || 0;
 }
 
 /**
  * What a seller charges you. Heat is the big lever: when you are hot, everyone you buy
  * from prices in the risk of dealing with you.
  */
-export function buyPrice(state: GameState, gid: GoodId): number {
-  let price = basePrice(state, gid);
+export function buyPrice(state: GameState, gid: GoodId, district?: DistrictId): number {
+  const where = district || state.loc;
+  let price = basePrice(state, gid, where);
   if (price <= 0) return 0;
-  if (orgControlsDistrict(state.org, state.loc)) {
+  if (orgControlsDistrict(state.org, where)) {
     price = price * (1 - ORG_TURF_BUY_DISCOUNT);
   }
   price = price * (1 + marketSurcharge(state.personalHeat || 0));
@@ -52,10 +54,13 @@ export function sellBonus(state: GameState): number {
   return charm * 0.02 + (state.rep || 0) / 5000;
 }
 
-/** What a fence pays you for one unit here. */
-export function sellPrice(state: GameState, gid: GoodId): number {
-  let price = basePrice(state, gid) * FENCE_CUT * (1 + sellBonus(state));
-  if (orgControlsDistrict(state.org, state.loc)) {
+/** What a fence pays you for one unit. Defaults to here. */
+export function sellPrice(state: GameState, gid: GoodId, district?: DistrictId): number {
+  const where = district || state.loc;
+  const listed = basePrice(state, gid, where);
+  if (listed <= 0) return 0;
+  let price = listed * FENCE_CUT * (1 + sellBonus(state));
+  if (orgControlsDistrict(state.org, where)) {
     price = price * (1 + ORG_TURF_SELL_BONUS);
   }
   return Math.max(1, Math.floor(price));
@@ -88,3 +93,67 @@ export function unitProfit(state: GameState, gid: GoodId): number {
 /** Heat from moving goods. Selling contraband is the loudest thing you do here. */
 export const TRADE_HEAT_BUY = 1;
 export const TRADE_HEAT_SELL = 2;
+
+/* ------------------------------------------------------------------ *
+ * ROUTES — koop daar, verkoop hier.
+ *
+ * Three separate places used to compute "the profit on this route" and all three
+ * disagreed. The analysis screen used `duurste × 0.85 × (1 + charme)`, the header strip
+ * on the market used `duurste × 0.85` with no charm at all, and the smart alarm used a
+ * third copy of the first one. None of them applied the heat surcharge to the buy side or
+ * the turf bonus to the sell side, so every profit this game quoted you was a number you
+ * could not actually realise — and the hotter you were, the further off it got.
+ *
+ * A route is now priced with the same two functions a real purchase and a real sale go
+ * through, so the figure on the card is the figure in your pocket.
+ * ------------------------------------------------------------------ */
+
+export interface TradeRoute {
+  good: GoodId;
+  /** Where it is cheap. */
+  from: DistrictId;
+  /** Where the fence pays best. */
+  to: DistrictId;
+  /** What one unit costs you there. */
+  buy: number;
+  /** What one unit fetches there. */
+  sell: number;
+  /** Margin on one unit. */
+  perUnit: number;
+  /** How many you could actually carry and afford — the size of the real run. */
+  units: number;
+  /** What the whole run is worth: `perUnit × units`. */
+  total: number;
+}
+
+const ALL_DISTRICTS = Object.keys(DISTRICTS) as DistrictId[];
+
+/** The best pair of districts to move one good between, today. */
+export function bestRouteFor(state: GameState, gid: GoodId): TradeRoute | null {
+  let best: TradeRoute | null = null;
+
+  for (const from of ALL_DISTRICTS) {
+    const buy = buyPrice(state, gid, from);
+    if (buy <= 0) continue;
+    for (const to of ALL_DISTRICTS) {
+      if (to === from) continue;
+      const sell = sellPrice(state, gid, to);
+      if (sell <= 0) continue;
+      const perUnit = sell - buy;
+      if (perUnit <= 0) continue;
+      if (best && perUnit <= best.perUnit) continue;
+      const units = Math.min(stashFree(state), Math.floor((state.money || 0) / buy));
+      best = { good: gid, from, to, buy, sell, perUnit, units, total: perUnit * units };
+    }
+  }
+
+  return best;
+}
+
+/** Every good worth moving today, richest run first. */
+export function bestRoutes(state: GameState): TradeRoute[] {
+  return GOODS
+    .map(g => bestRouteFor(state, g.id as GoodId))
+    .filter((r): r is TradeRoute => r !== null)
+    .sort((a, b) => (b.total - a.total) || (b.perUnit - a.perUnit));
+}

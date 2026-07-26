@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   basePrice, buyPrice, sellPrice, stashFree, maxAffordable, unitProfit,
+  bestRouteFor, bestRoutes,
   FENCE_CUT, TRADE_HEAT_BUY, TRADE_HEAT_SELL,
 } from './market';
+import { getBestTradeRoute } from './engine';
 import { marketSurcharge } from './heat';
 import { performTrade } from './engine';
 import { createInitialState } from './constants';
@@ -148,5 +150,75 @@ describe('performTrade', () => {
 describe('trade heat', () => {
   it('costs more to sell than to buy — moving the goods is the loud part', () => {
     expect(TRADE_HEAT_SELL).toBeGreaterThan(TRADE_HEAT_BUY);
+  });
+});
+
+describe('routes', () => {
+  /** Cheap in Sloppen, dear in Kroon. */
+  const spread = (over: Partial<GameState> = {}) => market({
+    prices: {
+      low: { weapons: 1000 },
+      crown: { weapons: 3000 },
+      port: { weapons: 1500 },
+      iron: { weapons: 1200 },
+      neon: { weapons: 1800 },
+    },
+    ...over,
+  } as any);
+
+  it('buys where it is cheap and sells where the fence pays most', () => {
+    const r = bestRouteFor(spread(), 'weapons' as GoodId)!;
+    expect(r.from).toBe('low');
+    expect(r.to).toBe('crown');
+  });
+
+  it('quotes the price you would really pay and really get, not the listed one', () => {
+    const s = spread();
+    const r = bestRouteFor(s, 'weapons' as GoodId)!;
+    expect(r.buy).toBe(buyPrice(s, 'weapons' as GoodId, 'low' as never));
+    expect(r.sell).toBe(sellPrice(s, 'weapons' as GoodId, 'crown' as never));
+    expect(r.perUnit).toBe(r.sell - r.buy);
+  });
+
+  it('prices the buy side with your heat — the old screen quoted a profit you could not get', () => {
+    // The analysis panel took the raw listed price on the buy side, so the surcharge you
+    // were about to be charged never appeared in the margin it promised you.
+    const cold = bestRouteFor(spread(), 'weapons' as GoodId)!;
+    const hot = bestRouteFor(spread({ personalHeat: 90 }), 'weapons' as GoodId)!;
+    expect(hot.buy).toBeGreaterThan(cold.buy);
+    expect(hot.perUnit).toBeLessThan(cold.perUnit);
+  });
+
+  it('sizes the run by what your stash and your capital allow', () => {
+    const s = spread({ money: 5000 });
+    const r = bestRouteFor(s, 'weapons' as GoodId)!;
+    expect(r.units).toBe(Math.floor(5000 / r.buy));
+    expect(r.total).toBe(r.perUnit * r.units);
+  });
+
+  it('offers nothing when there is no spread worth the fence cut', () => {
+    const flat = market({
+      prices: { low: { weapons: 1000 }, crown: { weapons: 1000 }, port: { weapons: 1000 }, iron: { weapons: 1000 }, neon: { weapons: 1000 } },
+    } as any);
+    expect(bestRouteFor(flat, 'weapons' as GoodId)).toBeNull();
+    expect(bestRoutes(flat)).toHaveLength(0);
+  });
+
+  it('never routes a good back to the district it came from', () => {
+    for (const r of bestRoutes(spread())) expect(r.from).not.toBe(r.to);
+  });
+
+  it('ranks the fattest run first', () => {
+    const rs = bestRoutes(spread());
+    for (let i = 1; i < rs.length; i++) expect(rs[i - 1].total).toBeGreaterThanOrEqual(rs[i].total);
+  });
+
+  it('agrees with the route the market header prints — there used to be four formulas', () => {
+    const s = spread();
+    const header = getBestTradeRoute(s)!;
+    const [top] = bestRoutes(s);
+    expect(header.buyDistrict).toBe(top.from);
+    expect(header.sellDistrict).toBe(top.to);
+    expect(header.profit).toBe(top.perUnit);
   });
 });
