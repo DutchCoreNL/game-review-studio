@@ -2,13 +2,13 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, MapPin, ArrowRight, Leaf, Navigation, Bell, BellRing, Plus, Trash2,
-  ChevronDown, ChevronUp, Plane, Package, Fuel, Zap, Boxes, Ban,
+  ChevronDown, ChevronUp, Plane, Package, Fuel, Zap, Boxes, Ban, Flame,
 } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { DISTRICTS, GOODS, GOOD_CATEGORIES, GOOD_SPOILAGE } from '@/game/constants';
 import { GOOD_IMAGES } from '@/assets/items';
 import type { GoodId, DistrictId, MarketAlert } from '@/game/types';
-import { buyPrice, sellPrice, bestRoutes, stashFree, type TradeRoute } from '@/game/market';
+import { buyPrice, sellPrice, bestRoutes, stashFree, tradeHeat, type TradeRoute } from '@/game/market';
 import { travelCost, travelBlockedReason, TRAVEL_ENERGY } from '@/game/cityTravel';
 import { SectionHeader } from '../ui/SectionHeader';
 import { GameBadge } from '../ui/GameBadge';
@@ -574,6 +574,7 @@ function RouteCard({ route, rank, free, here, fare, blocked, onGo }: {
   // The fare comes off the whole run once, not off every unit — so a thin margin on a
   // full stash still beats a fat one on two crates.
   const net = route.total - (atSource ? 0 : fare);
+  const heat = tradeHeat('buy', route.buy * route.units) + tradeHeat('sell', route.sell * route.units);
 
   return (
     <motion.div
@@ -619,9 +620,15 @@ function RouteCard({ route, rank, free, here, fare, blocked, onGo }: {
               {route.units === 0 && <span className="text-blood ml-0.5">— {free === 0 ? 'voorraad vol' : 'te weinig geld'}</span>}
             </span>
             {route.units > 0 && (
-              <span className={`font-bold ${net > 0 ? 'text-emerald' : 'text-blood'}`}>
-                hele rit {net > 0 ? '+' : ''}€{net.toLocaleString()}
-              </span>
+              <>
+                <span className={`font-bold ${net > 0 ? 'text-emerald' : 'text-blood'}`}>
+                  hele rit {net > 0 ? '+' : ''}€{net.toLocaleString()}
+                </span>
+                {/* A run this size is the loudest thing you can do; price it in up front. */}
+                <span className="flex items-center gap-0.5 text-blood">
+                  <Flame size={8} /> +{heat} hitte
+                </span>
+              </>
             )}
           </div>
         </div>

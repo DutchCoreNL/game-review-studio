@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   basePrice, buyPrice, sellPrice, stashFree, maxAffordable, unitProfit,
   bestRouteFor, bestRoutes,
-  FENCE_CUT, TRADE_HEAT_BUY, TRADE_HEAT_SELL,
+  FENCE_CUT, TRADE_HEAT_BUY, TRADE_HEAT_SELL, tradeHeat,
 } from './market';
 import { getBestTradeRoute } from './engine';
 import { marketSurcharge } from './heat';
@@ -150,6 +150,43 @@ describe('performTrade', () => {
 describe('trade heat', () => {
   it('costs more to sell than to buy — moving the goods is the loud part', () => {
     expect(TRADE_HEAT_SELL).toBeGreaterThan(TRADE_HEAT_BUY);
+  });
+
+  it('leaves the small early deals exactly as they were', () => {
+    expect(tradeHeat('buy', 500)).toBe(TRADE_HEAT_BUY);
+    expect(tradeHeat('sell', 500)).toBe(TRADE_HEAT_SELL);
+  });
+
+  it('grows with the money, so a full stash is not as quiet as one crate', () => {
+    // Heat used to be a flat point per transaction, which made the biggest possible load
+    // the cheapest way to trade. It stays sublinear on purpose — the flat base is what
+    // keeps small deals feeling the same — but a full-stash run has to cost real heat.
+    const crate = tradeHeat('sell', 4000);
+    const run = tradeHeat('sell', 220000);
+    expect(crate).toBe(TRADE_HEAT_SELL);
+    expect(run).toBeGreaterThanOrEqual(crate * 4);
+  });
+
+  it('makes a full run cost enough that you cannot chain them all day', () => {
+    // A median run is roughly €96k out and €220k back in. Against 3 heat of daily decay
+    // that has to bite, or trading is a free money printer with a 30-second cooldown.
+    const run = tradeHeat('buy', 96000) + tradeHeat('sell', 220000);
+    expect(run).toBeGreaterThan(8);
+    // ...but not so much that a single run puts you in the cells.
+    expect(run).toBeLessThan(25);
+  });
+
+  it('never goes backwards as the deal gets bigger', () => {
+    let last = 0;
+    for (let v = 0; v <= 500000; v += 10000) {
+      const h = tradeHeat('sell', v);
+      expect(h).toBeGreaterThanOrEqual(last);
+      last = h;
+    }
+  });
+
+  it('shrugs at a nonsensical negative total rather than cooling you off', () => {
+    expect(tradeHeat('sell', -50000)).toBe(TRADE_HEAT_SELL);
   });
 });
 

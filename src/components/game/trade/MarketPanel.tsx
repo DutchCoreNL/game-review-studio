@@ -14,7 +14,7 @@ import { orgControlsDistrict } from '@/game/organization';
 import { stashCapacity } from '@/game/score';
 import { marketSurcharge } from '@/game/heat';
 import {
-  buyPrice, sellPrice, basePrice as listedPrice, stashFree, maxAffordable, unitProfit,
+  buyPrice, sellPrice, basePrice as listedPrice, stashFree, maxAffordable, unitProfit, tradeHeat,
 } from '@/game/market';
 import { AutoFencePanel } from './AutoFencePanel';
 import { GameButton } from '../ui/GameButton';
@@ -65,11 +65,18 @@ export function MarketPanel() {
   const surcharge = Math.round(marketSurcharge(state.personalHeat || 0) * 100);
   const onTurf = orgControlsDistrict(state.org, state.loc);
 
-  /** What the fence would give you for everything you are holding, right here. */
-  const sellAllTotal = useMemo(() => GOODS.reduce((sum, g) => {
+  /**
+   * What the fence would give you for everything you are holding, right here — and what
+   * it costs you in heat. Emptying the stash is one button but several separate deals, so
+   * the heat is the sum of them, and this is the loudest thing on the screen.
+   */
+  const sellAll = useMemo(() => GOODS.reduce((acc, g) => {
     const owned = state.inventory?.[g.id as GoodId] || 0;
-    return sum + (owned > 0 ? sellPrice(state, g.id as GoodId) * owned : 0);
-  }, 0), [state]);
+    if (owned <= 0) return acc;
+    const value = sellPrice(state, g.id as GoodId) * owned;
+    return { money: acc.money + value, heat: acc.heat + tradeHeat('sell', value) };
+  }, { money: 0, heat: 0 }), [state]);
+  const sellAllTotal = sellAll.money;
 
   const route = useMemo(() => getBestTradeRoute(state), [state]);
 
@@ -222,6 +229,9 @@ export function MarketPanel() {
           <PackageOpen size={14} />
           Alles verkopen
           <span className="text-[0.5rem] opacity-80 font-normal">€{sellAllTotal.toLocaleString()}</span>
+          <span className="text-[0.5rem] opacity-80 font-normal flex items-center gap-0.5">
+            <Flame size={9} /> +{sellAll.heat}
+          </span>
         </motion.button>
       )}
 
@@ -325,6 +335,12 @@ export function MarketPanel() {
                       €{total.toLocaleString()}
                     </span>
                   )}
+                  {/* A big load is a loud load — say so before the button is pressed. */}
+                  {qty > 0 && tradeHeat(tradeMode, total) > 2 && (
+                    <span className="text-[0.45rem] text-blood tabular-nums flex items-center gap-0.5">
+                      <Flame size={7} /> +{tradeHeat(tradeMode, total)}
+                    </span>
+                  )}
                   <TradeRewardFloater
                     show={lastTrade?.gid === g.id}
                     amount={lastTrade?.gid === g.id ? lastTrade.amount : 0}
@@ -395,7 +411,8 @@ export function MarketPanel() {
       <ConfirmDialog
         open={!!pendingSellAll}
         title="Alles verkopen"
-        message={`Je hele voorraad gaat de deur uit voor ongeveer €${pendingSellAll?.totalGains.toLocaleString()}. Doorgaan?`}
+        message={`Je hele voorraad gaat de deur uit voor ongeveer €${pendingSellAll?.totalGains.toLocaleString()}.`
+          + ` Zoveel tegelijk verplaatsen kost je ${sellAll.heat} hitte. Doorgaan?`}
         confirmText="VERKOOP ALLES"
         cancelText="ANNULEREN"
         variant="warning"

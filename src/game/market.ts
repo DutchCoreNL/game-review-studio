@@ -90,9 +90,28 @@ export function unitProfit(state: GameState, gid: GoodId): number {
   return sellPrice(state, gid) - avgCost;
 }
 
+/* ------------------------------------------------------------------ *
+ * HITTE — wat de straat merkt.
+ *
+ * Heat was a flat point per transaction: one for a buy, two for a sale, regardless of
+ * whether you moved a single blister of pills or forty crates of stolen art. So the
+ * cheapest way to trade was always the biggest possible load, and a full-stash run — the
+ * most conspicuous thing you can do in this game — was as quiet as pocketing one crate.
+ *
+ * It scales with the money now, not the number of clicks. Small early trades are
+ * untouched: under €50.000 a deal still costs exactly what it always did.
+ * ------------------------------------------------------------------ */
+
 /** Heat from moving goods. Selling contraband is the loudest thing you do here. */
 export const TRADE_HEAT_BUY = 1;
 export const TRADE_HEAT_SELL = 2;
+/** Every this much money through your hands in one deal doubles down on that. */
+export const TRADE_HEAT_PER_EURO = 50000;
+
+export function tradeHeat(mode: 'buy' | 'sell', value: number): number {
+  const base = mode === 'buy' ? TRADE_HEAT_BUY : TRADE_HEAT_SELL;
+  return base * (1 + Math.floor(Math.max(0, value) / TRADE_HEAT_PER_EURO));
+}
 
 /* ------------------------------------------------------------------ *
  * ROUTES — koop daar, verkoop hier.

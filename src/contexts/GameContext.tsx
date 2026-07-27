@@ -24,7 +24,7 @@ import {
 import { resolveRacketTick, RACKET_BY_ID } from '../game/rackets';
 import { rollIncident, ATTENTION_DECAY_PER_DAY, type ActiveIncident, type IncidentOutcome } from '../game/incidents';
 import { HEAT_BASE_DECAY } from '../game/heat';
-import { TRADE_HEAT_BUY, TRADE_HEAT_SELL } from '../game/market';
+import { tradeHeat } from '../game/market';
 import { canTravel, travelCost, TRAVEL_ENERGY, TRAVEL_COOLDOWN_MS } from '../game/cityTravel';
 import { bribeCost as prisonBribeCost, escapeChance, ESCAPE_FAIL_EXTRA_DAYS, ESCAPE_HEAT_PENALTY } from '../game/prison';
 import { streakPayoutMultiplier } from '../game/momentum';
@@ -591,8 +591,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!tradeResult.success) return s;
       // Moving goods is noticed. This went to `addVehicleHeat`, which writes to the
       // retired `ownedVehicles` array — so trading generated no heat at all, and the
-      // market's heat surcharge was a tax you could never cause.
-      Engine.addPersonalHeat(s, action.mode === 'buy' ? TRADE_HEAT_BUY : TRADE_HEAT_SELL);
+      // market's heat surcharge was a tax you could never cause. It was then a flat point
+      // per transaction, so forty crates were as quiet as one.
+      Engine.addPersonalHeat(s, tradeHeat(action.mode, Math.abs(s.money - moneyBefore)));
       Engine.recomputeHeat(s);
       // District rep gain for trading
       s.districtRep[s.loc] = Math.min(100, (s.districtRep[s.loc] || 0) + 1);
